@@ -58,6 +58,8 @@ def scan_library_folder(
     *,
     import_source: str = LIBRARY_SCAN_SOURCE,
     on_progress: Callable[[int, int, str], None] | None = None,
+    vector_store,
+    embedding_model,
 ) -> dict[str, Any]:
     """Reconcile ``folder``'s ``*.pdf`` files with the library. Returns
     ``{added:[{paper_id, chunk_ids}], relinked:[…], unchanged:[…], removed:[…], errors:[…]}``. **Each new file is ingested +
@@ -195,6 +197,8 @@ def scan_library_folder(
                     original_path=str(path),
                     import_source=import_source,
                     role="primary",
+                    vector_store=vector_store,
+                    embedding_model=embedding_model,
                 )
                 return paper_id, res
 

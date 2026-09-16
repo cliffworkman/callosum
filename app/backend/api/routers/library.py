@@ -172,7 +172,11 @@ def _run_scan_job(app: FastAPI, job_id: str, folder: str) -> None:
         # Phase 1 (extraction + insert) commits per file (inc A2, inside scan_library_folder); phase 2 (enrich +
         # embed) commits per paper inside _process_scan_result — the write lock is released between files + papers.
         scanned = scan_library_folder(
-            engine, folder, on_progress=lambda i, n, name: jobs.mark_progress(job_id, i, n, f"Reading {name}")
+            engine,
+            folder,
+            on_progress=lambda i, n, name: jobs.mark_progress(job_id, i, n, f"Reading {name}"),
+            vector_store=store,
+            embedding_model=model,
         )
         _process_scan_result(
             engine,
@@ -280,7 +284,11 @@ def _run_watched_rescan_job(app: FastAPI, job_id: str) -> None:
                     error_details.append(ScanError(path=folder, error="watched folder no longer exists"))
                 continue
             scanned = scan_library_folder(
-                engine, folder, on_progress=lambda i, n, name: jobs.mark_progress(job_id, i, n, f"Reading {name}")
+                engine,
+                folder,
+                on_progress=lambda i, n, name: jobs.mark_progress(job_id, i, n, f"Reading {name}"),
+                vector_store=store,
+                embedding_model=model,
             )
             _process_scan_result(
                 engine,

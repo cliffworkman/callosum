@@ -119,9 +119,18 @@ def _run_ocr_job(app: FastAPI, job_id: str, paper_id: int) -> None:
             # original file stays on disk, just no longer the primary PDF the viewer + quote-location read).
             conn.execute(update(attachments).where(attachments.c.paper_id == paper_id).values(role="secondary"))
             result = attach_pdf_to_paper(
-                conn, paper_id, out_path, storage_mode="managed", import_source=OCR_IMPORT_SOURCE, role="primary"
+                conn,
+                paper_id,
+                out_path,
+                storage_mode="managed",
+                import_source=OCR_IMPORT_SOURCE,
+                role="primary",
+                vector_store=_vector_store(app),
+                embedding_model=_embedding_model(app),
             )
             chunk_ids = result["chunk_ids"]
+            # attach_pdf_to_paper already embedded these; this re-run is an idempotent no-op that exists
+            # only to drive the visible "Embedding text" progress for a long OCR job.
             embed_chunks(
                 conn,
                 model=_embedding_model(app),

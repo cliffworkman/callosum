@@ -96,6 +96,8 @@ def import_oa_pdf(
     *,
     paper_id: int,
     crossref_client: Any | None = None,
+    vector_store: Any,
+    embedding_model: Any,
 ) -> dict[str, Any]:
     """Move a validated OA PDF into the managed library dir (named per the library convention), attach it to
     the EXISTING paper, label its OA color/version/source, and enrich metadata. Returns a result dict."""
@@ -112,6 +114,8 @@ def import_oa_pdf(
         original_path=str(managed_path),
         import_source=f"oa:{location.source}",
         role="primary",
+        vector_store=vector_store,
+        embedding_model=embedding_model,
     )
     set_attachment_oa_labels(
         conn,

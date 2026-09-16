@@ -20,6 +20,7 @@ from app.backend.acquisition.registry import build_default_registry
 from app.backend.acquisition.wanted import run_recheck
 from app.backend.api.dependencies import get_connection, get_engine
 from app.backend.api.job_store import JobStore
+from app.backend.api.routers.library import _embedding_model, _vector_store
 from app.backend.persistence import wanted_repo
 from app.backend.persistence.repository import get_paper
 from app.backend.persistence.sqlite_retry import run_write
@@ -248,7 +249,13 @@ def _run_recheck_job(app: FastAPI, job_id: str) -> None:
     try:
         # app.state.acquire_registry is a test seam (a fake registry); default builds the real cascade.
         registry = app.state.acquire_registry or build_default_registry(openalex_client=_openalex_client(app))
-        summary = run_recheck(app.state.engine, registry, crossref_client=app.state.crossref_client)
+        summary = run_recheck(
+            app.state.engine,
+            registry,
+            crossref_client=app.state.crossref_client,
+            vector_store=_vector_store(app),
+            embedding_model=_embedding_model(app),
+        )
         jobs.mark_done(job_id, RecheckJobResponse(job_id=job_id, status="done", summary=RecheckSummary(**summary)))
     except Exception as exc:
         jobs.mark_error(job_id, f"{type(exc).__name__}: {exc}")

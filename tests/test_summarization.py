@@ -36,6 +36,7 @@ from app.backend.summarization.pipeline import SummaryScope, summarize_scope
 from app.backend.summarization.verification import EmbeddingSupportScorer, LocalCitationVerifier, VerificationConfig
 from integrations.gemini import DataEgressDisabledError, GeminiConfig, GeminiSummaryGenerator
 from integrations.gemini.generator import SUMMARY_PROMPT_VERSION, _prompt
+from tests.api_helpers import indexing_collaborators
 
 
 @dataclass(frozen=True)
@@ -679,7 +680,7 @@ def _migrated_engine(tmp_path: Path):
 
 def _ingest_summary_fixture(conn, tmp_path: Path) -> dict[str, int | str]:
     pdf_path = _make_summary_pdf(tmp_path / "summary-fixture.pdf")
-    ingest = ingest_pdf_scaffold(conn, pdf_path, title="Summary Fixture")
+    ingest = ingest_pdf_scaffold(conn, pdf_path, title="Summary Fixture", **indexing_collaborators())
     chunk_rows = list(conn.execute(select(chunks).where(chunks.c.paper_id == ingest["paper_id"])).mappings())
     by_text = {row["text"]: row for row in chunk_rows}
     alpha_chunk = by_text["Alpha beta evidence supports the claim."]

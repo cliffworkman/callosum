@@ -49,6 +49,17 @@ class ApiFakeEmbeddingModel:
         return [_api_vector(normalize_text(text, self.normalization)) for text in texts]
 
 
+def indexing_collaborators() -> dict:
+    """The ``vector_store`` / ``embedding_model`` pair every PDF-attach path now requires.
+
+    ``attach_pdf_to_paper`` (and its ``ingest_pdf_scaffold`` / ``scan_library_folder`` wrappers) take
+    these as REQUIRED keyword arguments so indexing is a property of attaching rather than a
+    convention each front end must remember. Tests that do not assert on embeddings still have to
+    supply them — that is the forcing function working, not friction to route around.
+    """
+    return {"vector_store": InMemoryVectorStore(), "embedding_model": ApiFakeEmbeddingModel()}
+
+
 @dataclass(frozen=True)
 class ConstantSupportScorer:
     value: float = 1.0

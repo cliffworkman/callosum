@@ -31,6 +31,7 @@ from app.backend.acquisition.fetch import MAX_OA_PDF_BYTES, library_dir
 from app.backend.api.dependencies import get_connection, get_engine
 from app.backend.api.job_store import JobStore
 from app.backend.api.local_only import require_local_file_access
+from app.backend.api.routers.library import _embedding_model, _vector_store
 from app.backend.methods.evidence_anchors import anchor_evidence, pdf_attachment_ids_for_chunks
 from app.backend.methods.registration_references import extract_registration_references, normalize_manual_reference
 from app.backend.methods.transparency import detect_transparency
@@ -291,7 +292,16 @@ async def attach_local_registration_pdf(
         managed_path = managed_root / safe_name
         shutil.move(str(temp_path), str(managed_path))
         try:
-            result = run_write(engine, lambda conn: _attach_and_confirm_local(conn, paper_id, managed_path))
+            result = run_write(
+                engine,
+                lambda conn: _attach_and_confirm_local(
+                    conn,
+                    paper_id,
+                    managed_path,
+                    vector_store=_vector_store(request.app),
+                    embedding_model=_embedding_model(request.app),
+                ),
+            )
         except Exception:
             managed_path.unlink(missing_ok=True)
             raise
@@ -312,7 +322,9 @@ def _safe_registration_filename(filename: str, existing_names: set[str]) -> str:
     return candidate
 
 
-def _attach_and_confirm_local(conn: Connection, paper_id: int, managed_path: Path) -> dict:
+def _attach_and_confirm_local(
+    conn: Connection, paper_id: int, managed_path: Path, *, vector_store, embedding_model
+) -> dict:
     result = attach_pdf_to_paper(
         conn,
         paper_id,
@@ -321,6 +333,8 @@ def _attach_and_confirm_local(conn: Connection, paper_id: int, managed_path: Pat
         original_path=str(managed_path),
         import_source="registration:manual-local",
         role="preregistration",
+        vector_store=vector_store,
+        embedding_model=embedding_model,
     )
     result["registration_link_id"] = confirm_local_registration_attachment(conn, paper_id, result["attachment_id"])
     return result

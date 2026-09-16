@@ -64,7 +64,9 @@ class _FakeImport:
     def __init__(self):
         self.calls = []
 
-    def __call__(self, conn, location, temp, *, paper_id, crossref_client=None):
+    def __call__(
+        self, conn, location, temp, *, paper_id, crossref_client=None, vector_store=None, embedding_model=None
+    ):
         self.calls.append({"paper_id": paper_id, "location": location})
         return {"paper_id": paper_id, "attachment_id": 1, "filename": "x.pdf"}
 
