@@ -90,5 +90,17 @@
     ${If} $8 == $9
       DeleteRegKey HKCU "${CONNECTOR_EDGE_KEY}"
     ${EndIf}
+
+    ; The manifest at $9 is not a Tauri bundle resource (unlike connector\callosum-connector.exe,
+    ; which the stock template's own per-resource Delete loop already removes) -- it is written
+    ; directly by NSIS_HOOK_POSTINSTALL above, so nothing else on the uninstall path ever cleans it
+    ; up. Left alone, it silently defeats the stock template's own final `RMDir "$INSTDIR"` (a
+    ; plain, non-recursive RMDir that only succeeds on an empty directory), leaving a stray
+    ; connector\ folder and $INSTDIR itself behind after an otherwise-complete uninstall -- found
+    ; by an actual local install/uninstall run, not assumed. $9 is a path THIS macro computed from
+    ; our own constants, never a value read from anywhere untrusted, so no separate ownership check
+    ; is needed the way the registry deletions above require one.
+    Delete "$9"
+    RMDir "$INSTDIR\connector"
   ${EndIf}
 !macroend
