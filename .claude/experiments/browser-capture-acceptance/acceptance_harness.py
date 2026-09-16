@@ -166,7 +166,9 @@ def main() -> int:
         _clear_dev_connector()
         _register_dev_connector()
         if _dev_connector_binary() is None:
-            fail("dev connector binary not found -- run `cargo build --bin callosum_connector` first")
+            fail(
+                "dev connector binary not found -- run `cargo build --manifest-path app/desktop-shell/connector-host/Cargo.toml` first"
+            )
 
         subprocess.run(
             [sys.executable, str(ROOT / "app" / "desktop-shell" / "extension" / "dev" / "build_dev_manifest.py")],

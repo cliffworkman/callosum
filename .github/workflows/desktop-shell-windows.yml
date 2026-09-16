@@ -63,7 +63,9 @@ jobs:
       - name: Cache Rust build artifacts
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: app/desktop-shell/src-tauri
+          workspaces: |
+            app/desktop-shell/src-tauri
+            app/desktop-shell/connector-host
 
       - name: Install uv
         uses: astral-sh/setup-uv@v9.0.0

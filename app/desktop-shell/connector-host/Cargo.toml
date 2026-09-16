@@ -1,0 +1,26 @@
+[package]
+name = "callosum-connector"
+version = "0.5.15"
+description = "Callosum browser-capture connector host — a thin Chrome/Edge native-messaging host, launched fresh by the browser per exchange (#61 Phase 2)"
+authors = ["Cliff Workman"]
+edition = "2021"
+
+# Deliberately its OWN Cargo package, not a second [[bin]] inside src-tauri's package: a real clean-
+# runner build proved that having two [[bin]] targets in the SAME package as the Tauri app confuses
+# `cargo tauri build`'s main-binary resolution -- even with `mainBinaryName` explicitly set, the
+# installer ended up shipping THIS binary's compiled bytes under callosum-shell.exe's name, so the
+# real application silently never started (it exited before its own `run()` ever ran). Reproduced
+# and confirmed locally against the real toolchain: `cargo build --bin callosum-shell` alone (this
+# binary absent from the invocation) produces the correct ~16.8 MB app binary; the same build via
+# the full `cargo tauri build` pipeline, with this second [[bin]] present in-package, produces a
+# ~3.8 MB file at that path — this binary's own size. A separate package removes the ambiguity at
+# its root: `cargo tauri build` never sees this binary exist in the package it is building at all.
+
+[[bin]]
+name = "callosum_connector"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "blocking"] }

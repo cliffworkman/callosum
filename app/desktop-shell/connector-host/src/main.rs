@@ -13,6 +13,10 @@
 //! followed by that many bytes of UTF-8 JSON, on stdin/stdout. `std::io::Stdout` writes raw bytes
 //! with no text-mode translation (unlike Python's default stdout on Windows), so no binary-mode
 //! reconfiguration is needed here.
+//!
+//! Its own Cargo package, deliberately -- see this crate's Cargo.toml for why sharing a package
+//! with the Tauri app (as a second `[[bin]]`) broke `cargo tauri build`'s main-binary selection on
+//! a real clean-runner build.
 
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -30,7 +34,7 @@ const APP_IDENTIFIER: &str = "com.callosum.desktop";
 /// tooling, and tests) reads from the same file -- see that file's own `_comment` fields for why
 /// `production_extension_ids` starts empty. Embedded at compile time: this is a released binary,
 /// not something that reads its own source tree at runtime.
-const IDENTITY_JSON: &str = include_str!("../../../connector/identity.json");
+const IDENTITY_JSON: &str = include_str!("../../connector/identity.json");
 
 #[derive(Deserialize)]
 struct Identity {

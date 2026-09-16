@@ -74,9 +74,12 @@ def _clear_local_ai_descriptor(dev_dir: Path) -> None:
 
 
 def _dev_connector_binary() -> Path | None:
-    src_tauri = ROOT / "app" / "desktop-shell" / "src-tauri"
+    # Its own Cargo package (app/desktop-shell/connector-host/), not a second [[bin]] inside
+    # src-tauri -- see connector-host/Cargo.toml for why sharing a package with the Tauri app broke
+    # `cargo tauri build`'s main-binary selection on a real clean-runner build.
+    connector_host = ROOT / "app" / "desktop-shell" / "connector-host"
     for profile in ("debug", "release"):  # dev iteration typically leaves a debug build; either works
-        candidate = src_tauri / "target" / profile / "callosum_connector.exe"
+        candidate = connector_host / "target" / profile / "callosum_connector.exe"
         if candidate.is_file():
             return candidate
     return None
@@ -104,7 +107,7 @@ def _register_dev_connector() -> None:
     if binary is None:
         print(
             "[run_dev] browser-capture dev connector: skipped -- build it first with "
-            "`cargo build --bin callosum_connector --manifest-path app/desktop-shell/src-tauri/Cargo.toml`"
+            "`cargo build --manifest-path app/desktop-shell/connector-host/Cargo.toml`"
         )
         return
 
