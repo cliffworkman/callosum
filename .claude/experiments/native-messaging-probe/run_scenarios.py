@@ -34,7 +34,9 @@ def set_registry(path_to_manifest: str | None) -> None:
     if path_to_manifest is None:
         ps(f"Remove-Item -Path '{REG_KEY}' -Force -ErrorAction SilentlyContinue")
         return
-    ps(f"New-Item -Path '{REG_KEY}' -Force | Out-Null; Set-ItemProperty -Path '{REG_KEY}' -Name '(Default)' -Value '{path_to_manifest}'")
+    ps(
+        f"New-Item -Path '{REG_KEY}' -Force | Out-Null; Set-ItemProperty -Path '{REG_KEY}' -Name '(Default)' -Value '{path_to_manifest}'"
+    )
 
 
 def write_manifest(host_path: Path, origin_id: str) -> None:

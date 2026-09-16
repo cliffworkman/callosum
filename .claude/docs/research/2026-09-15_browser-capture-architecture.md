@@ -1069,3 +1069,176 @@ Reported as required, whether or not fixing them is in scope:
 8. **Is native messaging still recommended?** Yes, now on evidence (section 24).
 9. **Exact remaining prerequisite before the Phase 1 extension** — the instance-role signal on
    `/health` plus its env var in the shell. Everything else Phase 1 needs is now in place.
+
+---
+
+# Part III — The instance-role contract (2026-09-15, third pass)
+
+The last known prerequisite before Phase 1. Section 23 found that port and version cannot prove a
+responding backend is the canonical UI instance; this closes that gap and nothing else.
+
+## 27. The contract
+
+**Environment variable:** `CALLOSUM_INSTANCE_ROLE`, set **explicitly by every launcher at spawn**.
+
+**Vocabulary** (hyphenated, matching `PROCESSING_TIERS`, `ATTACHMENT_STORAGE_MODES`, `DocumentRole`):
+
+| Role | Process | May receive browser capture? |
+|---|---|---|
+| `ui` | the canonical UI backend | **yes** — the only one |
+| `word-https` | Word add-in companion on fixed 8443, Remote Access gate force-disabled | no |
+| `tunnel-target` | Quick Tunnel's fail-closed origin | no |
+| *(absent)* | a bare `uvicorn`, an older packaged build, a launcher that forgot | **no** — the fail-safe |
+
+**Where it is set**
+
+| Launcher | File | Role |
+|---|---|---|
+| Packaged UI backend | `src-tauri/src/backend.rs` → `ui_backend_command` | `ui` |
+| Packaged Word HTTPS | `src-tauri/src/backend.rs` → `word_https_command` | `word-https` |
+| Packaged tunnel target | `src-tauri/src/quick_tunnel.rs` → `tunnel_target_command` | `tunnel-target` |
+| Dev supervisor (HTTP child) | `tools/run_dev.py` | `ui` |
+| Dev Word HTTPS | `tools/run_https.py` | `word-https` |
+| Packaging smoke test | `app/desktop-shell/packaging/smoke_test_backend.py` | `ui` |
+| QA harness, e2e smoke, LibreOffice roundtrip | — | *(none, deliberately)* |
+
+Dev launchers declare roles so **development exercises the same product contract**, not a dev-only
+shortcut. The three test harnesses are deliberately roleless: they are not connector targets, and the
+null default doing its job there is the point rather than an oversight.
+
+**Where it is exposed:** `GET /health` → `instance_role`. That surface was re-evaluated, not assumed:
+
+- `health.py` is already the canonical process-identity module — `reported_app_version()` lives there
+  and is reused by `diagnostics.py`, `feedback.py` and `paper_files.py`;
+- `/health` is in `access_control._EXEMPT_PATHS`, so a connector can identify an instance **before**
+  it holds any credential;
+- the packaging smoke test already polls `/health`, and now asserts the role there too — packaged
+  coverage against a real bundled runtime, in CI, for free.
+
+No capture endpoint was invented to carry it.
+
+## 28. Two properties that are deliberate, not incidental
+
+**Role is process identity and encodes nothing about the build.** `"ui"` means exactly the same thing
+in a dev checkout and a packaged install. Build identity stays a separate axis (`app_version`, with
+its deliberate `dev-` prefix). Eligibility is therefore a **policy the consumer composes**:
+
+- a **production** connector host requires `instance_role == "ui"` **and** an approved packaged /
+  release identity;
+- an explicitly **development** connector host may accept `instance_role == "ui"` **and** a dev
+  identity.
+
+The backend reports both facts and enforces neither. Baking "non-dev build" into the meaning of
+`"ui"` would have made dev unable to emulate the product contract, or weakened production to let dev
+through — so the two axes stay orthogonal.
+
+**Role is never inferred from a behavior flag.** The Word HTTPS child still carries
+`CALLOSUM_DISABLE_REMOTE_ACCESS=1` and the tunnel target still carries `CALLOSUM_TUNNEL_TARGET=1`.
+Those remain independent controls; a connector refuses those children **by role**, not by inferring
+intent from an unrelated env var. A Rust test pins that separation.
+
+**Missing or unrecognized → `null`, never a guess.** A dedicated test asserts `null != "ui"`. An
+unrecognized value additionally warns **once per process** (`lru_cache`), because a connector may poll
+`/health` frequently and a bad env var must neither flood the log nor brick a user's install.
+
+## 29. Verification
+
+**Rust — `cargo test` in `src-tauri`: 56 passed, 0 failed** (5 new). Command construction was extracted
+into `ui_backend_command` / `word_https_command` / `tunnel_target_command` so `Command::get_envs()` can
+assert what actually launches — mirroring `word_https_args`, which the file had already extracted for
+exactly this reason. The spawn paths call those builders, so test and reality cannot drift.
+
+- `each_backend_child_declares_its_instance_role`
+- `instance_roles_are_pairwise_distinct` — siblings stay distinguishable while serving the same app
+- `instance_role_is_independent_of_the_remote_access_control`
+- `ui_backend_argv_stays_loopback_on_the_picked_port` — guards the extraction
+- `tunnel_target_declares_its_instance_role`
+
+Pre-existing `word_https_argv_is_fixed_loopback_tls` and `remote_access_opt_in_is_explicit_true` stay
+green.
+
+**Python — 125 passed** across `test_health.py` (26, incl. 8 new), `test_cors_boundary.py`,
+`test_access_control.py`, `test_admission_indexing.py`, `test_persistence_core.py`,
+`test_mobile_ingress.py`, `test_feedback_relay.py`, `test_diagnostics.py`, `test_run_https.py`.
+
+Note a build-environment prerequisite discovered here: `cargo test` fails outright until
+`packaging/stage_source.py` has staged `resources/callosum-src`, because the Tauri build script
+resolves that resource path. Worth knowing before anyone runs the Rust tests in a fresh worktree.
+
+## 30. Packaged verification (Windows, by observation)
+
+Built from this branch: `npm install` + `tauri build --no-bundle` (release, 10m42s). The binary was
+run **in place** — the installed 0.5.15 was never replaced.
+
+**Isolation was whole-directory, and the real library was never opened.** Procedure
+(`.claude/experiments/native-messaging-probe/observe_packaged_role.py`): refuse to run while installed
+Callosum is running → rename the real `%APPDATA%\com.callosum.desktop` aside → let the test build
+create a **fresh disposable** app-data directory → observe → delete the disposable directory →
+restore the real one unchanged. No SQLite snapshot-and-restore, and the script **stops rather than
+falling back** if any isolation step fails. This works because the managed Python runtime lives under
+**Local** app data while the library lives under **Roaming**, so renaming Roaming isolates the library
+and leaves the runtime resolvable.
+
+Verified after each run: `callosum.sqlite` back at 67,383,296 bytes with its original timestamp, and
+`last-port.txt` back to `53459`. No leftover parked directories.
+
+| Observation | Result |
+|---|---|
+| Packaged UI backend reports its role | **`instance_role: "ui"`** ✅ |
+| `app_version` alongside it | `"0.5.15"` |
+| Port used | `54848` — a fresh random port, neither the installed build's `53459` nor any dev port |
+| **Connector host resolves the canonical backend** | **`resolved: true`, `reason: "ok"`, `ports_probed: 0`** ✅ |
+| Word HTTPS child reports `word-https` | **UNOBSERVED** — `word_https_configured()` requires dev certs that are not installed on this machine |
+| Tunnel target reports `tunnel-target` | **UNOBSERVED** — needs cloudflared plus Remote Access enabled, which would alter real user settings |
+| macOS / Linux | **UNTESTED** — not assumed equivalent |
+
+The two unobserved siblings are covered by test rather than observation, and the distinction is worth
+keeping straight: `cargo test` proves the **shell sets** their roles, and `tests/test_health.py` proves
+the **backend reports** any configured role. What has not been watched end to end is a packaged shell
+actually spawning those two children. Reported as unobserved, not inferred.
+
+**The connector-host resolution, end to end.** The real probe host was driven over its stdio framing,
+exactly as a browser launches it, while the packaged app was up:
+
+```json
+{"resolved": true, "reason": "ok", "port": 54848,
+ "port_file": "…\\com.callosum.desktop\\last-port.txt",
+ "instance_role": "ui", "app_version": "0.5.15", "ports_probed": 0}
+```
+
+Its resolution is: read the authoritative port from `last-port.txt` → ask **that port only** for
+`/health` → require `instance_role == "ui"`. Deliberately returned alongside, not folded in:
+`app_version`, so the consumer composes its own eligibility policy.
+
+## 31. Exit question
+
+> **Can a future browser connector host deterministically identify the one packaged Callosum backend
+> permitted to receive browser capture, without port probing or reliance on development conventions?**
+
+**Yes — demonstrated, not argued.** On a real packaged build the host resolved the canonical UI
+backend with `ports_probed: 0`, reading the port from packaged state and confirming the role. No dev
+port, no checkout path, and no dev convention participates in the shipped path. A sibling cannot pass
+the check (`word-https` / `tunnel-target` are distinct values), and a process that declares nothing
+reports `null`, which fails it too — so the absence of a role can never be mistaken for the canonical
+instance.
+
+Two honest limits on that "yes": the sibling *refusals* are proven by test rather than watched in a
+packaged run, and only Windows has been exercised.
+
+**Phase 1 browser capture is unblocked.**
+
+**The exact next increment** — the Phase 1 vertical slice, in the order the research document's §13
+sets out, now that its prerequisite is met:
+
+1. the connector host proper (production, re-derived against the packaged contract — the probe is
+   throwaway and stays that way), registered by the installer under `HKCU`;
+2. per-install pairing, issued over the native channel;
+3. the bounded `/capture/*` router, served **only** when `instance_role == "ui"`, with the Host-header,
+   origin, byte-cap and `%PDF-` validation the research document specifies;
+4. the minimal Chromium extension (`activeTab` + explicit click), generic metadata / DOI / direct-PDF
+   capture into the `CaptureEnvelope`;
+5. **capture refuses any paper that already has a PDF** — the Option B constraint from §21 stands until
+   the null-`attachment_id` annotation bleed and #72's detach/delete land.
+
+That increment trips the security audit gate (`CLAUDE.md` items 1, 3, 4, 5, and 6 for the new host),
+so it requires `.claude/security-audits/YYYY-MM-DD_browser-capture.md` before it is called done.

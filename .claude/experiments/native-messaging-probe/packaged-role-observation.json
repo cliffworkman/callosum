@@ -1,0 +1,29 @@
+{
+  "disposable_app_data": "C:\\Users\\cliff\\AppData\\Roaming\\com.callosum.desktop",
+  "last_port_txt": 54848,
+  "health": {
+    "app": "callosum",
+    "verification_version": "local-verifier-v1",
+    "db_reachable": true,
+    "db_migrated": true,
+    "db_revision": "0083_critical_read_snapshots",
+    "db_head_revision": "0083_critical_read_snapshots",
+    "read_only": false,
+    "onboarding_completed": true,
+    "onboarding_version": 2,
+    "onboarding_current_version": 2,
+    "app_version": "0.5.15",
+    "instance_role": "ui"
+  },
+  "connector_host_resolution": {
+    "resolved": true,
+    "reason": "ok",
+    "port": 54848,
+    "port_file": "C:\\Users\\cliff\\AppData\\Roaming\\com.callosum.desktop\\last-port.txt",
+    "instance_role": "ui",
+    "app_version": "0.5.15",
+    "ports_probed": 0
+  },
+  "instance_role": "ui",
+  "app_version": "0.5.15"
+}
