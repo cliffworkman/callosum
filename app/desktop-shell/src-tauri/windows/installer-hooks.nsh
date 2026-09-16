@@ -1,7 +1,15 @@
 ; connector-identity.generated.nsh is produced by packaging/generate_connector_nsh.py from
 ; connector/identity.json -- CONNECTOR_NATIVE_HOST_NAME and the CONNECTOR_WRITE_ALLOWED_ORIGINS_JSON
 ; macro come from there, not repeated here.
-!include "connector-identity.generated.nsh"
+;
+; ${__FILEDIR__} (not a bare relative path) is required here: Tauri's bundler stages/includes this
+; hook file from a generated main installer.nsi that lives in a completely different build
+; directory (target/release/nsis/x64/), so a bare "connector-identity.generated.nsh" resolves
+; against THAT script's directory, not this file's own -- confirmed by a real clean-runner build
+; failure ("!include: could not find: connector-identity.generated.nsh") even though the generator
+; had already written the file to this exact directory moments earlier. __FILEDIR__ is NSIS's own
+; built-in for "the directory of the file currently being processed," which is exactly this one.
+!include "${__FILEDIR__}\connector-identity.generated.nsh"
 
 !define CONNECTOR_CHROME_KEY "Software\Google\Chrome\NativeMessagingHosts\${CONNECTOR_NATIVE_HOST_NAME}"
 !define CONNECTOR_EDGE_KEY "Software\Microsoft\Edge\NativeMessagingHosts\${CONNECTOR_NATIVE_HOST_NAME}"
