@@ -30,6 +30,7 @@ from app.backend.api.routers import (
     annotations,
     axes,
     beyond_library_saved,
+    capture,
     citation_context,
     citation_counts,
     citation_equity,
@@ -502,6 +503,8 @@ def create_app(
     api.include_router(usage.router)  # /usage/* — local usage instrumentation, zero egress (backlog #38A, inc 450)
     api.include_router(settings_providers.router)  # /settings/providers — unified custom-provider roster (inc 256)
     api.include_router(access.router)  # /access/recover — in-app recovery from a remote-access lockout (inc 254)
+    # /capture/* — bounded browser-capture intake, separately authorized, UI-instance only (#61 Phase 1)
+    api.include_router(capture.router)
     api.include_router(status.router)  # /status/jobs — cross-feature async-job aggregator (inc 406)
     api.include_router(
         agent.router
