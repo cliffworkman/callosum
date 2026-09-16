@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Callosum native-messaging probe (experimental)",
+  "version": "0.0.1",
+  "description": "Experimental harness proving browser-runtime feasibility for issue #61. Not a product.",
+  "permissions": [
+    "nativeMessaging",
+    "storage"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "host_permissions": [
+    "http://127.0.0.1:8777/*"
+  ]
+}

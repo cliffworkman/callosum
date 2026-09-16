@@ -830,3 +830,242 @@ packaged Tauri integration works.
 ## Appendix A — proposed revised text for issue #61
 
 *(Drafted here; applied to the issue body in this increment.)* See the issue itself.
+
+---
+
+# Part II — Substrate hardening increment (2026-09-15, second pass)
+
+Implemented on `browser-capture-research`. Everything below is verified against `main` @ `1aa3973a`
+and covered by tests; the empirical sections record observations, not inferences.
+
+## 17. Identity no longer resolves onto Trash
+
+`find_existing_paper_by_identity` had no `deleted_at` filter, so **every** import path could resolve
+onto a soft-deleted paper and silently suppress the add. The user trashed a paper, re-imported it,
+and got nothing back — and the work was then unreachable by either route, because
+`wanted_repo.list_open` already skipped trashed papers and `duplicate_detection` already excluded
+them. Identity resolution was the odd one out.
+
+**The subtlety that made this more than a one-line filter.** Soft-delete keeps the row, so the UNIQUE
+constraints on `openalex_work_id`, `semantic_scholar_paper_id` and the Zotero key still bind against
+trashed papers — the same collision `paper_merge` avoids by nulling a husk's identifier columns
+(`paper_merge.py:13-17`). Filtering alone converts a silent wrong match into an **uncaught
+`IntegrityError` → 500** on the Zotero resolve and import paths. A regression test pins that this is
+real, not theoretical (`test_creating_beside_a_trashed_unique_identifier_still_raises`).
+
+**Design.** Lookups are live-only by default, with an explicit `include_trashed=True` opt-in. Creates
+that carry a UNIQUE identifier first consult `find_trashed_identifier_holder` and **surface the
+trashed paper** — it is the same work, and the user can restore it. That helper is deliberately
+narrow: DOI and title/year/author are not consulted, because neither is UNIQUE (`papers.doi`
+intentionally so, migration `0040`) and so neither can block a create; widening it would quietly
+restore the bug it exists to prevent.
+
+Applied at the four creating paths carrying UNIQUE identifiers (Zotero citation resolve, Zotero
+library importer, bundle/share import, my-publications work import). Mendeley opts in for a
+different reason — `_paper_for_mendeley_id` resolves the external id without a `deleted_at` filter,
+so if only one side stopped seeing trashed rows its conflict guard would abort a whole import over a
+conflict that is not real.
+
+Three sites deliberately keep the new live-only default, because resolving to a trashed paper there
+would be *wrong*, not merely surprising: curated-axis member resolution, the imported-synthesis
+source blob, and the re-verification target.
+
+## 18. Candidate state: absent / active / trashed
+
+The write-side fix is correct, but the read side asks a different question — *"do I already know this
+work?"* — and a trashed paper still answers yes. Letting `in_library` flip to `false` would have made
+six unmigrated suggestion surfaces render a deliberately-trashed paper as a **fresh discovery**,
+inviting an add that creates a live duplicate beside the trashed row. That is worse than the bug.
+
+So candidate state is three-valued via one shared `resolve_library_state` helper, and **`in_library`
+is derived** (`state != "absent"`). A trashed paper keeps `in_library=True`, so every unmigrated
+consumer renders exactly as before — safe by construction rather than by a promise to migrate later.
+Discover reads `library_state` and shows "in Trash", pointing at restore instead of a second copy.
+
+**Known consequence, recorded not fixed:** trashing a duplicate then re-importing now creates a fresh
+live row that duplicate detection re-flags, and dismissed pairs are keyed on `(paper_id, paper_id)`
+(`duplicate_detection.py:51-53`) so the dismissal does not carry. The `library_state` signal is what
+makes this intelligible rather than mysterious.
+
+## 19. Ambiguity — the limitation stated precisely
+
+Do **not** read section 9 as "ambiguity is not collapsed". The accurate statement is the opposite:
+
+- **No current path can represent `AMBIGUOUS`.** `DoiAddResult` has four statuses and none of them is
+  ambiguity; `find_existing_paper_by_identity` returns a single optional match.
+- Every lookup ends in `.limit(1)` over predicates that are **not unique** — `title_year_author` is
+  plain equality on bibliographic fields, and `papers.doi` is deliberately not UNIQUE. So any lookup
+  selecting one row from potentially non-unique bibliographic evidence **is** silently collapsing
+  ambiguity today.
+
+This remains **an open audit item**, not a solved problem. The seam is defined (section 9.3) and
+`add_paper_by_doi` stays narrow and deterministic; the ambiguity boundary is explicit and unbuilt.
+
+## 20. The indexing invariant
+
+**Rule:** if a record is admitted to the active Library and has enough material to participate in an
+index, its indexing state must not depend on which front end created it.
+
+**There is no single successful-admission lifecycle seam** — a dozen `create_paper` call sites, no
+post-admission hook. So rather than add a fourth "remember to embed" call site:
+
+- **Chunks:** `attach_pdf_to_paper` now takes `vector_store` + `embedding_model` as **required**
+  keyword args and embeds, exactly as `reprocess_pdf_attachment` already did. Required, not optional,
+  so a new attach path cannot forget — which immediately paid for itself by surfacing
+  `tools/validation_harness.py`, a caller that would otherwise have been missed.
+- **Papers:** one post-admission invariant (`embeddings/admission.py`) generalizing
+  `ensure_candidate_embeddings_committing` — one committed transaction per paper, failure never fatal
+  to an otherwise-successful import.
+
+**Ordering matters:** `embed_papers` keys its skip check on the constant `PAPER_TEXT_VERSION`, not on
+the paper's text, so an embedding written *before* enrichment would never be refreshed when
+enrichment fills in the abstract/venue/year that `paper_embedding_text` joins. Discovery enriches
+first, then indexes.
+
+Deliberate deferrals are documented rather than normalized away: lazy backfill in synthesis, faceted
+retrieval, verification and axis scoring is principled and stays. It does **not** cover
+`search_similar` consumers, which is why the attach-time fix matters.
+
+Enforced by `tests/test_admission_indexing.py`, which parametrizes over every metadata-admission
+front end — so a future front end that forgets fails CI rather than shipping unsearchable papers.
+
+## 21. Phase 1 attachment scope — Option B (decided)
+
+**Phase 1 browser capture may NOT attach PDF bytes to a paper that already has a PDF.** Evidence:
+
+- Annotations with `attachment_id IS NULL` are returned for **every** attachment
+  (`annotations_repo.py:73-76`, unconditional `or_`), so their geometry paints onto an unrelated PDF.
+- They are not legacy-only: `library_bundle.py:373` writes `attachment_id=None` **by design** on every
+  bundle/share import, and the annotations endpoint accepts an omitted `attachment_id`. No backfill
+  migration has ever existed.
+- **There is no detach or delete path** — verified: `grep -rn "delete(attachments)" app/backend/` gives
+  zero hits, and there is no attachment DELETE route among the 30 router deletes. A bad attach is
+  unrecoverable except by deleting the whole paper.
+- `attach_pdf_to_paper` validates nothing, does no checksum dedupe, and defaults `role="primary"`
+  with nothing preventing two primaries; `_select_primary_pdf_attachment` then takes `ordered[0]` from
+  an **unordered** select, so a new PDF would lose to the pre-existing one with no signal.
+
+This narrows issue #61's motivating case (metadata-only paper + browser-supplied PDF) and is recorded
+in the issue. The ordering trap matters: the null-annotation backfill is only cheap while single-PDF
+papers dominate. Cross-reference #72.
+
+## 22. Native messaging — PROVEN on Windows
+
+Experimental harness in `.claude/experiments/native-messaging-probe/` ("experimental harness proving
+browser-runtime feasibility", **not** the production connector host).
+
+| Check | Result |
+|---|---|
+| Host stdio framing (4-byte LE length + JSON) | **Works.** Standalone round trip ~360 ms including Python startup |
+| Host reads packaged state | **Works.** Returned the real `last-port.txt` port **53459** |
+| Registration under `HKCU\...\NativeMessagingHosts` | **Works.** Same per-user model an NSIS currentUser install would use |
+| Browser launches the host | **Works** (Edge 153). Host received argv `["chrome-extension://<id>/", "--parent-window=0"]` |
+| Caller identity | **Confirmed:** the extension origin arrives as **argv[1]** — the identity signal a real host would gate on |
+| `allowed_origins` rejection (wrong id) | **Host never launched** |
+| **Stale host path** (manifest registered, binary gone) — the packaged upgrade/uninstall case | **Host never launched**; fails closed |
+| Missing manifest (Callosum never installed) | **Host never launched**; fails closed |
+
+**Windows unpacked-extension id derivation confirmed empirically:** sha256 of the path encoded
+UTF-16LE, nibbles mapped 0→a … f→p. The observed id matched the UTF-16LE candidate, not UTF-8.
+
+**One genuine obstacle, and it is a dev-harness problem, not a product one:** Chrome 153 refuses
+`--load-extension` (disabled for security since Chrome 137), and the documented override flag no
+longer re-enables it. The probe therefore ran under **Edge 153**, which still honours it. This does
+not affect a production extension installed from a store with a stable id, but the **dev adapter**
+needs a plan: a packed CRX with a pinned key, or manual loading via `chrome://extensions` with
+Developer Mode. Recorded as an open dev-ergonomics item.
+
+## 23. Packaged-Tauri observation (Windows, by observation)
+
+Installed build **v0.5.15**, matching `tauri.conf.json`.
+
+| Observation | Value |
+|---|---|
+| `last-port.txt` | `%APPDATA%\com.callosum.desktop\last-port.txt` = **53459** |
+| Actually listening | **53459**, PID 51032, **child of callosum-shell.exe** — exact match |
+| Backend runtime | app-local CPython (`...\com.callosum.desktop\python-runtimes\...`), `-m uvicorn app.backend.api.app:app` |
+| `/health` (packaged) | `app_version: "0.5.15"` |
+| `/health` (dev, port 8888) | `app_version: "dev-23caa25d+"`, DB revision 0081 vs packaged 0083 |
+| Word HTTPS (8443) | not listening (opt-in, not enabled) |
+
+**The hazard is live, not hypothetical.** A packaged backend (53459) and a dev backend (8888) were
+running *simultaneously* on this machine, both serving `app.backend.api.app:app`, against different
+databases at different migration revisions. A port-probing extension using the documented dev port
+would have reached the dev instance.
+
+**Can a connector host deterministically identify the canonical UI backend from packaged state
+alone?** Nearly:
+
+- **Port — yes.** `last-port.txt` matched the live listener exactly, and the probe host read it
+  successfully from inside a browser-launched process.
+- **Packaged vs dev — yes, already.** `health.py:_dev_git_version` stamps a `dev-` prefix
+  "deliberately... so it can never be mistaken for a real packaged release version".
+- **Role — no. This is the one gap.** All three packaged children receive the same
+  `CALLOSUM_APP_VERSION` (`backend.rs:205`, `:316`, `quick_tunnel.rs:212`) and are distinguished only
+  by `CALLOSUM_DISABLE_REMOTE_ACCESS=1` / `CALLOSUM_TUNNEL_TARGET=1`, neither of which is exposed.
+
+**Smallest packaged-shell change:** pass an explicit instance-role env var to each child and surface
+it on `/health`, mirroring exactly how `CALLOSUM_APP_VERSION` already flows. Specify now, implement
+with the capture endpoint.
+
+Still unobserved: cold-start latency to a usable backend (needs a deliberate restart), and
+tunnel-target behaviour. **Windows only — macOS and Linux are untested, not assumed equivalent.**
+
+## 24. Transport recommendation after testing: native messaging, confirmed
+
+The probe settles the question this document left conditional. Native messaging is recommended, now
+on evidence rather than on reasoning:
+
+- It **works** end to end on Windows, including the identity signal and every failure mode.
+- It **fails closed** in all three negative cases, including the stale-host case a packaged upgrade or
+  uninstall would produce — the realistic field failure.
+- It carries **no network surface** a hostile webpage can reach.
+- The authoritative state (`last-port.txt`) is **filesystem state**: readable by a local process, not
+  by an extension. That asymmetry is the architectural argument, and the probe demonstrated a
+  browser-launched host reading it.
+- `allowed_origins` cannot contain wildcards, so release-aware extension identity is enforced by the
+  platform rather than by our discipline.
+
+The fixed loopback rendezvous endpoint stays documented as the alternative, but it loses on every
+security axis, and its only advantages (browser-agnostic, no installer work) are now weighed against
+a mechanism that has been demonstrated rather than assumed.
+
+Residual risks, honestly held: per-browser and per-OS manifest registration is real installer work;
+macOS and Linux are unverified; and the dev-harness loading problem above needs its own answer.
+
+## 25. Where packaged behaviour is still subordinate to dev conventions
+
+Reported as required, whether or not fixing them is in scope:
+
+- `mcp_server/client.py:16` hardcodes `DEFAULT_BASE_URL = "http://127.0.0.1:8080"` — a dev port baked
+  into a shipped client, which cannot be right for a packaged app with a dynamic port.
+- The Word HTTPS companion ships with `CALLOSUM_DISABLE_REMOTE_ACCESS=1` on a **fixed** port — a
+  permanently auth-disabled listener whose only protection is that nothing advertises it.
+- `capabilities/default.json` grants Tauri IPC to **any** `http://127.0.0.1:*/*` origin.
+- `tauri.conf.json` sets `"csp": null`, and the FastAPI shell sends no CSP header either.
+- No packaged smoke coverage exists for any shell crossing (#65 still open).
+- **Observed this increment:** the citation-preview, frontend-assembly and demo-snapshot tests fail in
+  a worktree without `node_modules` and pass in one that has it — the same class as **#70**, and a
+  reminder that "works in my checkout" is an environment claim, not a product claim.
+
+## 26. The nine exit questions, answered
+
+1. **Canonical path for browser metadata into the Library** — the existing admission spine:
+   normalize, then `find_existing_paper_by_identity`, then surface-or-`create_paper` with a provenance
+   stamp, then the post-admission indexing invariant. `add_paper_by_doi` remains the DOI primitive.
+   No fourth resolver was created.
+2. **Can that path resolve onto Trash?** No — fixed, with regression tests covering DOI, Zotero key,
+   OpenAlex id and title/year/author, plus Trash/restore round-tripping.
+3. **How is ambiguous non-DOI identity represented?** It is not. No path can represent `AMBIGUOUS`,
+   and `.limit(1)` over non-unique predicates still collapses it silently. Open audit item (section 19).
+4. **Is indexing guaranteed independent of front end?** Yes for both chunks and papers, enforced by a
+   parametrized test; principled deferrals documented.
+5. **May Phase 1 attach bytes to an existing paper?** **No** — Option B, with the null-annotation
+   bleed and the absent detach path as the reasons.
+6. **Does native messaging work in real Chromium on Windows?** **Yes** — proven, including all three
+   failure modes. Verified under Edge 153; Chrome 153 blocks the *dev* loading path only.
+7. **Can a connector host identify the canonical backend without probing?** Port yes, dev-vs-packaged
+   yes, **role no** — one small shell change specified.
+8. **Is native messaging still recommended?** Yes, now on evidence (section 24).
+9. **Exact remaining prerequisite before the Phase 1 extension** — the instance-role signal on
+   `/health` plus its env var in the shell. Everything else Phase 1 needs is now in place.
