@@ -21,6 +21,25 @@ const POLL_INTERVAL: Duration = Duration::from_millis(400);
 const SPAWN_RETRY_WINDOW: Duration = Duration::from_secs(2);
 const MAX_SPAWN_ATTEMPTS: u32 = 3;
 
+/// Which backend process this is (browser-capture prerequisite, issue #61).
+///
+/// Every child below runs the SAME `app.backend.api.app:app`, so neither the port nor
+/// `CALLOSUM_APP_VERSION` can tell them apart — and one of them, the Word HTTPS companion, runs with
+/// the Remote Access gate deliberately disabled. A future browser connector host must be able to pick
+/// out the one canonical UI backend rather than trusting whichever sibling answers first.
+///
+/// Set EXPLICITLY at every spawn site. The backend never infers it from the port,
+/// `CALLOSUM_DISABLE_REMOTE_ACCESS`, or `CALLOSUM_TUNNEL_TARGET` — those stay independent controls,
+/// and this is identity. A child launched without it reports no role at all, which is the fail-safe:
+/// an undeclared process can never pass for the UI backend.
+pub(crate) const INSTANCE_ROLE_ENV: &str = "CALLOSUM_INSTANCE_ROLE";
+/// The canonical UI backend — the only role a browser capture may ever target.
+pub(crate) const ROLE_UI: &str = "ui";
+/// The Word add-in's HTTPS companion on fixed 8443 (Remote Access gate force-disabled).
+pub(crate) const ROLE_WORD_HTTPS: &str = "word-https";
+/// The Quick Tunnel's fail-closed origin.
+pub(crate) const ROLE_TUNNEL_TARGET: &str = "tunnel-target";
+
 pub struct ResolvedPaths {
     pub python_exe: PathBuf,
     pub source_root: PathBuf,
@@ -170,6 +189,37 @@ fn pick_port(preferred: Option<u16>) -> std::io::Result<u16> {
     pick_free_port()
 }
 
+/// Build (but do not spawn) the canonical UI backend's command.
+///
+/// Split out from `spawn_backend` purely so a test can assert on what actually launches — the same
+/// reason `word_https_args` is its own function. The spawn path calls this, so the two cannot drift.
+fn ui_backend_command(paths: &ResolvedPaths, app_version: &str, port: u16) -> Command {
+    let mut cmd = Command::new(&paths.python_exe);
+    cmd.args([
+        "-m",
+        "uvicorn",
+        "app.backend.api.app:app",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        &port.to_string(),
+    ])
+    .current_dir(&paths.source_root)
+    .env("CALLOSUM_DB_URL", &paths.db_url)
+    .env("CALLOSUM_LIBRARY_DIR", &paths.library_dir)
+    .env("CALLOSUM_APP_VERSION", app_version)
+    .env("CALLOSUM_APP_DATA_DIR", &paths.app_data_dir)
+    .env("CALLOSUM_WORD_HTTPS_DIR", &paths.word_https_dir)
+    .env(INSTANCE_ROLE_ENV, ROLE_UI)
+    .env("PYTHONNOUSERSITE", "1")
+    .env("PYTHONDONTWRITEBYTECODE", "1")
+    .env_remove("PYTHONHOME")
+    .env_remove("PYTHONPATH")
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped());
+    cmd
+}
+
 /// Spawn uvicorn against `paths` on a freshly-picked port, retrying with a new port if the process
 /// exits almost immediately (the classic "address already in use" case on a personal machine where
 /// something else grabbed the port in the gap between `pick_free_port` and uvicorn's own bind).
@@ -189,28 +239,7 @@ pub fn spawn_backend(
             pick_free_port()
         }
         .map_err(|e| StartupError::SpawnFailed(e.to_string()))?;
-        let mut cmd = Command::new(&paths.python_exe);
-        cmd.args([
-            "-m",
-            "uvicorn",
-            "app.backend.api.app:app",
-            "--host",
-            "127.0.0.1",
-            "--port",
-            &port.to_string(),
-        ])
-        .current_dir(&paths.source_root)
-        .env("CALLOSUM_DB_URL", &paths.db_url)
-        .env("CALLOSUM_LIBRARY_DIR", &paths.library_dir)
-        .env("CALLOSUM_APP_VERSION", app_version)
-        .env("CALLOSUM_APP_DATA_DIR", &paths.app_data_dir)
-        .env("CALLOSUM_WORD_HTTPS_DIR", &paths.word_https_dir)
-        .env("PYTHONNOUSERSITE", "1")
-        .env("PYTHONDONTWRITEBYTECODE", "1")
-        .env_remove("PYTHONHOME")
-        .env_remove("PYTHONPATH")
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
+        let mut cmd = ui_backend_command(paths, app_version, port);
         if let Some(path) = managed_local_ai_descriptor {
             cmd.env(crate::managed_local_ai::DESCRIPTOR_ENV, path);
         } else {
@@ -308,21 +337,7 @@ pub fn spawn_word_https(
             "Word support is not enabled or its certificate files are incomplete".into(),
         ));
     }
-    let mut cmd = Command::new(&paths.python_exe);
-    cmd.args(word_https_args(paths))
-        .current_dir(&paths.source_root)
-        .env("CALLOSUM_DB_URL", &paths.db_url)
-        .env("CALLOSUM_LIBRARY_DIR", &paths.library_dir)
-        .env("CALLOSUM_APP_VERSION", app_version)
-        .env("CALLOSUM_WORD_HTTPS_DIR", &paths.word_https_dir)
-        .env("CALLOSUM_DISABLE_REMOTE_ACCESS", "1")
-        .env("PYTHONNOUSERSITE", "1")
-        .env("PYTHONDONTWRITEBYTECODE", "1")
-        .env_remove("PYTHONHOME")
-        .env_remove("PYTHONPATH")
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .env_remove(crate::managed_local_ai::DESCRIPTOR_ENV);
+    let mut cmd = word_https_command(paths, app_version);
     for name in crate::managed_local_ai::OWNER_ONLY_ENV {
         cmd.env_remove(name);
     }
@@ -331,6 +346,31 @@ pub fn spawn_word_https(
         &paths.app_data_dir.join("word-https.log"),
         "Word HTTPS companion",
     )
+}
+
+/// Build (but do not spawn) the Word HTTPS companion's command — testable twin of `word_https_args`.
+///
+/// Note it carries BOTH `CALLOSUM_DISABLE_REMOTE_ACCESS=1` (its long-standing behavior control) and
+/// its own instance role. They are deliberately separate: the role is what lets a connector refuse
+/// this child, rather than having to infer "auth gate disabled" from an unrelated env var.
+fn word_https_command(paths: &ResolvedPaths, app_version: &str) -> Command {
+    let mut cmd = Command::new(&paths.python_exe);
+    cmd.args(word_https_args(paths))
+        .current_dir(&paths.source_root)
+        .env("CALLOSUM_DB_URL", &paths.db_url)
+        .env("CALLOSUM_LIBRARY_DIR", &paths.library_dir)
+        .env("CALLOSUM_APP_VERSION", app_version)
+        .env("CALLOSUM_WORD_HTTPS_DIR", &paths.word_https_dir)
+        .env("CALLOSUM_DISABLE_REMOTE_ACCESS", "1")
+        .env(INSTANCE_ROLE_ENV, ROLE_WORD_HTTPS)
+        .env("PYTHONNOUSERSITE", "1")
+        .env("PYTHONDONTWRITEBYTECODE", "1")
+        .env_remove("PYTHONHOME")
+        .env_remove("PYTHONPATH")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .env_remove(crate::managed_local_ai::DESCRIPTOR_ENV);
+    cmd
 }
 
 fn word_https_args(paths: &ResolvedPaths) -> Vec<OsString> {
@@ -592,6 +632,76 @@ mod tests {
         std::fs::remove_file(paths.word_https_dir.join("localhost.key")).unwrap();
         assert!(!word_https_configured(&paths));
         let _ = std::fs::remove_dir_all(root);
+    }
+
+    /// The value a built command would actually pass for `name` (`None` if it removes/omits it).
+    fn env_value(cmd: &Command, name: &str) -> Option<String> {
+        cmd.get_envs().find_map(|(key, value)| {
+            (key == std::ffi::OsStr::new(name))
+                .then(|| value.map(|v| v.to_string_lossy().into_owned()))
+                .flatten()
+        })
+    }
+
+    #[test]
+    fn each_backend_child_declares_its_instance_role() {
+        // Browser-capture prerequisite (#61): all three children serve the SAME FastAPI app, so a
+        // connector host cannot tell them apart by port or version. Each must declare its own role.
+        let paths = fixture_paths(Path::new("fixture root"));
+        let ui = ui_backend_command(&paths, "0.5.15", 53459);
+        let word = word_https_command(&paths, "0.5.15");
+
+        assert_eq!(env_value(&ui, INSTANCE_ROLE_ENV).as_deref(), Some(ROLE_UI));
+        assert_eq!(
+            env_value(&word, INSTANCE_ROLE_ENV).as_deref(),
+            Some(ROLE_WORD_HTTPS)
+        );
+    }
+
+    #[test]
+    fn instance_roles_are_pairwise_distinct() {
+        // The whole point: siblings stay distinguishable even though they run the same application.
+        let roles = [ROLE_UI, ROLE_WORD_HTTPS, ROLE_TUNNEL_TARGET];
+        let unique: std::collections::BTreeSet<_> = roles.iter().collect();
+        assert_eq!(unique.len(), roles.len());
+        assert!(roles.iter().all(|role| !role.is_empty()));
+    }
+
+    #[test]
+    fn instance_role_is_independent_of_the_remote_access_control() {
+        // Role is identity, NOT a restatement of a behavior flag. The Word child keeps carrying
+        // CALLOSUM_DISABLE_REMOTE_ACCESS=1 as before; the role is what a connector refuses it by, so
+        // neither may be inferred from the other.
+        let paths = fixture_paths(Path::new("fixture root"));
+        let word = word_https_command(&paths, "0.5.15");
+
+        assert_eq!(
+            env_value(&word, "CALLOSUM_DISABLE_REMOTE_ACCESS").as_deref(),
+            Some("1")
+        );
+        assert_eq!(
+            env_value(&word, INSTANCE_ROLE_ENV).as_deref(),
+            Some(ROLE_WORD_HTTPS)
+        );
+        // ...and the UI backend never inherits that control.
+        let ui = ui_backend_command(&paths, "0.5.15", 53459);
+        assert_eq!(env_value(&ui, "CALLOSUM_DISABLE_REMOTE_ACCESS"), None);
+    }
+
+    #[test]
+    fn ui_backend_argv_stays_loopback_on_the_picked_port() {
+        // Guards the command-construction extraction: the args must be what they were before.
+        let paths = fixture_paths(Path::new("fixture root"));
+        let cmd = ui_backend_command(&paths, "0.5.15", 53459);
+        let args: Vec<_> = cmd
+            .get_args()
+            .map(|value| value.to_string_lossy().into_owned())
+            .collect();
+
+        assert_eq!(args[2], "app.backend.api.app:app");
+        assert_eq!(args[4], "127.0.0.1");
+        assert_eq!(args[6], "53459");
+        assert!(!args.iter().any(|value| value == "0.0.0.0"));
     }
 
     #[test]

@@ -153,9 +153,12 @@ def main() -> int:
         env["CALLOSUM_APP_DATA_DIR"] = str(dev_dir)
         procs["local-ai"] = _spawn([sys.executable, str(ROOT / "tools" / "run_local_ai.py")], env)
         print(f"[run_dev] local-ai: starting (descriptor under {dev_dir}); first run loads ~1 GiB, be patient")
+    # Declare this child's instance role exactly as the packaged shell does (browser-capture
+    # prerequisite, #61) so dev exercises the same product contract rather than a dev-only shortcut.
+    # Per-child, NOT in the shared `env`: the https child below is a different role and sets its own.
     procs["http"] = _spawn(
         [sys.executable, "-m", "uvicorn", "app.backend.api.app:app", "--host", "127.0.0.1", "--port", str(http_port)],
-        env,
+        {**env, "CALLOSUM_INSTANCE_ROLE": "ui"},
     )
     print(f"[run_dev] http:  serving on http://127.0.0.1:{http_port}")
 

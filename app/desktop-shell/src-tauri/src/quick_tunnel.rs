@@ -189,11 +189,12 @@ fn remote_access_enabled(settings_path: &Path) -> bool {
         .unwrap_or(false)
 }
 
-fn spawn_tunnel_target(
-    paths: &ResolvedPaths,
-    app_version: &str,
-) -> Result<(BackendHandle, u16), StartupError> {
-    let port = pick_free_port().map_err(|error| StartupError::SpawnFailed(error.to_string()))?;
+/// Build (but do not spawn) the tunnel target's command, so a test can assert what actually launches.
+///
+/// It carries BOTH `CALLOSUM_TUNNEL_TARGET=1` (the existing fail-closed behavior control) and its own
+/// instance role. Deliberately separate: role is identity, and a connector refuses this child by role
+/// rather than by inferring intent from a behavior flag.
+fn tunnel_target_command(paths: &ResolvedPaths, app_version: &str, port: u16) -> Command {
     let mut command = Command::new(&paths.python_exe);
     command
         .args([
@@ -213,10 +214,23 @@ fn spawn_tunnel_target(
         .env("CALLOSUM_SETTINGS_PATH", &paths.settings_path)
         .env("CALLOSUM_WORD_HTTPS_DIR", &paths.word_https_dir)
         .env("CALLOSUM_TUNNEL_TARGET", "1")
+        .env(
+            crate::backend::INSTANCE_ROLE_ENV,
+            crate::backend::ROLE_TUNNEL_TARGET,
+        )
         .env_remove("CALLOSUM_DISABLE_REMOTE_ACCESS")
         .env_remove(crate::managed_local_ai::DESCRIPTOR_ENV)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    command
+}
+
+fn spawn_tunnel_target(
+    paths: &ResolvedPaths,
+    app_version: &str,
+) -> Result<(BackendHandle, u16), StartupError> {
+    let port = pick_free_port().map_err(|error| StartupError::SpawnFailed(error.to_string()))?;
+    let mut command = tunnel_target_command(paths, app_version, port);
     for name in crate::managed_local_ai::OWNER_ONLY_ENV {
         command.env_remove(name);
     }
@@ -333,6 +347,44 @@ fn known_cloudflared_paths() -> Vec<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tunnel_target_declares_its_instance_role() {
+        // Browser-capture prerequisite (#61): the tunnel target serves the same FastAPI app as the UI
+        // backend, so it must be refusable by an explicit role rather than by inferring intent from
+        // CALLOSUM_TUNNEL_TARGET (which stays an independent fail-closed behavior control).
+        let root = std::env::temp_dir().join(format!("callosum-role-{}", std::process::id()));
+        let paths = ResolvedPaths {
+            python_exe: root.join("python"),
+            source_root: root.join("source"),
+            db_url: "sqlite:///fixture.sqlite".into(),
+            library_dir: root.join("library"),
+            log_path: root.join("backend.log"),
+            port_path: root.join("last-port.txt"),
+            app_data_dir: root.join("app-data"),
+            settings_path: root.join("settings.json"),
+            word_https_dir: root.join("word-https"),
+        };
+        let command = tunnel_target_command(&paths, "0.5.15", 53460);
+        let value = |name: &str| -> Option<String> {
+            command.get_envs().find_map(|(key, value)| {
+                (key == std::ffi::OsStr::new(name))
+                    .then(|| value.map(|v| v.to_string_lossy().into_owned()))
+                    .flatten()
+            })
+        };
+
+        assert_eq!(
+            value(crate::backend::INSTANCE_ROLE_ENV).as_deref(),
+            Some(crate::backend::ROLE_TUNNEL_TARGET)
+        );
+        assert_eq!(value("CALLOSUM_TUNNEL_TARGET").as_deref(), Some("1"));
+        assert_ne!(
+            value(crate::backend::INSTANCE_ROLE_ENV).as_deref(),
+            Some(crate::backend::ROLE_UI),
+            "the tunnel target must never present itself as the canonical UI backend"
+        );
+    }
 
     #[test]
     fn extracts_only_strict_trycloudflare_urls() {

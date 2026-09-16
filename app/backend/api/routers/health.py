@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import functools
+import logging
 import os
 import subprocess
+from typing import Literal
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -18,6 +20,24 @@ from app.backend.api.startup import PROJECT_ROOT, _head_revision
 from app.backend.summarization.verification import VERIFICATION_VERSION
 
 router = APIRouter()
+
+_log = logging.getLogger(__name__)
+
+# Which Callosum backend process this is (browser-capture prerequisite, #61). The desktop shell spawns
+# several children that all serve THIS SAME FastAPI app, so port and version cannot tell them apart —
+# and one of them, the Word HTTPS companion, deliberately runs with the Remote Access gate disabled
+# (`CALLOSUM_DISABLE_REMOTE_ACCESS=1`). A future browser connector host must be able to identify the
+# one canonical UI backend rather than whichever sibling happens to answer.
+#
+# The role is set EXPLICITLY by each launcher (`CALLOSUM_INSTANCE_ROLE`), never inferred here from
+# port, version, `CALLOSUM_DISABLE_REMOTE_ACCESS`, `CALLOSUM_TUNNEL_TARGET`, or whether a companion
+# feature happens to be enabled. Those remain independent controls; this is identity.
+InstanceRole = Literal["ui", "word-https", "tunnel-target"]
+INSTANCE_ROLE_ENV = "CALLOSUM_INSTANCE_ROLE"
+UI_ROLE: InstanceRole = "ui"
+WORD_HTTPS_ROLE: InstanceRole = "word-https"
+TUNNEL_TARGET_ROLE: InstanceRole = "tunnel-target"
+INSTANCE_ROLES: tuple[InstanceRole, ...] = (UI_ROLE, WORD_HTTPS_ROLE, TUNNEL_TARGET_ROLE)
 
 
 @functools.lru_cache(maxsize=1)
@@ -84,11 +104,52 @@ class HealthResponse(BaseModel):
     # pipeline's own internal versioning, unrelated to the app's release number) — the two were
     # previously conflated in the frontend's connection tooltip.
     app_version: str | None = None
+    # Which backend process this is (browser-capture prerequisite, #61) — "ui" / "word-https" /
+    # "tunnel-target", or null when no launcher declared one. Independent of app_version: role is
+    # process identity, app_version is build identity. See `reported_instance_role`.
+    instance_role: InstanceRole | None = None
 
 
 def reported_app_version() -> str | None:
     """One release/version label shared by health and explicit low-risk feedback metadata."""
     return os.getenv("CALLOSUM_APP_VERSION") or _dev_git_version()
+
+
+@functools.lru_cache(maxsize=1)
+def _warn_invalid_instance_role_once(raw: str) -> None:
+    """Warn ONCE per process about an out-of-vocabulary role (a connector may poll /health often)."""
+    _log.warning(
+        "Ignoring unrecognized %s=%r; expected one of %s. This process reports no instance role.",
+        INSTANCE_ROLE_ENV,
+        raw,
+        ", ".join(INSTANCE_ROLES),
+    )
+
+
+def reported_instance_role() -> InstanceRole | None:
+    """Which backend process this is, or ``None`` when no launcher declared one.
+
+    ``None`` is the deliberate fail-safe for both an unset and an unrecognized value: a bare
+    ``uvicorn``, an older packaged build, or a future launch path that forgets. A consumer must
+    require a specific role explicitly, so an unknown process can never pass for the canonical UI
+    backend. An unrecognized value additionally warns (once — see above), so a typo in a launcher is
+    visible without a bad env var bricking a user's install.
+
+    This reports the PROCESS's identity only. It deliberately says nothing about whether the build is
+    a packaged release or a dev checkout — that is ``app_version``'s separate axis, and the two stay
+    independent so ``"ui"`` means exactly the same thing in both. Composing them into an eligibility
+    rule is the consumer's job: a production connector would require this role AND an approved
+    packaged identity, while an explicitly development connector may accept this role with a dev
+    identity. Encoding either policy here would make dev unable to emulate the product contract, or
+    would weaken production.
+    """
+    raw = (os.getenv(INSTANCE_ROLE_ENV) or "").strip()
+    if not raw:
+        return None
+    if raw not in INSTANCE_ROLES:
+        _warn_invalid_instance_role_once(raw)
+        return None
+    return raw  # type: ignore[return-value]  # membership check above narrows this to InstanceRole
 
 
 def _database_status(conn: Connection) -> tuple[bool, bool, str | None, str | None]:
@@ -127,4 +188,5 @@ def health(conn: Connection = Depends(get_connection)) -> HealthResponse:
         onboarding_completed=app_settings.stored_onboarding_completed(),
         onboarding_version=app_settings.stored_onboarding_version(),
         app_version=reported_app_version(),
+        instance_role=reported_instance_role(),
     )
