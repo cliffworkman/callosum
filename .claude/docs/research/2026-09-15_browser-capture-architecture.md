@@ -1281,13 +1281,14 @@ changed at the architecture level and, precisely, what has and has not been empi
 
 | Level | Status |
 |---|---|
-| Component behavior (Rust unit tests, Python unit/integration tests, JS unit tests, clippy, ruff) | **Proven, run for real this session.** `cargo test --release`: 64/64 passed. `cargo clippy -D warnings`: clean. Focused `pytest` (capture + connector-identity + desktop-packaging + health): 87 passed, 1 pre-existing failure excluded (see §34). `node --test`: 12/12. `ruff check`/`format --check`: clean. |
-| Packaged behavior, local | **Partially proven.** The connector binary and generated NSIS include were built via the real staging scripts and checked against ground-truth template bytes. The NSIS installer itself was not built or run this session; the local acceptance harness that would exercise a real install was written but not executed. |
-| CI installer/update/uninstall run | **Not yet run.** Steps were added to `desktop-shell-windows.yml` (registry/manifest exactness, `/UPDATE`-mode preservation, ordinary-uninstall removal, third-party-entry survival) and the YAML parses, but none of it has executed on a runner — that needs the push the maintainer is holding for separate authorization. |
-| Real Edge click-through acceptance, cases A–E | **Not yet run.** `.claude/experiments/browser-capture-acceptance/` has the isolation procedure, dev-connector registration reuse, local fixtures, and Library-state assertions, but actually clicking the extension's toolbar icon in a live Edge session needs a human (or a session with real browser-click control), which this one was not.
+| Component behavior (Rust unit tests, Python unit/integration tests, JS unit tests, clippy, ruff) | **Proven, run for real.** `cargo test --release` for both packages (`src-tauri` + `connector-host`): 64/64 passed. `cargo clippy -D warnings`: clean for both. Focused `pytest` (capture + connector-identity + desktop-packaging + health): 88 passed, 0 pre-existing failures remaining (see §34). `node --test`: 12/12. `ruff check`/`format --check`: clean. |
+| Packaged behavior, local | **Proven.** The full NSIS installer was built for real and silently installed (`/S`, `/D=<throwaway>`) without touching the maintainer's real install: correct-size main binary, connector resource, manifest, and both browsers' registry entries all directly inspected; the app launched and stayed running; `/UPDATE`-mode and ordinary uninstall were both run for real locally, including third-party-entry survival. |
+| CI installer/update/uninstall run | **CI-proven.** Clean-runner Windows Actions run `35134478341` (commit `1c46a73e`, `workflow_dispatch`) executed every new step and passed, verified from actual log content: the backend became healthy (`healthy on port 55873 after 117s`), both browsers' manifests were resolved and validated, `/UPDATE` preservation and ordinary-uninstall removal were both confirmed with exact registry-value comparisons, and the third-party entry survived both paths. A screenshot shows the real, fully-rendered Callosum UI running on the runner. |
+| Real Edge click-through acceptance, cases A–E | **Not yet run.** `.claude/experiments/browser-capture-acceptance/` has the isolation procedure, dev-connector registration reuse, local fixtures, and Library-state assertions, but actually clicking the extension's toolbar icon in a live Edge session needs a human (or a session with real browser-click control), which this one was not. This is now the ONLY unproven row. |
 
-Neither of the last two rows is a security risk anyone has weighed and accepted — they are simply
-not yet exercised, and the Stage 2 audit is explicit that it does not claim otherwise.
+Getting to that CI-proven row took three real fixes, not one clean pass — see §36. None of the last
+row is a security risk anyone has weighed and accepted — it is simply not yet exercised, and the
+Stage 2 audit is explicit that it does not claim otherwise.
 
 ## 34. Baseline-proven pre-existing failures, not assumed
 
@@ -1303,15 +1304,46 @@ value — proof, not inference, that it predates Stage 2. The reported regressio
 regression suite passed excluding one baseline-confirmed pre-existing failure*, deliberately not
 phrased as an unrestricted all-green run.
 
-## 35. Exit question for Stage 2
+## 36. Three findings from actually running the installer, not from writing it
+
+Getting CI to a genuine pass took three rounds of real failures, each root-caused rather than
+patched around or re-run blind. None are security defects; all three would have shipped an
+installer that produces an app that never starts — the gap between "the mechanism was designed
+correctly" and "the mechanism was verified to actually work."
+
+1. **A Stage 1 maintenance gap, not a Stage 2 or main-branch defect.** The first CI attempt failed
+   before reaching any new code: the immutable Python runtime spec's stored `runtime_id` was stale.
+   `origin/main`'s own `verify()` passes cleanly (checked directly); Stage 1 had edited
+   `smoke_test_backend.py` — a declared `shared_inputs` identity file — without re-running
+   `update-ids` afterward. Fixed mechanically, and the resulting four runtime IDs were published via
+   the existing `desktop-python-runtime.yml` workflow and independently re-verified against the real
+   GitHub releases before trusting them.
+2. **A bare relative `!include` resolved against the wrong directory.** Tauri stages the hook file
+   from a generated main script in a different build directory, so `!include
+   "connector-identity.generated.nsh"` failed even though that exact file existed where the hook
+   itself lives. Reproduced and fixed against the real cached NSIS 3.11 compiler before touching the
+   real file: `${__FILEDIR__}` (NSIS's own "directory of the file being processed" built-in) is the
+   correct, verified fix.
+3. **The most severe: `callosum-shell.exe` silently never started at all.** Having the connector as
+   a second `[[bin]]` in the SAME Cargo package as the Tauri app broke `cargo tauri build`'s
+   main-binary selection — even with `mainBinaryName` explicitly set, the installer shipped the
+   CONNECTOR's compiled bytes under `callosum-shell.exe`'s name. The "app" launching and exiting
+   within milliseconds, exit code 0, no window, was actually the connector's own `main()` refusing a
+   caller with no `argv[1]` and exiting cleanly — exactly as designed, for a different, legitimate
+   scenario. This explains both prior CI failures under one root cause, not two. Fixed by giving the
+   connector its own Cargo package (`connector-host/`) so `cargo tauri build` never sees it exist in
+   the package it builds — removing the ambiguity at its root.
+
+## 37. Exit question for Stage 2
 
 > **Given Stage 1 proved the backend boundary and this pass proved the host/installer/extension
-> mechanism component-by-component, is Phase 1 browser capture ready to ship?**
+> mechanism component-by-component — and then proved it again end to end on a clean runner — is
+> Phase 1 browser capture ready to ship?**
 
-**Not yet, and precisely three things are missing, none of them implementation:** (1) a real Chrome
+**Not yet, and precisely two things are missing, neither of them implementation:** (1) a real Chrome
 Web Store and/or Edge Add-ons submission producing an actual extension id to populate
 `production_extension_ids` with — until then the production allowlist is empty and fails closed by
-design; (2) the new CI installer/update/uninstall steps actually executing green on a clean runner;
-(3) real Edge click-through acceptance (cases A–E) actually executed and its Library-state
-assertions actually passing. All three are evidence-gathering and publication steps, deliberately
-left open rather than claimed, per the audit's own evidence-status table above.
+design; (2) real Edge click-through acceptance (cases A–E) actually executed and its Library-state
+assertions actually passing. (The CI installer/update/uninstall run that used to be a third open item
+here is done — see §33 and §36.) Both remaining items are evidence-gathering and publication steps,
+deliberately left open rather than claimed, per the audit's own evidence-status table above.

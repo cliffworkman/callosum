@@ -1,8 +1,9 @@
 # Security audit — browser capture (issue #61, Phase 1 + Phase 2)
 
-**Status: Stage 1 COMPLETE (PASS). Stage 2 COMPLETE (PASS on every control actually exercised;
-two integration-acceptance items remain empirically unverified — see "Evidence status" and
-"Residual evidence gaps for Stage 2" below).** Opened at task start per `CLAUDE.md`'s kickoff rule,
+**Status: Stage 1 COMPLETE (PASS). Stage 2 COMPLETE (PASS), CI-proven on a clean Windows runner for
+the installer/registration/update/uninstall lifecycle (run `35134478341`, commit `1c46a73e`). One
+item remains empirically unverified — the real Edge A–E click-through — see "Evidence status" and
+"Residual evidence gaps for Stage 2" below.** Opened at task start per `CLAUDE.md`'s kickoff rule,
 filled as the work proceeds.
 
 **Gate triggers:** item 1 (new API endpoints), item 3 (new file-write + file-ingestion path),
@@ -266,10 +267,12 @@ updater, when it re-invokes the previous version's `uninstall.exe` as part of an
 version's files. The stock template guards shortcut/autostart/registry-cleanup-on-datadelete
 removal with `${If} $UpdateMode <> 1` for exactly this reason.
 `NSIS_HOOK_PREUNINSTALL` in `installer-hooks.nsh` uses the identical guard, so an ordinary
-auto-update NEVER touches the connector's registry keys — verified in
-`.github/workflows/desktop-shell-windows.yml`'s new "update-mode uninstall preserves connector
-registration" step, which runs the REAL uninstaller with the REAL argv Tauri constructs (not a
-synthetic stand-in), on a real Windows runner. *Severity if unfixed: would have been medium (a
+auto-update NEVER touches the connector's registry keys — **CI-proven**, not just implemented:
+`.github/workflows/desktop-shell-windows.yml`'s "update-mode uninstall preserves connector
+registration" step ran the REAL uninstaller with the REAL argv Tauri constructs (not a synthetic
+stand-in) on a real, clean Windows runner (run `35134478341`) and printed
+`confirmed: update-mode uninstall preserved both connector registry keys` after asserting the
+registry values were byte-for-byte unchanged. *Severity if unfixed: would have been medium (a
 silently broken feature with no obvious cause, recoverable only by reinstalling) — caught before
 shipping by the exploration this increment opened with.*
 
@@ -277,8 +280,61 @@ shipping by the exploration this increment opened with.*
 the registry to point at THIS install's own manifest; `NSIS_HOOK_PREUNINSTALL` only ever removes a
 registry value after confirming byte-for-byte equality with that same path (`${If} $8 == $9`, not
 "starts with $INSTDIR" — steering point 5). CI pre-seeds an unrelated third-party
-`NativeMessagingHosts` entry and asserts it survives BOTH the update-mode and the ordinary uninstall
-path untouched.
+`NativeMessagingHosts` entry and — CI-proven, run `35134478341` — printed
+`confirmed: third-party NativeMessagingHosts entry survived untouched` after BOTH the update-mode
+and the ordinary uninstall path ran for real.
+
+## Three more findings, from actually running the installer end to end (not from writing it)
+
+Getting the CI run above to a genuine pass took three rounds of real failures, each investigated to
+a root cause rather than patched around or re-run blind. None are security defects; all three would
+have made the shipped installer produce an app that never starts. Listed because "the installer
+mechanism was designed correctly" and "the installer mechanism was verified to actually work" turned
+out to be two different, sequentially-discovered claims.
+
+**F5 — a Stage 1 maintenance gap, not a Stage 2 or main-branch defect.** The very first CI attempt
+against Stage 2 failed before reaching any new code, at a pre-existing step verifying the immutable
+Python runtime spec (`windows-x86_64 runtime_id is stale`). Root-cause traced with evidence, not
+assumed: `origin/main`'s own `verify()` passes cleanly (checked directly in a temporary detached
+worktree); Stage 1 (not Stage 2) had edited `smoke_test_backend.py`, a declared `shared_inputs`
+identity file, without re-running `package_python_runtime.py update-ids` afterward. Fixed
+mechanically (`update-ids`, verified only the four `runtime_id` fields changed, `verify()` now
+passes) and the four now-current runtime IDs were published via the existing
+`desktop-python-runtime.yml` workflow — independently re-verified afterward (`gh release view` on
+each, manifest content inspected, `runtime_id`/`platform`/`arch` cross-checked against the release
+being claimed) before ever dispatching another installer run.
+
+**F6 — a bare relative `!include` in `installer-hooks.nsh` resolved against the wrong directory.**
+The connector's generated `.nsh` include failed with `!include: could not find:
+connector-identity.generated.nsh` even though the generator had just written it to the correct
+directory moments earlier — Tauri stages/includes the hook file from a generated main
+`installer.nsi` living in a completely different build directory, so a bare relative path resolved
+against THAT script's directory, not the hook file's own. Reproduced and fixed locally against the
+real cached NSIS 3.11 compiler (a minimal two-file repro under a different main-script directory)
+before touching the real file: `${__FILEDIR__}`, NSIS's own built-in for "the directory of the file
+currently being processed," is the correct fix, and was empirically confirmed to both reproduce the
+failure (bare path) and resolve it (`${__FILEDIR__}`-qualified) before either change was trusted.
+
+**F7 — the most severe: `callosum-shell.exe` silently never started at all.** After F6's fix, the
+installer built and installed correctly, but the app exited within milliseconds of every launch,
+with no window, no crash report, and exit code 0. Root cause, found by direct local reproduction
+rather than speculation: having `callosum_connector` as a second `[[bin]]` in the SAME Cargo package
+as the Tauri app broke `cargo tauri build`'s main-binary selection — even with `mainBinaryName`
+explicitly set, the full build pipeline still wrote the CONNECTOR's compiled bytes (~3.8 MB) to
+`callosum-shell.exe`'s path. Confirmed directly: `cargo build --bin callosum-shell` alone produces
+the correct ~16.8 MB binary; the same build via the full `tauri build` pipeline, with the connector
+present as a sibling `[[bin]]`, overwrites it with the connector's content. A diagnostic write
+placed as the literal first statement of the app's own `run()` never appeared on disk across
+repeated launches — proof the app's real code never executed at all; the "app" launching and
+exiting was actually the connector's own `main()`, refusing a caller with no `argv[1]` and exiting
+cleanly, exactly as designed for a DIFFERENT, legitimate scenario. This explains BOTH of the two
+prior CI failures under one root cause, not two separate ones. Fixed by moving the connector into
+its own Cargo package (`app/desktop-shell/connector-host/`) so `cargo tauri build` never sees it
+exist in the package it is building at all — removing the ambiguity at its root, not working around
+a symptom of it. Verified locally end to end before trusting it on CI: the installed binary is the
+correct size, launches, stays running, and shows a window titled "Callosum"; **then CI-proven** on
+run `35134478341`, including the real backend becoming healthy (`healthy on port 55873 after 117s`)
+and a screenshot of the actual, fully-rendered Callosum UI.
 
 **Pairing-secret failure fails closed for capture only (steering point 6).**
 `_ensure_capture_pairing_ready()` in `app/backend/api/app.py` catches `OSError` around
@@ -294,10 +350,10 @@ past its actual evidence. Four distinct levels, not two:
 
 | Level | Status | Evidence |
 |---|---|---|
-| **Component behavior, run locally** | PROVEN | `cargo test --release` (whole `src-tauri` crate, including `callosum_connector`: 56 + 8 = 64 passed, 0 failed, 6 pre-existing `#[ignore]`s untouched by Stage 2); `cargo clippy --release --bin callosum_connector -- -D warnings` (clean); `pytest tests/test_capture.py tests/test_connector_identity.py tests/test_desktop_packaging.py tests/test_health.py` (87 passed, 1 pre-existing failure — see below — 1 skipped); `node --test app/desktop-shell/extension/background.test.mjs` (12 passed); `ruff check` / `ruff format --check` on every touched Python file (clean). |
-| **Packaged behavior, run locally** | PARTIALLY PROVEN | The connector host binary and NSIS `.nsh`/generated-include logic were built and staged via the real pipeline (`stage_connector.py`, `generate_connector_nsh.py`) and inspected against ground truth extracted directly from the actual NSIS template bytes embedded in `@tauri-apps/cli-win32-x64-msvc`. The packaged NSIS installer itself was **not** built or run this session (that needs the full `npx tauri build` toolchain path); the acceptance harness that would exercise a real packaged install end to end (`acceptance_harness.py`) was written and its imports/CLI verified, but **not executed**. |
-| **CI installer/update/uninstall behavior** | NOT YET RUN | `.github/workflows/desktop-shell-windows.yml`'s new registration/ownership/`/UPDATE`-guard verification steps are written and the YAML parses, but have never executed on a runner — that requires a push, which is outside this session's authorization. Integration acceptance pending. |
-| **Real Edge click-through acceptance (cases A–E)** | NOT YET RUN | `acceptance_harness.py` was built (isolation procedure, dev-connector registration, local fixtures, Library-state assertions) but requires a human (or a session with real browser click control) to actually click the extension's toolbar icon. Empirically unverified — not yet exercised end-to-end. |
+| **Component behavior, run locally** | PROVEN | `cargo test --release` for both packages (`src-tauri`: 56 passed; `connector-host`: 8 passed; 64 total, 0 failed, 6 pre-existing `#[ignore]`s untouched by Stage 2); `cargo clippy --release -- -D warnings` clean for both packages; `pytest tests/test_capture.py tests/test_connector_identity.py tests/test_desktop_packaging.py tests/test_health.py` (88 passed, 0 pre-existing failures remaining — see below — 1 skipped); `node --test app/desktop-shell/extension/background.test.mjs` (12 passed); `ruff check` / `ruff format --check` on every touched Python file (clean). |
+| **Packaged behavior, run locally** | PROVEN | The full NSIS installer was built for real (`npx tauri build`) and installed via its actual silent `/S` path into a throwaway directory (`/D=`), never touching the maintainer's real Callosum install: correct ~16.9 MB `callosum-shell.exe`, `connector\callosum-connector.exe`, a correctly-populated `org.callosum.connector.json`, and both Chrome/Edge HKCU registry entries, all confirmed by direct inspection. The app was launched directly and stayed running (window titled "Callosum"), unlike three real defects this same local verification found and fixed (see Findings). Update-mode (`/UPDATE`) and ordinary uninstall were both run for real locally, with a pre-seeded third-party registry entry proven to survive both. |
+| **CI installer/update/uninstall behavior** | CI-PROVEN | A clean-runner Windows Actions run (`35134478341`, bound to commit `1c46a73e`, `workflow_dispatch`) executed and passed every new verification step, confirmed from actual log content, not just the green checkmark: `healthy on port 55873 after 117s` (real backend startup on a truly clean machine); per-browser manifest resolution (`Google\Chrome -> ...\connector\org.callosum.connector.json`, same for Edge) with `name`/`type`/`path`-resolves/`allowed_origins==[]` all asserted and none throwing; `confirmed: update-mode uninstall preserved both connector registry keys` after the REAL `/UPDATE` argv; `confirmed: ordinary uninstall removed both connector registry keys`; `confirmed: third-party NativeMessagingHosts entry survived untouched` after both uninstall paths. The uploaded screenshot additionally shows the real, fully-rendered Callosum UI (onboarding wizard, Library/My Publications/Synthesize tabs) running on the runner. |
+| **Real Edge click-through acceptance (cases A–E)** | NOT YET RUN | `acceptance_harness.py` was built (isolation procedure, dev-connector registration, local fixtures, Library-state assertions) but requires a human (or a session with real browser click control) to actually click the extension's toolbar icon. Empirically unverified — not yet exercised end-to-end. This is the one row CI success does not and cannot touch. |
 
 **Full-repo regression, run once this session:** `pytest tests/` (excluding the one pre-existing
 failure below, run separately) — 3154 passed, 6 skipped, 1 deselected, 0 failed among tests this
@@ -326,16 +382,14 @@ risk-acceptance framing that would overstate what happened here.
 
 ## Residual evidence gaps for Stage 2 (not risk acceptances)
 
-- **Integration acceptance pending: no live-browser click was exercised in this session.** The Rust
-  connector host, the NSIS installer plumbing, and the Python startup wiring were each verified by
-  automated tests that ran for real. The end-to-end product loop — a human clicking the real
-  extension in a real Edge session against a real packaged build — was built as
+- **Integration acceptance pending: no live-browser click was exercised.** The Rust connector host,
+  the NSIS installer plumbing (now including a real clean-runner install/update/uninstall cycle),
+  and the Python startup wiring were each verified by automated tests and/or a real run. The one
+  remaining end-to-end product loop — a human clicking the real extension in a real Edge session
+  against a real packaged build — was built as
   `.claude/experiments/browser-capture-acceptance/acceptance_harness.py` but not executed, because
   driving a real browser click is outside what this session could do. This is an evidence gap to be
   closed by an actual run, not a security risk that was identified and knowingly accepted.
-- **Integration acceptance pending: the new CI installer/update/uninstall steps have not executed.**
-  Written and YAML-valid, never run on a clean runner. Closing this requires the push the user has
-  reserved for separate authorization.
 - A local process running as the user remains out of scope, unchanged from Stage 1: it can read the
   pairing file and call the API directly regardless of any browser-capture control. This one *is* a
   structural, already-understood boundary (not new to Stage 2), not an unexecuted test.
@@ -344,28 +398,35 @@ risk-acceptance framing that would overstate what happened here.
   session — a deliberate scope boundary (no CI dependency on a live publisher page staying stable),
   not an oversight, but worth the maintainer's own spot-check before wide use.
 
+(The CI installer/update/uninstall gap that was here is resolved — see the evidence-status table and
+F5–F7 above. It is the one row in this list that moved from "pending" to "proven" this session.)
+
 ## Release-readiness consequence of the empty production allowlist
 
-Stage 2's implementation is locally complete: the host, installer hooks, extension, and startup
-wiring all exist, are wired together correctly, and are covered by tests that pass. But
+Stage 2's implementation is now proven, not just complete: the host, installer hooks, extension, and
+startup wiring all exist, are wired together correctly, are covered by tests that pass, and — as of
+this session — have been shown to actually produce a working, correctly-registered, cleanly
+updatable and uninstallable packaged app on a real clean Windows runner. But
 `connector/identity.json`'s empty `production_extension_ids` means the **production native-host
 identity is not yet activatable by any real store-distributed extension** — `allowed_origins` is an
-empty list, so even a perfectly-installed connector currently accepts zero real callers. This is the
-correct, fail-closed state for an extension that has never been published, not a bug to route around.
-Phase 1 is not release-ready on Stage 2's implementation alone; it additionally needs, in order: (1) a
-real Chrome Web Store and/or Edge Add-ons submission producing a real extension ID,
-`production_extension_ids` updated to match, and a new build; (2) the CI installer/update/uninstall
-run actually executing green on a clean runner; (3) real Edge click-through acceptance (cases A–E)
-actually executed and passing. None of those three are Stage 2 implementation work — they are the
-remaining evidence-gathering and store-publication steps this audit deliberately does not claim.
+empty list, so even a perfectly-installed, perfectly-working connector currently accepts zero real
+callers. This is the correct, fail-closed state for an extension that has never been published, not
+a bug to route around. Phase 1 is still not release-ready on Stage 2 alone; it additionally needs,
+in order: (1) a real Chrome Web Store and/or Edge Add-ons submission producing a real extension ID,
+`production_extension_ids` updated to match, and a new build; (2) real Edge click-through acceptance
+(cases A–E) actually executed and passing. (The CI installer run that used to be item (2) here is
+done — see above.) Neither remaining item is Stage 2 implementation work — they are the remaining
+evidence-gathering and store-publication steps this audit deliberately does not claim.
 
 ---
 
-**Security Audit (Stage 2): PASS on every control that was actually exercised** — no unresolved
-critical or high findings among the controls covered by the automated tests listed above. Two items
-are explicitly logged as **integration acceptance pending / empirically unverified**, not as an
-accepted risk: the real Edge click-through (cases A–E) and the CI installer/update/uninstall run.
-Neither has a known, named security defect; both simply have not been exercised yet, and this audit
-does not claim they have. F3 (Stage 1's carry-forward) is resolved at the component level by F4's
-verified `/UPDATE` guard; the CI ownership checks that would additionally verify it against a real
-runner have not yet run. Combined with Stage 1: **PASS**, scoped exactly as described above.
+**Security Audit (Stage 2): PASS**, and — as of this session — CI-proven for the installer lifecycle,
+not just component-tested. No unresolved critical or high findings among the controls covered by the
+automated tests and the clean-runner CI run described above. Findings F5–F7, all discovered by
+actually running the installer end to end rather than by writing it, are fixed and independently
+re-verified (locally, then on a clean runner); none is a security defect, and F7 in particular would
+have shipped an app that silently never started at all, caught before any release. One item remains
+explicitly **empirically unverified, not risk-accepted**: the real Edge click-through (cases A–E),
+which needs a human click this session could not provide and no CI run can substitute for. F3
+(Stage 1's carry-forward) is now resolved both at the component level (F4's guard) and by a real
+clean-runner run proving it. Combined with Stage 1: **PASS**, scoped exactly as described above.
