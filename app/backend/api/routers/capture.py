@@ -65,6 +65,7 @@ from app.backend.capture.envelope import CaptureEnvelope
 from app.backend.embeddings.admission import ensure_paper_indexed
 from app.backend.pdf_processing.ingest import attach_pdf_to_paper
 from app.backend.persistence.sqlite_retry import run_write
+from integrations.crossref import CrossrefClient
 
 router = APIRouter()
 
@@ -207,7 +208,13 @@ async def capture_item(
     except ValueError:
         raise HTTPException(status_code=422, detail="Capture envelope is not valid JSON.") from None
 
-    crossref_client = request.app.state.crossref_client
+    # Fall back to a default CrossrefClient when app.state has none (it is only set when injected —
+    # e.g. in tests); mirrors acquisition.py's add_paper_by_doi_endpoint and paper_enrich._crossref.
+    # Without this, the running app's app.state.crossref_client is None and every DOI-bearing capture
+    # reports "unresolved_review_required" even though Crossref is reachable -- confirmed via a real
+    # Edge click-through acceptance run against a real DOI on a real page: metadata extraction and
+    # native-messaging both worked, but admission always fell straight into the no-resolver path.
+    crossref_client = request.app.state.crossref_client or CrossrefClient()
     outcome: AdmissionOutcome = run_write(engine, lambda conn: admit(conn, envelope, crossref_client=crossref_client))
 
     # Post-admission indexing invariant: a captured paper is searchable like any other admission, and

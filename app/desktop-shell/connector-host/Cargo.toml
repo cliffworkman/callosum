@@ -20,6 +20,16 @@ edition = "2021"
 name = "callosum_connector"
 path = "src/main.rs"
 
+# Dev-only native-messaging entry point -- see dev_connector_launcher.rs's own doc comment for why
+# this exists (a shell-based .bat wrapper reliably broke the real binary's outbound HTTP client).
+# Safe as a second [[bin]] in THIS package specifically because connector-host is never built via
+# `cargo tauri build` (only ever plain `cargo build --release`) -- the ambiguity that forced
+# `callosum_connector` into its own package in the first place was specific to sharing a package
+# with the Tauri app's bundler, not a general two-binaries-in-one-package hazard.
+[[bin]]
+name = "dev_connector_launcher"
+path = "src/bin/dev_connector_launcher.rs"
+
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

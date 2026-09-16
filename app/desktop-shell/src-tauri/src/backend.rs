@@ -122,11 +122,26 @@ pub fn resolved_paths(app: &AppHandle) -> Result<ResolvedPaths, StartupError> {
     // unset and ~/.config/user-dirs.dirs is absent: a bare Xvfb CI session, or a minimal/headless
     // Debian install. The result was a splash stuck on "Starting…" with no backend ever spawned,
     // indistinguishable from a genuinely broken build. Fall back instead of failing closed.
-    let library_dir = app
-        .path()
-        .document_dir()
-        .unwrap_or_else(|_| home_dir.join("Documents"))
-        .join("callosum-library");
+    //
+    // `CALLOSUM_LIBRARY_DIR_OVERRIDE` mirrors `CALLOSUM_SETTINGS_PATH`'s existing test-override
+    // pattern below. Without it, a disposable/acceptance-test launch on a real developer machine
+    // resolves the SAME Documents-folder default a real install would -- a real Edge click-through
+    // acceptance run found this means "the library folder" (always auto-watched and auto-rescanned
+    // on launch, and where a captured PDF's bytes are written) is the developer's REAL document
+    // library, entirely independent of the isolated app-data directory. The auto-rescan itself
+    // failed harmlessly on every real file it tried (`[Errno 22] Invalid argument`), but the
+    // resulting request volume was enough to delay a capture's own requests past a real Edge
+    // extension service worker's lifetime, aborting the capture mid-flight -- a genuine, confirmed
+    // test-environment hazard this override exists to remove, not a product defect.
+    let library_dir = std::env::var_os("CALLOSUM_LIBRARY_DIR_OVERRIDE")
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            app.path()
+                .document_dir()
+                .unwrap_or_else(|_| home_dir.join("Documents"))
+                .join("callosum-library")
+        });
     let callosum_home = home_dir.join(".callosum");
 
     // sqlite:/// URLs want forward slashes even on Windows.

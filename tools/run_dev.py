@@ -85,15 +85,31 @@ def _dev_connector_binary() -> Path | None:
     return None
 
 
+def _dev_connector_launcher_binary() -> Path | None:
+    """The dev-only native launcher (see dev_connector_launcher.rs) that the manifest's `path`
+    points at -- built alongside `callosum_connector.exe` from the same `cargo build --release`."""
+    connector_host = ROOT / "app" / "desktop-shell" / "connector-host"
+    for profile in ("debug", "release"):
+        candidate = connector_host / "target" / profile / "dev_connector_launcher.exe"
+        if candidate.is_file():
+            return candidate
+    return None
+
+
 def _register_dev_connector() -> None:
     """Register org.callosum.connector.dev for local testing -- NEVER org.callosum.connector.
 
     Windows only for now: native-messaging hosts are registry-based there, and Stage 2's installer
     work (what this dev path exercises the same product contract against) is Windows-first for the
-    identical reason. A wrapper .bat sets CALLOSUM_CONNECTOR_ALLOW_DEV_BUILD=1 before exec'ing the
-    real binary, because Chrome launches a native host with ITS OWN environment -- there is no way
-    to inject an env var through the manifest itself. The same wrapper-script technique the research
-    probe already used (host.bat) for exactly this reason.
+    identical reason. The manifest's `path` points at `dev_connector_launcher.exe`, a tiny native
+    binary that sets CALLOSUM_CONNECTOR_ALLOW_DEV_BUILD=1 and execs the real connector -- because
+    Chrome launches a native host with ITS OWN environment, there is no way to inject an env var
+    through the manifest itself. This used to be a generated `.bat` wrapper (`set VAR=1` then exec),
+    but a real Edge click-through acceptance run found that reliably breaks the real binary's
+    outbound HTTP client: `reqwest`, invoked as a grandchild of `cmd.exe` with piped stdio (exactly
+    how Chrome invokes a native-messaging host), timed out connecting to 127.0.0.1 every time, while
+    the identical binary invoked directly (no `cmd.exe` in the process chain) connected instantly,
+    every time, with no code difference at all. See dev_connector_launcher.rs's own doc comment.
 
     A DISTINCT host name (not a temporary overwrite of the production key) is the whole point
     (steering point 2): a dev session that gets hard-killed and skips `_clear_dev_connector` leaves
@@ -104,7 +120,8 @@ def _register_dev_connector() -> None:
         print("[run_dev] browser-capture dev connector: skipped (Windows-only for now)")
         return
     binary = _dev_connector_binary()
-    if binary is None:
+    launcher = _dev_connector_launcher_binary()
+    if binary is None or launcher is None:
         print(
             "[run_dev] browser-capture dev connector: skipped -- build it first with "
             "`cargo build --manifest-path app/desktop-shell/connector-host/Cargo.toml`"
@@ -116,18 +133,13 @@ def _register_dev_connector() -> None:
     dev_extension_id = identity["dev_extension_id"]
 
     DEV_CONNECTOR_DIR.mkdir(parents=True, exist_ok=True)
-    wrapper = DEV_CONNECTOR_DIR / "run-dev-connector.bat"
-    wrapper.write_text(
-        f'@echo off\r\nset CALLOSUM_CONNECTOR_ALLOW_DEV_BUILD=1\r\n"{binary}" %*\r\n',
-        encoding="utf-8",
-    )
     manifest_path = DEV_CONNECTOR_DIR / f"{host_name}.json"
     manifest_path.write_text(
         json.dumps(
             {
                 "name": host_name,
                 "description": "Callosum browser-capture connector (DEV -- never shipped)",
-                "path": str(wrapper),
+                "path": str(launcher),
                 "type": "stdio",
                 "allowed_origins": [f"chrome-extension://{dev_extension_id}/"],
             },
@@ -172,7 +184,7 @@ def _clear_dev_connector() -> None:
             winreg.DeleteKey(winreg.HKEY_CURRENT_USER, f"{browser_root}\\{host_name}")
         except OSError:
             pass  # never registered this session, or already cleared -- both fine
-    for name in (f"{host_name}.json", "run-dev-connector.bat"):
+    for name in (f"{host_name}.json",):
         try:
             (DEV_CONNECTOR_DIR / name).unlink(missing_ok=True)
         except OSError:
