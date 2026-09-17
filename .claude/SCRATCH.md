@@ -357,3 +357,45 @@ Do not hand-edit descriptor, delete model assets, bypass validation, rerun Gemin
 - freeze_manifest_v0 SHA256 753e3202b389997b39021c3f04e933ccc51d929a37f7bc32eb2b311f4747eb9f; 52 hashed files verify, byte-identical rebuild. Tests55/55, existing relevant tests30/30, six deterministic selfchecks, Ruff PASS. Protected baseline57473 files/index unchanged. ZERO candidate/Gemini/neutral/embedding/NLI inference, downloads, model loads, runtime/production mutations, sealed-key access, staging or commit.
 - Status PARTIALLY_READY_FOR_R_0_6 — explicit negative-control domain blocker remains. Infrastructure prepared; parallel final-freeze dependencies include human referent review, fidelity/materiality floors, semantic output/thinking policies, acquired artifact/runtime/template hashes, hardware/task packets, cloud authorization, and accepted R_0_6 through adjudication -> integration -> bounded acceptance. Not "only R_0_6 left."
 - Report `.claude/docs/research/2026-09-09_070-nonsemantic-infrastructure-implementation.md`; private receipts `C:/Users/cliff/AppData/Local/Temp/callosum-070-nonsemantic-infra-nv0h55dk/`. Next human decision: replacement negative-control domain; human referent review/adjudication can proceed independently. No further execution authorized.
+
+
+## Claude worktree topology restore — COMPLETE 2026-09-17
+
+- **Repo topology change, not a semantic decision.** The primary checkout
+  (`C:\Users\cliff\Dropbox\Dropbox\01_Work\callosum`) had been sitting on this branch
+  (`experiment/ask-cli-staged-synthesis`) while ordinary product development continued
+  independently on `main` via a temp-dir worktree. That froze Cliff out of his own primary
+  folder for day-to-day product use. This entry documents where this branch's own state
+  moved to, so a future session picking up SCRATCH here isn't confused about "the main repo."
+- **This branch is no longer the primary checkout.** It now lives in its own dedicated
+  worktree: `C:\Users\cliff\Dropbox\Dropbox\01_Work\callosum\.claude\worktrees\ask-cli-staged-synthesis`.
+  Same branch, same history — just relocated so the primary path could return to `main`.
+  A checkpoint commit (`a0315503`) was made first to losslessly preserve everything that
+  was dirty in the primary checkout at the time (this SCRATCH.md included), **except**:
+  raw Playwright page-snapshot dumps (`broad-done.md`, `broad-result.md`, `reload-check.md`,
+  `synth-pane.md`) and a UI screenshot (`axis-ask-interstitial-ax3.png`) that render live
+  evidence text, and run-artifact directories that may hold retrieved library/paper text
+  (`experiments/ask_070/frozen/`, `experiments/ask_cli_revised/runs/`,
+  `experiments/ask_cli_revised/calibration/runs/` — same precedent as the already-gitignored
+  `experiments/ask_cli/runs/`). Those were left untracked and manually relocated (not
+  committed) into this same worktree, so they're still here on disk, just outside git history.
+  `.claude/docs/legacy_engine/` (unrelated personal content, predates this research track)
+  was deliberately excluded and left in the primary checkout for Cliff to handle himself.
+- **Primary checkout is now `main`**, `origin/main` tip at the time of this restore
+  (`1aa3973a`, inc 603 baseline), plus one small docs-only commit adding
+  `.claude/docs/worktree-topology.md` (see that file for the live topology record —
+  don't duplicate it here).
+- **Frozen 0.6 baseline preserved separately and exactly**: branch `freeze/060` at commit
+  `5ddb321f5a9374d8258234562da4b0781c965d1a` (the same commit this branch's own inc-581
+  entry above references), attached at
+  `C:\Users\cliff\Dropbox\Dropbox\01_Work\callosum\.claude\worktrees\060`.
+- **Zero semantic decisions made by this restore.** No H1a/H1b/H1c/Ask-CLI research
+  conclusion changed; R_0_6 remains unfrozen; 0.6 human adjudication remains pending
+  (Cliff is finishing a manuscript first); 0.7 remains subject to its existing dependency
+  on an accepted 0.6. Every standing boundary above (H1c-A2 sealed, A3 worktrees DO NOT
+  TOUCH, frozen Gemini/Qwen acceptance, no rerun/tuning) is unchanged and still binding.
+  `browser-capture-research` (a separate, unrelated stranded worktree found during the
+  audit) was deliberately left untouched, dirty, isolated — not this branch's concern.
+- Audit trail (branch/worktree inventory before/after, ancestry checks, what was and
+  wasn't reconciled into `main`) lives in the session transcript and the approved plan at
+  `~\.claude\plans\we-are-changing-callosum-s-luminous-squirrel.md`, not duplicated here.
