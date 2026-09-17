@@ -38,6 +38,14 @@ export const RESULT_DISPLAY = {
     color: "#b35900",
     title: "Callosum couldn't read this PDF directly from the tab. Try it from a page listing instead.",
   },
+  // Distinct from direct_pdf_unsupported above: that one means the BYTES couldn't be fetched; this
+  // one means the bytes were fetched fine but the tab offered no scholarly identity (no DOI, and a
+  // filename is not a title) strong enough for automatic admission. Nothing was created.
+  direct_pdf_identity_unresolved: {
+    badge: "?",
+    color: "#b35900",
+    title: "Callosum couldn't tell what scholarly work this PDF is. Try capturing it from the article's own page instead.",
+  },
   callosum_starting: { badge: "…", color: "#5b6169", title: "Callosum is still starting up. Try again shortly." },
   callosum_closed: { badge: "OFF", color: "#57606a", title: "Callosum isn't running. Open Callosum, then try again." },
   host_unavailable: {
@@ -374,6 +382,7 @@ export function resultKeyFor(outcome, pdfAttached) {
   if (pdfReason === "attachment_review_required") return "attachment_review_required";
   if (status === "in_trash") return "in_trash";
   if (status === "unresolved_review_required") return "unresolved";
+  if (status === "direct_pdf_identity_unresolved") return "direct_pdf_identity_unresolved";
   if (status === "added") return pdfAttached ? "added_pdf_attached" : "added";
   if (status === "already_present") return pdfAttached ? "already_present_pdf_attached" : "already_present";
   return "failed"; // covers "invalid_capture" and any status this extension doesn't yet know

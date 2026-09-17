@@ -372,7 +372,8 @@ def _remember_pending(capture_id: str, pending: _PendingCapture) -> None:
 
 
 def _reset_for_tests() -> None:
-    """Drop in-process capture state (sessions, idempotency, pending). Tests only."""
+    """Drop in-process capture state (sessions, idempotency, pending, rate limit). Tests only."""
     _pending.clear()
     pairing.clear_sessions()
     idempotency.clear()
+    _limiter.reset()

@@ -4,7 +4,7 @@ This is an **adapter, not a new identity system**. Every decision that matters �
 same work, what may be written, what gets indexed — is delegated to the shared substrate hardened in
 the previous increment. There is deliberately no fourth resolver here.
 
-What this module owns is the two judgments that are genuinely capture-specific:
+What this module owns is the three judgments that are genuinely capture-specific:
 
 1. **When is generic page metadata safe to admit at all?** A DOI is a stable identifier and goes
    straight to ``add_paper_by_doi``. Without one, identity would rest on ``title_year_author`` — plain
@@ -14,6 +14,14 @@ What this module owns is the two judgments that are genuinely capture-specific:
    an ambiguity resolver it does not have.
 
 2. **When may captured bytes touch an existing record?** See ``attachment_decision``.
+
+3. **A direct-PDF envelope's filename is not bibliographic identity.** ``pdf_bytes_from_active_tab``
+   marks a capture whose only possible ``title`` came from a filename, not a real page's metadata —
+   applying judgment 1's "no DOI, title present, safe to create" reasoning to that title would create
+   an anonymous, unfindable paper on every direct-PDF click. Refused explicitly instead:
+   ``direct_pdf_identity_unresolved``, nothing created. This is a narrower refusal than "PDFs are
+   unsupported" — a direct-PDF envelope that DOES carry a real DOI or a genuine title+year+author
+   tuple never reaches this judgment; it is handled entirely by judgments 1 and 2, unchanged.
 """
 
 from __future__ import annotations
@@ -41,6 +49,12 @@ STATUS_ALREADY_PRESENT = "already_present"
 STATUS_IN_TRASH = "in_trash"
 STATUS_UNRESOLVED = "unresolved_review_required"
 STATUS_INVALID = "invalid_capture"
+# A direct-PDF capture whose active tab could not establish canonical identity strongly enough for
+# automatic admission -- see `admit()`'s no-DOI branch for why this is distinct from
+# STATUS_UNRESOLVED. Named for what is true TODAY (the current browser context lacks sufficient
+# identity), not "unsupported forever": a future producer that supplies real identity for a PDF tab
+# proceeds through the ordinary DOI/title-year-author rules below unchanged, no new status needed.
+STATUS_DIRECT_PDF_UNRESOLVED = "direct_pdf_identity_unresolved"
 
 # Why a PDF was refused. Distinct from the admission status: metadata can succeed while bytes are declined.
 PDF_OK = "ok"
@@ -155,6 +169,28 @@ def admit(conn: Connection, envelope: CaptureEnvelope, *, crossref_client: Any |
         )
 
     # --- no DOI ---------------------------------------------------------------------------------
+    # A direct-PDF capture that reaches here has no DOI (checked above) and, by construction, no
+    # year or creators either -- the extension never attempts DOM extraction on a PDF-viewer tab
+    # (a different extension's own origin, outside this extension's host permissions), so the ONLY
+    # "identity" a direct-PDF envelope can offer is a filename-derived `title`. A filename is not
+    # bibliographic evidence: unlike a generic HTML page's real <title>/citation_* extraction (which
+    # the fallback below correctly treats as enough to create a fresh metadata-only record), letting
+    # a PDF's filename take the same path would silently create an anonymous, unfindable paper for
+    # every direct-PDF click (issue #61 Phase 1's browser-capture acceptance run's Case B/E finding).
+    # Refuse explicitly instead: this is a designed status, not a silent failure, and it is
+    # deliberately narrower than "unsupported forever" -- a future envelope that DOES carry a real
+    # DOI or a genuine title+year+author tuple never reaches this branch at all; it is handled by
+    # the unchanged rules above and below.
+    if envelope.pdf_bytes_from_active_tab:
+        return AdmissionOutcome(
+            status=STATUS_DIRECT_PDF_UNRESOLVED,
+            detail=(
+                "a direct-PDF capture's active tab did not establish canonical scholarly identity "
+                "strongly enough for automatic admission"
+            ),
+            pdf_reason=PDF_NOT_OFFERED,
+        )
+
     # An ACTIVE match found on a non-unique predicate is not trustworthy enough to write to, and not
     # trustworthy enough to create beside either. Report it for review rather than guessing.
     if state == "active" and row is not None:

@@ -476,6 +476,82 @@ def test_metadata_only_existing_paper_with_no_attachments_or_annotations_accepts
     engine.dispose()
 
 
+def test_direct_pdf_with_no_identity_is_refused_and_creates_nothing(temp_db_url: str) -> None:
+    """A direct-PDF envelope's title is a filename, never real bibliographic evidence — #61's real
+    Edge acceptance run found this silently created an anonymous, unfindable paper on every direct-
+    PDF click. Shaped exactly like the real extension's `buildDirectPdfEnvelope` output: no
+    identifiers, no creators, no year, `pdf_bytes_from_active_tab=True`."""
+    client = _client(temp_db_url)
+    headers = _paired(client)
+    payload = _envelope(
+        producer_kind="direct-pdf",
+        pdf_bytes_from_active_tab=True,
+        identifiers={},
+        creators=[],
+        year=None,
+        field_provenance={},
+        title="pone.0000308.pdf",
+    )
+    body = client.post("/capture/item", json=payload, headers=headers).json()
+
+    assert body["status"] == "direct_pdf_identity_unresolved"
+    assert body["paper_id"] is None
+    assert body["created"] is False
+    assert body["pdf_accepted"] is False
+    assert body["capture_id"] is None, "no upload slot is offered for an unresolved direct-PDF"
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        total = conn.execute(select(func.count()).select_from(papers)).scalar_one()
+    engine.dispose()
+    assert total == 0, "an identity-empty direct-PDF capture must never create an anonymous paper"
+
+    # The PDF-upload route cannot proceed either: no capture_id exists for a client to post bytes to,
+    # and a fabricated one 404s exactly like any other unknown/expired capture.
+    response = client.post(
+        "/capture/item/not-a-real-capture-id/pdf",
+        content=b"%PDF-1.7 whatever",
+        headers={**headers, "content-type": "application/pdf"},
+    )
+    assert response.status_code == 404
+
+
+def test_direct_pdf_with_a_real_doi_still_uses_the_ordinary_admission_rules(temp_db_url: str, tmp_path: Path) -> None:
+    """The narrow refusal above must never swallow a direct-PDF envelope that DOES carry real
+    identity — the existing DOI branch (unchanged) still applies, exactly as it would for a future
+    producer with stronger browser-side identity than today's extension has."""
+    client = _client(temp_db_url)
+    headers = _paired(client)
+    payload = _envelope(
+        producer_kind="direct-pdf",
+        pdf_bytes_from_active_tab=True,
+        creators=[],
+        year=None,
+        field_provenance={},
+        title="pone.0000308.pdf",
+        # identifiers left at _envelope()'s default DOI — a hypothetical producer strong enough to
+        # supply one.
+    )
+    body = client.post("/capture/item", json=payload, headers=headers).json()
+
+    assert body["status"] == "added"
+    assert body["pdf_accepted"] is True
+    assert body["capture_id"] is not None
+
+    pdf = _one_page_pdf(tmp_path / "identified.pdf")
+    response = client.post(
+        f"/capture/item/{body['capture_id']}/pdf",
+        content=pdf.read_bytes(),
+        headers={**headers, "content-type": "application/pdf"},
+    )
+    assert response.status_code == 200, response.text
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        assert len(get_attachments_for_paper(conn, body["paper_id"])) == 1
+    engine.dispose()
+
+
 # ── PDF validation ──────────────────────────────────────────────────────────────────────────────
 
 

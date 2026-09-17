@@ -112,6 +112,7 @@ test("resultKeyFor covers every real admission outcome", () => {
     [{ status: "added", pdf_reason: "attachment_review_required" }, false, "attachment_review_required"],
     [{ status: "in_trash", pdf_reason: "not_offered" }, false, "in_trash"],
     [{ status: "unresolved_review_required", pdf_reason: "not_offered" }, false, "unresolved"],
+    [{ status: "direct_pdf_identity_unresolved", pdf_reason: "not_offered" }, false, "direct_pdf_identity_unresolved"],
     [{ status: "invalid_capture", pdf_reason: "not_offered" }, false, "failed"],
     [{ status: "some_future_status", pdf_reason: "not_offered" }, false, "failed"], // unknown -> fail visibly, not silently
   ];
@@ -122,7 +123,7 @@ test("resultKeyFor covers every real admission outcome", () => {
 
 test("every resultKeyFor output and every connector runtime_state has a RESULT_DISPLAY entry", () => {
   const resultKeys = ["added", "added_pdf_attached", "already_present", "already_present_pdf_attached",
-    "attachment_review_required", "in_trash", "unresolved", "failed"];
+    "attachment_review_required", "in_trash", "unresolved", "direct_pdf_identity_unresolved", "failed"];
   const connectorRuntimeStates = ["callosum_closed", "callosum_starting", "version_incompatible",
     "not_eligible_instance", "pairing_unavailable", "host_unavailable"];
   for (const key of [...resultKeys, ...connectorRuntimeStates, "capturing", "direct_pdf_unsupported"]) {
