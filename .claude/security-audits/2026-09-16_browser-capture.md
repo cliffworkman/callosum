@@ -353,7 +353,7 @@ past its actual evidence. Four distinct levels, not two:
 | **Component behavior, run locally** | PROVEN | `cargo test --release` for both packages (`src-tauri`: 56 passed; `connector-host`: 8 passed; 64 total, 0 failed, 6 pre-existing `#[ignore]`s untouched by Stage 2); `cargo clippy --release -- -D warnings` clean for both packages; `pytest tests/test_capture.py tests/test_connector_identity.py tests/test_desktop_packaging.py tests/test_health.py` (88 passed, 0 pre-existing failures remaining — see below — 1 skipped); `node --test app/desktop-shell/extension/background.test.mjs` (12 passed); `ruff check` / `ruff format --check` on every touched Python file (clean). |
 | **Packaged behavior, run locally** | PROVEN | The full NSIS installer was built for real (`npx tauri build`) and installed via its actual silent `/S` path into a throwaway directory (`/D=`), never touching the maintainer's real Callosum install: correct ~16.9 MB `callosum-shell.exe`, `connector\callosum-connector.exe`, a correctly-populated `org.callosum.connector.json`, and both Chrome/Edge HKCU registry entries, all confirmed by direct inspection. The app was launched directly and stayed running (window titled "Callosum"), unlike three real defects this same local verification found and fixed (see Findings). Update-mode (`/UPDATE`) and ordinary uninstall were both run for real locally, with a pre-seeded third-party registry entry proven to survive both. |
 | **CI installer/update/uninstall behavior** | CI-PROVEN | A clean-runner Windows Actions run (`35134478341`, bound to commit `1c46a73e`, `workflow_dispatch`) executed and passed every new verification step, confirmed from actual log content, not just the green checkmark: `healthy on port 55873 after 117s` (real backend startup on a truly clean machine); per-browser manifest resolution (`Google\Chrome -> ...\connector\org.callosum.connector.json`, same for Edge) with `name`/`type`/`path`-resolves/`allowed_origins==[]` all asserted and none throwing; `confirmed: update-mode uninstall preserved both connector registry keys` after the REAL `/UPDATE` argv; `confirmed: ordinary uninstall removed both connector registry keys`; `confirmed: third-party NativeMessagingHosts entry survived untouched` after both uninstall paths. The uploaded screenshot additionally shows the real, fully-rendered Callosum UI (onboarding wizard, Library/My Publications/Synthesize tabs) running on the runner. |
-| **Real Edge click-through acceptance (cases A–E)** | PROVEN (dev/test identity path) | `run_acceptance_AtoE.py` executed all five cases in one isolated session against a real packaged `callosum-shell.exe` and a real Edge browser with the real (dev-keyed) extension loaded, driving the click via Windows UI Automation keyboard-focus navigation — proven in isolation against a throwaway probe extension (CDP-confirmed `activeTab` grant: `chrome.scripting.executeScript` read the real page's `document.title` after the click, badge/title updated) before being trusted here. Cases A, C, D passed exactly against their specified criteria (real DOI resolved and admitted with `capture:browser` provenance / single row on re-click / trashed paper stayed deleted). Cases B and E each independently confirmed the same architecturally-predicted, non-defect outcome (a direct-PDF envelope never carries a DOI or year/author, so it can never resolve onto an existing paper via any code path — `attachment_review_required` is consequently unreachable through this UI surface today, not a bug). See `evidence-run/evidence.json` and per-case screenshots. Two genuine defects (F8, F9) and one environment-only test hazard (F10) were found and fixed as a direct result of running this for real. |
+| **Real Edge click-through acceptance (cases A–E)** | PROVEN (dev/test identity path) | `run_acceptance_AtoE.py` executed all five cases in one isolated session against a real packaged `callosum-shell.exe` and a real Edge browser with the real (dev-keyed) extension loaded, driving the click via Windows UI Automation keyboard-focus navigation — proven in isolation against a throwaway probe extension (CDP-confirmed `activeTab` grant: `chrome.scripting.executeScript` read the real page's `document.title` after the click, badge/title updated) before being trusted here. Cases A, C, D passed exactly against their specified criteria (real DOI resolved and admitted with `capture:browser` provenance / single row on re-click / trashed paper stayed deleted). Cases B and E, rerun after F11's direct-PDF admission gate below, both now return the designed `direct_pdf_identity_unresolved` refusal — zero paper creation, zero attachment/annotation mutation, no `capture_id`, no `/capture/item/{id}/pdf` call — confirmed via a second real Edge click-through rerun (`run_acceptance_BE_direct_pdf.py`) after the gate landed in a real rebuilt package. Case E's `attachment_review_required` branch is proven separately, at the component level, with the identical envelope shape a real click cannot produce (see F11). See `evidence-run/evidence.json` and `evidence-run-be-direct-pdf/evidence.json` for the two runs. Three genuine defects (F8, F9, F11) and one environment-only test hazard (F10) were found and fixed as a direct result of running this for real. |
 
 **Full-repo regression, run once this session:** `pytest tests/` (excluding the one pre-existing
 failure below, run separately) — 3154 passed, 6 skipped, 1 deselected, 0 failed among tests this
@@ -380,12 +380,12 @@ browser-driven behavior themselves. Neither of the last two rows is a risk anyon
 accepted — they are simply not yet exercised, and are called that rather than folded into a
 risk-acceptance framing that would overstate what happened here.
 
-## Findings F8–F10, from actually clicking the real extension in real Edge
+## Findings F8–F11, from actually clicking the real extension in real Edge
 
 Same discipline as F5–F7: each was found by running the real product end to end, not by reading the
 code, and each was reproduced, root-caused with direct evidence, fixed, and re-verified before being
-trusted. None is a security defect; all three blocked the acceptance run from ever completing before
-being fixed.
+trusted. None is a security defect; all four blocked the acceptance run from ever completing (or
+from meaning what it claimed) before being fixed.
 
 - **F8 — dev-only native-messaging launcher.** The `.bat` wrapper `_register_dev_connector` used to
   generate (`set CALLOSUM_CONNECTOR_ALLOW_DEV_BUILD=1` then exec the real binary) reliably broke the
@@ -435,6 +435,60 @@ being fixed.
   matches and zero warnings in `backend.log`. This is a test-isolation gap this audit's own isolation
   procedure did not originally cover (it isolated the database, not the separate "library folder"
   concept), not a defect in the product's own real-world behavior.
+- **F11 — a direct-PDF capture's title is a filename, not bibliographic identity, and admission
+  treated it as if it were.** Traced (not inferred) end to end: `background.js`'s `handleCapture`
+  branches on `looksLikePdfUrl(tab.url)` *before* any DOM extraction is attempted — Chrome's own PDF
+  viewer renders in its own extension's origin (`chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/
+  edge_pdf/...`, confirmed via CDP), which this extension has no host permission to script into, so
+  DOM extraction is not merely skipped for a PDF tab, it is not viable under the current permission
+  model at all. `buildDirectPdfEnvelope` therefore sets only a filename-derived `title` and
+  `pdf_bytes_from_active_tab: true` — never a DOI, year, or creators. `admission.py`'s `admit()` no-
+  DOI branch (written for *generic* HTML captures, where a real page title genuinely is bibliographic
+  evidence) then unconditionally created a fresh, anonymous, unfindable paper from that filename —
+  the real Case B/E acceptance-run finding. **Fix, applied at the single canonical enforcement point
+  the router's own docstring already names ("every consequential decision... belongs to the canonical
+  admission substrate, not to this router and never to the extension"):** `admit()` now refuses any
+  `pdf_bytes_from_active_tab` envelope that reaches the no-DOI branch with a new, precise, designed
+  status, `direct_pdf_identity_unresolved` — chosen deliberately narrower than "PDFs are unsupported":
+  a direct-PDF envelope that *does* carry a real DOI, or a genuine title+year+author tuple, never
+  reaches this check at all and is handled entirely by the pre-existing, unchanged rules above and
+  below it. Zero paper creation, zero mutation, no `capture_id` (so `/capture/item/{id}/pdf` cannot be
+  called), `pdf_reason: "not_offered"`. The extension maps the new status to an explicit,
+  non-alarming rendered result instead of the generic `"failed"` fallback. **Consequence for the
+  fresh-install embedding-model 500 noted below:** it was only ever reachable via
+  `/capture/item/{id}/pdf`, which is only reachable when a `capture_id` is minted — this fix removes
+  that possibility for any direct-PDF capture with no real identity, confirmed empirically (zero
+  `/capture/item/{id}/pdf` log lines in either rerun below), not merely argued. **Verified three
+  ways:** (1) two new focused `tests/test_capture.py` tests — one proving an identity-empty direct-PDF
+  envelope shaped exactly like the real extension's output is refused with zero paper creation and a
+  404 on a fabricated `capture_id`, one proving a *hypothetical* DOI-bearing direct-PDF envelope still
+  uses the ordinary, unchanged admission rules; full suite (39 tests) passes. (2) A direct HTTP
+  round-trip against the real, freshly rebuilt packaged binary (bypassing Edge) confirmed the exact
+  JSON response and zero DB mutation. (3) A real Edge rerun of cases B and E from a fresh disposable
+  instance (`run_acceptance_BE_direct_pdf.py`) confirmed the real extension renders "Callosum couldn't
+  tell what scholarly work this PDF is. Try capturing it from the article's own page instead." for
+  both, with zero paper/attachment/annotation mutation and zero `/capture/item/{id}/pdf` calls in
+  `backend.log` for either case. **A real build-pipeline gap surfaced during verification, fixed in
+  the process, not left latent:** the packaged binary reads its Python backend from a build-time copy
+  (`src-tauri/target/release/callosum-src/`) that `stage_source.py` alone does not refresh — only a
+  full `npx tauri build` does. The first rerun attempt (against a binary rebuilt *before* this fix
+  existed) still created an anonymous paper for exactly this reason; caught immediately by checking
+  the response against a direct HTTP call to the running binary before trusting a second real-Edge
+  run, root-caused via file timestamps, and closed by rebuilding for real before rerunning.
+
+  **Case E's `attachment_review_required` branch is proven separately, at the component level, using
+  an envelope shape a real click cannot produce.** `tests/test_capture.py`'s `_envelope()` helper
+  defaults to a real DOI; every existing `pdf_bytes_from_active_tab=True` test
+  (`test_existing_paper_with_a_pdf_refuses_capture_bytes`,
+  `test_existing_paper_with_annotations_refuses_capture_bytes`) already exercises exactly this
+  branch — existing paper resolved, `attachment_review_required`, `capture_id: null` ("no upload slot
+  is offered"), existing attachment/annotation count unchanged — with a DOI the real, unmodified
+  extension has no way to attach to a direct-PDF envelope today. This was already true before F11;
+  F11's fix does not touch it, and the real-Edge rerun above confirms real-Edge E cannot reach it
+  (same `direct_pdf_identity_unresolved` refusal as B), matching this precisely rather than
+  papering over it. **Automatic real-browser direct-PDF-to-existing-paper reconciliation is an
+  explicit architectural boundary of today's permission model, not a missing Phase 1 implementation
+  — deferred, not broken.**
 
 ## Residual evidence gaps for Stage 2 (not risk acceptances)
 
@@ -464,31 +518,40 @@ shown to carry a real capture end to end (real DOI extracted, resolved, and admi
 identity is not yet activatable by any real store-distributed extension** — `allowed_origins` is an
 empty list, so even a perfectly-installed, perfectly-working connector currently accepts zero real
 callers. This is the correct, fail-closed state for an extension that has never been published, not
-a bug to route around. **Phase 1 functional acceptance is complete for the Edge + development/test
-native-host identity path.** Phase 1 is still not release-ready overall; what remains is exclusively
-store-publication work, not implementation or acceptance work: a real Chrome Web Store and/or Edge
-Add-ons submission producing a real extension ID, `production_extension_ids` updated to match, and a
-new build. Every other item this audit previously listed as pending — CI installer lifecycle, real
-Edge click-through acceptance — is now proven, not just complete.
+a bug to route around. **Phase 1 browser-capture functional acceptance COMPLETE for the Edge +
+development/test identity path. Direct PDFs without sufficient canonical identity are deliberately
+refused without mutation. Automatic reconciliation of an identity-poor PDF tab to an existing
+scholarly object is deferred beyond Phase 1.** Phase 1 is still not release-ready overall; what
+remains is exclusively store-publication work, not implementation or acceptance work: a real Chrome
+Web Store and/or Edge Add-ons submission producing a real extension ID, `production_extension_ids`
+updated to match, and a new build. Every other item this audit previously listed as pending — CI
+installer lifecycle, real Edge click-through acceptance including direct-PDF behavior — is now
+proven, not just complete. Kept explicitly distinct: direct-PDF automatic attachment/reconciliation
+is a later capability (not attempted, not claimed); production store/native-host identity is a
+later, separate distribution gate.
 
-One fresh-install characteristic surfaced by this run, noted here for completeness rather than as a
-Stage 2 finding: a genuinely fresh Callosum install (no local embedding model downloaded yet) will
-500 on a direct-PDF browser capture's attach step, because `attach_pdf_to_paper` treats embedding as
-mandatory to attaching (a deliberate, documented design choice — "indexing is a property of
-attaching, not a convention each front end re-implements" — that predates and is unrelated to browser
-capture). This is a pre-existing product characteristic of first-run state, not a browser-capture
-defect, and this audit takes no position on whether it should change.
+The embedding-model 500 noted in an earlier version of this section (a genuinely fresh Callosum
+install, with no local embedding model downloaded yet, 500ing on a direct-PDF attach step) is now
+**confirmed unreachable from this acceptance path**, not merely presumed so: F11's direct-PDF
+admission gate means an identity-empty direct-PDF capture never receives a `capture_id`, so
+`/capture/item/{id}/pdf` — the only route that could reach `attach_pdf_to_paper`'s embedding
+requirement — is never called. Verified empirically (zero such log lines in either B/E rerun), not
+just argued from the code. Whether `attach_pdf_to_paper` should tolerate a missing embedding model
+more gracefully remains a separate, pre-existing, unrelated product question this audit takes no
+position on and did not touch.
 
 ---
 
 **Security Audit (Stage 2): PASS**, and — as of this session — CI-proven for the installer lifecycle
-AND proven for real Edge click-through acceptance on the dev/test identity path, not just
-component-tested. No unresolved critical or high findings among the controls covered by the
-automated tests, the clean-runner CI run, and the real Edge acceptance run described above. Findings
-F5–F10, all discovered by actually running the real product end to end rather than by reading the
-code, are fixed and independently re-verified; none is a security defect, and F7 and F9 in particular
+AND proven for real Edge click-through acceptance on the dev/test identity path, including the
+direct-PDF contract, not just component-tested. No unresolved critical or high findings among the
+controls covered by the automated tests, the clean-runner CI run, and the real Edge acceptance runs
+described above. Findings F5–F11, all discovered by actually running the real product end to end
+rather than by reading the code, are fixed and independently re-verified; none is a security defect,
+and F7, F9, and F11 in particular
 would each have quietly defeated a real, user-facing capability (the app silently never starting;
-every DOI-bearing capture silently failing to resolve) if shipped unfixed. F3 (Stage 1's
+every DOI-bearing capture silently failing to resolve; every direct-PDF click silently creating an
+anonymous, unfindable paper) if shipped unfixed. F3 (Stage 1's
 carry-forward) is now resolved both at the component level (F4's guard) and by a real clean-runner
 run proving it. **`production_extension_ids` remains `[]`, unchanged, fail-closed, and untouched by
 any code in this session.** Combined with Stage 1: **PASS**, scoped exactly as described above.
