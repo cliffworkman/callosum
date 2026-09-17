@@ -1284,7 +1284,7 @@ changed at the architecture level and, precisely, what has and has not been empi
 | Component behavior (Rust unit tests, Python unit/integration tests, JS unit tests, clippy, ruff) | **Proven, run for real.** `cargo test --release` for both packages (`src-tauri` + `connector-host`): 64/64 passed. `cargo clippy -D warnings`: clean for both. Focused `pytest` (capture + connector-identity + desktop-packaging + health): 88 passed, 0 pre-existing failures remaining (see §34). `node --test`: 12/12. `ruff check`/`format --check`: clean. |
 | Packaged behavior, local | **Proven.** The full NSIS installer was built for real and silently installed (`/S`, `/D=<throwaway>`) without touching the maintainer's real install: correct-size main binary, connector resource, manifest, and both browsers' registry entries all directly inspected; the app launched and stayed running; `/UPDATE`-mode and ordinary uninstall were both run for real locally, including third-party-entry survival. |
 | CI installer/update/uninstall run | **CI-proven.** Clean-runner Windows Actions run `35134478341` (commit `1c46a73e`, `workflow_dispatch`) executed every new step and passed, verified from actual log content: the backend became healthy (`healthy on port 55873 after 117s`), both browsers' manifests were resolved and validated, `/UPDATE` preservation and ordinary-uninstall removal were both confirmed with exact registry-value comparisons, and the third-party entry survived both paths. A screenshot shows the real, fully-rendered Callosum UI running on the runner. |
-| Real Edge click-through acceptance, cases A–E | **Proven, dev/test identity path, including the direct-PDF contract.** `run_acceptance_AtoE.py` ran all five cases in one isolated session; A/C/D passed exactly. B/E were rerun after §38's F11 fix (`run_acceptance_BE_direct_pdf.py`, fresh disposable instance): both now return the designed `direct_pdf_identity_unresolved` refusal with zero mutation, no `capture_id`, no PDF-upload call. Case E's `attachment_review_required` branch remains proven separately at the component level (`tests/test_capture.py`), with an envelope shape a real click cannot produce today. No row remains unproven except real production store identity, which is not an implementation or acceptance gap — see §37. |
+| Real Edge click-through acceptance, cases A–E | **Proven, dev/test identity path, including the direct-PDF contract.** `run_acceptance_AtoE.py` ran all five cases in one isolated session; A/C/D passed exactly. B/E were rerun a THIRD time on 2026-09-16 (§38 item 5) against the provisional-ingestion contract that superseded item 4's terminal refusal: `run_acceptance_direct_pdf_provisional.py`, fresh disposable instance — B genuinely queued for review (a real front-matter DOI resolved via live Crossref, but its title did not corroborate), and E genuinely reached `attachment_conflict` through a real Edge click plus live Crossref resolution of a real, independently-verified DOI, proving the attachment-safety branch reachable end to end rather than only at component level. No row remains unproven except real production store identity, which is not an implementation or acceptance gap — see §37. |
 
 Getting to that CI-proven row took three real fixes, not one clean pass — see §36. None of the last
 row is a security risk anyone has weighed and accepted — it is simply not yet exercised, and the
@@ -1334,11 +1334,12 @@ correctly" and "the mechanism was verified to actually work."
    connector its own Cargo package (`connector-host/`) so `cargo tauri build` never sees it exist in
    the package it builds — removing the ambiguity at its root.
 
-## 38. Four findings from actually clicking the real extension, not from writing it
+## 38. Five findings from actually clicking the real extension, not from writing it
 
 Same pattern as §36: found by running the real product end to end, root-caused with direct evidence,
-fixed, re-verified. None are security defects; all four blocked the acceptance run from completing
-or from meaning what it claimed.
+fixed, re-verified. Items 1-4 are defects; none are security defects; all four blocked the acceptance
+run from completing or from meaning what it claimed. Item 5 is not a defect — it is a later product
+reframing of item 4's fix, driven by user critique of the acceptance evidence item 4 itself produced.
 
 1. **The dev connector's `.bat` launcher broke native messaging's own HTTP client.** Invoked as a
    grandchild of `cmd.exe` with piped stdio — exactly how Chrome invokes a native-messaging host —
@@ -1394,6 +1395,32 @@ or from meaning what it claimed.
    the same real-Edge rerun showing E hits the identical `direct_pdf_identity_unresolved` refusal as
    B. Automatic real-browser direct-PDF-to-existing-paper reconciliation is an explicit architectural
    boundary of today's permission model, deferred beyond Phase 1, not a missing implementation.
+   **(Superseded 2026-09-16 by item 5 below — kept verbatim as the correct statement for the
+   terminal-refusal contract that was in force when it was written.)**
+5. **(2026-09-16) A product reframing, not a defect: item 4's terminal refusal cost the user the
+   artifact outright, so the contract changed to preserve-then-identify.** Item 4's invariant — a
+   direct-PDF envelope's filename never becomes a canonical Paper's title — is permanent and
+   unchanged; what changed is what happens instead of refusing. `admission.py`'s
+   `direct_pdf_identity_unresolved` branch now accepts the bytes (`pdf_accepted=True`,
+   `pdf_reason="provisional_capture"`); a new module (`app/backend/capture/provisional.py`) preserves
+   them atomically in a durable Import Queue (`_Import Queue/<artifact_id>.pdf` plus a hidden
+   `.provenance/artifacts/<artifact_id>.json` sidecar, both invisible to the ordinary non-recursive
+   Library scan) before attempting identity from the PDF's own front-matter DOI plus title
+   corroboration through the unchanged `add_paper_by_doi`/`attachment_decision` substrate. A DOI
+   observed only inside a References section is excluded from consideration entirely; two competing
+   strong candidates queue rather than picking a winner; the queue copy is never relinquished before a
+   promotion durably succeeds (proven by a dedicated failure-injection test); content-hash dedup
+   preserves the object while still recording each new encounter as its own provenance event; startup
+   recovery adopts any queue file a crash left with no database row rather than discarding it.
+   Verified: 51 focused `tests/test_capture.py` tests (including item 4's own refusal test, updated to
+   assert the new acceptance behavior with its invariant intact); a direct-HTTP smoke check against
+   the freshly rebuilt packaged binary; and a real Edge rerun of B and E
+   (`run_acceptance_direct_pdf_provisional.py`) reaching genuine, non-manufactured outcomes for both —
+   B queued for review (a real front-matter DOI resolved via live Crossref but its title did not
+   corroborate), E reaching `attachment_conflict` through a real click and live Crossref resolution of
+   a real, independently-verified-resolvable DOI seeded beforehand as an existing paper with an
+   attachment — proving the attachment-safety branch reachable end to end, not merely at component
+   level. Real application data verified byte-identical to baseline after isolate/restore.
 
 ## 37. Exit question for Stage 2
 
@@ -1402,7 +1429,9 @@ or from meaning what it claimed.
 > real Edge click carries a real capture through to Library state — is Phase 1 browser capture ready
 > to ship?**
 
-**Phase 1 browser-capture functional acceptance COMPLETE for the Edge + development/test identity
+**(2026-09-16: this answer was correct for the terminal-refusal contract §38 item 4 describes; kept
+verbatim, superseded by the updated answer below, not edited to look like it anticipated item 5.)
+Phase 1 browser-capture functional acceptance COMPLETE for the Edge + development/test identity
 path. Direct PDFs without sufficient canonical identity are deliberately refused without mutation.
 Automatic reconciliation of an identity-poor PDF tab to an existing scholarly object is deferred
 beyond Phase 1.** Exactly one thing remains, and it is store-publication work, not implementation or
@@ -1413,3 +1442,16 @@ document previously listed as open — CI installer lifecycle, real Edge click-t
 including direct-PDF behavior — is now proven, not just complete (see §33, §36, §38). Kept explicitly
 distinct: direct-PDF automatic attachment/reconciliation is a later capability; production store/
 native-host identity is a later, separate distribution gate.
+
+**2026-09-16 updated answer, superseding the above (§38 item 5):**
+
+> Direct-PDF capture preserves the user-accessed artifact immediately without fabricating canonical
+> identity. Callosum then attempts evidence-based identity resolution; sufficiently supported matches
+> are promoted/reconciled into the Library, while uncertain captures remain in a durable Import Queue
+> for review.
+
+This is now proven, not just implemented: a real Edge rerun of B and E
+(`run_acceptance_direct_pdf_provisional.py`) reached genuine `pending_review` (B) and
+`attachment_conflict` (E) outcomes through real Crossref resolution, not a manufactured or forced
+result. `production_extension_ids` remains `[]`, unchanged. Kept explicitly distinct: production
+store/native-host identity is a later, separate distribution gate, untouched by this reframing.
