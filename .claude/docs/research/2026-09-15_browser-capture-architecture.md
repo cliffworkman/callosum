@@ -1334,12 +1334,14 @@ correctly" and "the mechanism was verified to actually work."
    connector its own Cargo package (`connector-host/`) so `cargo tauri build` never sees it exist in
    the package it builds — removing the ambiguity at its root.
 
-## 38. Five findings from actually clicking the real extension, not from writing it
+## 38. Six findings from actually clicking the real extension, not from writing it
 
 Same pattern as §36: found by running the real product end to end, root-caused with direct evidence,
 fixed, re-verified. Items 1-4 are defects; none are security defects; all four blocked the acceptance
 run from completing or from meaning what it claimed. Item 5 is not a defect — it is a later product
 reframing of item 4's fix, driven by user critique of the acceptance evidence item 4 itself produced.
+Item 6 is not a defect either — it is the human review/resolution loop item 5 itself anticipated as
+necessary follow-up, once the durable Import Queue existed to review.
 
 1. **The dev connector's `.bat` launcher broke native messaging's own HTTP client.** Invoked as a
    grandchild of `cmd.exe` with piped stdio — exactly how Chrome invokes a native-messaging host —
@@ -1421,6 +1423,36 @@ reframing of item 4's fix, driven by user critique of the acceptance evidence it
    a real, independently-verified-resolvable DOI seeded beforehand as an existing paper with an
    attachment — proving the attachment-safety branch reachable end to end, not merely at component
    level. Real application data verified byte-identical to baseline after isolate/restore.
+6. **(2026-09-17) Human review/resolution loop for the Import Queue -- not a defect, the follow-up
+   increment item 5 explicitly anticipated.** Item 5 left a durable but silent holding area: an
+   artifact could sit in `provisional_artifacts` with no way for a user to see it, understand it, or
+   resolve it. Five new endpoints extend the existing Import Queue router under the SAME desktop-UI
+   trust boundary (never the capture-session bearer token): detail+evidence, a raw-PDF-bytes stream
+   for client-side pdf.js preview (path resolved only from the trusted DB row, mirroring the ordinary
+   attachment-serving route), a genuinely read-only DOI preview, and two mutating actions (confirm,
+   retry) that both route through a shared `attempt_attach_to_paper` subroutine -- the exact same
+   staged-promotion sequence already proven safe under failure injection, never a review-specific
+   shortcut. An explicit user decision is appended to a new `evidence_json.user_actions` array,
+   preserving the original automatic-pipeline observations unchanged. Permanent deletion is an
+   explicit, documented policy for provisional state (an artifact's entire encounter history goes
+   with it), not an incidental cascade. No PDF thumbnail cache was introduced -- the preview renders
+   client-side from the existing pdf.js integration. Verified: 32 new Python tests + 20 new Node
+   tests (a pure-logic seam specifically extracted to be Node-testable, since real-Edge acceptance
+   cannot exercise clicks inside Callosum's own Tauri window). **Real Edge R1-R4 acceptance executed**
+   (`run_acceptance_import_queue_review.py`, against the freshly rebuilt packaged binary): R2 (real
+   `attachment_conflict` via live Crossref, existing paper/attachment untouched, explicit delete), R3
+   (no-identity capture, immediate delete, no orphans), and R4 (queue item + evidence + PDF bytes
+   survived a real stop/restart of the packaged binary against the same disposable library) all
+   **PASS**. R1 reached a genuine resolved identity (real front-matter DOI, live Crossref, a real
+   Paper admitted) and a real page-1 preview stream, but the attachment/indexing step failed with a
+   reproducible `OSError: [Errno 22] Invalid argument` inside the pre-existing, unmodified
+   `attach_pdf_to_paper` -> `embed_chunks` pipeline -- not this increment's code, and not fixed here.
+   The failure was handled exactly as designed: queue PDF preserved, artifact left in a safe
+   `processing_failed` state with plain-language copy, retry available and consistently safe. Flagged
+   as a new, separately-tracked defect in shared PDF-ingestion infrastructure, surfaced because this
+   is the first acceptance run in this project to drive a real, live-fetched multi-page academic PDF
+   through a real (non-fake) embedding model end to end. Real application data verified byte-identical
+   to baseline after isolate/restore on every attempt.
 
 ## 37. Exit question for Stage 2
 
@@ -1455,3 +1487,15 @@ This is now proven, not just implemented: a real Edge rerun of B and E
 `attachment_conflict` (E) outcomes through real Crossref resolution, not a manufactured or forced
 result. `production_extension_ids` remains `[]`, unchanged. Kept explicitly distinct: production
 store/native-host identity is a later, separate distribution gate, untouched by this reframing.
+
+**2026-09-17 addendum (§38 item 6):** the human review/resolution loop closing the Import Queue's
+remaining gap is implemented and proven at the component/unit level (32 Python + 20 Node tests, all
+passing) AND now real-Edge acceptance proven: R2, R3, and R4 all PASS end to end against the freshly
+rebuilt packaged binary. R1 proved every guarantee this increment owns (capture, queue listing, real
+PDF preview streaming, live-Crossref identity resolution, safe failure handling, retry availability)
+but did not reach `promoted`, because a real, reproducible failure surfaced in the pre-existing,
+unmodified `attach_pdf_to_paper` -> `embed_chunks` pipeline when attaching a real, live-fetched
+multi-page academic PDF through a real embedding model for the first time in this project's
+acceptance history. That failure is out of this increment's scope and is not fixed here; see
+`.claude/security-audits/2026-09-16_browser-capture.md`'s F13 entry for the full detail and the
+recommendation to track it as its own follow-up issue.

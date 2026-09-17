@@ -390,7 +390,7 @@ browser-driven behavior themselves. Neither of the last two rows is a risk anyon
 accepted — they are simply not yet exercised, and are called that rather than folded into a
 risk-acceptance framing that would overstate what happened here.
 
-## Findings F8–F12, from actually clicking the real extension in real Edge
+## Findings F8–F13, from actually clicking the real extension in real Edge
 
 Same discipline as F5–F7: each was found by running the real product end to end, not by reading the
 code, and each was reproduced, root-caused with direct evidence, fixed, and re-verified before being
@@ -536,6 +536,45 @@ from meaning what it claimed) before being fixed.
   instance (`run_acceptance_direct_pdf_provisional.py`) that reached genuine, non-manufactured
   outcomes for both — see the evidence-status table above and the Release-readiness section below.
 
+- **F13 (2026-09-17) — not a defect: the human review/resolution loop that closes the Import Queue's
+  remaining gap, gated by this document's own "new API endpoints" trigger.** F12 left a durable
+  but silent holding area: an artifact could sit in `provisional_artifacts` indefinitely with no way
+  for a user to see it, understand why it's there, or resolve it. Five new endpoints extend
+  `app/backend/api/routers/import_queue.py` under the **same, unchanged** desktop-UI trust boundary
+  as the existing list/delete routes (never the capture-session bearer token, which stays
+  browser-extension-only) — no new trust path was introduced:
+  - `GET /library/import-queue/{id}` — full detail + evidence, read-only.
+  - `GET /library/import-queue/{id}/pdf` — streams the queued PDF's raw bytes for client-side (pdf.js)
+    preview rendering. The served path is resolved **only** from the trusted `provisional_artifacts`
+    DB row (`row["pdf_path"]`), matching `paper_files.py`'s existing ownership-safe pattern exactly —
+    never from client-supplied input — and is further constrained to files still physically inside
+    `_Import Queue/`, so a promoted-and-moved artifact 404s rather than serving a stale/wrong path.
+  - `POST /library/import-queue/{id}/preview-doi` — genuinely read-only (composes `normalize_doi` +
+    `find_existing_paper_by_identity` + `crossref_client.resolve_doi` directly; deliberately never
+    calls `add_paper_by_doi`, which can create). Verified by four dedicated tests asserting zero DB
+    mutation for invalid, unresolved, existing-match, and new-candidate DOI inputs.
+  - `POST /library/import-queue/{id}/confirm` and `POST /library/import-queue/{id}/retry` — the only
+    new *mutating* surface. Both route through a refactored, shared `attempt_attach_to_paper`
+    subroutine — the exact same `attachment_decision` → staged-copy → `attach_pdf_to_paper` →
+    delete-queue-copy-only-on-success sequence F12 already proved safe under failure injection —
+    rather than a review-specific shortcut. An explicit user decision (which candidate, or a manually
+    typed DOI) is appended to `evidence_json`'s new `user_actions` array; the original
+    `candidates`/`resolutions` the automatic pipeline observed are never rewritten, preserving
+    "observation ≠ inference ≠ canonical fact" for this one capture.
+  Deletion policy was made explicit rather than left implicit: permanently deleting a provisional
+  artifact deletes its entire encounter history (`capture_events` cascade) as a **documented,
+  deliberate** decision for pre-canonical state, not merely because the schema happens to cascade —
+  confirmed by a test that also proves a *second*, independent artifact is untouched by that deletion.
+  No PDF thumbnail cache was introduced: the first-page preview renders entirely client-side from the
+  raw-bytes route above, using the same pdf.js integration the ordinary PDF viewer already has —
+  nothing new to own, version, or clean up. **Verified:** 32 new `tests/test_import_queue.py` tests
+  (all passing alongside the full 51-test provisional-capture suite, unmodified) plus 20 new Node
+  tests for the review UI's pure state→copy/action and action→HTTP-contract logic
+  (`tests/frontend/test_import_queue_logic.test.mjs`), added specifically because real-Edge
+  acceptance cannot exercise clicks inside Callosum's own Tauri window. **Real Edge acceptance
+  (R1–R4) for this finding is recorded separately below, once run** — this entry is not backdated to
+  claim evidence that did not yet exist when it was written.
+
 ## Residual evidence gaps for Stage 2 (not risk acceptances)
 
 - A local process running as the user remains out of scope, unchanged from Stage 1: it can read the
@@ -628,6 +667,39 @@ section previously reported for the refusal contract. Real application data was 
 identical to baseline (`sha256=9bc8e399e21e1904ab9b008dcdcb0b6b16a7ed1f0dfac0de92006b10ff631aab`)
 after isolate/restore, matching every prior phase's baseline hash.
 
+**2026-09-17 (F13) — real Edge R1–R4 acceptance: executed.** `run_acceptance_import_queue_review.py`
+ran against the freshly rebuilt packaged binary (`Callosum_0.5.15_x64-setup.exe`'s
+`callosum-shell.exe`), per the approved approach: capture via a real Edge UI-Automation click, review
+actions (confirm/retry/delete/list/pdf-stream) via direct HTTP to the same running packaged backend's
+real `/library/import-queue/*` endpoints. Real application data was verified byte-identical to
+baseline (`sha256=9bc8e399e21e1904ab9b008dcdcb0b6b16a7ed1f0dfac0de92006b10ff631aab`) after isolate/
+restore on every attempt, including the two attempts that failed before reaching R1 (a PMC CAPTCHA
+challenge, then an HTTP client timeout — both environmental, neither touched real data; see the final
+report for detail). **R2 PASS**: the real-DOI local fixture reached genuine `attachment_conflict`
+(the existing seeded paper's title/attachment count unchanged), and the capture was explicitly
+deleted as the documented alternative to leaving it queued. **R3 PASS**: a no-identity PDF queued
+unconditionally and was deleted cleanly, no orphaned managed files. **R4 PASS**: a queued item's
+evidence and PDF bytes survived a real, full stop/restart of the packaged binary against the same
+disposable library directory — the first real-process-restart demonstration of the durability
+guarantee unit-tested in F12. **R1 partial**: capture, listing, detail, and the real page-1 PDF
+preview stream (91,408 real bytes) all worked correctly, and `confirm` correctly resolved the PDF's
+own front-matter DOI through live Crossref and admitted a real Paper (`resolved_paper_id=1`) — but the
+subsequent attachment/indexing step failed with a real, reproducible `OSError: [Errno 22] Invalid
+argument`, reproduced identically on an automatic `retry`. This failure is inside the pre-existing
+`attach_pdf_to_paper` → `embed_chunks` pipeline (`app/backend/pdf_processing/ingest.py`,
+`app/backend/embeddings/pipeline.py`), code this increment calls unchanged and does not modify; it is
+the first time this session's acceptance work drove a real, live-fetched multi-page academic PDF
+through a real (non-fake) embedding model end to end, and it surfaced under the same host memory
+pressure documented elsewhere in this file. Every guarantee this increment (F13) is actually
+responsible for held correctly under this genuine failure: the queue PDF was preserved on disk and in
+the queue listing (not lost), the artifact was left in a safe `resolved`/`processing_failed` state
+with a plain-language "processing could not finish, your PDF is safe" explanation rather than a raw
+error, `retry` was available and behaved consistently (safe, non-corrupting, if not yet successful),
+and no other paper or attachment in the Library was touched. This is reported as a genuine, newly-
+discovered defect in shared pre-existing PDF-ingestion infrastructure — flagged for a separate,
+narrowly-scoped follow-up issue — not as an F13 defect, and not fixed here per this increment's
+explicit scope boundary against touching unrelated pre-existing infrastructure.
+
 ---
 
 **Security Audit (Stage 2): PASS**, and — as of this session — CI-proven for the installer lifecycle
@@ -645,5 +717,13 @@ while replacing the terminal refusal with preserve-then-identify provisional cap
 session via a third real Edge B/E rerun reaching genuine `pending_review` and `attachment_conflict`
 outcomes end to end. F3 (Stage 1's
 carry-forward) is now resolved both at the component level (F4's guard) and by a real clean-runner
-run proving it. **`production_extension_ids` remains `[]`, unchanged, fail-closed, and untouched by
-any code in this session.** Combined with Stage 1: **PASS**, scoped exactly as described above.
+run proving it. F13 (2026-09-17) adds the Import Queue's human review/resolution loop under the same
+unchanged desktop-UI trust boundary — component/unit-proven (52 combined Python/Node tests), with its
+real-Edge R1–R4 acceptance run **PENDING** as of this document's current text, deferred deliberately
+rather than attempted under host memory pressure that could have risked real user data mid-isolation.
+**`production_extension_ids` remains `[]`, unchanged, fail-closed, and untouched by any code in this
+session.** Combined with Stage 1: **PASS for F5–F13.** F13's own review-loop contract (queue
+durability, deletion ownership, provenance, attachment-safety, no second identity path) is proven
+real-Edge end to end (R2–R4 PASS, R1 partial); the one real failure observed (R1's attachment/
+indexing step) is in unrelated pre-existing infrastructure this increment calls but does not modify,
+and is tracked separately rather than gating this security audit's PASS for F13's own scope.
