@@ -1,0 +1,43 @@
+{
+  "type": "json_schema",
+  "json_schema": {
+    "name": "calibration",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "scope": {
+          "type": "string",
+          "enum": [
+            "narrow",
+            "broad"
+          ]
+        },
+        "facets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "label": {
+                "type": "string"
+              },
+              "query": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "label",
+              "query"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "scope",
+        "facets"
+      ],
+      "additionalProperties": false
+    },
+    "strict": true
+  }
+}

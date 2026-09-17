@@ -1,0 +1,37 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Synthetic capture boundaries</title>
+<body>
+<section id="user_only" data-expected="PENDING">
+  <article data-testid="user-message"><div class="response-content-markdown">FABRICATED USER INPUT</div><button aria-label="Copy">Copy</button></article>
+</section>
+<section id="assistant_final" data-expected="ASSISTANT_FINAL" data-text="FABRICATED RECEIPT">
+  <article data-testid="user-message"><div class="response-content-markdown">FABRICATED INPUT</div></article>
+  <article data-testid="assistant-message"><div class="response-content-markdown">FABRICATED RECEIPT</div></article><button aria-label="Copy">Copy</button>
+</section>
+<section id="empty_pending" data-expected="PENDING">
+  <article data-testid="assistant-message"><div class="response-content-markdown"></div></article><button aria-label="Copy">Copy</button>
+</section>
+<section id="whitespace_pending" data-expected="PENDING">
+  <article data-testid="assistant-message"><div class="response-content-markdown">   </div></article><button aria-label="Copy">Copy</button>
+</section>
+<section id="streaming" data-expected="PENDING">
+  <article data-testid="assistant-message"><div class="response-content-markdown">FABRICATED PARTIAL</div></article><button aria-label="Copy">Copy</button><button aria-label="Stop generating">Stop</button>
+</section>
+<section id="quota_no_response" data-expected="SERVICE_NON_RESPONSE">
+  <article data-testid="user-message"><div class="response-content-markdown">FABRICATED INPUT</div></article><div role="alert">Rate limit reached</div><button aria-label="Copy">Copy</button>
+</section>
+<section id="quota_overrides_body" data-expected="SERVICE_NON_RESPONSE">
+  <article data-testid="assistant-message"><div class="response-content-markdown">FABRICATED PARTIAL</div></article><button aria-label="Copy">Copy</button><div role="alert">Too many requests</div>
+</section>
+<section id="service_error" data-expected="SERVICE_NON_RESPONSE"><div role="alert">Service unavailable. Try again later.</div></section>
+<section id="quota_words_in_input" data-expected="ASSISTANT_FINAL" data-text="FABRICATED RECEIPT">
+  <article data-testid="user-message"><div class="response-content-markdown">Rate limit reached</div></article>
+  <article data-testid="assistant-message"><div class="response-content-markdown">FABRICATED RECEIPT</div></article><button aria-label="Copy">Copy</button>
+</section>
+<section id="quota_words_in_response" data-expected="ASSISTANT_FINAL" data-text="Rate limit is fabricated text here">
+  <article data-testid="assistant-message"><div class="response-content-markdown">Rate limit is fabricated text here</div></article><button aria-label="Copy">Copy</button>
+</section>
+<section id="unknown_role" data-expected="PENDING"><div class="response-content-markdown">FABRICATED UNKNOWN</div><button aria-label="Copy">Copy</button></section>
+<section id="multiple_assistants" data-expected="AMBIGUOUS"><article data-testid="assistant-message"><div class="response-content-markdown">ONE</div></article><article data-testid="assistant-message"><div class="response-content-markdown">TWO</div></article><button aria-label="Copy">Copy</button></section>
+<section id="multiple_bodies" data-expected="AMBIGUOUS"><article data-testid="assistant-message"><div class="response-content-markdown">ONE</div><div class="response-content-markdown">TWO</div></article><button aria-label="Copy">Copy</button></section>
+<section id="no_completion_control" data-expected="PENDING"><article data-testid="assistant-message"><div class="response-content-markdown">FABRICATED BODY</div></article></section>
+</body></html>
