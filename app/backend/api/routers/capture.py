@@ -58,10 +58,19 @@ from app.backend.capture import idempotency, pairing
 from app.backend.capture.admission import (
     CAPTURE_SOURCE,
     PDF_OK,
+    PDF_PROVISIONAL_CAPTURE,
+    STATUS_ADDED,
+    STATUS_ALREADY_PRESENT,
     AdmissionOutcome,
     admit,
 )
 from app.backend.capture.envelope import CaptureEnvelope
+from app.backend.capture.provisional import (
+    STATUS_PROVISIONAL_ATTACHMENT_BLOCKED,
+    STATUS_PROVISIONAL_QUEUED,
+    ProvisionalIngestResult,
+    ingest_provisional_pdf,
+)
 from app.backend.embeddings.admission import ensure_paper_indexed
 from app.backend.pdf_processing.ingest import attach_pdf_to_paper
 from app.backend.persistence.sqlite_retry import run_write
@@ -96,10 +105,21 @@ MAX_PENDING_CAPTURES = 64
 
 @dataclass
 class _PendingCapture:
-    paper_id: int
+    # None means the /capture/item admission step could not resolve identity and the PDF, if any, is
+    # destined for provisional capture rather than an existing/new paper -- see provisional.py.
+    paper_id: int | None
     created: bool
     status: str
     attached: bool = False
+    # Only populated for a provisional (paper_id is None) pending capture: the envelope context that
+    # /capture/item/{id}/pdf needs but does not itself receive.
+    source_url: str | None = None
+    captured_at_client: str | None = None
+    original_filename: str | None = None
+    producer_kind: str | None = None
+    # Set once the provisional pipeline has run for this capture_id, so a retried PDF POST replays the
+    # same outcome instead of re-running identity resolution / promotion a second time.
+    provisional_result: ProvisionalIngestResult | None = None
 
 
 class CaptureSessionRequest(BaseModel):
@@ -231,6 +251,22 @@ async def capture_item(
     if outcome.pdf_accepted and outcome.paper_id is not None:
         capture_id = uuid4().hex
         _remember_pending(capture_id, _PendingCapture(outcome.paper_id, outcome.created, outcome.status))
+    elif outcome.pdf_accepted and outcome.pdf_reason == PDF_PROVISIONAL_CAPTURE:
+        # No paper exists yet -- identity is attempted only once the bytes actually arrive (PDF-first,
+        # infer-second). The envelope context is captured now because the PDF route receives none.
+        capture_id = uuid4().hex
+        _remember_pending(
+            capture_id,
+            _PendingCapture(
+                None,
+                outcome.created,
+                outcome.status,
+                source_url=envelope.source_url,
+                captured_at_client=envelope.captured_at,
+                original_filename=envelope.title,
+                producer_kind=envelope.producer_kind,
+            ),
+        )
 
     result = CaptureResult(capture_id=capture_id, **outcome.as_dict())
     idempotency.remember(idempotency_key, result.model_dump())
@@ -266,6 +302,8 @@ async def capture_pdf(
             pdf_accepted=True,
             pdf_reason=PDF_OK,
         )
+    if pending.provisional_result is not None:
+        return _provisional_capture_result(capture_id, pending.provisional_result)
 
     temp_path = Path(tempfile.gettempdir()) / f"callosum-capture-{uuid4().hex}.pdf"
     try:
@@ -286,6 +324,26 @@ async def capture_pdf(
             raise HTTPException(status_code=422, detail="The captured PDF could not be opened.") from None
         if page_count < 1:
             raise HTTPException(status_code=422, detail="The captured PDF has no pages.")
+
+        if pending.paper_id is None:
+            # No paper was admitted at /capture/item -- preserve the bytes first, identify
+            # opportunistically. ingest_provisional_pdf owns its own durable file placement (the
+            # Import Queue), so the streamed temp file is discarded either way by the `finally` below.
+            result = ingest_provisional_pdf(
+                engine,
+                capture_event_id=capture_id,
+                validated_pdf_bytes=data,
+                library_root=library_dir(),
+                source_url=pending.source_url,
+                captured_at_client=pending.captured_at_client,
+                original_filename=pending.original_filename,
+                producer_kind=pending.producer_kind,
+                crossref_client=request.app.state.crossref_client or CrossrefClient(),
+                vector_store=_vector_store(request.app),
+                embedding_model=_embedding_model(request.app),
+            )
+            pending.provisional_result = result
+            return _provisional_capture_result(capture_id, result)
 
         managed_root = library_dir()
         managed_root.mkdir(parents=True, exist_ok=True)
@@ -363,6 +421,41 @@ async def _stream_to_file(request: Request, path: Path, cap: int, label: str) ->
                 raise HTTPException(status_code=413, detail=f"{label} exceeds the {cap // (1024 * 1024)} MiB limit.")
             handle.write(block)
     return total
+
+
+def _provisional_capture_result(capture_id: str, result: ProvisionalIngestResult) -> CaptureResult:
+    """Translate a provisional-ingestion outcome into the same ``CaptureResult`` shape every other
+    capture path returns. A successful promotion deliberately reuses ``STATUS_ADDED``/
+    ``STATUS_ALREADY_PRESENT`` + ``PDF_OK`` -- the extension's existing ``resultKeyFor`` already
+    renders those correctly with no changes."""
+    if result.promotion_state == "promoted":
+        return CaptureResult(
+            status=STATUS_ADDED if result.created else STATUS_ALREADY_PRESENT,
+            capture_id=capture_id,
+            paper_id=result.resolved_paper_id,
+            created=result.created,
+            pdf_accepted=True,
+            pdf_reason=PDF_OK,
+        )
+    if result.identity_state == "resolved":
+        return CaptureResult(
+            status=STATUS_PROVISIONAL_ATTACHMENT_BLOCKED,
+            capture_id=capture_id,
+            paper_id=result.resolved_paper_id,
+            created=False,
+            pdf_accepted=True,
+            pdf_reason=PDF_PROVISIONAL_CAPTURE,
+            detail=f"identified, but attaching is not yet safe ({result.promotion_state})",
+        )
+    return CaptureResult(
+        status=STATUS_PROVISIONAL_QUEUED,
+        capture_id=capture_id,
+        paper_id=None,
+        created=False,
+        pdf_accepted=True,
+        pdf_reason=PDF_PROVISIONAL_CAPTURE,
+        detail="preserved in the Import Queue for review",
+    )
 
 
 def _remember_pending(capture_id: str, pending: _PendingCapture) -> None:

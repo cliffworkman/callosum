@@ -17,6 +17,7 @@ from threading import Lock
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
+from sqlalchemy import Engine
 
 from app.backend.api.access_control import AccessControlMiddleware
 from app.backend.api.auth.oidc import OidcClient, build_oidc_client_from_env
@@ -57,6 +58,7 @@ from app.backend.api.routers import (
     grobid_docker,
     health,
     help,
+    import_queue,
     library,
     library_collections,
     library_enrich,
@@ -211,6 +213,7 @@ def create_app(
         with engine.begin() as conn:
             backfill_feed_subscriptions(conn)
         _ensure_capture_pairing_ready()
+        _recover_provisional_captures(engine)
         try:
             yield
         finally:
@@ -489,6 +492,7 @@ def create_app(
     api.include_router(saved_searches.router)
     api.include_router(reading_queue.router)  # /reading-queue/* — the to-read Queue tab (inc 219)
     api.include_router(library.router)
+    api.include_router(import_queue.router)  # /library/import-queue/* — provisional direct-PDF captures (#61)
     api.include_router(library_collections.router)  # imported reference-manager folders/groups -> ordinary axes
     api.include_router(library_zotero.router)  # /library/zotero/import — native Zotero library import (#57 Phase 1)
     api.include_router(wip.router)  # /wip/* — local-only unpublished manuscript workspaces
@@ -555,6 +559,25 @@ def _ensure_capture_pairing_ready() -> None:
             pairing.pairing_file_path(),
             exc_info=True,
         )
+
+
+def _recover_provisional_captures(engine: Engine) -> None:
+    """Reconcile the Import Queue against ``provisional_artifacts`` on startup (#61 provisional
+    ingestion). Adopts any queue PDF a prior run wrote to disk but never got a durable database row
+    for (a crash between the file write and the commit) -- see ``provisional.recover_at_startup``'s
+    own docstring for the full enumeration of crash windows. Same non-fatal, UI-only posture as
+    ``_ensure_capture_pairing_ready``: an unrecoverable environment must never block the rest of
+    Callosum from starting, and recovery only matters on the instance that actually serves capture.
+    """
+    if reported_instance_role() != UI_ROLE:
+        return
+    try:
+        from app.backend.acquisition.fetch import library_dir
+        from app.backend.capture.provisional import recover_at_startup
+
+        recover_at_startup(engine, library_dir())
+    except Exception:
+        _log.warning("Import Queue recovery failed at startup; continuing without it.", exc_info=True)
 
 
 def _resolve_frontend_path(frontend_path: str | Path | None) -> Path | None:

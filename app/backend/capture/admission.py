@@ -18,10 +18,13 @@ What this module owns is the three judgments that are genuinely capture-specific
 3. **A direct-PDF envelope's filename is not bibliographic identity.** ``pdf_bytes_from_active_tab``
    marks a capture whose only possible ``title`` came from a filename, not a real page's metadata —
    applying judgment 1's "no DOI, title present, safe to create" reasoning to that title would create
-   an anonymous, unfindable paper on every direct-PDF click. Refused explicitly instead:
-   ``direct_pdf_identity_unresolved``, nothing created. This is a narrower refusal than "PDFs are
-   unsupported" — a direct-PDF envelope that DOES carry a real DOI or a genuine title+year+author
-   tuple never reaches this judgment; it is handled entirely by judgments 1 and 2, unchanged.
+   an anonymous, unfindable paper on every direct-PDF click. This status — ``direct_pdf_identity_
+   unresolved`` — is permanent and never creates a Paper from a filename. A direct-PDF envelope that
+   DOES carry a real DOI or a genuine title+year+author tuple never reaches this judgment at all; it
+   is handled entirely by judgments 1 and 2, unchanged. **What this status leads to changed on
+   2026-09-16**: originally a terminal refusal (no bytes accepted), now a provisional-capture branch
+   (bytes accepted, preserved, and identified opportunistically) — see the dated addendum at the
+   branch itself, and ``app/backend/capture/provisional.py``.
 """
 
 from __future__ import annotations
@@ -60,6 +63,11 @@ STATUS_DIRECT_PDF_UNRESOLVED = "direct_pdf_identity_unresolved"
 PDF_OK = "ok"
 PDF_NOT_OFFERED = "not_offered"
 PDF_REVIEW_REQUIRED = "attachment_review_required"
+# 2026-09-16: bytes are accepted for provisional capture even though metadata admission could not
+# resolve identity -- see provisional.py. Distinct from PDF_NOT_OFFERED (which still means "no bytes
+# will move") and from PDF_REVIEW_REQUIRED (which means a KNOWN paper exists but attaching to it is
+# unsafe; here no paper exists yet at all).
+PDF_PROVISIONAL_CAPTURE = "provisional_capture"
 
 
 @dataclass(frozen=True)
@@ -182,13 +190,26 @@ def admit(conn: Connection, envelope: CaptureEnvelope, *, crossref_client: Any |
     # DOI or a genuine title+year+author tuple never reaches this branch at all; it is handled by
     # the unchanged rules above and below.
     if envelope.pdf_bytes_from_active_tab:
+        # 2026-09-16 addendum: this was originally a terminal refusal (f03b242c) -- pdf_accepted was
+        # False and pdf_reason was PDF_NOT_OFFERED, so the extension never sent bytes and nothing was
+        # preserved. The real-Edge acceptance run that proved the refusal also showed it cost the user
+        # the artifact outright: a user who clicks "Add" on a PDF they are already looking at should
+        # not lose it merely because Callosum cannot yet name it. Cliff's critique + the #61/#96
+        # design elaboration reframed Phase 1's direct-PDF contract accordingly. The invariant directly
+        # above -- a filename is never bibliographic identity, and this branch never creates a Paper --
+        # is UNCHANGED and permanent. What changed is what happens instead of refusing: the bytes are
+        # now accepted for provisional capture (see app/backend/capture/provisional.py), preserved in
+        # a durable Import Queue, and identified opportunistically rather than either fabricated or
+        # discarded. This paragraph documents the reframing; it does not rewrite the reasoning above,
+        # which was correct evidence for the terminal-refusal contract in force at the time.
         return AdmissionOutcome(
             status=STATUS_DIRECT_PDF_UNRESOLVED,
             detail=(
                 "a direct-PDF capture's active tab did not establish canonical scholarly identity "
-                "strongly enough for automatic admission"
+                "strongly enough for automatic admission; the PDF is preserved for provisional capture"
             ),
-            pdf_reason=PDF_NOT_OFFERED,
+            pdf_accepted=True,
+            pdf_reason=PDF_PROVISIONAL_CAPTURE,
         )
 
     # An ACTIVE match found on a non-unique predicate is not trustworthy enough to write to, and not

@@ -37,6 +37,7 @@ function useLibrary(opts) {
   const [lmmFlagged, setLmmFlagged] = useState(0);  // backlog #23 (F1): # papers with an incomplete LMM reporting checklist → header chip
   const [metaFlagged, setMetaFlagged] = useState(0);  // backlog #23 (F1): # papers with an incomplete meta-analysis reporting checklist → header chip
   const [bayesFlagged, setBayesFlagged] = useState(0);  // backlog #23 (F1): # papers the Bayesian auditor flagged (BF mismatch or reporting gap) → header chip
+  const [importQueueCount, setImportQueueCount] = useState(0);  // #61 provisional ingestion: # direct-PDF captures preserved but not yet promoted → header chip
   const [librarySort, setLibrarySort] = useState(() => {  // inc-69; persisted inc-94
     try { return localStorage.getItem("callosum.librarySort") || "added"; } catch (e) { return "added"; }
   });
@@ -286,6 +287,9 @@ function useLibrary(opts) {
   }, []);
   const refreshBayesChip = useCallback(() => {
     api("/methods/bayes/summary").then(r => { if (r.ok) setBayesFlagged(r.data.flagged || 0); });
+  }, []);
+  const refreshImportQueueChip = useCallback(() => {
+    api("/library/import-queue").then(r => { if (r.ok) setImportQueueCount((r.data.items || []).length); });
   }, []);
 
   // --- findings overview → the "N to review" badge + FactMark; re-fetched after a review ---
@@ -544,6 +548,7 @@ function useLibrary(opts) {
   useEffect(() => { refreshLmmChip(); }, [refreshLmmChip]);
   useEffect(() => { refreshMetaChip(); }, [refreshMetaChip]);
   useEffect(() => { refreshBayesChip(); }, [refreshBayesChip]);
+  useEffect(() => { refreshImportQueueChip(); }, [refreshImportQueueChip]);
 
   // The LibraryFrame prop bundle (minus the focus + selected props App still owns + spreads in).
   const libraryBits = {
@@ -574,6 +579,7 @@ function useLibrary(opts) {
     bayesFlagged, onShowBayesFlagged: showBayesFlagged,
     findingsToReview, onShowFindingsToReview: showFindingsToReview,
     findingsByPaper, referenceWarningsByPaper,
+    importQueueCount, onImportQueueChanged: refreshImportQueueChip,
     onToggleTrash: toggleTrash, onRestore: restorePaper,
     onPurge: purgePaper, onEmptyTrash: emptyTrash,
     onCitationsRefreshed: () => setLibRefresh(n => n + 1), onEnriched: () => setLibRefresh(n => n + 1),

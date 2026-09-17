@@ -112,7 +112,16 @@ test("resultKeyFor covers every real admission outcome", () => {
     [{ status: "added", pdf_reason: "attachment_review_required" }, false, "attachment_review_required"],
     [{ status: "in_trash", pdf_reason: "not_offered" }, false, "in_trash"],
     [{ status: "unresolved_review_required", pdf_reason: "not_offered" }, false, "unresolved"],
-    [{ status: "direct_pdf_identity_unresolved", pdf_reason: "not_offered" }, false, "direct_pdf_identity_unresolved"],
+    // provisional-capture family (#61 provisional ingestion, 2026-09-16): pdf_reason is
+    // "provisional_capture" on all three, mirroring what admission.py/capture.py actually emit --
+    // "direct_pdf_identity_unresolved" here is the DEGRADED fallback (the PDF-upload call's own
+    // response, which carries the real terminal status, never came back); the other two ARE the
+    // terminal statuses for a successfully preserved-but-unpromoted capture.
+    [{ status: "direct_pdf_identity_unresolved", pdf_reason: "provisional_capture" }, false, "direct_pdf_identity_unresolved"],
+    [{ status: "direct_pdf_queued_for_review", pdf_reason: "provisional_capture" }, false, "direct_pdf_queued_for_review"],
+    [{ status: "direct_pdf_attachment_blocked", pdf_reason: "provisional_capture" }, false, "direct_pdf_attachment_blocked"],
+    // A promoted provisional capture reuses the ordinary added/already_present + ok path verbatim --
+    // already covered by the two "pdf_reason: ok" cases above; no separate case needed.
     [{ status: "invalid_capture", pdf_reason: "not_offered" }, false, "failed"],
     [{ status: "some_future_status", pdf_reason: "not_offered" }, false, "failed"], // unknown -> fail visibly, not silently
   ];
@@ -123,7 +132,8 @@ test("resultKeyFor covers every real admission outcome", () => {
 
 test("every resultKeyFor output and every connector runtime_state has a RESULT_DISPLAY entry", () => {
   const resultKeys = ["added", "added_pdf_attached", "already_present", "already_present_pdf_attached",
-    "attachment_review_required", "in_trash", "unresolved", "direct_pdf_identity_unresolved", "failed"];
+    "attachment_review_required", "in_trash", "unresolved", "direct_pdf_identity_unresolved",
+    "direct_pdf_queued_for_review", "direct_pdf_attachment_blocked", "failed"];
   const connectorRuntimeStates = ["callosum_closed", "callosum_starting", "version_incompatible",
     "not_eligible_instance", "pairing_unavailable", "host_unavailable"];
   for (const key of [...resultKeys, ...connectorRuntimeStates, "capturing", "direct_pdf_unsupported"]) {

@@ -38,13 +38,30 @@ export const RESULT_DISPLAY = {
     color: "#b35900",
     title: "Callosum couldn't read this PDF directly from the tab. Try it from a page listing instead.",
   },
-  // Distinct from direct_pdf_unsupported above: that one means the BYTES couldn't be fetched; this
-  // one means the bytes were fetched fine but the tab offered no scholarly identity (no DOI, and a
-  // filename is not a title) strong enough for automatic admission. Nothing was created.
+  // 2026-09-16: this key is now reached only as a DEGRADED fallback -- when the follow-up PDF-upload
+  // call (which decides the real outcome: queued / attachment_blocked / promoted) never got a
+  // response at all. The ordinary "bytes fetched fine but no identity yet" case now renders one of
+  // the two provisional keys below instead, because Callosum preserves the PDF rather than refusing
+  // it (see admission.py's 2026-09-16 addendum and app/backend/capture/provisional.py). Distinct from
+  // direct_pdf_unsupported above, which means the bytes were never even fetched from the tab.
   direct_pdf_identity_unresolved: {
     badge: "?",
     color: "#b35900",
-    title: "Callosum couldn't tell what scholarly work this PDF is. Try capturing it from the article's own page instead.",
+    title: "Callosum received the PDF but the result could not be confirmed. Check Callosum's Import Queue.",
+  },
+  // The PDF was preserved, but Callosum could not yet establish which scholarly work it is. This is a
+  // SUCCESSFUL capture, not a failure -- the artifact is safe in the Import Queue for review.
+  direct_pdf_queued_for_review: {
+    badge: "OK",
+    color: "#0969da",
+    title: "Saved to your Callosum Import Queue for review — identity couldn't be confirmed automatically.",
+  },
+  // Identity WAS resolved to a specific paper, but attaching the PDF to it isn't safe right now (an
+  // existing attachment/annotation, or a processing failure) -- the PDF remains in the Import Queue.
+  direct_pdf_attachment_blocked: {
+    badge: "OK",
+    color: "#0969da",
+    title: "Saved to your Callosum Import Queue — matched a paper, but couldn't attach automatically.",
   },
   callosum_starting: { badge: "…", color: "#5b6169", title: "Callosum is still starting up. Try again shortly." },
   callosum_closed: { badge: "OFF", color: "#57606a", title: "Callosum isn't running. Open Callosum, then try again." },
@@ -123,12 +140,21 @@ async function handleCapture(tab) {
     return;
   }
 
+  // For a provisional capture (outcome.pdf_reason === "provisional_capture"), /capture/item's own
+  // status is never terminal -- it always reads "direct_pdf_identity_unresolved", a pending state.
+  // The REAL outcome (queued for review / matched but attachment-blocked / promoted) is decided by
+  // the PDF-upload call below and comes back in ITS response, not this one's.
   let pdfAttached = false;
+  let finalOutcome = outcome;
   if (pdfBuffer && outcome.pdf_accepted && outcome.capture_id) {
-    pdfAttached = await postCapturePdf(origin, sessionToken, outcome.capture_id, pdfBuffer);
+    const pdfResult = await postCapturePdf(origin, sessionToken, outcome.capture_id, pdfBuffer);
+    pdfAttached = Boolean(pdfResult && pdfResult.pdf_accepted === true && pdfResult.pdf_reason === "ok");
+    if (pdfResult && outcome.pdf_reason === "provisional_capture") {
+      finalOutcome = pdfResult;
+    }
   }
 
-  render(resultKeyFor(outcome, pdfAttached));
+  render(resultKeyFor(finalOutcome, pdfAttached));
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -357,6 +383,10 @@ async function postCaptureItem(origin, sessionToken, envelope) {
   }
 }
 
+// Returns the parsed CaptureResult (not just a boolean): for a provisional capture, THIS response
+// carries the real terminal status (queued / attachment_blocked / promoted), which /capture/item's
+// own response cannot know yet. Returns null on any transport failure -- an honest "could not
+// confirm" rather than a fabricated outcome.
 async function postCapturePdf(origin, sessionToken, captureId, buffer) {
   try {
     const response = await fetch(`${origin}${capturePdfPath(captureId)}`, {
@@ -368,11 +398,10 @@ async function postCapturePdf(origin, sessionToken, captureId, buffer) {
       },
       body: buffer,
     });
-    if (!response.ok) return false;
-    const result = await response.json();
-    return result && result.pdf_accepted === true;
+    if (!response.ok) return null;
+    return await response.json();
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -383,6 +412,8 @@ export function resultKeyFor(outcome, pdfAttached) {
   if (status === "in_trash") return "in_trash";
   if (status === "unresolved_review_required") return "unresolved";
   if (status === "direct_pdf_identity_unresolved") return "direct_pdf_identity_unresolved";
+  if (status === "direct_pdf_queued_for_review") return "direct_pdf_queued_for_review";
+  if (status === "direct_pdf_attachment_blocked") return "direct_pdf_attachment_blocked";
   if (status === "added") return pdfAttached ? "added_pdf_attached" : "added";
   if (status === "already_present") return pdfAttached ? "already_present_pdf_attached" : "already_present";
   return "failed"; // covers "invalid_capture" and any status this extension doesn't yet know

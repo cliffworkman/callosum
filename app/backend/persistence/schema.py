@@ -528,6 +528,13 @@ from app.backend.persistence.schema_merge import (  # noqa: E402,F401
 # First-class extra URLs for paper Details.
 from app.backend.persistence.schema_paper_urls import paper_urls  # noqa: E402,F401
 
+# Provisional direct-PDF capture (#61 provisional ingestion): one row per distinct captured-PDF
+# object, one row per encounter with it — see schema_provisional_artifacts.py's own docstring.
+from app.backend.persistence.schema_provisional_artifacts import (  # noqa: E402,F401
+    capture_events,
+    provisional_artifacts,
+)
+
 # Reference-integrity tables (Meta Reference List) — shared entity identity, per-citation review state.
 from app.backend.persistence.schema_reference_integrity import (  # noqa: E402,F401
     reference_entities,

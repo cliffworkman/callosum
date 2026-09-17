@@ -4274,6 +4274,7 @@
     const [lmmFlagged, setLmmFlagged] = useState(0);
     const [metaFlagged, setMetaFlagged] = useState(0);
     const [bayesFlagged, setBayesFlagged] = useState(0);
+    const [importQueueCount, setImportQueueCount] = useState(0);
     const [librarySort, setLibrarySort] = useState(() => {
       try {
         return localStorage.getItem("callosum.librarySort") || "added";
@@ -4684,6 +4685,11 @@
         if (r.ok) setBayesFlagged(r.data.flagged || 0);
       });
     }, []);
+    const refreshImportQueueChip = useCallback(() => {
+      api("/library/import-queue").then((r) => {
+        if (r.ok) setImportQueueCount((r.data.items || []).length);
+      });
+    }, []);
     const [findingsByPaper, setFindingsByPaper] = useState({});
     const [findingsRefresh, setFindingsRefresh] = useState(0);
     const [referenceWarningsByPaper, setReferenceWarningsByPaper] = useState({});
@@ -4971,6 +4977,9 @@
     useEffect(() => {
       refreshBayesChip();
     }, [refreshBayesChip]);
+    useEffect(() => {
+      refreshImportQueueChip();
+    }, [refreshImportQueueChip]);
     const libraryBits = {
       state: listState,
       query,
@@ -5047,6 +5056,8 @@
       onShowFindingsToReview: showFindingsToReview,
       findingsByPaper,
       referenceWarningsByPaper,
+      importQueueCount,
+      onImportQueueChanged: refreshImportQueueChip,
       onToggleTrash: toggleTrash,
       onRestore: restorePaper,
       onPurge: purgePaper,
@@ -10908,6 +10919,8 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     onShowFindingsToReview,
     findingsByPaper,
     referenceWarningsByPaper,
+    importQueueCount,
+    onImportQueueChanged,
     onToggleTrash,
     onRestore,
     onPurge,
@@ -10958,6 +10971,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const showStatcheckChip = !trashView && statcheckFlagged > 0 && librarySignalFilter !== "statcheck-inconsistent";
     const showRetractionChip = !trashView && retractionFlagged > 0 && librarySignalFilter !== "retraction-retracted";
     const showFindingsChip = !trashView && findingsToReview > 0 && librarySignalFilter !== "needs-review";
+    const showImportQueueChip = !trashView && importQueueCount > 0;
     const showTransparencyChip = !trashView && openDataDetected > 0 && librarySignalFilter !== "transparency-data-detected";
     const showLmmChip = !trashView && lmmFlagged > 0 && librarySignalFilter !== "lmm-incomplete";
     const showMetaChip = !trashView && metaFlagged > 0 && librarySignalFilter !== "meta-incomplete";
@@ -11044,7 +11058,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       },
       "\u{1F4CB} Review \xB7 ",
       findingsToReview
-    )), !trashView && (demoMode ? /* @__PURE__ */ React.createElement(
+    )), showImportQueueChip && /* @__PURE__ */ React.createElement(ImportQueuePanel, { count: importQueueCount, onChanged: onImportQueueChanged }), !trashView && (demoMode ? /* @__PURE__ */ React.createElement(
       DemoLockedLibraryButton,
       {
         label: "Unsorted",
@@ -13119,6 +13133,47 @@ ${(p.abstract || "").trim().toLowerCase()}`;
           if (ctx.onReloadWip) ctx.onReloadWip();
         }
       }
+    );
+  }
+  function ImportQueuePanel({ count, onChanged }) {
+    const [open, setOpen] = useState(false);
+    const [items, setItems] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const ref = useRef(null);
+    const load = useCallback(() => {
+      setLoading(true);
+      api("/library/import-queue").then((r) => {
+        setLoading(false);
+        if (r.ok) setItems(r.data.items || []);
+      });
+    }, []);
+    useEffect(() => {
+      if (!open) return;
+      load();
+      const onDoc = (e) => {
+        if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+      };
+      document.addEventListener("mousedown", onDoc);
+      return () => document.removeEventListener("mousedown", onDoc);
+    }, [open, load]);
+    const remove = useCallback((artifactId) => {
+      apiDelete(`/library/import-queue/${encodeURIComponent(artifactId)}`).then((r) => {
+        if (r.ok) {
+          load();
+          if (onChanged) onChanged();
+        }
+      });
+    }, [load, onChanged]);
+    return /* @__PURE__ */ React.createElement(
+      "span",
+      {
+        className: "add-menu lib-chip-group lib-chip-queue",
+        ref,
+        title: "Direct-PDF captures Callosum preserved but has not yet identified confidently \u2014 never lost, safe to review"
+      },
+      /* @__PURE__ */ React.createElement("span", { className: "lib-chip-group-label" }, "Import Queue"),
+      /* @__PURE__ */ React.createElement("button", { className: "trash-toggle findings-chip", onClick: () => setOpen((o) => !o) }, "\u{1F5C2} Import Queue \xB7 ", count),
+      open && /* @__PURE__ */ React.createElement("div", { className: "add-menu-pop saved-search-pop", style: { maxHeight: 360, overflowY: "auto" } }, loading && /* @__PURE__ */ React.createElement("span", { className: "saved-search-empty" }, "Loading\u2026"), !loading && items.length === 0 && /* @__PURE__ */ React.createElement("span", { className: "saved-search-empty" }, "Nothing queued."), !loading && items.map((item) => /* @__PURE__ */ React.createElement("div", { key: item.artifact_id, className: "saved-search-row", style: { flexDirection: "column", alignItems: "stretch", padding: "7px 12px" } }, /* @__PURE__ */ React.createElement("strong", { style: { fontSize: 12 } }, item.identity_state === "resolved" ? "Matched, not yet attached" : "Identity not yet resolved"), item.last_source_url && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, color: "var(--ink-3)" } }, item.last_source_url), item.last_original_filename && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, color: "var(--ink-3)" } }, item.last_original_filename), item.encounter_count > 1 && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, color: "var(--ink-3)" } }, "Captured ", item.encounter_count, " times"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, color: "var(--ink-3)" } }, item.promotion_state.replace(/_/g, " ")), /* @__PURE__ */ React.createElement("button", { className: "paper-restore danger", onClick: () => remove(item.artifact_id) }, "Delete"))))
     );
   }
   function AxisEditModal({ mode, axisId, initialTitle, initialDescription, initialTerms, onClose, onSaved }) {
@@ -18704,7 +18759,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       /* @__PURE__ */ React.createElement("div", { className: "discover-title" }, it.title),
       relevance[it.dedup_key] ? /* @__PURE__ */ React.createElement("div", { className: "relevance-highlight", title: "A likely match to one of your axes (a hint \u2014 the full list is never filtered)." }, "likely: ", relevance[it.dedup_key].axis_label, " \xB7 match ", relevance[it.dedup_key].similarity.toFixed(2)) : null,
       /* @__PURE__ */ React.createElement("div", { className: "paper-meta" }, it.authors && it.authors.length ? /* @__PURE__ */ React.createElement("span", { className: "paper-authors" }, it.authors.slice(0, 3).join("; "), it.authors.length > 3 ? " et al." : "") : null, it.year ? /* @__PURE__ */ React.createElement("span", { className: "mono" }, it.year) : null, it.journal ? /* @__PURE__ */ React.createElement("span", { className: "paper-venue" }, it.journal) : null),
-      /* @__PURE__ */ React.createElement("div", { className: "discover-foot" }, (it.sources || []).map((s) => /* @__PURE__ */ React.createElement("span", { key: s, className: "discover-source" }, s)), it.saved ? /* @__PURE__ */ React.createElement("span", { className: "discover-inlib" }, "\u2713 in library") : /* @__PURE__ */ React.createElement(
+      /* @__PURE__ */ React.createElement("div", { className: "discover-foot" }, (it.sources || []).map((s) => /* @__PURE__ */ React.createElement("span", { key: s, className: "discover-source" }, s)), it.saved ? it.library_state === "trashed" ? /* @__PURE__ */ React.createElement("span", { className: "discover-inlib", title: "This paper is in your Trash. Restore it from Trash rather than saving a second copy." }, "\u2713 in Trash") : /* @__PURE__ */ React.createElement("span", { className: "discover-inlib" }, "\u2713 in library") : /* @__PURE__ */ React.createElement(
         "button",
         {
           className: "btn btn-link",
