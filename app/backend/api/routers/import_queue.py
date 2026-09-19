@@ -26,13 +26,13 @@ from sqlalchemy import Connection, Engine
 from app.backend.acquisition.fetch import library_dir
 from app.backend.api.dependencies import get_connection, get_engine
 from app.backend.api.routers.library import _embedding_model, _vector_store
-from app.backend.capture.provisional import (
+from app.backend.capture.provisional import queue_dir
+from app.backend.capture.provisional_recovery import permanently_delete_provisional_artifact
+from app.backend.capture.provisional_review import (
     best_candidate,
     confirm_identity,
     explain_evidence,
-    permanently_delete_provisional_artifact,
     preview_doi,
-    queue_dir,
     retry_promotion,
 )
 from app.backend.persistence import capture_events_repo, provisional_artifacts_repo

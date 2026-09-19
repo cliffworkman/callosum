@@ -55,7 +55,7 @@ def ensure_capture_pairing_ready() -> None:
 def recover_provisional_captures(engine: Engine) -> None:
     """Reconcile the Import Queue against ``provisional_artifacts`` on startup (#61 provisional
     ingestion). Adopts any queue PDF a prior run wrote to disk but never got a durable database row
-    for (a crash between the file write and the commit) -- see ``provisional.recover_at_startup``'s
+    for (a crash between the file write and the commit) -- see ``provisional_recovery.recover_at_startup``'s
     own docstring for the full enumeration of crash windows. Same non-fatal, UI-only posture as
     ``ensure_capture_pairing_ready``: an unrecoverable environment must never block the rest of
     Callosum from starting, and recovery only matters on the instance that actually serves capture.
@@ -64,7 +64,7 @@ def recover_provisional_captures(engine: Engine) -> None:
         return
     try:
         from app.backend.acquisition.fetch import library_dir
-        from app.backend.capture.provisional import recover_at_startup
+        from app.backend.capture.provisional_recovery import recover_at_startup
 
         recover_at_startup(engine, library_dir())
     except Exception:
