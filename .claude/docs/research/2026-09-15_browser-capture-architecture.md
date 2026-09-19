@@ -1523,3 +1523,12 @@ the causal chain, the validation ladder and the isolation notes. With this, the 
 gate is the production extension-store / `production_extension_ids` distribution gate, which is untouched
 and still `[]`. Contribution lineage is recorded chronologically on #98 and #61 per
 `.claude/CREDIT-THE-LINEAGE.md`.
+
+**2026-09-19 addendum (#61 store-readiness):** the production-identity gate is now written up as a runbook
+(`.claude/docs/research/2026-09-19_browser-capture-store-release-runbook.md`). Two corrections to §32.3 and §38, appended
+rather than rewritten: (1) for Chrome, the Web Store item's public key and ID exist from a draft upload before
+publication; (2) for Edge, the timing of the final production ID is not established and is an explicit open branch. The
+shared-manifest, list-valued `production_extension_ids` design stands (Microsoft requires both stores' IDs in
+`allowed_origins`), and store identity remains independent of the pairing/session layer. Release prerequisites beyond the IDs
+themselves: integration of this branch, CI proof on the newest code, a real-Chrome click-through with the development
+identity, and the privacy/listing workstream. Contribution lineage is recorded on #61 per `.claude/CREDIT-THE-LINEAGE.md`.

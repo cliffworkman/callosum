@@ -37,6 +37,16 @@ to running the HTML metadata extractor against whatever the response actually wa
 requesting a broader permission to force it to work. The real observed Edge/Chromium behavior for
 this path is what it is; this is documented, not routed around.
 
+## Store package (Chrome Web Store + Microsoft Edge Add-ons)
+
+`python app/desktop-shell/packaging/build_extension_package.py` builds the ONE zip both stores receive (two submissions,
+two store-assigned IDs). It ships an allowlist of runtime files only (`manifest.json`, `background.js`, `icons/*.png`),
+refuses any manifest `key` or `update_url`, refuses signing material, stops on any unclassified file, and is byte-for-byte
+reproducible (sorted, fixed timestamps, LF text, stored entries) — it prints the SHA-256. The repository manifest is
+**keyless** and must stay so: never put a production key here; for a pre-review test with the Chrome Web Store public key use
+a temporary staged copy. The `dev/` tooling makes a different, key-pinned, host-name-patched copy for local testing that must
+never be uploaded. Release steps and open questions: `.claude/docs/research/2026-09-19_browser-capture-store-release-runbook.md`.
+
 ## What this extension never does
 
 No fetching a URL the *backend* supplied (a URL is not an accessible PDF — the same principle

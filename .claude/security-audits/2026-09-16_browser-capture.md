@@ -782,6 +782,38 @@ Contribution lineage for this work (who introduced, challenged, tested, reframed
 when) is recorded chronologically on issues #98 and #61 per `.claude/CREDIT-THE-LINEAGE.md`, not duplicated
 here.
 
+**2026-09-19 (#61 store-readiness inspection) — production identity gate: what is and is not established.** Appended
+after the #98 addendum above; earlier text is left as written. This records an inspection and a local, uncommitted
+hardening pass, not any store action.
+
+*Correction of an earlier claim.* Earlier text (identity.json's comment, the Stage 2 audit, architecture §32.3) says there
+is no way to know the production extension ID before publication. For **Chrome**, first-party documentation says the Web
+Store item's public key — and so its ID — exists once a *draft* is uploaded to the Developer Dashboard without publishing.
+For **Microsoft Edge**, the timing of the final production/catalog ID before submission is **not established** from
+first-party evidence and must be observed in Partner Center; the sideloaded Edge ID must never be substituted (Microsoft: the
+published ID might differ). The bootstrap therefore has an explicit unresolved Edge branch (see the runbook).
+
+*Structure confirmed.* One shared native-host manifest, registered under both browsers' HKCU keys, carrying every production
+ID, matches Microsoft's documented requirement that both stores' IDs appear in `allowed_origins`. Browser/store identity
+(who may launch the host) and Callosum pairing/session identity (what a launched host may do) remain independent layers; the
+backend never sees an extension ID. Production identity is compiled into the connector and the installer-written manifest — it
+does not depend on the environment that the #99 finding shows an Edge-launched host does not inherit.
+
+*Observations, none a defect:* an extension ID identifies a key, not code (a Developer-mode sideload carrying the store
+package's public key has the same ID — inherent to ID allowlisting and bounded by pairing); the connector honors the
+dev-build environment flag at run time; `rotate_pairing_secret` has no production caller. Duplicate production IDs were not
+rejected by the NSIS generator; they now are.
+
+*Local hardening (uncommitted; not CI-proven):* shared identity validation, duplicate/dev-leak rejection, multi-ID and
+real-binary caller-admission tests for the connector, a reproducible keyless store-package builder, and workflow steps that
+check the built manifest against `identity.json` instead of assuming it is empty and that run the connector, shell and
+extension tests. The workflow changes are *authored and locally inspected only*; CI is not proven until GitHub runs them
+after a separately authorized integration.
+
+*Remaining prerequisites before a production browser-capture release:* integration of this branch (it is not in `main` or
+`v0.5.15`), CI execution on the newest code, one genuine real-Chrome capture with the development identity, and the
+privacy/listing workstream. `production_extension_ids` remains `[]`; no store submission has occurred.
+
 ---
 
 **Security Audit (Stage 2): PASS**, and — as of this session — CI-proven for the installer lifecycle
