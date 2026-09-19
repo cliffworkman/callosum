@@ -700,6 +700,88 @@ discovered defect in shared pre-existing PDF-ingestion infrastructure — flagge
 narrowly-scoped follow-up issue — not as an F13 defect, and not fixed here per this increment's
 explicit scope boundary against touching unrelated pre-existing infrastructure.
 
+**2026-09-19 (#98) — the R1 blocker is root-caused, fixed at the shared process-supervision layer, and
+R1 is re-accepted on a clean build.** This supersedes the "R1 partial" result recorded above; the
+2026-09-17 text is left as written because it was accurate about what was observed then.
+
+*Correction of attribution.* The 2026-09-17 entry placed the failure inside `attach_pdf_to_paper` →
+`embed_chunks` and pointed at host memory pressure. Neither was the cause. Investigation (#98, Rounds
+1–8h2, including several falsified hypotheses — Dropbox-hosted path, PDF structure, embedding model,
+memory pressure) localized it to a `flush()` of tqdm's progress bar to **stderr** in the packaged backend
+during the first lazy embedding-model load, and then to the stderr *reader*:
+
+1. The packaged Python's stderr uses the Windows locale code page (cp1252, `backslashreplace`), so a
+   U+2014 em dash in an Alembic migration log line is written as the single byte `0x97` — not valid UTF-8.
+2. The Rust supervisor's `drain_output` read child output with `BufRead::lines().map_while(Result::ok)`.
+   `lines()` returns `InvalidData` on the first non-UTF-8 line, and `map_while` turned that into a silent
+   end of the drain thread.
+3. The thread's exit dropped the pipe's read end. The child then had a stderr with no reader; its next
+   real write (tqdm's flush during model load) failed with `OSError [Errno 22]`. Startup output that only
+   flushes an empty buffer performs no OS write, which is why the fault stayed invisible until then and
+   why it looked intermittent.
+
+*Fix (consumer side — the correctness boundary).* The governing invariant: a child's stdout/stderr are byte
+streams; a decoding failure must never terminate Callosum's drain of a live child, and text presentation must
+not control transport liveness. Its companion: failure of Callosum's logging machinery must not become
+failure of the process being supervised. `drain_output` now delegates to `drain_reader`
+(`app/desktop-shell/src-tauri/src/backend.rs`): byte-oriented framing with `read_until`, at most 64 KiB of
+raw pending bytes per line, lossy UTF-8 decoding *only* for the log write (so `last_lines`, which reads the
+log as a `String`, keeps working), best-effort log writes that never stop the drain, and `io::sink()` when
+the log cannot be opened. Only a genuine pipe read error ends a drain early, and it is reported to the log.
+The one shared mechanism serves the primary UI backend, the Word-HTTPS companion, and the Quick Tunnel
+connector and target. Two in-repo consumers read the log back as a `String` — `last_lines` (crash
+diagnostics) and the Quick Tunnel's `wait_for_url`, which extracts the tunnel URL from the connector's
+log — which is why the log is kept valid UTF-8 (lossy) rather than written as raw bytes; ASCII content such
+as that URL line passes through byte-identical. The 64 KiB bound also removes an unbounded-line memory
+hazard the old `lines()` loop had.
+Producer-side UTF-8 (`PYTHONIOENCODING=utf-8`, deliberately not `PYTHONUTF8=1`) is separate optional
+hardening and is **not** applied: every validation below ran with the cp1252 producer unchanged.
+
+*Verification.* Process-level regression tests written first and observed red against the old loop (child
+exits 101 once its later stderr write hits the dead pipe), then green; 11 unit tests including the exact
+64 KiB boundary matrix with byte conservation. `cargo test --release`: 69 passed / 7 ignored (baseline
+56 / 6). Packaged-app ladder with cp1252 unchanged: the canonical one-record reproducer ×3, the 8-record
+prefix ×3, and the original 84-record traffic ×3 (124 wire lines, 26 with invalid UTF-8) all drained in full,
+with the previously failing post-settle writes succeeding and their markers landing after the replayed
+block; real migrations on a fresh database drained all 84 records and reached `/health`; a pre-migrated
+control was unaffected. A real lazy SentenceTransformer load through the real HTTP lifecycle returned
+`promoted` in 13 of 14 instrumented runs. **One instrumented real-model run returned a non-JSON HTTP error
+from `confirm`. Its log was deleted before preservation. It showed no `OSError` and no diagnostic exception
+trace. It did not recur in the subsequent 12 instrumented runs or the clean-build acceptance. Cause
+unresolved; it is not attributed to, and not claimed fixed by, the #98 drain fix.** All #98 instrumentation
+was then removed
+(`git diff HEAD` lists only `backend.rs`; zero `diag98` references in both staged trees and the built
+executable), the app rebuilt from that clean tree, and the Python suite rerun: 3,242 passed / 3 skipped / 1
+known `dist-demo` failure, identical to baseline.
+
+*Real Edge acceptance on the clean build.* **R1 PASS — `promoted`.** Real Edge click → Import Queue →
+real page-1 preview (91,408 bytes) → confirm of the system's own best candidate through live Crossref →
+real embedding model → `promoted`. Checked against the database and disk, not HTTP alone: exactly one
+canonical PDF, byte-identical to the queued copy; the queue directory empty; one attachment; 96 chunks and
+96 embeddings; the `provisional_artifacts` row retained with `evidence_json.user_actions`
+(`user_confirmed_candidate`) alongside the original candidates. The tqdm "Loading weights" progress text
+(with its embedded carriage returns) appears as an intact line in `backend.log`; no `OSError`. **R2, R3 and
+R4 PASS** unchanged. Real application data verified byte-identical to baseline
+(`sha256=9bc8e399e21e1904ab9b008dcdcb0b6b16a7ed1f0dfac0de92006b10ff631aab`).
+
+*Isolation notes (harness-only; separate follow-ups, not part of #98).* (a) The acceptance harness never
+isolated `~/.callosum/app-settings.json`; because that file has `word_https_enabled: true`, the Word-HTTPS
+companion silently auto-started during earlier acceptance runs. This run pointed `CALLOSUM_SETTINGS_PATH` at
+a disposable file and confirmed the companion never started (port 8443 closed, no `--ssl-keyfile`
+process) and that the real `~/.callosum` tree was byte-identical afterwards. (b) Edge launches its
+native-messaging host with a *sanitized* environment (proved with a probe host that recorded an empty
+`CALLOSUM_SETTINGS_PATH`), so the connector can only ever read the real `capture-pairing.json`; the
+disposable settings directory was therefore seeded with a read-only copy of that pairing file (deleted after
+the run) so the connector and the disposable backend shared one secret, and `/word-https/status` reporting
+`enabled: false` (the real settings say `true`) proved the backend consumed the disposable settings.
+(c) The acceptance Library previously lived inside the Dropbox tree; this run used a temp directory.
+
+`production_extension_ids` remains `[]`, unchanged and fail-closed.
+
+Contribution lineage for this work (who introduced, challenged, tested, reframed and implemented what, and
+when) is recorded chronologically on issues #98 and #61 per `.claude/CREDIT-THE-LINEAGE.md`, not duplicated
+here.
+
 ---
 
 **Security Audit (Stage 2): PASS**, and — as of this session — CI-proven for the installer lifecycle

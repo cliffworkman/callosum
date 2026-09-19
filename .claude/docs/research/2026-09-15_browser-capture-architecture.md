@@ -1499,3 +1499,27 @@ multi-page academic PDF through a real embedding model for the first time in thi
 acceptance history. That failure is out of this increment's scope and is not fixed here; see
 `.claude/security-audits/2026-09-16_browser-capture.md`'s F13 entry for the full detail and the
 recommendation to track it as its own follow-up issue.
+
+**2026-09-19 addendum (#98 — R1 re-accepted on a clean build):** the `promoted` outcome the 2026-09-17
+addendum could not reach is now proven on real Edge. The blocker was not in `attach_pdf_to_paper` /
+`embed_chunks` and not host memory pressure: it was the Rust supervisor's child-output drain
+(`drain_output`), which stopped reading a child's stderr at the first byte that is not valid UTF-8 (cp1252
+`0x97` for an em dash in an Alembic log line), leaving the child's next real stderr write — tqdm's flush
+during the first embedding-model load — failing with `OSError [Errno 22]`. Invariants adopted: a child's stdout/stderr are byte streams, a decoding
+failure must never terminate the drain of a live child, and text presentation must not control transport
+liveness; failure of Callosum's logging machinery must not become failure of the supervised process. The
+consumer-side fix (byte-
+oriented, bounded, lossy-decoded-for-the-log, never terminating the drain because of a decoding problem or
+a log-sink failure) lives in the one shared mechanism used by the UI backend, the Word-HTTPS companion and
+the Quick Tunnel connector/target, so it is architecture-level rather than R1-specific; producer-side UTF-8
+remains optional hardening and was not needed (the log is still read back as a `String` — by `last_lines`, and
+by the Quick Tunnel's `wait_for_url`, which extracts its URL from the connector log — so Callosum does derive
+some control information from drained output, which is why the log stays valid UTF-8 via lossy decoding). On
+the clean production-equivalent build (no diagnostic
+instrumentation anywhere), real Edge R1 reached `promoted` with exactly one canonical PDF byte-identical to
+the queued copy, an empty queue directory, retained `evidence_json.user_actions`, and real chunk embeddings;
+R2–R4 passed unchanged. See `.claude/security-audits/2026-09-16_browser-capture.md` (2026-09-19, #98) for
+the causal chain, the validation ladder and the isolation notes. With this, the only known remaining Phase 1
+gate is the production extension-store / `production_extension_ids` distribution gate, which is untouched
+and still `[]`. Contribution lineage is recorded chronologically on #98 and #61 per
+`.claude/CREDIT-THE-LINEAGE.md`.
