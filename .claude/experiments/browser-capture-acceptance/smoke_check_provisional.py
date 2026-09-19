@@ -9,12 +9,15 @@ Throwaway verification tool, not part of the committed acceptance evidence.
 
 from __future__ import annotations
 
+import contextlib
 import json
+import os
 import shutil
 import subprocess
 import sys
 import time
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -22,7 +25,6 @@ ROOT = HERE.parents[2]
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(ROOT))
 
-import run_acceptance_AtoE as base  # noqa: E402
 from run_acceptance_AtoE import (  # noqa: E402
     APP_DATA,
     SHELL_EXE,
@@ -35,10 +37,6 @@ from run_acceptance_AtoE import (  # noqa: E402
     shell_running,
     wait_for_health,
 )
-
-import contextlib
-import os
-from datetime import datetime, timezone
 
 
 def main() -> int:
@@ -169,9 +167,7 @@ def main() -> int:
         artifact_id = listed["items"][0]["artifact_id"]
         log(f"GET /library/import-queue -> {listed}")
 
-        req = urllib.request.Request(
-            f"{base_url}/library/import-queue/{artifact_id}", method="DELETE"
-        )
+        req = urllib.request.Request(f"{base_url}/library/import-queue/{artifact_id}", method="DELETE")
         with urllib.request.urlopen(req, timeout=10) as resp:
             assert resp.status == 204, resp.status
         log("DELETE /library/import-queue/{id} -> 204")

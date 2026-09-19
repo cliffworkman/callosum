@@ -85,6 +85,7 @@ from run_acceptance_AtoE import (  # noqa: E402
     wait_for_page_load,
     wait_for_page_ready,
 )
+
 from tools.run_dev import _clear_dev_connector, _dev_connector_binary, _register_dev_connector  # noqa: E402
 
 EVIDENCE_DIR = HERE / "evidence-run-provisional-direct-pdf"
@@ -253,7 +254,6 @@ def main() -> int:
 
     shell_proc: subprocess.Popen | None = None
     all_evidence: list[CaseEvidence] = []
-    edge_proc: subprocess.Popen | None = None
     server = None
     try:
         disposable_library_dir = ROOT / ".local" / "acceptance-disposable-library-provisional"
@@ -293,7 +293,8 @@ def main() -> int:
         import threading
 
         server = http.server.HTTPServer(
-            ("127.0.0.1", 0), lambda *a, **kw: http.server.SimpleHTTPRequestHandler(*a, directory=str(FIXTURE_DIR), **kw)
+            ("127.0.0.1", 0),
+            lambda *a, **kw: http.server.SimpleHTTPRequestHandler(*a, directory=str(FIXTURE_DIR), **kw),
         )
         fixture_port = server.server_address[1]
         threading.Thread(target=server.serve_forever, daemon=True).start()
@@ -311,7 +312,7 @@ def main() -> int:
         # =====================================================================================
         log("=== CASE B (provisional rerun): real direct-PDF URL, report whatever actually happens ===")
         before_total_b = total_paper_count()
-        edge_proc = launch_edge(REAL_PDF_URL, cdp_port)
+        launch_edge(REAL_PDF_URL, cdp_port)
         if not wait_for_page_load(cdp_port):
             fail("Case B: page never loaded")
         if not wait_for_page_ready(cdp_port):
@@ -355,7 +356,7 @@ def main() -> int:
         before_total_e = total_paper_count()
 
         e_url = f"http://127.0.0.1:{fixture_port}/existing_real_identity.pdf"
-        edge_proc = launch_edge(e_url, cdp_port)
+        launch_edge(e_url, cdp_port)
         if not wait_for_page_load(cdp_port):
             fail("Case E: page never loaded")
         if not wait_for_page_ready(cdp_port):
@@ -432,7 +433,9 @@ def main() -> int:
                     restored_hash = sha256_of(db_path())
                     restored_size = db_path().stat().st_size
                     if restored_hash == baseline_hash and restored_size == baseline_size:
-                        log(f"[verify] restored callosum.sqlite matches baseline: sha256={restored_hash} size={restored_size}")
+                        log(
+                            f"[verify] restored callosum.sqlite matches baseline: sha256={restored_hash} size={restored_size}"
+                        )
                     else:
                         print(
                             f"CRITICAL: restored database does NOT match baseline! "

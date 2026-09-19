@@ -41,6 +41,7 @@ ROOT = HERE.parents[2]
 sys.path.insert(0, str(ROOT))
 
 from fixtures import write_fixture_pdf  # noqa: E402
+
 from tools.run_dev import _clear_dev_connector, _dev_connector_binary, _register_dev_connector  # noqa: E402
 
 APP_DATA = Path(os.environ["APPDATA"]) / "com.callosum.desktop"
@@ -362,13 +363,20 @@ def wait_for_page_ready(cdp_port: int, timeout_s: int = 30) -> bool:
     (vs. an instant local fixture) can still be mid-load when a fixed sleep would have moved on,
     and Chromium's toolbar 'Refresh' button reads as 'Stop' while a page is loading, which broke
     the click helper's focus anchor in a real run before this wait was added."""
-    result = run_powershell(PAGE_READY_HELPER, ["-CdpPort", str(cdp_port), "-TimeoutSec", str(timeout_s)], timeout=timeout_s + 15)
+    result = run_powershell(
+        PAGE_READY_HELPER, ["-CdpPort", str(cdp_port), "-TimeoutSec", str(timeout_s)], timeout=timeout_s + 15
+    )
     return "READY" in result.stdout
 
 
 def find_real_edge_pid() -> int | None:
     out = subprocess.run(
-        ["powershell", "-NoProfile", "-Command", "(Get-Process msedge | Sort-Object WorkingSet -Descending | Select-Object -First 1).Id"],
+        [
+            "powershell",
+            "-NoProfile",
+            "-Command",
+            "(Get-Process msedge | Sort-Object WorkingSet -Descending | Select-Object -First 1).Id",
+        ],
         capture_output=True,
         text=True,
         timeout=15,
@@ -435,7 +443,6 @@ def main() -> int:
 
     shell_proc: subprocess.Popen | None = None
     all_evidence: list[CaseEvidence] = []
-    edge_proc: subprocess.Popen | None = None
     try:
         # --- launch packaged shell against the fresh disposable directory ---------------------
         disposable_library_dir = ROOT / ".local" / "acceptance-disposable-library"
@@ -461,7 +468,10 @@ def main() -> int:
             fail("dev connector binary not found -- build connector-host first")
         log("dev connector registered (org.callosum.connector.dev)")
 
-        subprocess.run([sys.executable, str(ROOT / "app" / "desktop-shell" / "extension" / "dev" / "build_dev_manifest.py")], check=True)
+        subprocess.run(
+            [sys.executable, str(ROOT / "app" / "desktop-shell" / "extension" / "dev" / "build_dev_manifest.py")],
+            check=True,
+        )
         log(f"dev extension staged at {DEV_EXTENSION_DIR}")
 
         # --- seed local fixtures for D/E (distinct DOIs, coexist in one session) --------------
@@ -471,7 +481,10 @@ def main() -> int:
         import http.server
         import threading
 
-        server = http.server.HTTPServer(("127.0.0.1", 0), lambda *a, **kw: http.server.SimpleHTTPRequestHandler(*a, directory=str(FIXTURE_DIR), **kw))
+        server = http.server.HTTPServer(
+            ("127.0.0.1", 0),
+            lambda *a, **kw: http.server.SimpleHTTPRequestHandler(*a, directory=str(FIXTURE_DIR), **kw),
+        )
         fixture_port = server.server_address[1]
         threading.Thread(target=server.serve_forever, daemon=True).start()
         log(f"local fixture server on 127.0.0.1:{fixture_port}")
@@ -482,7 +495,7 @@ def main() -> int:
         # CASE A: real scholarly HTML -> new paper, capture:browser provenance
         # =====================================================================================
         log("=== CASE A: real PLOS ONE article ===")
-        edge_proc = launch_edge(REAL_ARTICLE_URL, cdp_port)
+        launch_edge(REAL_ARTICLE_URL, cdp_port)
         if not wait_for_page_load(cdp_port):
             fail("Case A: page never loaded (CDP /json showed no page target)")
         if not wait_for_page_ready(cdp_port):
@@ -510,13 +523,15 @@ def main() -> int:
         if len(live_rows) != 1 or live_rows[0]["attachments"] != 0 or live_rows[0]["annotations"] != 0:
             log(f"WARNING: A->B precondition not met exactly: {pre_b}")
         else:
-            log(f"A->B precondition confirmed: 1 live row, 0 attachments, 0 annotations (paper_id={live_rows[0]['id']})")
+            log(
+                f"A->B precondition confirmed: 1 live row, 0 attachments, 0 annotations (paper_id={live_rows[0]['id']})"
+            )
 
         # =====================================================================================
         # CASE B: real direct-PDF URL from the same article
         # =====================================================================================
         log("=== CASE B: real direct-PDF URL ===")
-        edge_proc = launch_edge(REAL_PDF_URL, cdp_port)
+        launch_edge(REAL_PDF_URL, cdp_port)
         if not wait_for_page_load(cdp_port):
             fail("Case B: page never loaded")
         if not wait_for_page_ready(cdp_port):
@@ -538,7 +553,7 @@ def main() -> int:
         # =====================================================================================
         log("=== CASE C: re-click same real article ===")
         before_count = count_papers_with_doi(REAL_ARTICLE_DOI)
-        edge_proc = launch_edge(REAL_ARTICLE_URL, cdp_port)
+        launch_edge(REAL_ARTICLE_URL, cdp_port)
         if not wait_for_page_load(cdp_port):
             fail("Case C: page never loaded")
         if not wait_for_page_ready(cdp_port):
@@ -561,9 +576,11 @@ def main() -> int:
         retry_on_locked(seed_trashed_paper, FIXTURE_D_DOI, "A Fixture Scholarly Paper D")
         # verify seeded identity matches what the fixture page will actually extract
         assert f'content="{FIXTURE_D_DOI}"' in FIXTURE_D_HTML
-        log(f"Case D precondition seeded: doi={FIXTURE_D_DOI} deleted_at=<set>; fixture HTML citation_doi confirmed identical")
+        log(
+            f"Case D precondition seeded: doi={FIXTURE_D_DOI} deleted_at=<set>; fixture HTML citation_doi confirmed identical"
+        )
         d_url = f"http://127.0.0.1:{fixture_port}/fixture_d.html"
-        edge_proc = launch_edge(d_url, cdp_port)
+        launch_edge(d_url, cdp_port)
         if not wait_for_page_load(cdp_port):
             fail("Case D: page never loaded")
         if not wait_for_page_ready(cdp_port):
@@ -584,9 +601,11 @@ def main() -> int:
         # =====================================================================================
         log("=== CASE E: existing-attachment precondition, direct-PDF click ===")
         e_paper_id = retry_on_locked(seed_existing_attachment_paper, FIXTURE_E_DOI, FIXTURE_E_TITLE)
-        log(f"Case E precondition seeded: paper_id={e_paper_id} doi={FIXTURE_E_DOI} title={FIXTURE_E_TITLE!r} attachments=1")
+        log(
+            f"Case E precondition seeded: paper_id={e_paper_id} doi={FIXTURE_E_DOI} title={FIXTURE_E_TITLE!r} attachments=1"
+        )
         e_url = f"http://127.0.0.1:{fixture_port}/existing.pdf"
-        edge_proc = launch_edge(e_url, cdp_port)
+        launch_edge(e_url, cdp_port)
         if not wait_for_page_load(cdp_port):
             fail("Case E: page never loaded")
         if not wait_for_page_ready(cdp_port):
@@ -654,7 +673,7 @@ def main() -> int:
         time.sleep(3)
 
         if had_real_dir:
-            for attempt in range(5):
+            for _attempt in range(5):
                 if not APP_DATA.exists():
                     break
                 shutil.rmtree(APP_DATA, ignore_errors=True)
@@ -672,7 +691,9 @@ def main() -> int:
                     restored_hash = sha256_of(db_path())
                     restored_size = db_path().stat().st_size
                     if restored_hash == baseline_hash and restored_size == baseline_size:
-                        log(f"[verify] restored callosum.sqlite matches baseline: sha256={restored_hash} size={restored_size}")
+                        log(
+                            f"[verify] restored callosum.sqlite matches baseline: sha256={restored_hash} size={restored_size}"
+                        )
                     else:
                         print(
                             f"CRITICAL: restored database does NOT match baseline! "

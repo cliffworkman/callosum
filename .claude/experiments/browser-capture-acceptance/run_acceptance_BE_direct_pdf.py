@@ -70,6 +70,7 @@ from run_acceptance_AtoE import (  # noqa: E402
     wait_for_page_load,
     wait_for_page_ready,
 )
+
 from tools.run_dev import _clear_dev_connector, _dev_connector_binary, _register_dev_connector  # noqa: E402
 
 EVIDENCE_DIR = HERE / "evidence-run-be-direct-pdf"
@@ -161,14 +162,15 @@ def main() -> int:
 
     shell_proc: subprocess.Popen | None = None
     all_evidence: list[CaseEvidence] = []
-    edge_proc: subprocess.Popen | None = None
     server = None
     try:
         disposable_library_dir = ROOT / ".local" / "acceptance-disposable-library-be"
         shutil.rmtree(disposable_library_dir, ignore_errors=True)
         disposable_library_dir.mkdir(parents=True, exist_ok=True)
         shell_env = {**os.environ, "CALLOSUM_LIBRARY_DIR_OVERRIDE": str(disposable_library_dir)}
-        shell_proc = subprocess.Popen([str(SHELL_EXE)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=shell_env)
+        shell_proc = subprocess.Popen(
+            [str(SHELL_EXE)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=shell_env
+        )
         log("packaged binary started against the disposable directory")
         backend_port = wait_for_health()
         log(f"backend healthy on port {backend_port}")
@@ -200,7 +202,8 @@ def main() -> int:
         import threading
 
         server = http.server.HTTPServer(
-            ("127.0.0.1", 0), lambda *a, **kw: http.server.SimpleHTTPRequestHandler(*a, directory=str(FIXTURE_DIR), **kw)
+            ("127.0.0.1", 0),
+            lambda *a, **kw: http.server.SimpleHTTPRequestHandler(*a, directory=str(FIXTURE_DIR), **kw),
         )
         fixture_port = server.server_address[1]
         threading.Thread(target=server.serve_forever, daemon=True).start()
@@ -213,7 +216,7 @@ def main() -> int:
         # =====================================================================================
         log("=== CASE B (rerun): real direct-PDF URL, expect direct_pdf_identity_unresolved ===")
         before_total_b = total_paper_count()
-        edge_proc = launch_edge(REAL_PDF_URL, cdp_port)
+        launch_edge(REAL_PDF_URL, cdp_port)
         if not wait_for_page_load(cdp_port):
             fail("Case B: page never loaded")
         if not wait_for_page_ready(cdp_port):
@@ -242,12 +245,14 @@ def main() -> int:
         # =====================================================================================
         log("=== CASE E (rerun): existing-attachment precondition + real direct-PDF click ===")
         e_paper_id = retry_on_locked(seed_existing_attachment_paper, FIXTURE_E_DOI, FIXTURE_E_TITLE)
-        log(f"Case E precondition seeded: paper_id={e_paper_id} doi={FIXTURE_E_DOI} title={FIXTURE_E_TITLE!r} attachments=1")
+        log(
+            f"Case E precondition seeded: paper_id={e_paper_id} doi={FIXTURE_E_DOI} title={FIXTURE_E_TITLE!r} attachments=1"
+        )
         pre_e = paper_snapshot(doi=FIXTURE_E_DOI)
         before_total_e = total_paper_count()
 
         e_url = f"http://127.0.0.1:{fixture_port}/existing.pdf"
-        edge_proc = launch_edge(e_url, cdp_port)
+        launch_edge(e_url, cdp_port)
         if not wait_for_page_load(cdp_port):
             fail("Case E: page never loaded")
         if not wait_for_page_ready(cdp_port):
@@ -312,7 +317,9 @@ def main() -> int:
                     restored_hash = sha256_of(db_path())
                     restored_size = db_path().stat().st_size
                     if restored_hash == baseline_hash and restored_size == baseline_size:
-                        log(f"[verify] restored callosum.sqlite matches baseline: sha256={restored_hash} size={restored_size}")
+                        log(
+                            f"[verify] restored callosum.sqlite matches baseline: sha256={restored_hash} size={restored_size}"
+                        )
                     else:
                         print(
                             f"CRITICAL: restored database does NOT match baseline! "

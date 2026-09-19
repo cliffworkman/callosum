@@ -6,7 +6,6 @@ the files Callosum would have to vendor. Not product code.
 
 import json
 import re
-import sys
 from collections import Counter
 from pathlib import Path
 

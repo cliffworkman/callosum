@@ -133,7 +133,7 @@ def main() -> int:
         assert status == 200 and pdf_outcome["status"] == "direct_pdf_queued_for_review", pdf_outcome
         log(f"captured + queued: {pdf_outcome}")
 
-        with contextlib.closing(db_connect()) as conn:
+        with contextlib.closing(db_connect()):
             pass  # not used further; db_connect import kept for parity with the sibling smoke script
 
         # --- NEW review-loop endpoints, exercised directly ---

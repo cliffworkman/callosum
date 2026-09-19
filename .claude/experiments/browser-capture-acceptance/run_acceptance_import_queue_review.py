@@ -107,7 +107,9 @@ def http_post(base_url: str, path: str, body: dict | None, timeout: int = 180) -
     # confirm/retry can do a real Crossref lookup + PDF text extraction + first-use embedding-model
     # load + vector indexing; under host memory pressure a cold start can genuinely take well over 30s.
     data = json.dumps(body if body is not None else {}).encode()
-    req = urllib.request.Request(base_url + path, data=data, method="POST", headers={"Content-Type": "application/json"})
+    req = urllib.request.Request(
+        base_url + path, data=data, method="POST", headers={"Content-Type": "application/json"}
+    )
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return resp.status, json.loads(resp.read().decode("utf-8"))
@@ -201,7 +203,6 @@ def main() -> int:
 
     shell_proc = None
     all_evidence: list[CaseEvidence] = []
-    edge_proc = None
     server = None
     try:
         disposable = ROOT / ".local" / "acceptance-disposable-library-review"
@@ -245,7 +246,8 @@ def main() -> int:
         import threading
 
         httpd = http.server.HTTPServer(
-            ("127.0.0.1", 0), lambda *a, **kw: http.server.SimpleHTTPRequestHandler(*a, directory=str(FIXTURE_DIR), **kw)
+            ("127.0.0.1", 0),
+            lambda *a, **kw: http.server.SimpleHTTPRequestHandler(*a, directory=str(FIXTURE_DIR), **kw),
         )
         server = httpd
         fixture_port = httpd.server_address[1]
@@ -260,7 +262,7 @@ def main() -> int:
         # =================================================================================
         log("=== R1: uncertain PDF, real Edge Add, then confirm the best candidate over HTTP ===")
         before_r1 = total_paper_count()
-        edge_proc = launch_edge(REAL_PDF_URL, cdp_port)
+        launch_edge(REAL_PDF_URL, cdp_port)
         if not wait_for_page_load(cdp_port):
             fail("R1: page never loaded")
         wait_for_page_ready(cdp_port)
@@ -311,10 +313,15 @@ def main() -> int:
                 r1_confirmed_paper_id = confirm_result["resolved_paper_id"]
 
         retry_result = None
-        if r1_confirmed_paper_id is None and confirm_result["promotion_state"] in {
-            "processing_failed",
-            "indexing_unavailable",
-        } and confirm_result.get("resolved_paper_id") is not None:
+        if (
+            r1_confirmed_paper_id is None
+            and confirm_result["promotion_state"]
+            in {
+                "processing_failed",
+                "indexing_unavailable",
+            }
+            and confirm_result.get("resolved_paper_id") is not None
+        ):
             # A real, honest promotion attempt against a real PDF can genuinely fail (embedding
             # cold-start, transient resource pressure). This is exactly the scenario `retry` exists
             # for: identity is already resolved, only attachment needs to be re-attempted. Prove the
@@ -352,7 +359,9 @@ def main() -> int:
 
         if r1_confirmed_paper_id is not None:
             status, listed_after = http_get(base_url, "/library/import-queue")
-            assert artifact_id not in {i["artifact_id"] for i in listed_after["items"]}, "R1: item still in queue after promotion"
+            assert artifact_id not in {i["artifact_id"] for i in listed_after["items"]}, (
+                "R1: item still in queue after promotion"
+            )
             assert import_queue_files(disposable) == [], "R1: stale queue file after promotion"
             log("R1 PASS: promoted, queue item gone, no stale managed files")
         else:
@@ -365,7 +374,7 @@ def main() -> int:
         existing_paper_id = seed_existing_attachment_paper_real_doi(FIXTURE_E_REAL_DOI, FIXTURE_E_REAL_TITLE)
         attach_before = attachment_count_for(existing_paper_id)
         r2_url = f"http://127.0.0.1:{fixture_port}/conflict_real_identity.pdf"
-        edge_proc = launch_edge(r2_url, cdp_port)
+        launch_edge(r2_url, cdp_port)
         if not wait_for_page_load(cdp_port):
             fail("R2: page never loaded")
         wait_for_page_ready(cdp_port)
@@ -401,7 +410,7 @@ def main() -> int:
         # =================================================================================
         log("=== R3: no-identity PDF, real Edge Add, then immediate delete ===")
         r3_url = f"http://127.0.0.1:{fixture_port}/no_identity.pdf"
-        edge_proc = launch_edge(r3_url, cdp_port)
+        launch_edge(r3_url, cdp_port)
         if not wait_for_page_load(cdp_port):
             fail("R3: page never loaded")
         wait_for_page_ready(cdp_port)
@@ -435,7 +444,7 @@ def main() -> int:
         r4_fixture = FIXTURE_DIR / "restart_test.pdf"
         write_fixture_pdf_no_identity(r4_fixture)
         r4_url = f"http://127.0.0.1:{fixture_port}/restart_test.pdf"
-        edge_proc = launch_edge(r4_url, cdp_port)
+        launch_edge(r4_url, cdp_port)
         if not wait_for_page_load(cdp_port):
             fail("R4: page never loaded")
         wait_for_page_ready(cdp_port)
@@ -471,7 +480,9 @@ def main() -> int:
         with urllib.request.urlopen(req, timeout=15) as resp:
             restart_status = resp.status
             restarted_pdf_bytes = resp.read()
-        assert restart_status == 200 and restarted_pdf_bytes.startswith(b"%PDF-"), "R4: PDF bytes not streamable after restart"
+        assert restart_status == 200 and restarted_pdf_bytes.startswith(b"%PDF-"), (
+            "R4: PDF bytes not streamable after restart"
+        )
 
         ev4.db_before = {"artifact_id": r4_artifact_id, "evidence_before_restart": r4_evidence_before}
         ev4.db_after = {"still_listed_after_restart": True, "pdf_bytes_streamable_after_restart": True}
