@@ -107,6 +107,16 @@ jobs:
       - name: Build and stage the browser-capture connector host into resources/connector
         run: python app/desktop-shell/packaging/stage_connector.py
 
+      # Rust tests: the connector host (unit tests + real-binary caller-admission tests) and the desktop shell
+      # (includes the #98 byte-safe child-output drain regressions). Run after staging because Tauri validates its
+      # bundle resource paths on ANY cargo build of the package, tests included.
+      - name: Rust tests -- browser-capture connector host
+        run: cargo test --release --manifest-path app/desktop-shell/connector-host/Cargo.toml
+
+      - name: Rust tests -- desktop shell (src-tauri)
+        working-directory: app/desktop-shell/src-tauri
+        run: cargo test --release --lib
+
       - name: Install Tauri CLI
         working-directory: app/desktop-shell
         run: npm install
@@ -226,24 +236,34 @@ jobs:
             return $value
           }
 
+          # What the installer MUST have threaded into the manifest: exactly connector/identity.json's configured
+          # production ids -- an empty list while the extension is unpublished, both stores' ids once they exist.
+          $identity = Get-Content "app/desktop-shell/connector/identity.json" -Raw | ConvertFrom-Json
+          $expectedOrigins = @($identity.production_extension_ids | ForEach-Object { "chrome-extension://$_/" })
+          $manifestPaths = @()
+
           foreach ($browserKey in @("Google\Chrome", "Microsoft\Edge")) {
             $regPath = "HKCU:\Software\$browserKey\NativeMessagingHosts\org.callosum.connector"
             $manifestPath = Get-DefaultRegValue $regPath
+            $manifestPaths += $manifestPath
             Write-Host "$browserKey -> $manifestPath"
             if (-not (Test-Path $manifestPath)) { throw "manifest does not exist at $manifestPath" }
             $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
             if ($manifest.name -ne "org.callosum.connector") { throw "unexpected manifest name: $($manifest.name)" }
             if ($manifest.type -ne "stdio") { throw "unexpected manifest type: $($manifest.type)" }
             if (-not (Test-Path $manifest.path)) { throw "manifest 'path' does not resolve to a real file: $($manifest.path)" }
-            # allowed_origins is deliberately EMPTY pending real Chrome Web Store / Edge Add-ons
-            # publication (see connector/identity.json's own comment on why). This asserts the
-            # installer threads whatever identity.json is CONFIGURED with, not a specific real id --
-            # there isn't one yet, and there won't be one until this extension is actually published.
-            if (@($manifest.allowed_origins).Count -ne 0) {
-              throw "expected an empty allowed_origins (unpublished extension); got: $($manifest.allowed_origins -join ',')"
+            # Compare against what identity.json is CONFIGURED with, never a hard-coded expectation (see
+            # connector/identity.json's own comment for why production_extension_ids may be empty).
+            $actualOrigins = @($manifest.allowed_origins)
+            if (($actualOrigins -join ",") -ne ($expectedOrigins -join ",")) {
+              throw "allowed_origins does not match connector/identity.json: expected [$($expectedOrigins -join ',')], got [$($actualOrigins -join ',')]"
             }
           }
-          Write-Host "connector registration verified for Chrome and Edge"
+          # Chrome and Edge read ONE shared manifest, so both stores' ids are in the single allowed_origins list.
+          if (($manifestPaths | Select-Object -Unique).Count -ne 1) {
+            throw "Chrome and Edge must point at ONE shared manifest; got: $($manifestPaths -join ' | ')"
+          }
+          Write-Host "connector registration verified for Chrome and Edge ($($expectedOrigins.Count) allowed origin(s), one shared manifest)"
 
       - name: "Verify: update-mode uninstall preserves connector registration; ordinary uninstall removes it"
         shell: pwsh

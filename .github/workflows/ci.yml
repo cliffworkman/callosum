@@ -50,6 +50,26 @@ jobs:
       - name: What's-new banner release drift check (#43 — every shipped version has a banner entry or a decline)
         run: uv run python tools/check_whatsnew_coverage.py
 
+  # #61 browser capture: the connector host's caller admission (unit + real-binary tests) and the extension's
+  # pure-logic tests. Neither is covered by the pytest job; the desktop-shell Rust suite runs in the Windows workflow.
+  connector-and-extension:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/desktop-shell/connector-host
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - name: Connector host tests (unit + real-binary caller admission)
+        run: cargo test --manifest-path app/desktop-shell/connector-host/Cargo.toml
+      - name: Extension pure-logic tests
+        run: node --test app/desktop-shell/extension/background.test.mjs
+
   e2e-smoke:
     runs-on: ubuntu-latest
     steps:

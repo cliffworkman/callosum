@@ -36,7 +36,7 @@ const APP_IDENTIFIER: &str = "com.callosum.desktop";
 /// not something that reads its own source tree at runtime.
 const IDENTITY_JSON: &str = include_str!("../../connector/identity.json");
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct Identity {
     // Not read outside `#[cfg(test)]` -- the wire check uses the compiled-in PROTOCOL_VERSION
     // constant (see main()), not this JSON copy. Kept here purely so
@@ -51,8 +51,12 @@ struct Identity {
 }
 
 impl Identity {
+    fn from_json(raw: &str) -> Result<Self, serde_json::Error> {
+        serde_json::from_str(raw)
+    }
+
     fn load() -> Self {
-        serde_json::from_str(IDENTITY_JSON).expect("connector/identity.json must parse: it is committed and built-in")
+        Self::from_json(IDENTITY_JSON).expect("connector/identity.json must parse: it is committed and built-in")
     }
 }
 
@@ -464,6 +468,185 @@ mod tests {
         assert_ne!(identity.native_host_name, identity.dev_native_host_name);
         assert_eq!(identity.dev_extension_id.len(), 32);
         assert!(!identity.production_extension_ids.contains(&identity.dev_extension_id));
+        assert_eq!(identity_problems(&identity), Vec::<String>::new());
+    }
+
+    // ---- production-identity mechanism (#61 store-readiness) ----------------------------------------
+    //
+    // SYNTHETIC identities only. Real store-assigned IDs do not exist yet and none may be invented in the
+    // repository; these tests prove the MECHANISM (who is admitted for any configured list) so that populating
+    // `production_extension_ids` later is a data change, not a logic change. All ids use only the a-p alphabet.
+    const CHROME_STORE_ID: &str = "cccccccccccccccccccccccccccccccc";
+    const EDGE_STORE_ID: &str = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+    const DEV_ID: &str = "dddddddddddddddddddddddddddddddd";
+
+    fn identity_with(production: &[&str]) -> Identity {
+        Identity {
+            protocol_version: 1,
+            native_host_name: "org.callosum.connector".into(),
+            dev_native_host_name: "org.callosum.connector.dev".into(),
+            production_extension_ids: production.iter().map(|id| id.to_string()).collect(),
+            dev_extension_id: DEV_ID.into(),
+        }
+    }
+
+    fn origin(id: &str) -> String {
+        format!("chrome-extension://{id}/")
+    }
+
+    fn is_extension_id(value: &str) -> bool {
+        value.len() == 32 && value.bytes().all(|b| (b'a'..=b'p').contains(&b))
+    }
+
+    fn is_host_name(value: &str) -> bool {
+        !value.is_empty()
+            && value
+                .split('.')
+                .all(|part| !part.is_empty() && part.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_'))
+    }
+
+    /// Mirrors `packaging/connector_identity.py::validate_identity`, the same rules the NSIS generator enforces
+    /// at build time, so the identity this binary embeds is held to the same standard as the installer's.
+    fn identity_problems(identity: &Identity) -> Vec<String> {
+        let mut problems = Vec::new();
+        for (label, name) in [
+            ("native_host_name", &identity.native_host_name),
+            ("dev_native_host_name", &identity.dev_native_host_name),
+        ] {
+            if !is_host_name(name) {
+                problems.push(format!("{label} {name:?} is not a valid host name"));
+            }
+        }
+        if identity.native_host_name == identity.dev_native_host_name {
+            problems.push("host names must differ".into());
+        }
+        if !is_extension_id(&identity.dev_extension_id) {
+            problems.push("dev_extension_id is not a valid extension id".into());
+        }
+        let mut seen = std::collections::HashSet::new();
+        for id in &identity.production_extension_ids {
+            if !is_extension_id(id) {
+                problems.push(format!("{id:?} is not a valid extension id"));
+            } else if !seen.insert(id.as_str()) {
+                problems.push(format!("duplicate production extension id {id:?}"));
+            }
+            if *id == identity.dev_extension_id {
+                problems.push("the dev extension id leaked into production_extension_ids".into());
+            }
+        }
+        problems
+    }
+
+    #[test]
+    fn every_configured_production_id_is_admitted_whichever_store_it_came_from() {
+        let identity = identity_with(&[CHROME_STORE_ID, EDGE_STORE_ID]);
+        for id in [CHROME_STORE_ID, EDGE_STORE_ID] {
+            assert!(caller_is_allowed(Some(&origin(id)), &identity, false), "{id} must be admitted");
+            // The dev flag can never take a production id away.
+            assert!(caller_is_allowed(Some(&origin(id)), &identity, true));
+            // Browsers send the trailing slash; the bare form is tolerated too.
+            assert!(caller_is_allowed(Some(&format!("chrome-extension://{id}")), &identity, false));
+        }
+    }
+
+    #[test]
+    fn near_misses_of_a_configured_id_are_rejected_with_or_without_the_dev_flag() {
+        let identity = identity_with(&[CHROME_STORE_ID, EDGE_STORE_ID]);
+        let one_char_off = format!("{}d", &CHROME_STORE_ID[..31]);
+        let first_char_off = format!("d{}", &CHROME_STORE_ID[1..]);
+        let candidates = vec![
+            origin(&one_char_off),
+            origin(&first_char_off),
+            origin(&CHROME_STORE_ID[..31]),               // one short
+            origin(&format!("{CHROME_STORE_ID}c")),       // one long
+            origin(&CHROME_STORE_ID.to_uppercase()),      // wrong case
+            format!("chrome-extension://{CHROME_STORE_ID}/extra"),
+            format!("chrome-extension://{CHROME_STORE_ID}/?q=1"),
+            format!("chrome-extension://user@{CHROME_STORE_ID}/"),
+            format!("chrome-extension:// {CHROME_STORE_ID}/"),
+            format!("chrome-extension://{CHROME_STORE_ID} /"),
+            format!("edge-extension://{CHROME_STORE_ID}/"),
+            format!("moz-extension://{CHROME_STORE_ID}/"),
+            format!("https://{CHROME_STORE_ID}/"),
+            CHROME_STORE_ID.to_string(), // no scheme at all
+            String::new(),
+            "chrome-extension://".to_string(),
+            origin(&"f".repeat(32)), // a well-formed id that is simply not configured
+        ];
+        for candidate in candidates {
+            for flag in [false, true] {
+                assert!(
+                    !caller_is_allowed(Some(&candidate), &identity, flag),
+                    "{candidate:?} (dev flag {flag}) must be rejected"
+                );
+            }
+        }
+        assert!(!caller_is_allowed(None, &identity, false));
+        assert!(!caller_is_allowed(None, &identity, true));
+    }
+
+    #[test]
+    fn an_empty_production_list_admits_nobody_but_the_flagged_dev_id() {
+        let identity = identity_with(&[]);
+        let unconfigured = "f".repeat(32);
+        for id in [CHROME_STORE_ID, EDGE_STORE_ID, unconfigured.as_str()] {
+            for flag in [false, true] {
+                assert!(!caller_is_allowed(Some(&origin(id)), &identity, flag));
+            }
+        }
+        assert!(!caller_is_allowed(Some(&origin(DEV_ID)), &identity, false));
+        assert!(caller_is_allowed(Some(&origin(DEV_ID)), &identity, true));
+    }
+
+    #[test]
+    fn the_dev_flag_admits_the_dev_id_but_never_widens_the_production_list() {
+        let identity = identity_with(&[CHROME_STORE_ID]);
+        assert!(!caller_is_allowed(Some(&origin(DEV_ID)), &identity, false)); // production ids present: still dev-gated
+        assert!(caller_is_allowed(Some(&origin(DEV_ID)), &identity, true));
+        // A store id that is NOT configured stays out, flag or not.
+        assert!(!caller_is_allowed(Some(&origin(EDGE_STORE_ID)), &identity, true));
+        assert!(!caller_is_allowed(Some(&origin(EDGE_STORE_ID)), &identity, false));
+    }
+
+    #[test]
+    fn identity_problems_flag_what_the_installer_generator_also_rejects() {
+        assert!(identity_problems(&identity_with(&[CHROME_STORE_ID, EDGE_STORE_ID])).is_empty());
+        assert!(identity_problems(&identity_with(&[])).is_empty()); // empty is well-formed; release policy is elsewhere
+        assert!(!identity_problems(&identity_with(&[CHROME_STORE_ID, CHROME_STORE_ID])).is_empty()); // duplicate
+        assert!(!identity_problems(&identity_with(&["C".repeat(32).as_str()])).is_empty()); // uppercase
+        assert!(!identity_problems(&identity_with(&["c".repeat(31).as_str()])).is_empty()); // short
+        assert!(!identity_problems(&identity_with(&["q".repeat(32).as_str()])).is_empty()); // outside a-p
+        assert!(!identity_problems(&identity_with(&[DEV_ID])).is_empty()); // dev id in production list
+        let mut same_hosts = identity_with(&[]);
+        same_hosts.dev_native_host_name = same_hosts.native_host_name.clone();
+        assert!(!identity_problems(&same_hosts).is_empty());
+        let mut bad_host = identity_with(&[]);
+        bad_host.native_host_name = "Org.Callosum..Connector".into();
+        assert!(!identity_problems(&bad_host).is_empty());
+    }
+
+    #[test]
+    fn a_populated_identity_json_parses_and_ignores_comment_fields() {
+        let raw = format!(
+            r#"{{"_comment":"x","protocol_version":1,"native_host_name":"org.callosum.connector",
+                "dev_native_host_name":"org.callosum.connector.dev",
+                "production_extension_ids":["{CHROME_STORE_ID}","{EDGE_STORE_ID}"],
+                "dev_extension_id":"{DEV_ID}","distribution_model":"y"}}"#
+        );
+        let identity = Identity::from_json(&raw).expect("a populated identity parses");
+        assert_eq!(identity.production_extension_ids, vec![CHROME_STORE_ID, EDGE_STORE_ID]);
+        assert!(identity_problems(&identity).is_empty());
+        assert!(caller_is_allowed(Some(&origin(EDGE_STORE_ID)), &identity, false));
+    }
+
+    #[test]
+    fn caller_id_rejects_every_shape_except_the_exact_origin() {
+        assert_eq!(caller_extension_id(&origin(CHROME_STORE_ID)), Some(CHROME_STORE_ID));
+        assert_eq!(caller_extension_id(&format!("chrome-extension://{CHROME_STORE_ID}/extra")), None);
+        assert_eq!(caller_extension_id(&format!("chrome-extension://{CHROME_STORE_ID}//")), None);
+        assert_eq!(caller_extension_id(&format!(" chrome-extension://{CHROME_STORE_ID}/")), None);
+        assert_eq!(caller_extension_id(&format!("CHROME-EXTENSION://{CHROME_STORE_ID}/")), None);
+        assert_eq!(caller_extension_id(""), None);
     }
 
     #[test]
