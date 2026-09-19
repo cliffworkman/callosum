@@ -304,7 +304,14 @@ function ImportQueueReviewModal({ onClose, onOpenPaper, onChanged }) {
   );
 }
 
+// The Library header's Import Queue chip. It owns its own visibility (nothing renders while the queue is empty); the
+// chip and its review modal live in a child so that emptying the queue unmounts the modal and resets its open state,
+// exactly as when the Library header used to unmount the whole panel.
 function ImportQueuePanel({ count, onChanged, onOpenPaper }) {
+  return count > 0 ? <ImportQueueChip count={count} onChanged={onChanged} onOpenPaper={onOpenPaper} /> : null;
+}
+
+function ImportQueueChip({ count, onChanged, onOpenPaper }) {
   const [open, setOpen] = useState(false);
 
   return (

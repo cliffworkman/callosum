@@ -237,7 +237,6 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
   const showStatcheckChip = !trashView && statcheckFlagged > 0 && librarySignalFilter !== "statcheck-inconsistent";
   const showRetractionChip = !trashView && retractionFlagged > 0 && librarySignalFilter !== "retraction-retracted";
   const showFindingsChip = !trashView && findingsToReview > 0 && librarySignalFilter !== "needs-review";
-  const showImportQueueChip = !trashView && importQueueCount > 0;
   const showTransparencyChip =
     !trashView && openDataDetected > 0 && librarySignalFilter !== "transparency-data-detected";
   const showLmmChip = !trashView && lmmFlagged > 0 && librarySignalFilter !== "lmm-incomplete";
@@ -291,8 +290,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                   <button className="trash-toggle findings-chip" onClick={onShowFindingsToReview}
                     title="Findings you haven't marked reviewed yet — your review queue, separate from the check signals; open each paper's Review section">📋 Review · {findingsToReview}</button>}
               </span>}
-            {showImportQueueChip &&
-              <ImportQueuePanel count={importQueueCount} onChanged={onImportQueueChanged} onOpenPaper={onOpenPdf} />}
+            {!trashView && <ImportQueuePanel count={importQueueCount} onChanged={onImportQueueChanged} onOpenPaper={onOpenPdf} />}
             {!trashView && (demoMode
               ? <DemoLockedLibraryButton label="Unsorted" path="/papers?needs_review=true"
                   message="All five curated demo records have resolved metadata. In local Callosum, Unsorted isolates raw imports and unresolved identifiers for review." />
