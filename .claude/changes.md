@@ -9,6 +9,35 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-20 — browser capture (#61): branch prepared for draft-PR integration; `origin/main` merged in
+- **Files:** `.claude/docs/worktree-topology.md` (current-status update for the branch), `.claude/changes.md`
+  (this entry). The feature itself is the branch's earlier commits and is not re-described file-by-file here — see
+  `.claude/docs/research/2026-09-15_browser-capture-architecture.md`, `.claude/security-audits/2026-09-16_browser-capture.md`
+  and `.claude/docs/research/2026-09-19_browser-capture-store-release-runbook.md`.
+- **What:** `browser-capture-research` carries the browser-capture feature (issue #61): a Windows native-messaging
+  connector host and browser extension, packaged-app instance resolution, the pairing/session capture boundary, and a
+  provisional Import Queue with conservative identity promotion. Since the 2026-09-17 entry below left the branch isolated:
+  #98 (a Rust supervisor drain defect that blocked the first clean-build real-Edge promotion) was fixed and closed; real
+  packaged Edge R1–R4 and a real Chrome development-identity happy path plus wrong-ID and host-absent negatives passed
+  locally; release-packaging hardening, a store-release runbook, lint/line-budget cleanup and pre-commit hygiene were
+  committed; and `origin/main` (one docs-only commit) was merged into the branch with a real merge commit — no rebase,
+  no squash.
+- **Why:** The 2026-09-17 note describing the branch as isolated pending review was stale. Local evidence is complete, so
+  the next gate is an independent GitHub environment (draft PR, CI, manually dispatched platform builds) challenging that
+  evidence before anything lands on `main`.
+- **Verify:** Local evidence only. Python: 3,326 test IDs each accounted for exactly once (3,323 passed / 3 skipped /
+  0 failed) across four deterministic fresh-process partitions — not one monolithic run; pre-commit clean; real Edge and
+  real Chrome acceptance under the development identity only. At this checkpoint **GitHub CI has not yet run** on the newest
+  commits; the next gate is draft-PR integration. Not publicly released: `production_extension_ids` is `[]`, no store
+  submission has occurred, and #61 stays open.
+- **Help corpus:** not updated in this pass (browser capture is not publicly released); this entry, like the entries
+  around it, sits above the `HELP-DOCS-SYNCED` marker and does not move it.
+- **Lineage** (per `.claude/CREDIT-THE-LINEAGE.md`; descriptive, not an ownership judgment): direction and review —
+  Cliff Workman + ChatGPT (GPT-5.6 Sol); implementation, acceptance orchestration and evidence — Claude; the
+  browser-required manual steps — Cliff Workman. The detailed chronology lives on #61, #98 and #99.
+- **Revert:** docs-only metadata — `git revert` the commit that adds this entry. The merge commit is ordinary topology;
+  reverting it would be a separate, deliberate decision.
+
 ## 2026-09-17 — worktree topology restore: primary checkout back on `main`
 - **Files:** `.claude/docs/worktree-topology.md` (new), `.claude/CLAUDE.md` (Reference docs table row).
 - **What:** The primary checkout (`C:\Users\cliff\Dropbox\Dropbox\01_Work\callosum`) had been sitting on
