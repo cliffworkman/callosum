@@ -9,6 +9,29 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-17 — worktree topology restore: primary checkout back on `main`
+- **Files:** `.claude/docs/worktree-topology.md` (new), `.claude/CLAUDE.md` (Reference docs table row).
+- **What:** The primary checkout (`C:\Users\cliff\Dropbox\Dropbox\01_Work\callosum`) had been sitting on
+  `experiment/ask-cli-staged-synthesis` while ordinary product development continued independently on `main`
+  via a temp-dir worktree — a "main frozen for 0.6" pattern that had started obstructing ordinary development
+  and manual review. That freeze is retired: the primary checkout is restored to `main` (clean, == `origin/main`
+  at the time of this commit). The historical 0.6 code baseline remains preserved separately and exactly, as
+  branch `freeze/060` at commit `5ddb321f5a9374d8258234562da4b0781c965d1a`, attached at
+  `.claude/worktrees/060`. The Ask-CLI research branch was relocated (not deleted) to its own dedicated worktree
+  at `.claude/worktrees/ask-cli-staged-synthesis`, after a lossless checkpoint commit of its dirty state
+  (excluding files later confirmed to hold rendered/retrieved library text, or unrelated personal content —
+  see that branch's own `.claude/SCRATCH.md` for the itemized exclusion list). Five other worktrees whose
+  branches were already fully merged into `main` were unregistered as redundant (branches themselves untouched).
+  `.claude/worktrees/browser-capture-research` (a separate, substantial, partially-dirty stranded feature found
+  during the audit) was deliberately left isolated and untouched, pending its own review.
+- **Why:** Cliff could no longer open the primary folder and see, run, or test current Callosum — the freeze
+  had become operationally harmful. This restores that without resolving, merging, or otherwise touching any
+  0.6/0.7 semantic-research conclusion: 0.6 human adjudication remains pending (Cliff is finishing a manuscript
+  first), R_0_6 remains unfrozen, and 0.7 remains subject to its existing dependency on an accepted 0.6.
+- **Revert:** topology-only change (no `main` content commit besides this docs pair, no history rewrite) —
+  `git worktree` operations are individually reversible; see `.claude/docs/worktree-topology.md` for the
+  current layout of record.
+
 ## 2026-09-14 — inc 603: axis cards → 3×2 grid (declutter the Axes pane)
 - **Files:** `app/frontend/js/15b_axis_card.jsx` (`AxisItem` — `.axis-row-head` becomes a 4-child grid; count
   badge moved out of `.axis-card-actions` to col 3; `title=` tooltip on the label; `.compact` modifier from the
