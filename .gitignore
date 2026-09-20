@@ -93,4 +93,3 @@ app/desktop-shell/src-tauri/windows/connector-identity.generated.nsh
 app/desktop-shell/dist-macos/
 # Downloaded CI verification screenshots/logs (diagnostic, reviewed locally each run, not source).
 app/desktop-shell/ci-screenshots/
-

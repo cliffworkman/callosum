@@ -28,4 +28,3 @@ api: POST /papers/{paper_id}/registration-evidence/retrieve
 
 Retrieval is local, field-bounded first, explicit about expansion/supplements/study ambiguity, source-anchored, and
 structurally unable to read registration chunks as publication evidence.
-

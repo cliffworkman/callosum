@@ -25,4 +25,3 @@ api: POST /papers/{paper_id}/registration-versions/{version_id}/commitments/extr
 
 Commitments remain local, versioned, source-anchored extraction proposals; unknown text stays unknown; no score,
 adherence claim, author judgment, paper text, or registration content leaves the machine.
-
