@@ -112,13 +112,91 @@ def test_connector_registration_never_touches_a_third_party_manifest_by_construc
     assert hook.count("DeleteRegKey HKCU") == 2
 
 
+TAURI_DIR = ROOT / "app/desktop-shell/src-tauri"
+COMMON_SOURCE_RESOURCE = {"../resources/callosum-src": "callosum-src"}
+CONNECTOR_RESOURCE = {"../resources/connector": "connector"}
+MACOS_CONNECTOR_SIDECAR = ["binaries/callosum-connector"]
+
+
+def _merge_patch(target: object, patch: object) -> object:
+    """RFC 7396 JSON Merge Patch -- how Tauri applies a platform config (`tauri.<os>.conf.json`) over the base config:
+    objects merge key-by-key, arrays and scalars replace, null deletes."""
+    if not isinstance(patch, dict):
+        return patch
+    result = dict(target) if isinstance(target, dict) else {}
+    for key, value in patch.items():
+        if value is None:
+            result.pop(key, None)
+        else:
+            result[key] = _merge_patch(result.get(key), value)
+    return result
+
+
+def _effective_tauri_config(platform: str) -> dict:
+    """The config Tauri actually builds with on `platform` (windows / macos / linux): base + that platform's override."""
+    merged = json.loads((TAURI_DIR / "tauri.conf.json").read_text(encoding="utf-8"))
+    override = TAURI_DIR / f"tauri.{platform}.conf.json"
+    if override.is_file():
+        merged = _merge_patch(merged, json.loads(override.read_text(encoding="utf-8")))
+    assert isinstance(merged, dict)
+    return merged
+
+
+def test_shared_tauri_config_bundles_only_the_common_source_tree() -> None:
+    """The connector is platform-owned. A connector declared in the SHARED config makes every platform's cargo build
+    fail on `resource path ../resources/connector doesn't exist` unless that platform also stages it (found by the
+    first GitHub run of PR #103: Linux and both macOS jobs failed exactly this way while main had passed)."""
+    base = json.loads((TAURI_DIR / "tauri.conf.json").read_text(encoding="utf-8"))["bundle"]
+    assert base["resources"] == COMMON_SOURCE_RESOURCE
+    assert "externalBin" not in base
+
+
+def test_connector_ownership_is_per_platform_in_the_effective_tauri_config() -> None:
+    windows = _effective_tauri_config("windows")["bundle"]
+    macos = _effective_tauri_config("macos")["bundle"]
+    linux = _effective_tauri_config("linux")["bundle"]
+
+    # Windows: the connector is a bundle RESOURCE (NSIS installs it under $INSTDIR\connector), source tree still common.
+    assert windows["resources"] == {**COMMON_SOURCE_RESOURCE, **CONNECTOR_RESOURCE}
+    assert "externalBin" not in windows
+
+    # macOS: the connector is EXECUTABLE CODE -> an external-binary sidecar, never a Contents/Resources resource.
+    assert macos["resources"] == COMMON_SOURCE_RESOURCE
+    assert not any("connector" in source for source in macos["resources"])
+    assert macos["externalBin"] == MACOS_CONNECTOR_SIDECAR
+
+    # Linux: browser capture is unsupported for now; the shell must still build without any connector.
+    assert linux["resources"] == COMMON_SOURCE_RESOURCE
+    assert "externalBin" not in linux
+
+
 def test_connector_resource_ships_in_its_own_subdirectory_not_the_install_root() -> None:
     """A resource named callosum-connector.exe placed directly under $INSTDIR would collide with
     cargo's own target/release/ output of the same name and churn fingerprints -- shipping it in a
-    connector/ subdirectory avoids that regardless of naming."""
-    config = json.loads((ROOT / "app/desktop-shell/src-tauri/tauri.conf.json").read_text(encoding="utf-8"))
-    resources = config["bundle"]["resources"]
+    connector/ subdirectory avoids that regardless of naming. (Windows only: see the per-platform test above.)"""
+    resources = _effective_tauri_config("windows")["bundle"]["resources"]
     assert resources["../resources/connector"] == "connector"
+
+
+def test_macos_connector_staging_follows_tauris_target_triple_sidecar_convention() -> None:
+    spec = importlib.util.spec_from_file_location(
+        "callosum_stage_connector", ROOT / "app/desktop-shell/packaging/stage_connector.py"
+    )
+    assert spec is not None and spec.loader is not None
+    stage = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(stage)
+
+    arm = stage.staged_target("darwin", "aarch64-apple-darwin")
+    intel = stage.staged_target("darwin", "x86_64-apple-darwin")
+    assert arm == TAURI_DIR / "binaries" / "callosum-connector-aarch64-apple-darwin"
+    assert intel == TAURI_DIR / "binaries" / "callosum-connector-x86_64-apple-darwin"
+    # ...and it is NOT staged into the resource tree Tauri copies verbatim into Contents/Resources.
+    assert "resources" not in arm.parts
+    assert stage.staged_target("win32", None) == ROOT / "app/desktop-shell/resources/connector/callosum-connector.exe"
+    with pytest.raises(ValueError):
+        stage.staged_target("darwin", None)  # Tauri requires the triple suffix
+    with pytest.raises(ValueError):
+        stage.staged_target("linux", "x86_64-unknown-linux-gnu")  # Linux stages no connector
 
 
 def test_preinstall_hook_clears_the_stale_connector_resource_like_callosum_src() -> None:
