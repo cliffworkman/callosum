@@ -218,6 +218,38 @@ def test_windows_ci_verifies_connector_registration_and_uninstall_ownership() ->
     assert "allowed_origins" in workflow
 
 
+def test_macos_ci_packages_registers_and_probes_the_connector_as_nested_code() -> None:
+    """Browser capture reaches macOS (#61: the first concrete user is on a Mac), so the macOS workflow must prove the
+    connector is packaged as executable nested code and that the registration + host protocol work against the INSTALLED
+    app -- on both architectures, before any browser click-through on real hardware."""
+    workflow = (ROOT / ".github/workflows/desktop-shell-macos.yml").read_text(encoding="utf-8")
+    # Staged natively per architecture BEFORE any cargo step that makes Tauri validate the sidecar path.
+    stage = workflow.index("stage_connector.py")
+    assert stage < workflow.index("cargo test live_pinned_preview_installs_and_runs_three_generation_contracts")
+    assert stage < workflow.index("npx tauri build")
+    assert "lipo -archs" in workflow
+    assert "cargo test --release --manifest-path app/desktop-shell/connector-host/Cargo.toml" in workflow
+    assert "cargo test --lib connector_registration" in workflow
+    # Nested code, not a resource: located by observation, never under Contents/Resources, and codesign-verified.
+    assert "find \"$INSTALLED\" -name 'callosum-connector*'" in workflow
+    assert "must NOT be under Contents/Resources" in workflow
+    assert 'codesign --verify --deep --strict --verbose=2 "$INSTALLED"' in workflow
+    assert 'codesign --verify --strict --verbose=2 "$CONNECTOR"' in workflow
+    # Registration evidence: exact manifest from identity.json, absolute installed path, no translocated/DMG path.
+    assert "NativeMessagingHosts/org.callosum.connector.json" in workflow
+    assert 'manifest["allowed_origins"] == expected_origins' in workflow
+    assert "AppTranslocation" in workflow and "/Volumes/" in workflow
+    # Direct-host probes use the explicit DEV mechanism (production_extension_ids is still empty) with explicit expectations.
+    assert "CALLOSUM_CONNECTOR_ALLOW_DEV_BUILD" in workflow
+    assert '"callosum_closed"' in workflow and '"available"' in workflow
+
+
+def test_linux_workflow_stages_no_connector_but_must_still_build() -> None:
+    workflow = (ROOT / ".github/workflows/desktop-shell-linux.yml").read_text(encoding="utf-8")
+    assert "stage_connector" not in workflow
+    assert "resources/connector" not in workflow
+
+
 def test_python_runtime_is_not_a_tauri_bundle_resource() -> None:
     config = json.loads((ROOT / "app/desktop-shell/src-tauri/tauri.conf.json").read_text(encoding="utf-8"))
     resources = config["bundle"]["resources"]

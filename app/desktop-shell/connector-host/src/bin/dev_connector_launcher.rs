@@ -18,23 +18,52 @@
 //! inherits stdin/stdout/stderr by default (exactly the pipes Chrome set up) and forwards them to
 //! the real binary unchanged, with no shell in the process chain.
 //!
+//! macOS (#61: the first concrete browser-capture user is on a Mac): the same launcher is used with the same
+//! stdio-inheriting `status()` semantics -- there is no `cmd.exe` in a macOS process chain, so the Windows
+//! failure does not apply, but the launcher stays a compiled binary (not a shell wrapper) so the two platforms
+//! behave identically. Whether Chrome-on-macOS needs anything different (e.g. `exec` instead of a child) is
+//! decided by real-hardware evidence, not assumed here.
+//!
 //! Registered ONLY under `dev_native_host_name` by `tools/run_dev.py`'s `_register_dev_connector`,
 //! never shipped, never referenced by the production installer.
 
 use std::env;
 use std::process::Command;
 
+/// The real connector's file name next to this launcher (`callosum_connector[.exe]`).
+fn real_connector_name() -> &'static str {
+    if cfg!(windows) {
+        "callosum_connector.exe"
+    } else {
+        "callosum_connector"
+    }
+}
+
 fn main() {
     let launcher_path = env::current_exe().expect("current_exe should always resolve");
     let dir = launcher_path.parent().expect("exe always has a parent dir");
-    let real_binary = dir.join("callosum_connector.exe");
+    let real_binary = dir.join(real_connector_name());
 
     let args: Vec<String> = env::args().skip(1).collect();
     let status = Command::new(real_binary)
         .args(&args)
         .env("CALLOSUM_CONNECTOR_ALLOW_DEV_BUILD", "1")
         .status()
-        .expect("failed to launch callosum_connector.exe next to this launcher");
+        .unwrap_or_else(|error| panic!("failed to launch {} next to this launcher: {error}", real_connector_name()));
 
     std::process::exit(status.code().unwrap_or(1));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::real_connector_name;
+
+    #[test]
+    fn the_real_connector_name_matches_the_platform() {
+        if cfg!(windows) {
+            assert_eq!(real_connector_name(), "callosum_connector.exe");
+        } else {
+            assert_eq!(real_connector_name(), "callosum_connector");
+        }
+    }
 }

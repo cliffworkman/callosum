@@ -1,4 +1,5 @@
 mod backend;
+mod connector_registration;
 mod external;
 mod managed_local_ai;
 mod python_runtime;
@@ -345,6 +346,15 @@ pub fn run() {
                     );
                 }
             });
+            // macOS has no installer hook: register (or repair) the per-user Chrome/Edge native-messaging host manifest on
+            // every launch of the installed app. Non-fatal -- browser capture is optional and a failure is only recorded.
+            #[cfg(target_os = "macos")]
+            {
+                match app.path().app_data_dir() {
+                    Ok(dir) => connector_registration::register_on_startup(&dir),
+                    Err(error) => eprintln!("Browser connector registration skipped: no app data dir: {error}"),
+                }
+            }
             let handle2 = app.handle().clone();
             tauri::async_runtime::spawn(updater::run_periodic_check(handle2));
             Ok(())
