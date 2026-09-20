@@ -193,7 +193,9 @@ fn shell_process_running() -> bool {
 
 #[cfg(not(windows))]
 fn shell_process_running() -> bool {
-    false // Stage 2 is Windows-first (NSIS + registry native messaging); never claim "starting" elsewhere.
+    // Not yet implemented off Windows: never claim "starting" without evidence. On macOS this is deliberately deferred until a
+    // real-Mac run shows whether it is needed (runbook §5b, seam S5); until then it degrades to "closed".
+    false
 }
 
 /// Resolve the canonical UI backend from packaged state alone -- the port file is read ONCE and

@@ -16,6 +16,15 @@
 boundary audits), #70 (packaged-vs-dev runtime boundary), #72 (attachment lifecycle).
 **Branch:** `browser-capture-research`
 
+> **Scope correction (2026-09-20) — macOS is required; Linux is unsupported.** This document was written Windows-first and
+> repeatedly marks macOS/Linux "untested, not assumed equivalent". That was an accurate record of what had been *observed*; it
+> is no longer the scope. The first concrete user of browser capture is on **macOS with Google Chrome** (product fact supplied
+> by Cliff), so a Windows-only connector proves the architecture while failing the intended utility target. **macOS (Chrome) is
+> now a hard Phase-1 criterion**, Edge on macOS is best-effort, and **Linux is not a supported browser-capture platform** (the
+> Linux shell must still build, with no connector). The Windows-first sections below stay as the implementation sequence, not the
+> release scope. macOS remains **unobserved on real hardware**: packaging and registration are implemented and asserted in CI, and
+> the real-Mac acceptance gate is specified in the store-release runbook §5b.
+
 ---
 
 ## 0. Governing principle
@@ -449,6 +458,7 @@ probing can find it. That disqualifies probing on security grounds, independentl
   the manifest path the **installer** registered (Windows: an `HKCU\Software\Google\Chrome\
   NativeMessagingHosts\…` value, matching the existing NSIS `currentUser` install and the
   `installerHooks` already configured; macOS/Linux: a JSON file in a well-known directory).
+  *(Update 2026-09-20: macOS has no installer hook, so the shell writes that JSON file at every launch — see the runbook §0. Linux is unsupported.)*
 - **Fails closed by construction**: not installed → no host → a clean "Callosum is not installed"
   state, with no network surface at all for a webpage to reach.
 - The host **owns resolution**: it reads the canonical backend location from the state Tauri
@@ -765,6 +775,7 @@ new surface Phase 1 did not cover.
 
 **Phase 4 — breadth.** Multiple-result pages; Firefox (needs its own `eval` answer *and* its own
 connector-host registration); optional Axis/Project actions; macOS/Linux packaged verification.
+*(Update 2026-09-20: macOS packaged verification is no longer Phase 4 — it is a Phase-1 requirement; Linux is unsupported.)*
 
 **Audit gate.** The build trips `CLAUDE.md:1835-1842` items 1 (new endpoint), 3 (file ingestion),
 4 (new auth logic), 5 (3+ files), and 6 if a connector host is added — requiring
@@ -1010,6 +1021,7 @@ with the capture endpoint.
 
 Still unobserved: cold-start latency to a usable backend (needs a deliberate restart), and
 tunnel-target behaviour. **Windows only — macOS and Linux are untested, not assumed equivalent.**
+*(Update 2026-09-20: still true of what was observed here; macOS is now required and is tracked by the runbook §5b gate.)*
 
 ## 24. Transport recommendation after testing: native messaging, confirmed
 
@@ -1190,7 +1202,7 @@ Verified after each run: `callosum.sqlite` back at 67,383,296 bytes with its ori
 | **Connector host resolves the canonical backend** | **`resolved: true`, `reason: "ok"`, `ports_probed: 0`** ✅ |
 | Word HTTPS child reports `word-https` | **UNOBSERVED** — `word_https_configured()` requires dev certs that are not installed on this machine |
 | Tunnel target reports `tunnel-target` | **UNOBSERVED** — needs cloudflared plus Remote Access enabled, which would alter real user settings |
-| macOS / Linux | **UNTESTED** — not assumed equivalent |
+| macOS / Linux | **UNTESTED** — not assumed equivalent *(2026-09-20: macOS now required, real-Mac acceptance pending; Linux unsupported)* |
 
 The two unobserved siblings are covered by test rather than observation, and the distinction is worth
 keeping straight: `cargo test` proves the **shell sets** their roles, and `tests/test_health.py` proves

@@ -9,6 +9,41 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-20 — browser capture (#61): first GitHub challenge of draft PR #103 answered; macOS becomes a Phase-1 platform
+- **Files:** Tauri config (`tauri.conf.json` now common-only; new `tauri.windows.conf.json`; `tauri.macos.conf.json` gains the
+  connector sidecar) and `packaging/stage_connector.py`; new `src-tauri/src/connector_registration.rs` (+ `lib.rs` setup wiring),
+  `connector-host/src/bin/dev_connector_launcher.rs`, `tools/run_dev.py`, `.github/workflows/desktop-shell-macos.yml`;
+  new `app/backend/capture/trusted_paths.py` with `api/routers/capture.py`, `api/routers/import_queue.py`, `capture/pairing.py`;
+  `.github/workflows/ci.yml`; tests (`test_desktop_packaging.py`, `test_run_dev_connector.py`, `test_capture_trust_boundaries.py`);
+  the security audit addendum, the store-release runbook (§0/§1/§5b/§6), the browser-capture architecture doc,
+  `app/desktop-shell/README.md`, the `connector-host` comment, and this entry.
+- **What:** PR #103's first GitHub run found two blocker classes. (1) The Linux and macOS shell builds failed because the shared
+  `tauri.conf.json` bundled a connector resource only the Windows workflow stages; the connector is now platform-owned:
+  Windows keeps it as a resource, **macOS ships it as an executable sidecar (`bundle.externalBin`) and registers it for Chrome at
+  every launch**, and **Linux builds with no connector** (no dummy directory). (2) CodeQL raised six alerts: four
+  `py/path-injection` alerts are fixed by explicit trust-boundary helpers (route IDs must be canonical and filenames derive from
+  server-minted IDs; queued PDFs are served only after strict-resolve containment); `ci.yml`'s `connector-and-extension` job
+  now declares `permissions: contents: read`; and the pairing file is now created 0600 from birth on POSIX. The remaining
+  cleartext-storage alert is the deliberate, audited plain-file pairing design, recorded as an accepted risk in the audit
+  addendum (the pairing FILE is owner-readable/writable on POSIX; nothing claims `~/.callosum` is owner-only).
+- **Why:** The first concrete user of browser capture is on macOS with Google Chrome (product fact supplied by Cliff; the
+  repository recorded neither). A Windows-only connector proves the architecture while failing the intended utility target, so
+  macOS is now a hard Phase-1 criterion and Linux is unsupported for browser capture. The earlier Windows-first work stays as
+  the implementation sequence, not the release scope.
+- **Verify:** Local only at this checkpoint: 188 focused Python tests (3 POSIX-only skips on Windows) plus migrations, ruff,
+  format, line budget, tach, bandit, all pre-commit hooks, connector-host and registration cargo tests. **Fresh GitHub evidence
+  for the new head is not part of this entry.** macOS code that cannot compile on the Windows dev machine, where Tauri places the
+  sidecar, and whether a Chrome-launched connector works on real macOS are **unobserved**; the real-Mac acceptance gate
+  (runbook §5b, including the Intel-iMac evidence taxonomy) is a separate later step and a green runner does not satisfy it.
+  Not released: `production_extension_ids` is `[]`, no store submission, #61 stays open.
+- **Help corpus:** not updated (browser capture is not publicly released); this entry sits above the `HELP-DOCS-SYNCED` marker
+  and does not move it.
+- **Lineage** (per `.claude/CREDIT-THE-LINEAGE.md`; descriptive, not an ownership judgment): defect discovery — GitHub CI and
+  CodeQL; platform decision and steering — Cliff Workman + ChatGPT (GPT-5.6 Sol); implementation — Claude.
+- **Revert:** the four commits are independent by concern (Tauri ownership; macOS registration/CI; trust-boundary hardening;
+  docs) and each can be reverted on its own with `git revert`, newest first; reverting the first two reinstates the
+  Linux/macOS build failure.
+
 ## 2026-09-20 — browser capture (#61): branch prepared for draft-PR integration; `origin/main` merged in
 - **Files:** `.claude/docs/worktree-topology.md` (current-status update for the branch), `.claude/changes.md`
   (this entry). The feature itself is the branch's earlier commits and is not re-described file-by-file here — see
