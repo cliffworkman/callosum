@@ -54,6 +54,10 @@ jobs:
   # pure-logic tests. Neither is covered by the pytest job; the desktop-shell Rust suite runs in the Windows workflow.
   connector-and-extension:
     runs-on: ubuntu-latest
+    # Narrowest explicit token scope (CodeQL actions/missing-workflow-permissions found this job without one): it only
+    # checks out the repository and runs tests, so read-only contents is all it needs. No write scope.
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v5
       - name: Install Rust

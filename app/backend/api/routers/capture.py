@@ -71,6 +71,7 @@ from app.backend.capture.provisional import (
     ProvisionalIngestResult,
     ingest_provisional_pdf,
 )
+from app.backend.capture.trusted_paths import is_canonical_id, managed_capture_pdf_path
 from app.backend.embeddings.admission import ensure_paper_indexed
 from app.backend.pdf_processing.ingest import attach_pdf_to_paper
 from app.backend.persistence.sqlite_retry import run_write
@@ -96,7 +97,9 @@ CAPTURE_ACTION_VALUE = "browser-capture-v1"
 
 _limiter = RateLimiter(max_requests=CAPTURE_RATE_LIMIT_MAX, window=CAPTURE_RATE_LIMIT_WINDOW)
 
-# Captures awaiting their optional PDF step: {capture_id: _PendingCapture}. In-process and bounded —
+# Captures awaiting their optional PDF step: {request capture_id: _PendingCapture}. The key is only a LOOKUP
+# capability; the filesystem naming authority is the pending object's own server-minted `server_capture_id`
+# (see capture_pdf). In-process and bounded —
 # a restart simply means the extension's PDF POST 404s and it reports "no PDF captured", which is the
 # honest partial-success state rather than a silent failure.
 _pending: dict[str, "_PendingCapture"] = {}
@@ -110,6 +113,9 @@ class _PendingCapture:
     paper_id: int | None
     created: bool
     status: str
+    # The identifier Callosum minted at /capture/item (uuid4().hex). Everything the server writes for this
+    # capture is named from THIS value -- never from the route parameter a later request presents.
+    server_capture_id: str
     attached: bool = False
     # Only populated for a provisional (paper_id is None) pending capture: the envelope context that
     # /capture/item/{id}/pdf needs but does not itself receive.
@@ -250,7 +256,9 @@ async def capture_item(
     capture_id: str | None = None
     if outcome.pdf_accepted and outcome.paper_id is not None:
         capture_id = uuid4().hex
-        _remember_pending(capture_id, _PendingCapture(outcome.paper_id, outcome.created, outcome.status))
+        _remember_pending(
+            capture_id, _PendingCapture(outcome.paper_id, outcome.created, outcome.status, server_capture_id=capture_id)
+        )
     elif outcome.pdf_accepted and outcome.pdf_reason == PDF_PROVISIONAL_CAPTURE:
         # No paper exists yet -- identity is attempted only once the bytes actually arrive (PDF-first,
         # infer-second). The envelope context is captured now because the PDF route receives none.
@@ -261,6 +269,7 @@ async def capture_item(
                 None,
                 outcome.created,
                 outcome.status,
+                server_capture_id=capture_id,
                 source_url=envelope.source_url,
                 captured_at_client=envelope.captured_at,
                 original_filename=envelope.title,
@@ -290,20 +299,23 @@ async def capture_pdf(
     Eligibility was already decided at ``/capture/item``; this route only honors it. Re-posting for a
     capture that already attached replays the outcome rather than attaching twice.
     """
-    pending = _pending.get(capture_id)
+    # network string -> syntactically a Callosum ID -> lookup key -> server-owned pending object. A malformed id is
+    # answered exactly like an unknown one; nothing below reads `capture_id` again.
+    pending = _pending.get(capture_id) if is_canonical_id(capture_id) else None
     if pending is None:
         raise HTTPException(status_code=404, detail="Unknown or expired capture.")
+    minted_id = pending.server_capture_id
     if pending.attached:
         return CaptureResult(
             status=pending.status,
-            capture_id=capture_id,
+            capture_id=minted_id,
             paper_id=pending.paper_id,
             created=pending.created,
             pdf_accepted=True,
             pdf_reason=PDF_OK,
         )
     if pending.provisional_result is not None:
-        return _provisional_capture_result(capture_id, pending.provisional_result)
+        return _provisional_capture_result(minted_id, pending.provisional_result)
 
     temp_path = Path(tempfile.gettempdir()) / f"callosum-capture-{uuid4().hex}.pdf"
     try:
@@ -331,7 +343,7 @@ async def capture_pdf(
             # Import Queue), so the streamed temp file is discarded either way by the `finally` below.
             result = ingest_provisional_pdf(
                 engine,
-                capture_event_id=capture_id,
+                capture_event_id=minted_id,
                 validated_pdf_bytes=data,
                 library_root=library_dir(),
                 source_url=pending.source_url,
@@ -343,11 +355,11 @@ async def capture_pdf(
                 embedding_model=_embedding_model(request.app),
             )
             pending.provisional_result = result
-            return _provisional_capture_result(capture_id, result)
+            return _provisional_capture_result(minted_id, result)
 
         managed_root = library_dir()
         managed_root.mkdir(parents=True, exist_ok=True)
-        managed_path = managed_root / f"capture-{capture_id}.pdf"  # name from OUR id, never client input
+        managed_path = managed_capture_pdf_path(managed_root, minted_id)  # named from the server-minted id only
         import shutil
 
         shutil.move(str(temp_path), str(managed_path))
@@ -371,7 +383,7 @@ async def capture_pdf(
         pending.attached = True
         return CaptureResult(
             status=pending.status,
-            capture_id=capture_id,
+            capture_id=minted_id,
             paper_id=pending.paper_id,
             created=pending.created,
             pdf_accepted=True,

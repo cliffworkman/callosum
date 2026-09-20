@@ -41,6 +41,8 @@ security property; those are two mechanisms, not one.
 
 from __future__ import annotations
 
+import contextlib
+import os
 import secrets
 import stat
 import time
@@ -96,6 +98,38 @@ def ensure_pairing_secret() -> str:
     return rotate_pairing_secret()
 
 
+def _write_private_file(path: Path, text: str) -> None:
+    """Atomically write ``text`` to ``path`` so the SECRET is never on disk with broader-than-owner permissions.
+
+    POSIX: the temp file is created exclusively with mode 0600 (``O_EXCL`` after removing any stale temp, so a
+    pre-existing wider-mode or symlinked temp can neither be reused nor followed), forced to exactly 0600 with
+    ``fchmod`` regardless of the process umask, written, fsync'd, then atomically renamed into place; the final
+    ``chmod`` is retained as defense in depth. The previous order (write, rename, then chmod) let the file be born
+    with umask-controlled permissions for a moment.
+
+    What this establishes: the pairing FILE is owner-readable/writable on POSIX. It says nothing about the
+    permissions of the directory that holds it. Windows relies on the user profile's ACLs (``mode`` is largely
+    ignored there, exactly like the settings file).
+    """
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.unlink(missing_ok=True)
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, stat.S_IRUSR | stat.S_IWUSR)
+    try:
+        if hasattr(os, "fchmod"):  # POSIX only
+            os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+    except BaseException:
+        with contextlib.suppress(OSError):
+            tmp.unlink(missing_ok=True)
+        raise
+    tmp.replace(path)  # atomic, mirroring app_settings._write
+    with contextlib.suppress(OSError):  # defense in depth (meaningful on POSIX; largely a no-op on Windows)
+        path.chmod(stat.S_IRUSR | stat.S_IWUSR)
+
+
 def rotate_pairing_secret() -> str:
     """Mint a fresh pairing secret, replacing any previous one, and drop every active session.
 
@@ -107,16 +141,10 @@ def rotate_pairing_secret() -> str:
     path.parent.mkdir(parents=True, exist_ok=True)
     import json
 
-    tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(
+    _write_private_file(
+        path,
         json.dumps({"pairing_secret": secret, "note": "callosum browser-capture pairing — local only"}, indent=2),
-        encoding="utf-8",
     )
-    tmp.replace(path)  # atomic, mirroring app_settings._write
-    try:  # owner-only perms (meaningful on POSIX; largely a no-op on Windows, like the settings file)
-        path.chmod(stat.S_IRUSR | stat.S_IWUSR)
-    except OSError:
-        pass
     with _lock:
         _sessions.clear()
     return secret

@@ -14,7 +14,6 @@ which stays browser-extension-only (`api/routers/capture.py`). No new trust boun
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -35,11 +34,18 @@ from app.backend.capture.provisional_review import (
     preview_doi,
     retry_promotion,
 )
+from app.backend.capture.trusted_paths import is_canonical_id, resolve_queued_pdf
 from app.backend.persistence import capture_events_repo, provisional_artifacts_repo
 from app.backend.persistence.paper_query_repo import titles_for_ids
 from integrations.crossref import CrossrefClient
 
 router = APIRouter()
+
+
+def _artifact_row(conn: Connection, artifact_id: str):
+    """Route id -> provisional-artifact row. The id is only a LOOKUP key: network string -> syntactically a Callosum
+    id -> lookup -> server-owned row. A string that is not a Callosum id is answered exactly like an unknown one."""
+    return provisional_artifacts_repo.get(conn, artifact_id) if is_canonical_id(artifact_id) else None
 
 
 class BestCandidateOut(BaseModel):
@@ -158,7 +164,7 @@ def list_import_queue(conn: Connection = Depends(get_connection)) -> ImportQueue
 
 @router.get("/library/import-queue/{artifact_id}", response_model=ImportQueueDetail)
 def get_import_queue_item(artifact_id: str, conn: Connection = Depends(get_connection)) -> ImportQueueDetail:
-    row = provisional_artifacts_repo.get(conn, artifact_id)
+    row = _artifact_row(conn, artifact_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Unknown provisional capture.")
     events = capture_events_repo.list_for_artifact(conn, artifact_id)
@@ -172,11 +178,13 @@ def get_import_queue_pdf(artifact_id: str, conn: Connection = Depends(get_connec
     """Stream the queued PDF's raw bytes for client-side (pdf.js) preview rendering — the path is
     resolved ONLY from the trusted DB row, never from client input, mirroring `paper_files.py`. No
     server-side rasterization, no cache file: nothing new to own or delete."""
-    row = provisional_artifacts_repo.get(conn, artifact_id)
+    row = _artifact_row(conn, artifact_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Unknown provisional capture.")
-    path = Path(str(row["pdf_path"]))
-    if path.parent != queue_dir(library_dir()) or not path.is_file():
+    # Trust boundary (trusted_paths.resolve_queued_pdf): serve only a real file directly under the RESOLVED queue
+    # directory. A stored path elsewhere, or a queue-local symlink pointing elsewhere, is refused.
+    path = resolve_queued_pdf(row["pdf_path"], queue_dir(library_dir()))
+    if path is None:
         raise HTTPException(status_code=404, detail="This capture's PDF is no longer in the Import Queue.")
     return FileResponse(path, media_type="application/pdf", content_disposition_type="inline", filename=path.name)
 
@@ -188,7 +196,7 @@ def preview_import_queue_doi(
     """Read-only: normalize + resolve a DOI candidate WITHOUT mutating anything, so the user can see what
     they're about to confirm first. `artifact_id` is only checked to exist; the preview itself never
     touches the artifact row."""
-    if provisional_artifacts_repo.get(conn, artifact_id) is None:
+    if _artifact_row(conn, artifact_id) is None:
         raise HTTPException(status_code=404, detail="Unknown provisional capture.")
     return preview_doi(conn, payload.doi, _crossref_client(request))
 
@@ -197,6 +205,8 @@ def preview_import_queue_doi(
 def confirm_import_queue_item(
     artifact_id: str, payload: ConfirmRequest, request: Request, engine: Engine = Depends(get_engine)
 ) -> QueueActionResult:
+    if not is_canonical_id(artifact_id):
+        raise HTTPException(status_code=404, detail="Unknown or already-resolved provisional capture.")
     result = confirm_identity(
         engine,
         artifact_id,
@@ -220,6 +230,10 @@ def confirm_import_queue_item(
 def retry_import_queue_item(
     artifact_id: str, request: Request, engine: Engine = Depends(get_engine)
 ) -> QueueActionResult:
+    if not is_canonical_id(artifact_id):
+        raise HTTPException(
+            status_code=422, detail="Nothing to retry — this capture is not in a resolved, non-promoted state."
+        )
     result = retry_promotion(
         engine,
         artifact_id,
@@ -245,6 +259,8 @@ def delete_import_queue_item(artifact_id: str, request: Request, engine: Engine 
     capture_events rows (cascade) — a provisional artifact's entire encounter history goes with it.
     There is no separate per-encounter delete; a provisional artifact is pre-canonical, and once it is
     gone this increment retains nothing else about it."""
-    deleted = permanently_delete_provisional_artifact(engine, artifact_id, library_dir())
+    deleted = is_canonical_id(artifact_id) and permanently_delete_provisional_artifact(
+        engine, artifact_id, library_dir()
+    )
     if not deleted:
         raise HTTPException(status_code=404, detail="Unknown provisional capture.")

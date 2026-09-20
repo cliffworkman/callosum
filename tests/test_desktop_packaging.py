@@ -244,6 +244,19 @@ def test_macos_ci_packages_registers_and_probes_the_connector_as_nested_code() -
     assert '"callosum_closed"' in workflow and '"available"' in workflow
 
 
+def test_the_connector_ci_job_declares_only_read_only_contents_permission() -> None:
+    """CodeQL (`actions/missing-workflow-permissions`) found the new job without an explicit token scope. It only checks
+    out the repository and runs tests, so the narrowest grant -- `contents: read`, no write scope -- is the whole fix."""
+    import re
+
+    text = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    job = re.search(r"^  connector-and-extension:\n(.*?)(?=^  [A-Za-z0-9_-]+:\n|\Z)", text, re.S | re.M)
+    assert job is not None
+    block = job.group(1)
+    assert re.search(r"^    permissions:\n      contents: read\n", block, re.M)
+    assert not re.search(r":\s*write", block), "a permission value of write would exceed the narrowest grant"
+
+
 def test_linux_workflow_stages_no_connector_but_must_still_build() -> None:
     workflow = (ROOT / ".github/workflows/desktop-shell-linux.yml").read_text(encoding="utf-8")
     assert "stage_connector" not in workflow

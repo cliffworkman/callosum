@@ -814,6 +814,69 @@ after a separately authorized integration.
 `v0.5.15`), CI execution on the newest code, one genuine real-Chrome capture with the development identity, and the
 privacy/listing workstream. `production_extension_ids` remains `[]`; no store submission has occurred.
 
+**2026-09-20 (#61, draft PR #103 — first GitHub challenge) — path-boundary hardening, pairing-file storage disposition, and macOS
+registration notes.** Appended after the 2026-09-19 inspection above; earlier text is left as written. GitHub's managed CodeQL
+analysis of PR #103's first head (`9eef5d39`) reported six new alerts. This records how each was answered and what is, and is
+not, established.
+
+*Product scope this addendum sits under.* The first concrete user of browser capture is on macOS with Google Chrome (product
+fact supplied by Cliff on 2026-09-20; the repository itself records neither). Earlier sections of this audit describe
+Windows/Edge evidence because that was the implementation sequence, not the release scope. macOS is now a hard Phase-1
+criterion; Linux is not a supported browser-capture platform (the Linux shell must still build, without the connector).
+
+*Four `py/path-injection` alerts (`import_queue.py`, `capture.py`) — fixed, not dismissed.* The two stated rules live in one
+leaf module, `app/backend/capture/trusted_paths.py`: (1) a network string is a lookup key only — a route ID must be a canonical
+Callosum ID (`uuid4().hex`) before it is used, and the managed-library filename derives from the server-minted
+`pending.server_capture_id`, never from the route text; (2) a stored path is trusted only after strict resolution — a queued PDF
+is served only if, with symlinks followed, it is a real file directly under the resolved Import Queue directory. Wire format and
+retry behavior are unchanged; malformed IDs keep their existing statuses. Proven by `tests/test_capture_trust_boundaries.py`
+(outside-root database paths and queue-local symlinks refused where links can be created; malformed and path-like IDs create no
+files; the filename is taken from the minted ID, not the route). These alerts are closed by the code change, and only by a fresh
+analysis showing them gone.
+
+*`actions/missing-workflow-permissions` (`ci.yml`, `connector-and-extension`) — fixed.* The job now declares
+`permissions: contents: read` and nothing else. No other workflow was touched.
+
+*`py/clear-text-storage-sensitive-data` (`pairing.py`, alert #72) — accepted risk, recorded as such; the alert is factually correct
+and is not a false positive.* The pairing secret is deliberately stored in a plain, language-neutral file beside the settings file
+(see "Secret storage — and why NOT the OS keychain" above); that decision is unchanged. What this pass adds is that the file is
+no longer briefly born with umask-controlled permissions. On POSIX the temporary file is now created exclusively with mode 0600
+from birth (any stale temp removed first, never reused or followed), forced to 0600 with `fchmod`, written, `fsync`'d, and
+atomically renamed into place; the final `chmod` is retained as defense in depth (`_write_private_file`, tested with a
+`Path.replace` spy under `umask(0)`).
+
+*Exact claim.* On POSIX the pairing **file** is owner-readable/writable. This audit does **not** claim that the `~/.callosum`
+directory is owner-only — the code creates that directory with default permissions and does not restrict it — so any earlier phrase in this document describing the
+pairing store as "owner-only" means the file's mode, not its directory's. On Windows the boundary is the user profile's ACLs;
+POSIX modes are largely ignored there, exactly as for the settings file. A process running as the same user can read the file and
+obtain capture authority; that remains outside the threat model (Stage 1 "Residual risk accepted"). Hostile web pages and
+unapproved extensions cannot read it (the native channel's caller admission is unchanged), and the session tokens minted from it
+are short-lived and held in memory only. Disposition: **Won't fix**, to be recorded on the alert only if a fresh analysis shows
+the same alert at the same sink; if the flow has changed, it is re-triaged instead. No inline suppression is used.
+
+*macOS registration — what the code now does and what is not yet observed.*
+- The connector ships as an executable sidecar (`bundle.externalBin`), not a bundled resource. Its exact location inside the
+  `.app` is asserted from what CI observes; runtime registration derives the absolute path from the observed layout.
+- macOS has no installer hook, so registration runs at every app launch and rewrites a manifest whose path has gone stale. It
+  refuses to persist a path under `/AppTranslocation/` or `/Volumes/` (a randomized or mounted-DMG location), so a first run
+  from a quarantined download cannot leave a dangling registration.
+- Uninstalling by dragging the app to the Trash runs no code. The manifest then points at a path that no longer exists, so the
+  browser fails closed (host unavailable); no other host is reachable. This residual stale-manifest behavior is documented, not
+  hidden.
+- The dev identity is registered only under `org.callosum.connector.dev` with only the dev extension ID allowed; the production
+  host name and `production_extension_ids` (`[]`) are untouched.
+- **Not yet established (deferred to real-Mac evidence, not coded around):** whether Gatekeeper/quarantine blocks a
+  Chrome-launched connector inside a quarantined app; whether `CALLOSUM_SETTINGS_PATH` survives a Chrome launch on macOS (the
+  #99 Windows finding is not assumed to be absent there); where Chrome resolves per-user manifests for an explicit
+  `--user-data-dir`; and Bella's Mac architecture. The GitHub arm64/x64 runners are packaging and build evidence only; a real
+  Intel Mac is Intel-macOS product-boundary evidence, not proof of Apple Silicon behavior.
+- **Distribution-signing note (recorded, not redesigned here):** CI applies an ad-hoc `codesign --force --deep` re-sign to prove
+  the bundle is internally consistent. A distributed build should sign nested code (the sidecar) first and the outer app after,
+  rather than relying on `--deep`; the CI assertions verify the nested connector is covered by signature verification.
+
+`production_extension_ids` remains `[]`, unchanged and fail-closed. Contribution lineage for this pass is recorded
+chronologically on issue #61 and PR #103 per `.claude/CREDIT-THE-LINEAGE.md`, not duplicated here.
+
 ---
 
 **Security Audit (Stage 2): PASS**, and — as of this session — CI-proven for the installer lifecycle
