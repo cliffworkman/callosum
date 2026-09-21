@@ -875,6 +875,45 @@ the same alert at the same sink; if the flow has changed, it is re-triaged inste
   rather than relying on `--deep`; the CI assertions verify the nested connector is covered by signature verification.
 
 `production_extension_ids` remains `[]`, unchanged and fail-closed. Contribution lineage for this pass is recorded
+
+**2026-09-21 (#61, draft PR #103 — second remediation pass) — three corrections to the 2026-09-20 addendum above.** Appended;
+earlier text is left as written. What CodeQL then reports is recorded on PR #103, not asserted here.
+
+*1. Pairing alert #72 auto-closed; no dismissal occurred.* The addendum recorded the plain-file pairing secret as an accepted
+risk, to be dismissed "Won't fix" only if a fresh analysis showed the alert at the same sink. It did not: GitHub's CodeQL
+analysis of the following head reported alert #72 (`py/clear-text-storage-sensitive-data`, `pairing.py`) as `fixed`, because the
+write path changed — the POSIX-hardened writer creates the file through `os.fdopen` — so the previous sink is no longer reported.
+The cleartext architecture is unchanged: a plain file that is owner-readable/writable on POSIX (not a claim about the
+`~/.callosum` directory) and profile-ACL-protected on Windows, for the reasons in "Secret storage" above. POSIX creation is
+hardened to 0600 from birth. CodeQL no longer reports the previous sink; therefore no Won't-fix dismissal was necessary. That
+disappearance is a statement about the analyzer's current model of that write, **not an endorsement of the design**: the residual
+risk recorded above stands unchanged.
+
+*2. The stored-path rule is superseded: managed filesystem paths derive from Callosum-owned identity, never from request text and
+never from a persisted path string.* The addendum described serving a queued PDF after strictly resolving the persisted
+`provisional_artifacts.pdf_path`. That is replaced, because a persisted arbitrary path is inappropriate filesystem authority.
+Now: a route id is only a lookup claim; it is checked for canonical shape (`uuid4().hex`), then matched against the server-owned
+ACTIVE (non-promoted) Import Queue ids, and the STORED value is what every later database, path and sidecar step of the action
+uses. Two capabilities are kept apart — an *entry* path is a lexical direct child of the queue, safe to unlink because unlink never
+follows a symlink; a *read* path (serve, promote) must be a plain regular file, not a symlink, whose resolved parent is the resolved
+queue directory. Every managed-path constructor re-checks the canonical shape. Startup recovery uses a directory entry as identity
+only in the exact form `<32 lowercase hex>.pdf` and only if it is a regular file; anything else, including a symlink, is ignored and
+left untouched. The `pdf_path` column stays in persistence for lifecycle/provenance and is not consulted for any path decision.
+The configured Library root remains intentional local configuration (user-owned filesystem authority). One behaviour narrowing:
+deleting a *promoted* artifact through the queue route now answers 404 (promoted artifacts remain as provenance but are no longer
+queue operands). Behavioural tests poison the persisted path and plant symlinks to prove nothing outside the queue is read, copied or
+deleted. Whether CodeQL models the active-ID allowlist as a sufficient path-control boundary is decided by its analysis; this audit
+makes no such claim, and any alert that remains is a finding to classify (uncontrolled authority versus an unmodelled but
+semantically sufficient boundary), not a suppression.
+
+*3. macOS CI probe token.* In the first macOS shell runs on PR #103 (run `35519133308`, arm64 and x64) the connector probe printed
+the host's reply — including its short-lived `session_token` — into the job log and an uploaded artifact. The backend and runner
+were ephemeral and destroyed, and those historical runs are preserved as evidence, not deleted. Future diagnostics prove
+"present and non-empty" without emitting the value: the probe is now `packaging/connector_probe.py`, which fails closed (an
+allowlist of vocabulary-validated fields plus `session_token_present`, metadata only on every error path, the host's stderr never
+forwarded) and is covered by tests that plant a sentinel token and assert it appears in no output channel. No token value is
+repeated in this document.
+
 chronologically on issue #61 and PR #103 per `.claude/CREDIT-THE-LINEAGE.md`, not duplicated here.
 
 ---

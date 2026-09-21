@@ -9,6 +9,34 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-21 — browser capture (#61): queue filesystem authority, probe-token redaction, audit corrections (draft PR #103, second pass)
+- **Files:** `app/backend/capture/trusted_paths.py`, new `app/backend/capture/owned_artifacts.py`, `provisional.py`,
+  `provisional_review.py`, `provisional_recovery.py`, `api/routers/import_queue.py`, `persistence/provisional_artifacts_repo.py`,
+  `tests/test_queue_filesystem_authority.py` (new) and `tests/test_capture_trust_boundaries.py`; new
+  `app/desktop-shell/packaging/connector_probe.py`, `.github/workflows/desktop-shell-macos.yml`, `tests/test_connector_probe.py`,
+  `tests/test_desktop_packaging.py`; the security audit; this entry. (The #102 ordering fix is its own commit and entry above.)
+- **What:** PR #103's CodeQL gate still reported 14 `py/path-injection` alerts after the first pass. The analysis' source→sink flows
+  showed every one starts at a route `artifact_id` and reaches a path directly or through the database row (`row["pdf_path"]`).
+  Managed filesystem paths now derive from Callosum-owned identity, never from request text or a persisted path string: a route id
+  is a lookup claim matched against the server-owned active Import Queue ids (the stored value is what is used); entry paths
+  (unlink) and read paths (follow) are separate capabilities; every path constructor enforces the canonical id; recovery accepts
+  only exact `<32-hex>.pdf` entries and ignores symlinks. The stored-path helper `resolve_queued_pdf` is deleted. Separately, the
+  macOS CI probe no longer prints or uploads the connector's raw reply (it carried a session token) — a redacting, fail-closed
+  script proves "token present" instead — and the audit records that alert #72 auto-closed (no dismissal) and that the stored-path
+  rule was superseded.
+- **Why:** a persisted arbitrary path was inappropriate filesystem authority regardless of what CodeQL thinks; the token was
+  in an Actions log and artifact of an ephemeral runner (historical runs are preserved, not deleted).
+- **Verify:** local only at this checkpoint (focused capture/import-queue/authority/probe/packaging/WIP suites, symlink cases
+  executed on Windows with links available, lint/format/line-budget/tach/bandit/pre-commit). **Fresh GitHub CI and CodeQL results
+  for this head are not part of this entry.** Whether CodeQL accepts the active-ID allowlist as a sufficient path-control boundary is
+  unknown until its analysis runs; a remaining alert is to be classified, not suppressed.
+- **Behaviour narrowing:** deleting a promoted artifact through the queue route now answers 404.
+- **Lineage** (per `.claude/CREDIT-THE-LINEAGE.md`; descriptive): defect discovery — GitHub CodeQL; the invariant, the active-allowlist,
+  the entry/read capability split and the fail-closed probe requirements — Cliff Workman + ChatGPT (GPT-5.6 Sol); implementation —
+  Claude.
+- **Revert:** the commits are independent by concern and each reverts with `git revert`; reverting the authority commit restores the
+  stored-path behaviour and the CodeQL alerts.
+
 ## 2026-09-21 — WIP tasks: deterministic newest-first ordering (#102)
 - **Files:** `app/backend/persistence/wip_workflow_repo.py` (`list_tasks`), `tests/test_wip_workflow.py`,
   `demo/wip-state-v1.json`, this entry.

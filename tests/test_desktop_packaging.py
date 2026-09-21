@@ -242,6 +242,17 @@ def test_macos_ci_packages_registers_and_probes_the_connector_as_nested_code() -
     # Direct-host probes use the explicit DEV mechanism (production_extension_ids is still empty) with explicit expectations.
     assert "CALLOSUM_CONNECTOR_ALLOW_DEV_BUILD" in workflow
     assert '"callosum_closed"' in workflow and '"available"' in workflow
+    # The host's reply carries a short-lived session_token. The workflow proves "issued a non-empty token" through the redacting
+    # probe script and never prints, tees or uploads a raw reply (behaviour is proven in tests/test_connector_probe.py).
+    assert "app/desktop-shell/packaging/connector_probe.py" in workflow
+    assert 'r.get("session_token_present") is True' in workflow
+    assert 'r.get("session_token_present") is False' in workflow
+    assert "capture_output=True" not in workflow, "no inline probe may capture and print the raw reply"
+    assert not [
+        line
+        for line in workflow.splitlines()
+        if "session_token" in line and "session_token_present" not in line and not line.strip().startswith("#")
+    ], "the workflow must not otherwise handle the raw session token"
 
 
 def test_the_connector_ci_job_declares_only_read_only_contents_permission() -> None:

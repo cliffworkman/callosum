@@ -293,30 +293,17 @@ jobs:
             # message on stdin. production_extension_ids is still [], so a production host correctly rejects every caller --
             # the existing DEV mechanism (CALLOSUM_CONNECTOR_ALLOW_DEV_BUILD=1 + the dev extension origin) is used
             # explicitly for this protocol evidence, never a production identity.
-            python3 - "$1" <<'PY'
-          import json, os, struct, subprocess, sys
-          identity = json.load(open("app/desktop-shell/connector/identity.json"))
-          origin = f"chrome-extension://{identity['dev_extension_id']}/"
-          message = json.dumps({"id": "ci-probe", "protocol_version": identity["protocol_version"]}).encode()
-          run = subprocess.run(
-              [sys.argv[1], origin],
-              input=struct.pack("<I", len(message)) + message,
-              capture_output=True,
-              timeout=60,
-              env={**os.environ, "CALLOSUM_CONNECTOR_ALLOW_DEV_BUILD": "1"},
-          )
-          if len(run.stdout) < 4:
-              print(json.dumps({"error": "no framed reply", "returncode": run.returncode, "stderr": run.stderr.decode(errors="replace")[:400]}))
-              sys.exit(2)
-          length = struct.unpack("<I", run.stdout[:4])[0]
-          print(run.stdout[4:4 + length].decode())
-          PY
+            #
+            # The reply carries a short-lived session_token, so the probe prints a REDACTED, fail-closed diagnostic (allowlisted
+            # fields plus `session_token_present`) and never the raw reply -- not to this log, not to the tee'd file, not to the
+            # uploaded artifact, and not in any error path. See app/desktop-shell/packaging/connector_probe.py.
+            python3 app/desktop-shell/packaging/connector_probe.py "$1"
           }
 
           echo "--- host protocol BEFORE the app runs: a correctly framed callosum_closed proves the executable + protocol are viable ---"
           probe_connector "$CONNECTOR" | tee /tmp/connector-probe-closed.json
-          python3 -c 'import json; r = json.load(open("/tmp/connector-probe-closed.json")); assert r.get("runtime_state") == "callosum_closed", r' \
-            || { echo "::error::the bundled connector did not answer a framed message with runtime_state=callosum_closed while the app was not running"; exit 1; }
+          python3 -c 'import json; r = json.load(open("/tmp/connector-probe-closed.json")); assert r.get("runtime_state") == "callosum_closed" and r.get("session_token_present") is False, r' \
+            || { echo "::error::the bundled connector did not answer a framed message with runtime_state=callosum_closed (and no session token) while the app was not running"; exit 1; }
           # Match on the bundle's executable PATH. `pgrep -f "$APP_NAME"` cannot distinguish the app
           # from the `open "/Applications/Callosum.app"` command that launches it -- both contain
           # "Callosum.app" in their argv -- so every previous "process launched" reading may have been
@@ -448,8 +435,8 @@ jobs:
           PY
             echo "--- host protocol AFTER the app is healthy and paired: expect runtime_state=available ---"
             probe_connector "$CONNECTOR" | tee /tmp/connector-probe-available.json
-            python3 -c 'import json; r = json.load(open("/tmp/connector-probe-available.json")); assert r.get("runtime_state") == "available", r' \
-              || { echo "::error::the bundled connector did not reach the running backend (expected runtime_state=available)"; exit 1; }
+            python3 -c 'import json; r = json.load(open("/tmp/connector-probe-available.json")); assert r.get("runtime_state") == "available" and r.get("session_token_present") is True, r' \
+              || { echo "::error::the bundled connector did not reach the running backend (expected runtime_state=available with a non-empty session token)"; exit 1; }
           fi
 
           if [ "$ready" != "1" ]; then
