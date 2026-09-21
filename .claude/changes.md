@@ -9,6 +9,27 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-21 — WIP tasks: deterministic newest-first ordering (#102)
+- **Files:** `app/backend/persistence/wip_workflow_repo.py` (`list_tasks`), `tests/test_wip_workflow.py`,
+  `demo/wip-state-v1.json`, this entry.
+- **What:** `list_tasks` ordered by completion state, then due date, then `created_at DESC`, with no further key.
+  `created_at` is SQLite's one-second `CURRENT_TIMESTAMP`, so tasks created in the same second (or across a second
+  boundary) could list in either order. `id DESC` is now the FINAL tie-break: the INTEGER PRIMARY KEY (SQLite's rowid) records
+  insertion order, so "newest first" is deterministic. It never outranks completion state, due date or `created_at`; three
+  tests pin the whole contract (same second, later second, and a full precedence test where, apart from the final tie-break, each
+  expectation differs from what `id` alone would give).
+- **Why:** #102 — the demo snapshot test `test_demo_wip_state_regenerates_from_real_sandbox_deterministically` failed
+  intermittently with two task rows swapped (observed once locally; a later failure of the same test on PR #103's CI had the same
+  signature but was not independently proven to be this defect). It predates the browser-capture work and is not a capture defect.
+- **Visible change:** the committed demo fixture recorded the old incidental same-second order (oldest first). It was
+  regenerated; the only difference is task order — same-second tasks now list newest-created first (e.g. manuscript 1 task ids
+  `[3, 1, 2]` -> `[3, 2, 1]`, manuscript 2 `[6, 4, 5]` -> `[6, 5, 4]`).
+- **Verify:** the same-second and full-contract tests failed before the change and pass after; the formerly failing demo test
+  passed 10 of 10 in fresh processes; #102's forced 1.1 s-delay reproduction now equals the committed fixture; WIP and demo
+  suites green. **GitHub CI has not yet run on this commit, and #102 is not closed by this entry** — it is reported there only
+  once fresh CI establishes the fix.
+- **Revert:** `git revert` the commit; the fixture reverts with it.
+
 ## 2026-09-20 — browser capture (#61): first GitHub challenge of draft PR #103 answered; macOS becomes a Phase-1 platform
 - **Files:** Tauri config (`tauri.conf.json` now common-only; new `tauri.windows.conf.json`; `tauri.macos.conf.json` gains the
   connector sidecar) and `packaging/stage_connector.py`; new `src-tauri/src/connector_registration.rs` (+ `lib.rs` setup wiring),
