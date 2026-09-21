@@ -20,6 +20,7 @@ from typing import Any
 from sqlalchemy import Connection, Engine
 
 from app.backend.capture import provisional
+from app.backend.capture.owned_artifacts import resolve_owned_queue_artifact_id
 from app.backend.capture.provisional_evidence import SIDECAR_SCHEMA_VERSION, _Evidence
 from app.backend.metadata.doi import normalize_doi
 from app.backend.persistence import provisional_artifacts_repo
@@ -158,10 +159,15 @@ def confirm_identity(
     Uses the SAME `add_paper_by_doi` / `attempt_attach_to_paper` machinery as the automatic pipeline --
     there is no review-specific Paper-creation shortcut. Returns None if the artifact does not exist or
     is already `promoted` (nothing left to confirm).
+
+    `artifact_id` is the caller's CLAIM. It is resolved once against the server-owned active queue IDs
+    (`owned_artifacts`); everything after that -- DB updates, the queue file, the staged copy, the sidecar -- uses the
+    resolved owned ID, never the claim.
     """
     with engine.connect() as conn:
-        row = provisional_artifacts_repo.get(conn, artifact_id)
-    if row is None or row["promotion_state"] == "promoted":
+        owned_id = resolve_owned_queue_artifact_id(conn, artifact_id)
+        row = provisional_artifacts_repo.get(conn, owned_id) if owned_id is not None else None
+    if owned_id is None or row is None or row["promotion_state"] == "promoted":
         return None
 
     evidence_dict = _load_evidence(row)
@@ -171,7 +177,7 @@ def confirm_identity(
     def _persist_action(conn: Connection) -> None:
         provisional_artifacts_repo.update_resolution(
             conn,
-            artifact_id,
+            owned_id,
             identity_state=row["identity_state"],
             promotion_state=row["promotion_state"],
             resolved_paper_id=row["resolved_paper_id"],
@@ -183,7 +189,7 @@ def confirm_identity(
     normalized = normalize_doi(doi)
     if normalized is None:
         return provisional.ProvisionalIngestResult(
-            artifact_id=artifact_id,
+            artifact_id=owned_id,
             identity_state=str(row["identity_state"]),
             promotion_state=str(row["promotion_state"]),
             resolved_paper_id=row["resolved_paper_id"],
@@ -199,17 +205,15 @@ def confirm_identity(
     if status != "ok" or paper_id is None:
         evidence.decision = "queued"
         evidence.decision_reason = f"user-supplied DOI {normalized!r} did not resolve"
-        result = provisional._finish_unresolved(engine, artifact_id, library_root, evidence)
-        _reattach_user_actions(engine, artifact_id, evidence_json)
+        result = provisional._finish_unresolved(engine, owned_id, library_root, evidence)
+        _reattach_user_actions(engine, owned_id, evidence_json)
         return result
 
-    pdf_path = Path(str(row["pdf_path"]))
     evidence.decision = "promotion_attempted"
     evidence.decision_reason = f"user-confirmed candidate: {normalized}"
     result = provisional.attempt_attach_to_paper(
         engine,
-        artifact_id=artifact_id,
-        pdf_path=pdf_path,
+        artifact_id=owned_id,
         library_root=library_root,
         paper_id=paper_id,
         created=created,
@@ -220,7 +224,7 @@ def confirm_identity(
     # attempt_attach_to_paper's own update_resolution calls overwrite evidence_json with `evidence`'s
     # serialization (candidates/resolutions preserved above) -- but that would DROP the user_actions
     # entry just persisted. Re-append it so the confirmation is never lost from the final record.
-    _reattach_user_actions(engine, artifact_id, evidence_json)
+    _reattach_user_actions(engine, owned_id, evidence_json)
     return result
 
 
@@ -234,10 +238,13 @@ def retry_promotion(
 ) -> provisional.ProvisionalIngestResult | None:
     """Re-attempt attachment against an ALREADY-resolved paper (attachment_conflict / processing_failed /
     indexing_unavailable). Returns None if the artifact doesn't exist, is already promoted, or has no
-    resolved_paper_id to retry against (identity was never resolved -- nothing to retry)."""
+    resolved_paper_id to retry against (identity was never resolved -- nothing to retry).
+
+    `artifact_id` is the caller's CLAIM, resolved once to a server-owned active queue ID; only that owned ID is used after."""
     with engine.connect() as conn:
-        row = provisional_artifacts_repo.get(conn, artifact_id)
-    if row is None or row["promotion_state"] == "promoted":
+        owned_id = resolve_owned_queue_artifact_id(conn, artifact_id)
+        row = provisional_artifacts_repo.get(conn, owned_id) if owned_id is not None else None
+    if owned_id is None or row is None or row["promotion_state"] == "promoted":
         return None
     if row["identity_state"] != "resolved" or row["resolved_paper_id"] is None:
         return None
@@ -246,7 +253,7 @@ def retry_promotion(
     evidence_json = _append_user_action(
         evidence_dict, action="retry_attempted", doi=None, disposition=row["promotion_state"]
     )
-    _reattach_user_actions(engine, artifact_id, evidence_json)
+    _reattach_user_actions(engine, owned_id, evidence_json)
 
     evidence = _Evidence()
     evidence.candidates = evidence_dict["candidates"]
@@ -255,11 +262,9 @@ def retry_promotion(
     evidence.decision = "retry_attempted"
     evidence.decision_reason = "user-initiated retry"
 
-    pdf_path = Path(str(row["pdf_path"]))
     result = provisional.attempt_attach_to_paper(
         engine,
-        artifact_id=artifact_id,
-        pdf_path=pdf_path,
+        artifact_id=owned_id,
         library_root=library_root,
         paper_id=int(row["resolved_paper_id"]),
         created=False,
@@ -267,7 +272,7 @@ def retry_promotion(
         embedding_model=embedding_model,
         evidence=evidence,
     )
-    _reattach_user_actions(engine, artifact_id, evidence_json)
+    _reattach_user_actions(engine, owned_id, evidence_json)
     return result
 
 

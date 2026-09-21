@@ -37,6 +37,12 @@ from app.backend.capture.provisional_evidence import (
     _extract_candidates,
     _resolve_and_score,
 )
+from app.backend.capture.trusted_paths import (
+    managed_capture_pdf_path,
+    queued_pdf_entry_path,
+    queued_pdf_read_path,
+    require_canonical_id,
+)
 from app.backend.metadata.doi_add import add_paper_by_doi
 from app.backend.pdf_processing.ingest import attach_pdf_to_paper
 from app.backend.persistence import capture_events_repo, provisional_artifacts_repo
@@ -62,7 +68,9 @@ def provenance_artifacts_dir(library_root: Path) -> Path:
 
 
 def sidecar_path(library_root: Path, artifact_id: str) -> Path:
-    return provenance_artifacts_dir(library_root) / f"{artifact_id}.json"
+    """The lexical sidecar entry for a Callosum-owned artifact ID (canonical shape enforced here). Safe to unlink; read it
+    only through ``trusted_paths.is_plain_file`` (a symlinked sidecar is not followed)."""
+    return provenance_artifacts_dir(library_root) / f"{require_canonical_id(artifact_id)}.json"
 
 
 def sanitize_source_url(raw: str | None) -> str | None:
@@ -167,7 +175,7 @@ def ingest_provisional_pdf(
         )
 
     artifact_id = uuid4().hex
-    pdf_path = queue_dir(library_root) / f"{artifact_id}.pdf"
+    pdf_path = queued_pdf_entry_path(queue_dir(library_root), artifact_id)
 
     # Durability boundary A: bytes are safe on disk, independent of the database.
     _atomic_write_bytes(pdf_path, validated_pdf_bytes)
@@ -270,7 +278,6 @@ def _run_identity_pipeline(
     return _attempt_promotion(
         engine,
         artifact_id=artifact_id,
-        pdf_path=pdf_path,
         library_root=library_root,
         doi=strong_doi,
         crossref_client=crossref_client,
@@ -313,7 +320,6 @@ def attempt_attach_to_paper(
     engine: Engine,
     *,
     artifact_id: str,
-    pdf_path: Path,
     library_root: Path,
     paper_id: int,
     created: bool,
@@ -328,6 +334,10 @@ def attempt_attach_to_paper(
     deleted. Any failure at any point after the copy leaves the queue file untouched and removes only
     the staged duplicate. Shared by the automatic pipeline, the manual "confirm identity" review action,
     and "retry" -- there is exactly one attach subroutine, never a review-specific shortcut.
+
+    `artifact_id` MUST be a Callosum-owned ID (never a route string). Both the queue source and the staged copy are
+    DERIVED from it -- the persisted `pdf_path` column is not filesystem authority -- and the source is read only if it is a
+    plain regular file directly in the queue (a symlinked entry is refused).
     """
 
     def _check_attachment(conn: Connection) -> tuple[bool, str]:
@@ -346,9 +356,23 @@ def attempt_attach_to_paper(
             detail=reason,
         )
 
-    staged_path = library_root / f"capture-{artifact_id}.pdf"
+    queue_root = queue_dir(library_root)
+    source_pdf = queued_pdf_read_path(queue_root, artifact_id)
+    if source_pdf is None:
+        return _finish_attachment_blocked(
+            engine,
+            artifact_id,
+            library_root,
+            paper_id=paper_id,
+            created=created,
+            promotion_state="processing_failed",
+            evidence=evidence,
+            detail="the queued PDF is missing, is not a regular file, or is not directly in the Import Queue",
+        )
+
+    staged_path = managed_capture_pdf_path(library_root, artifact_id)
     try:
-        shutil.copy2(pdf_path, staged_path)
+        shutil.copy2(source_pdf, staged_path)
     except OSError:
         return _finish_attachment_blocked(
             engine,
@@ -389,8 +413,8 @@ def attempt_attach_to_paper(
             detail=str(exc)[:300],
         )
 
-    # Success: the staged copy IS the canonical file now. Only now does the queue copy go away.
-    pdf_path.unlink(missing_ok=True)
+    # Success: the staged copy IS the canonical file now. Only now does the queue copy go away (the entry itself is removed).
+    queued_pdf_entry_path(queue_root, artifact_id).unlink(missing_ok=True)
     evidence.decision = "promoted"
 
     def _update(conn: Connection) -> None:
@@ -419,7 +443,6 @@ def _attempt_promotion(
     engine: Engine,
     *,
     artifact_id: str,
-    pdf_path: Path,
     library_root: Path,
     doi: str,
     crossref_client: Any,
@@ -437,7 +460,6 @@ def _attempt_promotion(
     return attempt_attach_to_paper(
         engine,
         artifact_id=artifact_id,
-        pdf_path=pdf_path,
         library_root=library_root,
         paper_id=paper_id,
         created=created,

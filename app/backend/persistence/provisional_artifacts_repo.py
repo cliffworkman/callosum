@@ -6,6 +6,7 @@ See ``schema_provisional_artifacts.py`` for why this is split from ``capture_eve
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from typing import Any
 
 from sqlalchemy import Connection, delete, func, insert, select, update
@@ -96,6 +97,23 @@ def list_needing_review(conn: Connection) -> list[dict[str, Any]]:
 
 def all_ids(conn: Connection) -> set[str]:
     return {str(r) for r in conn.execute(select(provisional_artifacts.c.id)).scalars().all()}
+
+
+def iter_active_ids(conn: Connection) -> Iterator[str]:
+    """The identifiers of artifacts still ACTIVE in the Import Queue (not yet promoted), streamed from the cursor.
+
+    This is the server-owned allowlist behind every queue operation (serve, confirm, retry, delete): promoted artifacts
+    stay in the table as provenance but are outside the queue, so the scan grows with the queue, not with history. The
+    query takes no request input -- a request string is only ever compared against what this yields.
+    """
+    result = conn.execute(
+        select(provisional_artifacts.c.id).where(provisional_artifacts.c.promotion_state != "promoted")
+    )
+    try:
+        for stored in result.scalars():
+            yield str(stored)
+    finally:
+        result.close()
 
 
 def delete_artifact(conn: Connection, artifact_id: str) -> bool:

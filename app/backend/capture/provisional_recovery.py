@@ -18,6 +18,8 @@ from uuid import uuid4
 from sqlalchemy import Connection, Engine
 
 from app.backend.capture import provisional
+from app.backend.capture.owned_artifacts import resolve_owned_queue_artifact_id
+from app.backend.capture.trusted_paths import is_plain_file, queue_filename_id, queued_pdf_entry_path
 from app.backend.persistence import capture_events_repo, provisional_artifacts_repo
 from app.backend.persistence.sqlite_retry import run_write
 
@@ -42,8 +44,13 @@ def recover_at_startup(engine: Engine, library_root: Path) -> None:
             if row is not None
         }
 
-    for pdf_file in sorted(directory.glob("*.pdf")):
-        artifact_id = pdf_file.stem
+    for pdf_file in sorted(directory.iterdir()):
+        # A directory entry is identity ONLY through its exact canonical name (`<32 lowercase hex>.pdf`) and only if it is
+        # itself a regular file. Anything else -- a stray file, an upper-case or oddly named PDF, a symlink -- is not a
+        # Callosum queue entry: it is left untouched (never adopted, followed or deleted).
+        artifact_id = queue_filename_id(pdf_file.name)
+        if artifact_id is None or not is_plain_file(pdf_file):
+            continue
         if artifact_id in known_ids:
             continue  # legitimate: row exists, inference may simply not have run yet -- left as-is
 
@@ -61,7 +68,7 @@ def recover_at_startup(engine: Engine, library_root: Path) -> None:
 
         sidecar = provisional.sidecar_path(library_root, artifact_id)
         first_event = None
-        if sidecar.is_file():
+        if is_plain_file(sidecar):  # a symlinked sidecar is not followed
             try:
                 payload = json.loads(sidecar.read_text(encoding="utf-8"))
                 first_event = payload.get("first_capture_event")
@@ -99,19 +106,25 @@ def recover_at_startup(engine: Engine, library_root: Path) -> None:
 
 
 def permanently_delete_provisional_artifact(engine: Engine, artifact_id: str, library_root: Path) -> bool:
-    """Delete the queue PDF (if not already promoted-and-moved-out), the sidecar, and the DB rows
-    (cascading to capture_events). Never time-based -- only explicit user action reaches this."""
+    """Delete the queue PDF, the sidecar, and the DB rows (cascading to capture_events) of an ACTIVE Import Queue artifact.
+    Never time-based -- only explicit user action reaches this.
+
+    `artifact_id` is the caller's CLAIM, resolved once to a server-owned active queue ID. Every filesystem step derives
+    from that owned ID -- the persisted `pdf_path` column is not authority, so a poisoned value can never make this delete
+    anything outside the queue. The derived paths are directory ENTRIES: `unlink` removes the entry itself and never follows
+    a symlink, so a symlink planted in the queue is removed as a link and its target is untouched.
+    """
     with engine.connect() as conn:
-        row = provisional_artifacts_repo.get(conn, artifact_id)
-    if row is None:
+        owned_id = resolve_owned_queue_artifact_id(conn, artifact_id)
+    if owned_id is None:
         return False
 
-    pdf_path = Path(str(row["pdf_path"]))
-    if pdf_path.is_file() and pdf_path.parent == provisional.queue_dir(library_root):
-        pdf_path.unlink(missing_ok=True)
-    provisional.sidecar_path(library_root, artifact_id).unlink(missing_ok=True)
+    queue_entry = queued_pdf_entry_path(provisional.queue_dir(library_root), owned_id)
+    if queue_entry.is_symlink() or is_plain_file(queue_entry):
+        queue_entry.unlink(missing_ok=True)
+    provisional.sidecar_path(library_root, owned_id).unlink(missing_ok=True)
 
     def _delete(conn: Connection) -> bool:
-        return provisional_artifacts_repo.delete_artifact(conn, artifact_id)
+        return provisional_artifacts_repo.delete_artifact(conn, owned_id)
 
     return run_write(engine, _delete)

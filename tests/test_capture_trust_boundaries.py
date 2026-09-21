@@ -1,11 +1,9 @@
-"""Explicit filesystem trust boundaries for browser capture (#61) -- the CodeQL `py/path-injection` findings on
-PR #103 (Import Queue PDF stream, capture attachment path) and the pairing-secret file's creation mode.
+"""Explicit filesystem trust boundaries for browser capture (#61) -- the capture attachment path (CodeQL
+`py/path-injection`, capture.py), malformed route ids, and the pairing secret file's creation mode.
 
-The two rules under test (see `app/backend/capture/trusted_paths.py`):
-  1. a route id is a LOOKUP key only: syntactically a Callosum id -> lookup -> server-owned state; the filename of
-     anything written derives from the server-minted id, not from the route text;
-  2. a stored path is trusted only after it is RESOLVED: a queued PDF is served only if it is a real file directly
-     under the resolved Import Queue directory (a symlink pointing outside is refused).
+The Import Queue's filesystem authority (owned ids, entry vs read paths, poisoned `pdf_path`, symlinks, recovery) is
+proven in `tests/test_queue_filesystem_authority.py`. The rule for capture: a route id is a LOOKUP key only, and the
+filename of anything written derives from the server-minted id held in server-owned state, not from the route text.
 """
 
 from __future__ import annotations
@@ -16,17 +14,12 @@ import sys
 from pathlib import Path
 
 import pytest
-from sqlalchemy import update
 
 from app.backend.acquisition.fetch import library_dir
 from app.backend.api.routers import capture as capture_router
 from app.backend.capture import pairing
-from app.backend.capture.trusted_paths import is_canonical_id, managed_capture_pdf_path, resolve_queued_pdf
-from app.backend.persistence import provisional_artifacts_repo
-from app.backend.persistence.database import make_engine
-from app.backend.persistence.schema import provisional_artifacts
+from app.backend.capture.trusted_paths import is_canonical_id, managed_capture_pdf_path
 from tests.test_capture import _capture_slot, _client, _one_page_pdf, _paired
-from tests.test_import_queue import _queue_pending_item
 
 MALFORMED_IDS = [
     "not-a-real-id",
@@ -46,13 +39,6 @@ def _ui_instance(monkeypatch: pytest.MonkeyPatch):
     capture_router._reset_for_tests()
 
 
-def _symlink_or_skip(link: Path, target: Path) -> None:
-    try:
-        os.symlink(target, link)
-    except (OSError, NotImplementedError) as exc:  # Windows without the privilege, or a filesystem without links
-        pytest.skip(f"cannot create a symlink in this environment: {exc}")
-
-
 # ── pure helpers ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 
@@ -70,84 +56,7 @@ def test_managed_capture_filename_derives_from_a_server_minted_id_only(tmp_path:
             managed_capture_pdf_path(tmp_path, hostile)
 
 
-def test_a_queued_pdf_resolves_only_when_it_is_a_real_file_directly_under_the_resolved_queue(tmp_path: Path) -> None:
-    queue = tmp_path / "_Import Queue"
-    queue.mkdir()
-    ok = queue / ("a" * 32 + ".pdf")
-    ok.write_bytes(b"%PDF-1.7 ok")
-    assert resolve_queued_pdf(str(ok), queue) == ok.resolve()
-
-    outside = tmp_path / "outside.pdf"
-    outside.write_bytes(b"%PDF-1.7 secret")
-    assert resolve_queued_pdf(str(outside), queue) is None  # stored path outside the queue
-
-    nested = queue / "sub"
-    nested.mkdir()
-    (nested / "deep.pdf").write_bytes(b"%PDF-1.7")
-    assert resolve_queued_pdf(str(nested / "deep.pdf"), queue) is None  # not DIRECTLY under the queue
-    assert resolve_queued_pdf(str(queue / "missing.pdf"), queue) is None
-    assert resolve_queued_pdf(str(queue), queue) is None  # a directory is not a file
-    assert resolve_queued_pdf("\0not-a-path", queue) is None
-
-
-def test_a_queue_local_symlink_that_targets_outside_the_queue_is_refused(tmp_path: Path) -> None:
-    queue = tmp_path / "_Import Queue"
-    queue.mkdir()
-    outside = tmp_path / "outside.pdf"
-    outside.write_bytes(b"%PDF-1.7 secret")
-    link = queue / ("b" * 32 + ".pdf")
-    _symlink_or_skip(link, outside)
-    assert resolve_queued_pdf(str(link), queue) is None
-
-
-# ── the Import Queue PDF stream (py/path-injection: import_queue.py) ─────────────────────────────────────────────
-
-
-def _row_path(client, artifact_id: str) -> Path:
-    engine = make_engine(client.app.state.db_url)
-    with engine.begin() as conn:
-        row = provisional_artifacts_repo.get(conn, artifact_id)
-    engine.dispose()
-    return Path(str(row["pdf_path"]))
-
-
-def _set_row_path(client, artifact_id: str, path: Path) -> None:
-    engine = make_engine(client.app.state.db_url)
-    with engine.begin() as conn:
-        conn.execute(
-            update(provisional_artifacts).where(provisional_artifacts.c.id == artifact_id).values(pdf_path=str(path))
-        )
-    engine.dispose()
-
-
-def test_an_ordinary_queue_pdf_is_served(temp_db_url: str, tmp_path: Path) -> None:
-    client = _client(temp_db_url)
-    artifact_id = _queue_pending_item(client, tmp_path)
-    response = client.get(f"/library/import-queue/{artifact_id}/pdf")
-    assert response.status_code == 200
-    assert response.content == _row_path(client, artifact_id).read_bytes()
-
-
-def test_a_database_path_outside_the_queue_is_refused(temp_db_url: str, tmp_path: Path) -> None:
-    client = _client(temp_db_url)
-    artifact_id = _queue_pending_item(client, tmp_path)
-    outside = tmp_path / "outside.pdf"
-    outside.write_bytes(b"%PDF-1.7 not the queue's")
-    _set_row_path(client, artifact_id, outside)
-    assert client.get(f"/library/import-queue/{artifact_id}/pdf").status_code == 404
-
-
-def test_a_queue_local_symlink_targeting_outside_is_refused_over_http(temp_db_url: str, tmp_path: Path) -> None:
-    client = _client(temp_db_url)
-    artifact_id = _queue_pending_item(client, tmp_path)
-    queued = _row_path(client, artifact_id)
-    outside = tmp_path / "outside.pdf"
-    outside.write_bytes(b"%PDF-1.7 must never be served")
-    queued.unlink()
-    _symlink_or_skip(queued, outside)
-    response = client.get(f"/library/import-queue/{artifact_id}/pdf")
-    assert response.status_code == 404
-    assert b"must never be served" not in response.content
+# ── malformed route ids (queue filesystem authority itself is proven in test_queue_filesystem_authority.py) ─────
 
 
 @pytest.mark.parametrize("bad_id", MALFORMED_IDS)

@@ -25,6 +25,7 @@ from sqlalchemy import Connection, Engine
 from app.backend.acquisition.fetch import library_dir
 from app.backend.api.dependencies import get_connection, get_engine
 from app.backend.api.routers.library import _embedding_model, _vector_store
+from app.backend.capture.owned_artifacts import resolve_owned_queue_artifact_id
 from app.backend.capture.provisional import queue_dir
 from app.backend.capture.provisional_recovery import permanently_delete_provisional_artifact
 from app.backend.capture.provisional_review import (
@@ -34,7 +35,7 @@ from app.backend.capture.provisional_review import (
     preview_doi,
     retry_promotion,
 )
-from app.backend.capture.trusted_paths import is_canonical_id, resolve_queued_pdf
+from app.backend.capture.trusted_paths import is_canonical_id, queued_pdf_read_path
 from app.backend.persistence import capture_events_repo, provisional_artifacts_repo
 from app.backend.persistence.paper_query_repo import titles_for_ids
 from integrations.crossref import CrossrefClient
@@ -175,15 +176,17 @@ def get_import_queue_item(artifact_id: str, conn: Connection = Depends(get_conne
 
 @router.get("/library/import-queue/{artifact_id}/pdf", response_model=None)
 def get_import_queue_pdf(artifact_id: str, conn: Connection = Depends(get_connection)) -> FileResponse:
-    """Stream the queued PDF's raw bytes for client-side (pdf.js) preview rendering — the path is
-    resolved ONLY from the trusted DB row, never from client input, mirroring `paper_files.py`. No
-    server-side rasterization, no cache file: nothing new to own or delete."""
-    row = _artifact_row(conn, artifact_id)
-    if row is None:
+    """Stream the queued PDF's raw bytes for client-side (pdf.js) preview rendering. No server-side rasterization, no
+    cache file: nothing new to own or delete.
+
+    Filesystem authority (trusted_paths / owned_artifacts): the route string is only a CLAIM. It is matched against the
+    server-owned active Import Queue IDs, and the path is derived from the STORED ID -- never from the route string and
+    never from the persisted `pdf_path` column. A symlink in the queue, or an entry that does not resolve directly under
+    the queue directory, is refused."""
+    owned_id = resolve_owned_queue_artifact_id(conn, artifact_id)
+    if owned_id is None:
         raise HTTPException(status_code=404, detail="Unknown provisional capture.")
-    # Trust boundary (trusted_paths.resolve_queued_pdf): serve only a real file directly under the RESOLVED queue
-    # directory. A stored path elsewhere, or a queue-local symlink pointing elsewhere, is refused.
-    path = resolve_queued_pdf(row["pdf_path"], queue_dir(library_dir()))
+    path = queued_pdf_read_path(queue_dir(library_dir()), owned_id)
     if path is None:
         raise HTTPException(status_code=404, detail="This capture's PDF is no longer in the Import Queue.")
     return FileResponse(path, media_type="application/pdf", content_disposition_type="inline", filename=path.name)

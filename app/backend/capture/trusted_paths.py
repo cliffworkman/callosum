@@ -1,25 +1,39 @@
-"""Explicit filesystem trust boundaries for browser capture (#61).
+"""Explicit filesystem authority for browser capture (#61).
 
-Two rules, each stated once here instead of being re-derived at every call site:
+The invariant, stated once here instead of re-derived at every call site:
 
-1. **Network strings are syntax, not authority.** Callosum mints capture and provisional-artifact identifiers as
-   ``uuid4().hex`` (32 lowercase hex characters). A route parameter is only ever a *lookup key*: it must first be
-   syntactically a Callosum ID (:func:`is_canonical_id`), and the filesystem name of anything Callosum writes is
-   derived from the server-minted ID held in server-owned state -- never from the route text
-   (:func:`managed_capture_pdf_path`).
-2. **A stored path is trusted only after it is resolved.** A queued PDF may be served only if, after following
-   symlinks, it is a real file directly under the resolved Import Queue directory (:func:`resolve_queued_pdf`); a
-   database value that points elsewhere, or a symlink inside the queue that targets elsewhere, is refused.
+    Managed filesystem paths derive from Callosum-owned identity -- never from request text and never from a
+    persisted path string.
 
-This module is a leaf: it imports nothing from the capture package.
+Three kinds of value are kept apart:
+
+* **A request string is a lookup CLAIM.** Route parameters are only ever compared against server-owned identifiers
+  (``owned_artifacts.resolve_owned_queue_artifact_id``); the request string itself never becomes part of a path.
+* **A Callosum-owned identifier is filesystem authority.** Identifiers are ``uuid4().hex`` (32 lowercase hex characters).
+  Every constructor below re-checks that shape at the actual filename-construction boundary, so the invariant survives
+  future call-site refactors.
+* **A directory entry is authority only through its exact canonical name** (:func:`queue_filename_id`), so a recovery
+  scan never treats an arbitrary file name as identity.
+
+Two filesystem CAPABILITIES are deliberately separate, because they are not the same permission:
+
+* *entry* paths (:func:`queued_pdf_entry_path`) name a directory entry lexically. They are safe to **unlink** -- removing
+  an entry never follows a symlink -- and are NOT safe to read, serve or copy.
+* *read* paths (:func:`queued_pdf_read_path`) are safe to **follow**: the entry is a plain regular file (not a symlink)
+  whose resolved parent is the resolved queue directory.
+
+The Library root and its subdirectories are Callosum-configured local paths (an intentional filesystem authority owned by
+the user), not request input. This module is a leaf: it imports nothing from the capture package.
 """
 
 from __future__ import annotations
 
 import re
+import stat
 from pathlib import Path
 
 _CANONICAL_ID = re.compile(r"[0-9a-f]{32}")
+_QUEUE_FILENAME = re.compile(r"([0-9a-f]{32})\.pdf")
 
 
 def is_canonical_id(value: object) -> bool:
@@ -27,28 +41,61 @@ def is_canonical_id(value: object) -> bool:
     return isinstance(value, str) and _CANONICAL_ID.fullmatch(value) is not None
 
 
+def require_canonical_id(value: object) -> str:
+    """Return ``value`` if it is a canonical identifier, else raise ``ValueError``.
+
+    Path constructors call this on their own input: reaching it with a non-canonical value is a programming error
+    (the value should have come from server-owned state), never a request the caller may retry.
+    """
+    if not is_canonical_id(value):
+        raise ValueError("a managed filename must derive from a Callosum-minted identifier")
+    return str(value)
+
+
+def queue_filename_id(name: str) -> str | None:
+    """The artifact identity encoded by an Import Queue directory entry name, or ``None``.
+
+    Only the exact form ``<32 lowercase hex>.pdf`` qualifies. Anything else -- another extension, upper-case hex, extra
+    characters, a hidden temp file -- is not an identity and must be ignored (never adopted, followed or deleted).
+    """
+    match = _QUEUE_FILENAME.fullmatch(name)
+    return match.group(1) if match else None
+
+
+def is_plain_file(path: Path) -> bool:
+    """True if ``path`` is itself a regular file: a symlink (even one pointing at a regular file) is not."""
+    try:
+        return stat.S_ISREG(path.lstat().st_mode)
+    except OSError:
+        return False
+
+
 def managed_capture_pdf_path(managed_root: Path, server_capture_id: str) -> Path:
-    """The managed-library filename for an attached capture, derived from the SERVER-MINTED capture ID.
+    """The managed-library filename for an attached capture, derived from the SERVER-MINTED capture ID."""
+    return managed_root / f"capture-{require_canonical_id(server_capture_id)}.pdf"
 
-    Raises ``ValueError`` if the ID is not canonical -- which can only mean a programming error, because the value
-    comes from server-owned state, not from a request.
+
+def queued_pdf_entry_path(queue_root: Path, owned_id: str) -> Path:
+    """The lexical direct child ``<queue_root>/<owned_id>.pdf``.
+
+    Safe to UNLINK (``Path.unlink`` removes the entry itself and never follows a symlink). It is NOT safe to read, serve or
+    copy -- use :func:`queued_pdf_read_path` for that.
     """
-    if not is_canonical_id(server_capture_id):
-        raise ValueError("a managed capture filename must derive from a server-minted capture ID")
-    return managed_root / f"capture-{server_capture_id}.pdf"
+    return queue_root / f"{require_canonical_id(owned_id)}.pdf"
 
 
-def resolve_queued_pdf(stored_path: object, queue_root: Path) -> Path | None:
-    """The queued PDF to serve, or ``None`` if it may not be served.
+def queued_pdf_read_path(queue_root: Path, owned_id: str) -> Path | None:
+    """The queued PDF to read/serve/copy, or ``None`` if it may not be followed.
 
-    Permitted only when the stored path, RESOLVED (symlinks followed), is a real file whose parent is the RESOLVED
-    ``queue_root``. The caller serves the returned, resolved path -- never the raw stored value.
+    Requires the derived entry to be a plain regular file (not a symlink) whose resolved parent is the resolved queue
+    directory. The caller uses the returned, resolved path.
     """
+    entry = queued_pdf_entry_path(queue_root, owned_id)
+    if not is_plain_file(entry):
+        return None
     try:
         root = queue_root.resolve(strict=True)
-        candidate = Path(str(stored_path)).resolve(strict=True)
-    except (OSError, RuntimeError, ValueError):
+        resolved = entry.resolve(strict=True)
+    except (OSError, RuntimeError):
         return None
-    if candidate.is_file() and candidate.parent == root:
-        return candidate
-    return None
+    return resolved if resolved.parent == root else None
