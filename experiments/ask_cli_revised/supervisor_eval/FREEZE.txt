@@ -1,0 +1,19 @@
+{
+  "code_files": {
+    "cases.py": "56b8ba7d25ce19bdc48d4216eb005bf250a07b9237c369e8cc8ac37ffd754897",
+    "freeze.py": "5fe02c05b2274001ce63cc81e812fa8bf67882833766ba81730f1650cc6354c0",
+    "models.py": "0219f84675eec13bab1f04036436426f107910a2faf9fd10b1c912b882fb3fbc",
+    "ollama_client.py": "6ee1dd5017b41a4dadc93320ea10422166a8451314505512d0f092872953eae6",
+    "prompts.py": "bffc7cfd12b572e58e83faaafbb0d760d1175330e607466302267bf83858cbb3",
+    "schemas.py": "bf722481b0d2822b6f5d5e7542f425fc948b723f2371930ca69957372c07c36e",
+    "scoring.py": "9415599db4da9905b7268ccc3fec1cc6e2791391f0392812c625ef5d4b311ba7"
+  },
+  "freeze_sha256": "5848f8c4c2aaac6b90e22ff09ea6216f2e86d2d85d8accd9a2c70f521e70697e",
+  "freeze_version": 1,
+  "json": {
+    "battery_manifest": "370ea09c59af8bb54eed70f42c13d6459b1bfe0b943da055d9e3d6542c281985"
+  },
+  "private_files": {
+    "battery.private.json": "037806d3e29f08275b205aa3d6890cfdece364b6ade7de9f8f3bf5137707e4fd"
+  }
+}

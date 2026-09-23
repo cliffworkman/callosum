@@ -1,0 +1,1287 @@
+{
+  "battery_version": "supervisor-eval-v1",
+  "cases": [
+    {
+      "base_id": "A1",
+      "case_id": "A1.original",
+      "claim": "explicit negative attitudes about people with facial anomalies",
+      "claim_source": {
+        "origin": "verified_ledger",
+        "paper_id": 67,
+        "proposition_id": "p3",
+        "status": "verified"
+      },
+      "expected": {
+        "diagnostic": [
+          "s2-o1"
+        ],
+        "gated": true,
+        "required": [
+          "s1-o1"
+        ]
+      },
+      "family": "A",
+      "input_sha256": "eae4286a8afea75b08454790330da9b636535329ab05b87c6719c3c31d392369",
+      "legal": {
+        "obligation_ids": [
+          "s1-o1",
+          "s2-o1",
+          "s3-o1",
+          "s4-o1",
+          "s5-o1",
+          "s6-o1"
+        ]
+      },
+      "obligation_order": [
+        "s1-o1",
+        "s2-o1",
+        "s3-o1",
+        "s4-o1",
+        "s5-o1",
+        "s6-o1"
+      ],
+      "order_robust": true,
+      "ordering": "original",
+      "role": "positive"
+    },
+    {
+      "base_id": "A1",
+      "case_id": "A1.reversed",
+      "claim": "explicit negative attitudes about people with facial anomalies",
+      "claim_source": {
+        "origin": "verified_ledger",
+        "paper_id": 67,
+        "proposition_id": "p3",
+        "status": "verified"
+      },
+      "expected": {
+        "diagnostic": [
+          "s2-o1"
+        ],
+        "gated": true,
+        "required": [
+          "s1-o1"
+        ]
+      },
+      "family": "A",
+      "input_sha256": "7f4a1d0264b3a69784f0d7a9a7bbad58a361e4c5a548f784b1a12ab2f34c027e",
+      "legal": {
+        "obligation_ids": [
+          "s1-o1",
+          "s2-o1",
+          "s3-o1",
+          "s4-o1",
+          "s5-o1",
+          "s6-o1"
+        ]
+      },
+      "obligation_order": [
+        "s6-o1",
+        "s5-o1",
+        "s4-o1",
+        "s3-o1",
+        "s2-o1",
+        "s1-o1"
+      ],
+      "order_robust": true,
+      "ordering": "reversed",
+      "role": "positive"
+    },
+    {
+      "base_id": "A1",
+      "case_id": "A1.rotated",
+      "claim": "explicit negative attitudes about people with facial anomalies",
+      "claim_source": {
+        "origin": "verified_ledger",
+        "paper_id": 67,
+        "proposition_id": "p3",
+        "status": "verified"
+      },
+      "expected": {
+        "diagnostic": [
+          "s2-o1"
+        ],
+        "gated": true,
+        "required": [
+          "s1-o1"
+        ]
+      },
+      "family": "A",
+      "input_sha256": "08be55bbedfd239e0c74d23bd62b9a207d16004e7dcffabf32bb02e0880061ef",
+      "legal": {
+        "obligation_ids": [
+          "s1-o1",
+          "s2-o1",
+          "s3-o1",
+          "s4-o1",
+          "s5-o1",
+          "s6-o1"
+        ]
+      },
+      "obligation_order": [
+        "s4-o1",
+        "s5-o1",
+        "s6-o1",
+        "s1-o1",
+        "s2-o1",
+        "s3-o1"
+      ],
+      "order_robust": true,
+      "ordering": "rotated",
+      "role": "positive"
+    },
+    {
+      "base_id": "A2",
+      "case_id": "A2.original",
+      "claim": "There is cross-cultural evidence for the bias in personality or behavior.",
+      "claim_source": {
+        "origin": "09_propositions.jsonl[21]",
+        "paper_id": 269,
+        "status": "unverified"
+      },
+      "expected": {
+        "diagnostic": [
+          "s1-o1",
+          "s2-o1"
+        ],
+        "gated": true,
+        "required": [
+          "s4-o1"
+        ]
+      },
+      "family": "A",
+      "input_sha256": "e7ec872b53d703222bfea96c2021cbf5e5d5c5af3ec604f3b749469fd65c380e",
+      "legal": {
+        "obligation_ids": [
+          "s1-o1",
+          "s2-o1",
+          "s3-o1",
+          "s4-o1",
+          "s5-o1",
+          "s6-o1"
+        ]
+      },
+      "obligation_order": [
+        "s1-o1",
+        "s2-o1",
+        "s3-o1",
+        "s4-o1",
+        "s5-o1",
+        "s6-o1"
+      ],
+      "order_robust": true,
+      "ordering": "original",
+      "role": "positive"
+    },
+    {
+      "base_id": "A2",
+      "case_id": "A2.reversed",
+      "claim": "There is cross-cultural evidence for the bias in personality or behavior.",
+      "claim_source": {
+        "origin": "09_propositions.jsonl[21]",
+        "paper_id": 269,
+        "status": "unverified"
+      },
+      "expected": {
+        "diagnostic": [
+          "s1-o1",
+          "s2-o1"
+        ],
+        "gated": true,
+        "required": [
+          "s4-o1"
+        ]
+      },
+      "family": "A",
+      "input_sha256": "2d6e5b7b6d4e0e86575e4749910963b9703b1c53281d81b34f9c148eb6b24800",
+      "legal": {
+        "obligation_ids": [
+          "s1-o1",
+          "s2-o1",
+          "s3-o1",
+          "s4-o1",
+          "s5-o1",
+          "s6-o1"
+        ]
+      },
+      "obligation_order": [
+        "s6-o1",
+        "s5-o1",
+        "s4-o1",
+        "s3-o1",
+        "s2-o1",
+        "s1-o1"
+      ],
+      "order_robust": true,
+      "ordering": "reversed",
+      "role": "positive"
+    },
+    {
+      "base_id": "A2",
+      "case_id": "A2.rotated",
+      "claim": "There is cross-cultural evidence for the bias in personality or behavior.",
+      "claim_source": {
+        "origin": "09_propositions.jsonl[21]",
+        "paper_id": 269,
+        "status": "unverified"
+      },
+      "expected": {
+        "diagnostic": [
+          "s1-o1",
+          "s2-o1"
+        ],
+        "gated": true,
+        "required": [
+          "s4-o1"
+        ]
+      },
+      "family": "A",
+      "input_sha256": "52db745037ce5fbcd1d20626c0f89bc32c11118c90474fb7376a0fa39a40b4e4",
+      "legal": {
+        "obligation_ids": [
+          "s1-o1",
+          "s2-o1",
+          "s3-o1",
+          "s4-o1",
+          "s5-o1",
+          "s6-o1"
+        ]
+      },
+      "obligation_order": [
+        "s4-o1",
+        "s5-o1",
+        "s6-o1",
+        "s1-o1",
+        "s2-o1",
+        "s3-o1"
+      ],
+      "order_robust": true,
+      "ordering": "rotated",
+      "role": "positive"
+    },
+    {
+      "base_id": "A3",
+      "case_id": "A3.original",
+      "claim": "The dorsomedial prefrontal cortex affects individuals' responses to social situations.",
+      "claim_source": {
+        "origin": "verified_ledger",
+        "paper_id": 45,
+        "proposition_id": "p5",
+        "status": "verified"
+      },
+      "expected": {
+        "diagnostic": [],
+        "gated": true,
+        "required": []
+      },
+      "family": "A",
+      "input_sha256": "1dc07a3f18737030396375f079a5504bb00aabde99fd9d700eb7227042781788",
+      "legal": {
+        "obligation_ids": [
+          "s1-o1",
+          "s2-o1",
+          "s3-o1",
+          "s4-o1",
+          "s5-o1",
+          "s6-o1"
+        ]
+      },
+      "obligation_order": [
+        "s1-o1",
+        "s2-o1",
+        "s3-o1",
+        "s4-o1",
+        "s5-o1",
+        "s6-o1"
+      ],
+      "order_robust": true,
+      "ordering": "original",
+      "role": "negative"
+    },
+    {
+      "base_id": "A3",
+      "case_id": "A3.reversed",
+      "claim": "The dorsomedial prefrontal cortex affects individuals' responses to social situations.",
+      "claim_source": {
+        "origin": "verified_ledger",
+        "paper_id": 45,
+        "proposition_id": "p5",
+        "status": "verified"
+      },
+      "expected": {
+        "diagnostic": [],
+        "gated": true,
+        "required": []
+      },
+      "family": "A",
+      "input_sha256": "bc3fef5f7f31a1c0a2326645960495fb082c2c5e9f0f0116caccee585c150de2",
+      "legal": {
+        "obligation_ids": [
+          "s1-o1",
+          "s2-o1",
+          "s3-o1",
+          "s4-o1",
+          "s5-o1",
+          "s6-o1"
+        ]
+      },
+      "obligation_order": [
+        "s6-o1",
+        "s5-o1",
+        "s4-o1",
+        "s3-o1",
+        "s2-o1",
+        "s1-o1"
+      ],
+      "order_robust": true,
+      "ordering": "reversed",
+      "role": "negative"
+    },
+    {
+      "base_id": "A3",
+      "case_id": "A3.rotated",
+      "claim": "The dorsomedial prefrontal cortex affects individuals' responses to social situations.",
+      "claim_source": {
+        "origin": "verified_ledger",
+        "paper_id": 45,
+        "proposition_id": "p5",
+        "status": "verified"
+      },
+      "expected": {
+        "diagnostic": [],
+        "gated": true,
+        "required": []
+      },
+      "family": "A",
+      "input_sha256": "f4c0d3d5b54c9c2522c472aead2a5683196a8b9f2862a8182baa04c5d3418d01",
+      "legal": {
+        "obligation_ids": [
+          "s1-o1",
+          "s2-o1",
+          "s3-o1",
+          "s4-o1",
+          "s5-o1",
+          "s6-o1"
+        ]
+      },
+      "obligation_order": [
+        "s4-o1",
+        "s5-o1",
+        "s6-o1",
+        "s1-o1",
+        "s2-o1",
+        "s3-o1"
+      ],
+      "order_robust": true,
+      "ordering": "rotated",
+      "role": "negative"
+    },
+    {
+      "base_id": "A4",
+      "case_id": "A4.original",
+      "claim": "Mentalizing regions represent distributed, continuous and abstract dimensions of others beliefs.",
+      "claim_source": {
+        "origin": "verified_ledger",
+        "paper_id": 28,
+        "proposition_id": "p6",
+        "status": "verified"
+      },
+      "expected": {
+        "diagnostic": [],
+        "gated": true,
+        "required": []
+      },
+      "family": "A",
+      "input_sha256": "f2ebc4f47e61fb40e4f6d181811debea1c65ae826118a1dc1408f06bd2afc8fa",
+      "legal": {
+        "obligation_ids": [
+          "s1-o1",
+          "s2-o1",
+          "s3-o1",
+          "s4-o1",
+          "s5-o1",
+          "s6-o1"
+        ]
+      },
+      "obligation_order": [
+        "s1-o1",
+        "s2-o1",
+        "s3-o1",
+        "s4-o1",
+        "s5-o1",
+        "s6-o1"
+      ],
+      "order_robust": false,
+      "ordering": "original",
+      "role": "negative"
+    },
+    {
+      "base_id": "A5",
+      "case_id": "A5.original",
+      "claim": "how many years participants attended school",
+      "claim_source": {
+        "origin": "09_propositions.jsonl[72]",
+        "paper_id": 68,
+        "status": "weak"
+      },
+      "expected": {
+        "diagnostic": [],
+        "gated": true,
+        "required": []
+      },
+      "family": "A",
+      "input_sha256": "51ed614ded32f3b7be3e949d66fe14f7ee239e043b33bf0259900f794144a09f",
+      "legal": {
+        "obligation_ids": [
+          "s1-o1",
+          "s2-o1",
+          "s3-o1",
+          "s4-o1",
+          "s5-o1",
+          "s6-o1"
+        ]
+      },
+      "obligation_order": [
+        "s1-o1",
+        "s2-o1",
+        "s3-o1",
+        "s4-o1",
+        "s5-o1",
+        "s6-o1"
+      ],
+      "order_robust": false,
+      "ordering": "original",
+      "role": "negative"
+    },
+    {
+      "base_id": "A6",
+      "case_id": "A6.original",
+      "claim": "people with anomalous faces have negative personality traits",
+      "claim_source": {
+        "origin": "verified_ledger",
+        "paper_id": 67,
+        "proposition_id": "p1",
+        "status": "verified"
+      },
+      "expected": {
+        "diagnostic": [
+          "s1-o1",
+          "s2-o1",
+          "s3-o1",
+          "s4-o1",
+          "s5-o1",
+          "s6-o1"
+        ],
+        "gated": false,
+        "required": []
+      },
+      "family": "A",
+      "input_sha256": "a62ef19c1773d2d614f5fa3eadc95a660a6780553b0910b16308c54fc90af8e1",
+      "legal": {
+        "obligation_ids": [
+          "s1-o1",
+          "s2-o1",
+          "s3-o1",
+          "s4-o1",
+          "s5-o1",
+          "s6-o1"
+        ]
+      },
+      "obligation_order": [
+        "s1-o1",
+        "s2-o1",
+        "s3-o1",
+        "s4-o1",
+        "s5-o1",
+        "s6-o1"
+      ],
+      "order_robust": false,
+      "ordering": "original",
+      "role": "diagnostic"
+    },
+    {
+      "base_id": "A7",
+      "case_id": "A7.original",
+      "claim": "The EBQ measures explicit bias.",
+      "claim_source": {
+        "origin": "09_propositions.jsonl[16]",
+        "paper_id": 248,
+        "status": "weak"
+      },
+      "expected": {
+        "diagnostic": [
+          "s5-o1"
+        ],
+        "gated": true,
+        "required": [
+          "s3-o1"
+        ]
+      },
+      "family": "A",
+      "input_sha256": "19d9760cae46e96136b76b7f26720a1a10b56cd8503cb5a2a0d3c6264ba51516",
+      "legal": {
+        "obligation_ids": [
+          "s1-o1",
+          "s2-o1",
+          "s3-o1",
+          "s4-o1",
+          "s5-o1",
+          "s6-o1"
+        ]
+      },
+      "obligation_order": [
+        "s1-o1",
+        "s2-o1",
+        "s3-o1",
+        "s4-o1",
+        "s5-o1",
+        "s6-o1"
+      ],
+      "order_robust": true,
+      "ordering": "original",
+      "role": "positive"
+    },
+    {
+      "base_id": "A7",
+      "case_id": "A7.reversed",
+      "claim": "The EBQ measures explicit bias.",
+      "claim_source": {
+        "origin": "09_propositions.jsonl[16]",
+        "paper_id": 248,
+        "status": "weak"
+      },
+      "expected": {
+        "diagnostic": [
+          "s5-o1"
+        ],
+        "gated": true,
+        "required": [
+          "s3-o1"
+        ]
+      },
+      "family": "A",
+      "input_sha256": "c79d79284396bddb72a9f4cc4fcafc6cf0c7ef436f8e52e1135c2227bb02b010",
+      "legal": {
+        "obligation_ids": [
+          "s1-o1",
+          "s2-o1",
+          "s3-o1",
+          "s4-o1",
+          "s5-o1",
+          "s6-o1"
+        ]
+      },
+      "obligation_order": [
+        "s6-o1",
+        "s5-o1",
+        "s4-o1",
+        "s3-o1",
+        "s2-o1",
+        "s1-o1"
+      ],
+      "order_robust": true,
+      "ordering": "reversed",
+      "role": "positive"
+    },
+    {
+      "base_id": "A7",
+      "case_id": "A7.rotated",
+      "claim": "The EBQ measures explicit bias.",
+      "claim_source": {
+        "origin": "09_propositions.jsonl[16]",
+        "paper_id": 248,
+        "status": "weak"
+      },
+      "expected": {
+        "diagnostic": [
+          "s5-o1"
+        ],
+        "gated": true,
+        "required": [
+          "s3-o1"
+        ]
+      },
+      "family": "A",
+      "input_sha256": "5929b67a2b0f9264191fb3788d8bf83d652a4901cf113f002b4208a70bc27bc9",
+      "legal": {
+        "obligation_ids": [
+          "s1-o1",
+          "s2-o1",
+          "s3-o1",
+          "s4-o1",
+          "s5-o1",
+          "s6-o1"
+        ]
+      },
+      "obligation_order": [
+        "s4-o1",
+        "s5-o1",
+        "s6-o1",
+        "s1-o1",
+        "s2-o1",
+        "s3-o1"
+      ],
+      "order_robust": true,
+      "ordering": "rotated",
+      "role": "positive"
+    },
+    {
+      "base_id": "B1",
+      "case_id": "B1.original",
+      "expected": {
+        "forbidden_attach": {
+          "p1": [
+            "s3-o1",
+            "s4-o1",
+            "s5-o1",
+            "s6-o1"
+          ],
+          "p2": [
+            "s3-o1",
+            "s4-o1",
+            "s5-o1",
+            "s6-o1"
+          ],
+          "p3": [
+            "s4-o1",
+            "s6-o1"
+          ],
+          "p4": [
+            "s4-o1",
+            "s6-o1"
+          ],
+          "p5": [
+            "s1-o1",
+            "s2-o1",
+            "s3-o1",
+            "s4-o1",
+            "s5-o1",
+            "s6-o1"
+          ],
+          "p6": [
+            "s1-o1",
+            "s2-o1",
+            "s3-o1",
+            "s4-o1",
+            "s5-o1",
+            "s6-o1"
+          ]
+        },
+        "must_be_unresolved": [
+          "s4-o1",
+          "s6-o1"
+        ],
+        "required_support": {
+          "s1-o1": [
+            "p3"
+          ]
+        }
+      },
+      "family": "B",
+      "input_sha256": "8cce0ef034b37aa849458c6788cba76412f253363c4e4b5198a3bd678c32cbec",
+      "legal": {
+        "obligation_ids": [
+          "s1-o1",
+          "s2-o1",
+          "s3-o1",
+          "s4-o1",
+          "s5-o1",
+          "s6-o1"
+        ],
+        "proposition_ids": [
+          "p1",
+          "p2",
+          "p3",
+          "p4",
+          "p5",
+          "p6"
+        ]
+      },
+      "obligation_order": [
+        "s1-o1",
+        "s2-o1",
+        "s3-o1",
+        "s4-o1",
+        "s5-o1",
+        "s6-o1"
+      ],
+      "order_robust": false,
+      "ordering": "original",
+      "proposition_order": [
+        "p1",
+        "p2",
+        "p3",
+        "p4",
+        "p5",
+        "p6"
+      ],
+      "role": "coverage"
+    },
+    {
+      "base_id": "B1",
+      "case_id": "B1.reversed",
+      "expected": {
+        "forbidden_attach": {
+          "p1": [
+            "s3-o1",
+            "s4-o1",
+            "s5-o1",
+            "s6-o1"
+          ],
+          "p2": [
+            "s3-o1",
+            "s4-o1",
+            "s5-o1",
+            "s6-o1"
+          ],
+          "p3": [
+            "s4-o1",
+            "s6-o1"
+          ],
+          "p4": [
+            "s4-o1",
+            "s6-o1"
+          ],
+          "p5": [
+            "s1-o1",
+            "s2-o1",
+            "s3-o1",
+            "s4-o1",
+            "s5-o1",
+            "s6-o1"
+          ],
+          "p6": [
+            "s1-o1",
+            "s2-o1",
+            "s3-o1",
+            "s4-o1",
+            "s5-o1",
+            "s6-o1"
+          ]
+        },
+        "must_be_unresolved": [
+          "s4-o1",
+          "s6-o1"
+        ],
+        "required_support": {
+          "s1-o1": [
+            "p3"
+          ]
+        }
+      },
+      "family": "B",
+      "input_sha256": "889024849b9f51db6c9a320e5b609ad0d8eeefc812e79d2146c2c7f856cbdf1c",
+      "legal": {
+        "obligation_ids": [
+          "s1-o1",
+          "s2-o1",
+          "s3-o1",
+          "s4-o1",
+          "s5-o1",
+          "s6-o1"
+        ],
+        "proposition_ids": [
+          "p1",
+          "p2",
+          "p3",
+          "p4",
+          "p5",
+          "p6"
+        ]
+      },
+      "obligation_order": [
+        "s1-o1",
+        "s2-o1",
+        "s3-o1",
+        "s4-o1",
+        "s5-o1",
+        "s6-o1"
+      ],
+      "order_robust": false,
+      "ordering": "reversed",
+      "proposition_order": [
+        "p6",
+        "p5",
+        "p4",
+        "p3",
+        "p2",
+        "p1"
+      ],
+      "role": "coverage"
+    },
+    {
+      "base_id": "C1",
+      "case_id": "C1.original",
+      "expected": {
+        "closure_forbidden": [
+          "s3-o1",
+          "s4-o1",
+          "s5-o1",
+          "s6-o1"
+        ],
+        "performed": [
+          "s1-o1:DEEPEN",
+          "s1-o1:NOMINATE",
+          "s2-o1:DEEPEN",
+          "s2-o1:NOMINATE",
+          "s3-o1:DEEPEN",
+          "s3-o1:NOMINATE",
+          "s4-o1:DEEPEN",
+          "s5-o1:DEEPEN",
+          "s5-o1:NOMINATE",
+          "s6-o1:DEEPEN",
+          "s6-o1:NOMINATE"
+        ],
+        "repeat_forbidden": [
+          "s3-o1",
+          "s4-o1",
+          "s5-o1"
+        ],
+        "required_choice": {
+          "s4-o1": "s4-o1:NOMINATE",
+          "s5-o1": "s5-o1:PRESERVE_UNRESOLVED"
+        }
+      },
+      "family": "C",
+      "input_sha256": "9717f8ef8dd704551ea780f444700c041fc79239782341c6deb6b6733c8ec3c0",
+      "legal": {
+        "actions": {
+          "s1-o1": [
+            "s1-o1:DEEPEN",
+            "s1-o1:NOMINATE",
+            "s1-o1:MARK_COVERED:p3",
+            "s1-o1:NO_RECOVERY_NEEDED",
+            "s1-o1:PRESERVE_UNRESOLVED"
+          ],
+          "s2-o1": [
+            "s2-o1:DEEPEN",
+            "s2-o1:NOMINATE",
+            "s2-o1:MARK_COVERED:p1",
+            "s2-o1:MARK_COVERED:p4",
+            "s2-o1:NO_RECOVERY_NEEDED",
+            "s2-o1:PRESERVE_UNRESOLVED"
+          ],
+          "s3-o1": [
+            "s3-o1:DEEPEN",
+            "s3-o1:NOMINATE",
+            "s3-o1:MARK_COVERED:p2",
+            "s3-o1:MARK_COVERED:p5",
+            "s3-o1:NO_RECOVERY_NEEDED",
+            "s3-o1:PRESERVE_UNRESOLVED"
+          ],
+          "s4-o1": [
+            "s4-o1:DEEPEN",
+            "s4-o1:NOMINATE",
+            "s4-o1:NO_RECOVERY_NEEDED",
+            "s4-o1:PRESERVE_UNRESOLVED"
+          ],
+          "s5-o1": [
+            "s5-o1:DEEPEN",
+            "s5-o1:NOMINATE",
+            "s5-o1:MARK_COVERED:p6",
+            "s5-o1:NO_RECOVERY_NEEDED",
+            "s5-o1:PRESERVE_UNRESOLVED"
+          ],
+          "s6-o1": [
+            "s6-o1:DEEPEN",
+            "s6-o1:NOMINATE",
+            "s6-o1:NO_RECOVERY_NEEDED",
+            "s6-o1:PRESERVE_UNRESOLVED"
+          ]
+        },
+        "obligation_ids": [
+          "s1-o1",
+          "s2-o1",
+          "s3-o1",
+          "s4-o1",
+          "s5-o1",
+          "s6-o1"
+        ]
+      },
+      "obligation_order": [
+        "s1-o1",
+        "s2-o1",
+        "s3-o1",
+        "s4-o1",
+        "s5-o1",
+        "s6-o1"
+      ],
+      "order_robust": false,
+      "ordering": "original",
+      "policy": "The goal is one bounded attempt to resolve each remaining gap. Do not repeat an already-performed search action. If a gap remains unresolved and a broader, unused legal recovery action is available, choose that action before giving up. If the bounded recovery options have been exhausted without responsive verified evidence, preserve the obligation as unresolved. Never mark an obligation covered using evidence that does not directly support it. Never invent an action or an evidence item.",
+      "role": "recovery",
+      "state": {
+        "s1-o1": {
+          "coverage_support": [
+            "p3"
+          ],
+          "on_file": [
+            "p3"
+          ],
+          "performed": {
+            "DEEPEN": true,
+            "NOMINATE": true
+          },
+          "searched": {
+            "DEEPEN": "re-searched the 25 candidate papers already nominated for this item with a reformulated query (8 passages matched)",
+            "NOMINATE": "searched the wider corpus for additional candidate papers (0 additional papers nominated, 0 passages matched)"
+          },
+          "state_provenance": "real recovery record (13_gap_recovery.json, run9)"
+        },
+        "s2-o1": {
+          "coverage_support": [
+            "p4"
+          ],
+          "on_file": [
+            "p1",
+            "p4"
+          ],
+          "performed": {
+            "DEEPEN": true,
+            "NOMINATE": true
+          },
+          "searched": {
+            "DEEPEN": "re-searched the 25 candidate papers already nominated for this item with a reformulated query (6 passages matched)",
+            "NOMINATE": "searched the wider corpus for additional candidate papers (5 additional papers nominated, 7 passages matched)"
+          },
+          "state_provenance": "real recovery record (13_gap_recovery.json, run9)"
+        },
+        "s3-o1": {
+          "coverage_support": [],
+          "on_file": [
+            "p2",
+            "p5"
+          ],
+          "performed": {
+            "DEEPEN": true,
+            "NOMINATE": true
+          },
+          "searched": {
+            "DEEPEN": "re-searched the 25 candidate papers already nominated for this item with a reformulated query (8 passages matched)",
+            "NOMINATE": "searched the wider corpus for additional candidate papers (12 additional papers nominated, 8 passages matched)"
+          },
+          "state_provenance": "real recovery record (13_gap_recovery.json, run9)"
+        },
+        "s4-o1": {
+          "coverage_support": [],
+          "on_file": [],
+          "performed": {
+            "DEEPEN": true,
+            "NOMINATE": false
+          },
+          "searched": {
+            "DEEPEN": "re-searched the 25 candidate papers already nominated for this item with a reformulated query (8 passages matched)"
+          },
+          "state_provenance": "reconstruction: candidate counts are real, but NOMINATE is marked not-yet-performed; the real run nominated 5 additional papers for this item and found no new verified evidence"
+        },
+        "s5-o1": {
+          "coverage_support": [],
+          "on_file": [
+            "p6"
+          ],
+          "performed": {
+            "DEEPEN": true,
+            "NOMINATE": true
+          },
+          "searched": {
+            "DEEPEN": "re-searched the 25 candidate papers already nominated for this item with a reformulated query (8 passages matched)",
+            "NOMINATE": "searched the wider corpus for additional candidate papers (9 additional papers nominated, 8 passages matched)"
+          },
+          "state_provenance": "real recovery record (13_gap_recovery.json, run9)"
+        },
+        "s6-o1": {
+          "coverage_support": [],
+          "on_file": [],
+          "performed": {
+            "DEEPEN": true,
+            "NOMINATE": true
+          },
+          "searched": {
+            "DEEPEN": "re-searched the 25 candidate papers already nominated for this item with a reformulated query (8 passages matched)",
+            "NOMINATE": "searched the wider corpus for additional candidate papers (16 additional papers nominated, 8 passages matched)"
+          },
+          "state_provenance": "real recovery record (13_gap_recovery.json, run9)"
+        }
+      }
+    },
+    {
+      "base_id": "C1",
+      "case_id": "C1.reversed",
+      "expected": {
+        "closure_forbidden": [
+          "s3-o1",
+          "s4-o1",
+          "s5-o1",
+          "s6-o1"
+        ],
+        "performed": [
+          "s1-o1:DEEPEN",
+          "s1-o1:NOMINATE",
+          "s2-o1:DEEPEN",
+          "s2-o1:NOMINATE",
+          "s3-o1:DEEPEN",
+          "s3-o1:NOMINATE",
+          "s4-o1:DEEPEN",
+          "s5-o1:DEEPEN",
+          "s5-o1:NOMINATE",
+          "s6-o1:DEEPEN",
+          "s6-o1:NOMINATE"
+        ],
+        "repeat_forbidden": [
+          "s3-o1",
+          "s4-o1",
+          "s5-o1"
+        ],
+        "required_choice": {
+          "s4-o1": "s4-o1:NOMINATE",
+          "s5-o1": "s5-o1:PRESERVE_UNRESOLVED"
+        }
+      },
+      "family": "C",
+      "input_sha256": "4666eeeb5b2c3c5eaaed0efaf27ff156e5f26ebf42b779a8b05e7f761ad6d1a3",
+      "legal": {
+        "actions": {
+          "s1-o1": [
+            "s1-o1:PRESERVE_UNRESOLVED",
+            "s1-o1:NO_RECOVERY_NEEDED",
+            "s1-o1:MARK_COVERED:p3",
+            "s1-o1:NOMINATE",
+            "s1-o1:DEEPEN"
+          ],
+          "s2-o1": [
+            "s2-o1:PRESERVE_UNRESOLVED",
+            "s2-o1:NO_RECOVERY_NEEDED",
+            "s2-o1:MARK_COVERED:p4",
+            "s2-o1:MARK_COVERED:p1",
+            "s2-o1:NOMINATE",
+            "s2-o1:DEEPEN"
+          ],
+          "s3-o1": [
+            "s3-o1:PRESERVE_UNRESOLVED",
+            "s3-o1:NO_RECOVERY_NEEDED",
+            "s3-o1:MARK_COVERED:p5",
+            "s3-o1:MARK_COVERED:p2",
+            "s3-o1:NOMINATE",
+            "s3-o1:DEEPEN"
+          ],
+          "s4-o1": [
+            "s4-o1:PRESERVE_UNRESOLVED",
+            "s4-o1:NO_RECOVERY_NEEDED",
+            "s4-o1:NOMINATE",
+            "s4-o1:DEEPEN"
+          ],
+          "s5-o1": [
+            "s5-o1:PRESERVE_UNRESOLVED",
+            "s5-o1:NO_RECOVERY_NEEDED",
+            "s5-o1:MARK_COVERED:p6",
+            "s5-o1:NOMINATE",
+            "s5-o1:DEEPEN"
+          ],
+          "s6-o1": [
+            "s6-o1:PRESERVE_UNRESOLVED",
+            "s6-o1:NO_RECOVERY_NEEDED",
+            "s6-o1:NOMINATE",
+            "s6-o1:DEEPEN"
+          ]
+        },
+        "obligation_ids": [
+          "s1-o1",
+          "s2-o1",
+          "s3-o1",
+          "s4-o1",
+          "s5-o1",
+          "s6-o1"
+        ]
+      },
+      "obligation_order": [
+        "s6-o1",
+        "s5-o1",
+        "s4-o1",
+        "s3-o1",
+        "s2-o1",
+        "s1-o1"
+      ],
+      "order_robust": false,
+      "ordering": "reversed",
+      "policy": "The goal is one bounded attempt to resolve each remaining gap. Do not repeat an already-performed search action. If a gap remains unresolved and a broader, unused legal recovery action is available, choose that action before giving up. If the bounded recovery options have been exhausted without responsive verified evidence, preserve the obligation as unresolved. Never mark an obligation covered using evidence that does not directly support it. Never invent an action or an evidence item.",
+      "role": "recovery",
+      "state": {
+        "s1-o1": {
+          "coverage_support": [
+            "p3"
+          ],
+          "on_file": [
+            "p3"
+          ],
+          "performed": {
+            "DEEPEN": true,
+            "NOMINATE": true
+          },
+          "searched": {
+            "DEEPEN": "re-searched the 25 candidate papers already nominated for this item with a reformulated query (8 passages matched)",
+            "NOMINATE": "searched the wider corpus for additional candidate papers (0 additional papers nominated, 0 passages matched)"
+          },
+          "state_provenance": "real recovery record (13_gap_recovery.json, run9)"
+        },
+        "s2-o1": {
+          "coverage_support": [
+            "p4"
+          ],
+          "on_file": [
+            "p1",
+            "p4"
+          ],
+          "performed": {
+            "DEEPEN": true,
+            "NOMINATE": true
+          },
+          "searched": {
+            "DEEPEN": "re-searched the 25 candidate papers already nominated for this item with a reformulated query (6 passages matched)",
+            "NOMINATE": "searched the wider corpus for additional candidate papers (5 additional papers nominated, 7 passages matched)"
+          },
+          "state_provenance": "real recovery record (13_gap_recovery.json, run9)"
+        },
+        "s3-o1": {
+          "coverage_support": [],
+          "on_file": [
+            "p2",
+            "p5"
+          ],
+          "performed": {
+            "DEEPEN": true,
+            "NOMINATE": true
+          },
+          "searched": {
+            "DEEPEN": "re-searched the 25 candidate papers already nominated for this item with a reformulated query (8 passages matched)",
+            "NOMINATE": "searched the wider corpus for additional candidate papers (12 additional papers nominated, 8 passages matched)"
+          },
+          "state_provenance": "real recovery record (13_gap_recovery.json, run9)"
+        },
+        "s4-o1": {
+          "coverage_support": [],
+          "on_file": [],
+          "performed": {
+            "DEEPEN": true,
+            "NOMINATE": false
+          },
+          "searched": {
+            "DEEPEN": "re-searched the 25 candidate papers already nominated for this item with a reformulated query (8 passages matched)"
+          },
+          "state_provenance": "reconstruction: candidate counts are real, but NOMINATE is marked not-yet-performed; the real run nominated 5 additional papers for this item and found no new verified evidence"
+        },
+        "s5-o1": {
+          "coverage_support": [],
+          "on_file": [
+            "p6"
+          ],
+          "performed": {
+            "DEEPEN": true,
+            "NOMINATE": true
+          },
+          "searched": {
+            "DEEPEN": "re-searched the 25 candidate papers already nominated for this item with a reformulated query (8 passages matched)",
+            "NOMINATE": "searched the wider corpus for additional candidate papers (9 additional papers nominated, 8 passages matched)"
+          },
+          "state_provenance": "real recovery record (13_gap_recovery.json, run9)"
+        },
+        "s6-o1": {
+          "coverage_support": [],
+          "on_file": [],
+          "performed": {
+            "DEEPEN": true,
+            "NOMINATE": true
+          },
+          "searched": {
+            "DEEPEN": "re-searched the 25 candidate papers already nominated for this item with a reformulated query (8 passages matched)",
+            "NOMINATE": "searched the wider corpus for additional candidate papers (16 additional papers nominated, 8 passages matched)"
+          },
+          "state_provenance": "real recovery record (13_gap_recovery.json, run9)"
+        }
+      }
+    }
+  ],
+  "envelope": {
+    "num_batch": 512,
+    "num_ctx": 12288,
+    "num_predict": 4096,
+    "num_thread": 6,
+    "seed": 42,
+    "temperature": 0
+  },
+  "obligations": [
+    {
+      "field_id": "s1-o1",
+      "note": "how does the anomalous is bad bias manifest in brain, behavior, and attitudes?"
+    },
+    {
+      "field_id": "s2-o1",
+      "note": "please return specific brain areas and whether and how they relate to behaviors, which kinds of behaviors, and whether they relate to attitudes, and which kinds of attitudes. what kind of specific personality traits relate to its manifestation?"
+    },
+    {
+      "field_id": "s3-o1",
+      "note": "and using which scales?"
+    },
+    {
+      "field_id": "s4-o1",
+      "note": "is there any cross-cultural evidence for the bias?"
+    },
+    {
+      "field_id": "s5-o1",
+      "note": "which cultures and how was this measures?"
+    },
+    {
+      "field_id": "s6-o1",
+      "note": "and are there effective interventions aimed at reducing it?"
+    }
+  ],
+  "propositions": [
+    {
+      "claim": "people with anomalous faces have negative personality traits",
+      "paper_id": 67,
+      "proposition_id": "p1",
+      "retrieved_for": "s2-o1"
+    },
+    {
+      "claim": "people with anomalous faces have negative personality traits",
+      "paper_id": 67,
+      "proposition_id": "p2",
+      "retrieved_for": "s3-o1"
+    },
+    {
+      "claim": "explicit negative attitudes about people with facial anomalies",
+      "paper_id": 67,
+      "proposition_id": "p3",
+      "retrieved_for": "s1-o1"
+    },
+    {
+      "claim": "Laypersons with high levels of implicit bias toward individuals with facial anomalies demonstrated increased amygdala reactivity.",
+      "paper_id": 61,
+      "proposition_id": "p4",
+      "retrieved_for": "s2-o1"
+    },
+    {
+      "claim": "The dorsomedial prefrontal cortex affects individuals' responses to social situations.",
+      "paper_id": 45,
+      "proposition_id": "p5",
+      "retrieved_for": "s3-o1"
+    },
+    {
+      "claim": "Mentalizing regions represent distributed, continuous and abstract dimensions of others beliefs.",
+      "paper_id": 28,
+      "proposition_id": "p6",
+      "retrieved_for": "s5-o1"
+    }
+  ],
+  "public_note": "Claims and obligations are the user's own request units and one-sentence claims. Verbatim source quotes and rendered prompts are private and hash-pinned by FREEZE.txt.",
+  "source": {
+    "file_sha256": {
+      "01_request_contract.json": "4f098d997ad96d01528db23b3bd0b1d42e5c9e4bbc0bdd33893b8cd4f4a159da",
+      "09_propositions.jsonl": "61c493afb7c45060e72878630b28312eb765e963499b78559156e8e882058e05",
+      "10_verification.jsonl": "ec6b738f0da2c875056bb0b89bcefe5249394c86fd4dab21d919b09b8efdfec3",
+      "11_verified_ledger.json": "1ac3bbc89cdf9f90cf31fdeb19090bcb2d5679db09b8d8d95c123ad56a34f3e2"
+    },
+    "ledger_sealed_hash": "c8f057b59ec33c4a5b479df092d14d46820945cb3ca8ecaddae0880f5790bdf3",
+    "question_hash": "6e037bab4baad2c0b4427a1c73c6e1720296292b3be36189cd9cf02436e57030",
+    "run": "run9-schema-obligations"
+  }
+}
