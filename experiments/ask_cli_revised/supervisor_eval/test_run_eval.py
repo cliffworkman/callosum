@@ -256,6 +256,16 @@ class ResumeAndRetryTests(RunnerCase):
             self.run_all(PerfectClient(self.battery()), retry_technical={"Z9.original"})
 
 
+class ClientTargetTests(unittest.TestCase):
+    def test_defaults_to_the_isolated_bakeoff_ollama_never_the_shared_port(self):
+        self.assertEqual(run_eval.ollama_url(env={}), "http://127.0.0.1:11435")
+
+    def test_can_be_overridden_but_the_client_still_refuses_non_loopback_hosts(self):
+        self.assertEqual(
+            run_eval.ollama_url(env={"BAKEOFF_OLLAMA_URL": "http://127.0.0.1:9999"}), "http://127.0.0.1:9999"
+        )
+
+
 class PerformanceAndReceiptTests(RunnerCase):
     def _result(self):
         walls = iter([10.0] + [float(x) for x in range(1, 19)])  # first call includes the load
@@ -289,8 +299,12 @@ class PerformanceAndReceiptTests(RunnerCase):
             "residency": {"gpu_fraction": 0.5},
             "envelope": models.ENVELOPE,
             "think_setting": None,
+            "runtime": {"api_version": "0.34.3"},
+            "store": {"ok": True, "store_path": "/media/brain/JUNO/x"},
         }
         receipt = run_eval.make_receipt("m-1b", stage0, result, scored)
+        self.assertEqual(receipt["stage0"]["runtime"], {"api_version": "0.34.3"})
+        self.assertEqual(receipt["stage0"]["store"], {"ok": True, "store_path": "/media/brain/JUNO/x"})
         blob = json.dumps(receipt)
         for private in ("private reasoning", "responsive_obligation_ids", "rationale"):
             self.assertNotIn(private, blob)

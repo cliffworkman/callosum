@@ -1,5 +1,6 @@
 """Bakeoff orchestration: freeze guard, one observation per case, resume, retry rules, receipts, CLI.
 
+    python -m experiments.ask_cli_revised.supervisor_eval.run_eval setup-isolated
     python -m experiments.ask_cli_revised.supervisor_eval.run_eval preflight
     python -m experiments.ask_cli_revised.supervisor_eval.run_eval stage0  <key>
     python -m experiments.ask_cli_revised.supervisor_eval.run_eval battery <key> [--retry-technical CASE_ID ...]
@@ -13,19 +14,35 @@ record. Committed receipts are text-free; raw prompts/outputs/reasoning stay und
 """
 
 import json
+import os
 import statistics
 import sys
+import time
 from collections import Counter
 from pathlib import Path
 
 from experiments.ask_070.hashing import digest
 from experiments.ask_cli_revised.supervisor_eval import build_battery as bb
-from experiments.ask_cli_revised.supervisor_eval import cases, freeze, juno_resources, models, scoring, stage0
+from experiments.ask_cli_revised.supervisor_eval import (
+    cases,
+    freeze,
+    isolated_ollama,
+    juno_resources,
+    models,
+    scoring,
+    stage0,
+)
 from experiments.ask_cli_revised.supervisor_eval.ollama_client import OllamaClient, gpu_fraction
 
 WORK_DIR = bb.REPO_ROOT / ".local" / "ask-070-supervisor-bakeoff"
 RECEIPT_DIR = bb.PACKAGE_DIR / "receipts"
 _RETRYABLE_STATUSES = ("transport_error", "http_error")
+DEFAULT_OLLAMA_URL = f"http://127.0.0.1:{isolated_ollama.PORT}"  # the isolated bakeoff Ollama, never the shared 11434
+RUNTIME_FILE = "isolated_runtime.json"
+
+
+def ollama_url(env=None):
+    return (os.environ if env is None else env).get("BAKEOFF_OLLAMA_URL", DEFAULT_OLLAMA_URL)
 
 
 class FreezeError(Exception):
@@ -206,6 +223,8 @@ def make_receipt(key, stage0_result, battery_result, scored):
             "identity": s0.get("identity"),
             "think_setting": s0.get("think_setting"),
             "envelope": s0.get("envelope"),
+            "runtime": s0.get("runtime"),
+            "store": s0.get("store"),
             "residency": s0.get("residency"),
             "enum_enforced": (s0.get("enum_probe") or {}).get("enforced"),
             "padded": s0.get("padded"),
@@ -232,27 +251,91 @@ def _candidate(key):
     return models.by_key(key)
 
 
+def _runtime_identity(client):
+    """Everything needed to reproduce the runtime: the saved install identity plus what the live server reports."""
+    saved = _load_json(WORK_DIR / RUNTIME_FILE)
+    identity = {**saved, "api_version": client.version()}
+    if saved.get("pid"):
+        identity["server_env"] = isolated_ollama.parse_env(
+            juno_resources.run_remote(isolated_ollama.env_probe_command(saved["pid"]))
+        )
+    return identity
+
+
 def _cmd_preflight(client):
-    store_text = juno_resources.run_remote(juno_resources.STORE_COMMAND)
     out = {
-        "ollama_version": client.version(),
+        "runtime": _runtime_identity(client),
         "models_present": sorted(m["name"] for m in client.tags()),
         "resident_now": client.ps(),
         "host": juno_resources.snapshot(),
-        "store_probe": store_text,
+        "store_probe": juno_resources.run_remote(isolated_ollama.store_probe_command()),
     }
     WORK_DIR.mkdir(parents=True, exist_ok=True)
     _save_json(WORK_DIR / "preflight.json", out)
-    print(json.dumps({k: out[k] for k in ("ollama_version", "models_present", "resident_now", "host")}, indent=2))
+    print(json.dumps({k: out[k] for k in ("runtime", "models_present", "resident_now", "host")}, indent=2))
 
 
 def _cmd_stage0(client, key):
     cand = _candidate(key)
-    store_check = juno_resources.assess_store(juno_resources.run_remote(juno_resources.STORE_COMMAND), cand["size_gb"])
-    result = stage0.run(client, cand, host_snapshot=juno_resources.snapshot, store_check=store_check, log=print)
+    store_check = juno_resources.assess_store(
+        juno_resources.run_remote(isolated_ollama.store_probe_command()), cand["size_gb"]
+    )
+    result = stage0.run(
+        client,
+        cand,
+        host_snapshot=juno_resources.snapshot,
+        store_check=store_check,
+        runtime=_runtime_identity(client),
+        log=print,
+    )
     (WORK_DIR / key).mkdir(parents=True, exist_ok=True)
     _save_json(WORK_DIR / key / "stage0.json", result)
     print(f"{key}: {result['verdict']} {result.get('reason') or ''}")
+
+
+def _remote(command, timeout=120):
+    return juno_resources.run_remote(command, timeout=timeout)
+
+
+def _cmd_setup_isolated():
+    """Install (once) and start a separate user-level Ollama. Never touches the shared service."""
+    _remote(isolated_ollama.prepare_command())
+    asset = isolated_ollama.pick_asset(json.loads(_remote(isolated_ollama.release_command(), 90)))
+    binary = isolated_ollama.binary_path(asset["tag"])
+    if "present" not in _remote(f"test -x {binary} && echo present; true"):
+        print(f"downloading {asset['name']} {asset['tag']} ({(asset['size'] or 0) / 1e6:.0f} MB)")
+        _remote(isolated_ollama.download_command(asset), 3600)
+        if not isolated_ollama.verify_digest(asset, _remote(isolated_ollama.sha256_command(asset), 600)):
+            raise SystemExit("download does not match the published sha256; refusing to install")
+        _remote(isolated_ollama.extract_command(asset), 900)
+    health = f"curl -s -m 3 http://{isolated_ollama.HOST}/api/version"
+    if "version" not in _remote(health + "; true"):
+        print("starting the isolated server")
+        pid = int(_remote(isolated_ollama.start_command(asset["tag"])).strip().splitlines()[-1])
+        for _ in range(30):
+            if "version" in _remote(health + "; true"):
+                break
+            time.sleep(2)
+        else:
+            raise SystemExit("the isolated Ollama did not become healthy; see " + isolated_ollama.LOG_FILE)
+    else:
+        pid = int(_remote(isolated_ollama.pid_command()).strip())
+    identity = isolated_ollama.parse_identity(_remote(isolated_ollama.identity_command(asset["tag"])))
+    record = {
+        "release_tag": asset["tag"],
+        "asset": {k: asset[k] for k in ("name", "url", "size", "sha256")},
+        "install_dir": isolated_ollama.install_dir(asset["tag"]),
+        "models_dir": isolated_ollama.MODELS_DIR,
+        "listen": isolated_ollama.HOST,
+        "pid": pid,
+        "identity": identity,
+        "server_env": isolated_ollama.parse_env(_remote(isolated_ollama.env_probe_command(pid))),
+        "gpu_backend": isolated_ollama.parse_gpu_backend(_remote(isolated_ollama.log_tail_command() + "; true")),
+        "started_utc": _remote("date -u +%Y-%m-%dT%H:%M:%SZ").strip(),
+    }
+    WORK_DIR.mkdir(parents=True, exist_ok=True)
+    _save_json(WORK_DIR / RUNTIME_FILE, record)
+    print(json.dumps(record, indent=2))
 
 
 def _cmd_battery(client, key, retry):
@@ -317,7 +400,10 @@ def _cmd_report():
                 "tag": cand["tag"],
                 "qualified": None,
                 "battery": "not run",
-                "stage0": {k: s0.get(k) for k in ("verdict", "reason", "identity", "think_setting", "envelope")},
+                "stage0": {
+                    k: s0.get(k)
+                    for k in ("verdict", "reason", "identity", "think_setting", "envelope", "runtime", "store")
+                },
             }
         _save_json(RECEIPT_DIR / f"{cand['key']}.json", receipt)
         print(f"receipt: {cand['key']}")
@@ -331,8 +417,11 @@ def main(argv):
     if command == "score" and len(argv) == 2:
         _cmd_score(argv[1])
         return 0
+    if command == "setup-isolated":
+        _cmd_setup_isolated()
+        return 0
     if command in ("preflight", "stage0", "battery"):
-        client = OllamaClient()
+        client = OllamaClient(ollama_url())
         try:
             if command == "preflight":
                 _cmd_preflight(client)

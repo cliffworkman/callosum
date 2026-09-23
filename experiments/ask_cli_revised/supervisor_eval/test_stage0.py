@@ -151,6 +151,26 @@ class ClassifyTests(unittest.TestCase):
         self.assertEqual(stage0.classify(t)["verdict"], "technical")
 
 
+class ProgressLoggerTests(unittest.TestCase):
+    def test_pull_progress_is_logged_at_coarse_steps_not_per_chunk(self):
+        lines = []
+        cb = stage0.progress_logger(lines.append, "m:1b")
+        for done in (0, 1, 2, 9, 10, 11, 49, 50, 51, 99, 100):
+            cb({"status": "pulling abc", "total": 100, "completed": done})
+        cb({"status": "verifying sha256 digest"})
+        self.assertLessEqual(len(lines), 8)
+        self.assertTrue(any("50%" in line for line in lines))
+        self.assertTrue(any("100%" in line for line in lines))
+        self.assertTrue(any("verifying" in line for line in lines))
+
+    def test_rows_without_totals_are_ignored_safely(self):
+        lines = []
+        cb = stage0.progress_logger(lines.append, "m:1b")
+        cb({"status": "pulling manifest"})
+        cb({"total": 0, "completed": 0})
+        self.assertEqual(len(lines), 1)  # the status line only
+
+
 class FakeClient:
     """Duck-typed stand-in for OllamaClient with scripted behavior."""
 
@@ -258,6 +278,24 @@ class RunFlowTests(unittest.TestCase):
     def test_an_already_present_model_needs_no_store_check(self):
         r = stage0.run(FakeClient(present=True), CANDIDATE, store_check={"ok": False, "reason": "small disk"})
         self.assertEqual(r["verdict"], "ok")
+
+    def test_the_runtime_and_store_identity_are_recorded_verbatim_for_reproducibility(self):
+        runtime = {
+            "api_version": "0.34.3",
+            "binary_sha256": "ab" * 32,
+            "server_env": {"OLLAMA_MODELS": "/media/brain/JUNO/x"},
+        }
+        store = {"ok": True, "store_path": "/media/brain/JUNO/x", "free_gb": 460.0}
+        r = stage0.run(FakeClient(), CANDIDATE, runtime=runtime, store_check=store)
+        self.assertEqual(r["runtime"], runtime)
+        self.assertEqual(r["store"], store)
+
+    def test_a_blocked_candidate_still_records_why_and_where(self):
+        store = {"ok": False, "reason": "store full", "store_path": "/x", "free_gb": 1.0}
+        r = stage0.run(FakeClient(present=False), CANDIDATE, store_check=store, runtime={"api_version": "1"})
+        self.assertEqual(r["verdict"], models.BLOCKED)
+        self.assertEqual(r["store"], store)
+        self.assertEqual(r["runtime"], {"api_version": "1"})
 
     def test_a_pull_that_fails_for_another_reason_is_technical_not_blocked(self):
         client = FakeClient(present=False, pull_result={"status": "error", "error": "connection reset"})

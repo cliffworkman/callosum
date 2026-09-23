@@ -92,6 +92,24 @@ def classify(trials):
     return {"verdict": "ok", "reason": None, "notes": notes}
 
 
+def progress_logger(log, tag):
+    """A pull-progress callback that logs each 10% step and each status change once, not every chunk."""
+    state = {"decile": -1, "status": None}
+
+    def callback(row):
+        total, done = row.get("total") or 0, row.get("completed") or 0
+        if total > 0:
+            decile = min(100, int(100 * done / total) // 10 * 10)
+            if decile != state["decile"]:
+                state["decile"] = decile
+                log(f"{tag}: pulling {decile}%")
+        elif row.get("status") and row["status"] != state["status"]:
+            state["status"] = row["status"]
+            log(f"{tag}: {row['status']}")
+
+    return callback
+
+
 def _blocked(reason):
     return {"verdict": models.BLOCKED, "reason": reason}
 
@@ -114,14 +132,21 @@ def _trial(client, tag, name, prompt, schema, think):
     return {"name": name, "call": call, "valid_json": call["status"] == "ok" and valid_neutral(call["content"])}
 
 
-def run(client, candidate, *, host_snapshot=lambda: {}, store_check=None, log=lambda message: None):
+def run(client, candidate, *, host_snapshot=lambda: {}, store_check=None, runtime=None, log=lambda message: None):
     tag = candidate["tag"]
-    result = {"model": tag, "key": candidate["key"], "envelope": dict(models.ENVELOPE), "trials": []}
+    result = {
+        "model": tag,
+        "key": candidate["key"],
+        "envelope": dict(models.ENVELOPE),
+        "trials": [],
+        "runtime": runtime,
+        "store": store_check,
+    }
     if not _has_model(client, tag):
         if store_check is not None and not store_check.get("ok", True):
             return {**result, **_blocked(store_check.get("reason") or "model store cannot hold this candidate")}
         log(f"pulling {tag}")
-        pulled = client.pull(tag, on_progress=lambda row: None)
+        pulled = client.pull(tag, on_progress=progress_logger(log, tag))
         if pulled.get("status") != "success":
             error = str(pulled.get("error", pulled))
             if any(hint in error.lower() for hint in _BLOCKING_HINTS):
