@@ -8,6 +8,8 @@
     python -m experiments.ask_cli_revised.supervisor_eval.run_eval score   <key>
     python -m experiments.ask_cli_revised.supervisor_eval.run_eval report
     python -m experiments.ask_cli_revised.supervisor_eval.run_eval report-extension   # post-hoc extension arm only
+    python -m experiments.ask_cli_revised.supervisor_eval.run_eval sensitivity        # Qwen3.5 num_predict 4096->8192, the censored calls only
+    python -m experiments.ask_cli_revised.supervisor_eval.run_eval sensitivity-report
 
 Experimental discipline enforced here: the freeze is verified before any call; every frozen case is observed
 once per model; a recorded case is never re-observed on resume; only a pre-observation technical failure
@@ -33,6 +35,7 @@ from experiments.ask_cli_revised.supervisor_eval import (
     juno_resources,
     models,
     scoring,
+    sensitivity,
     stage0,
 )
 from experiments.ask_cli_revised.supervisor_eval.ollama_client import OllamaClient, gpu_fraction
@@ -118,7 +121,20 @@ def _save_json(path, value):
     )
 
 
-def run_battery(client, candidate, *, battery, out_dir, think, sampler=None, log=print, retry_technical=()):
+def run_battery(
+    client,
+    candidate,
+    *,
+    battery,
+    out_dir,
+    think,
+    sampler=None,
+    log=print,
+    retry_technical=(),
+    options=None,
+    case_ids=None,
+):
+    """`options`/`case_ids` default to the frozen envelope and all 19 cases; only an explicit sensitivity arm passes either."""
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     calls_path = out_dir / "battery_calls.jsonl"
@@ -128,7 +144,13 @@ def run_battery(client, candidate, *, battery, out_dir, think, sampler=None, log
         row = latest.get(case_id)
         if row is None or not _retry_eligible(row["call"]):
             raise IneligibleRetry(f"{case_id}: only a recorded, pre-observation technical failure may be retried")
+    options = models.ENVELOPE if options is None else options
     order = [c["case_id"] for c in battery["manifest"]["cases"]]
+    if case_ids is not None:
+        unknown = sorted(set(case_ids) - set(order))
+        if unknown:
+            raise ValueError(f"case ids not in the frozen battery: {unknown}")
+        order = [cid for cid in order if cid in set(case_ids)]
     pending = [cid for cid in order if cid not in latest or cid in retry]
     residency, resources = _load_json(out_dir / "residency.json"), _load_json(out_dir / "resources.json")
     if pending:
@@ -143,7 +165,7 @@ def run_battery(client, candidate, *, battery, out_dir, think, sampler=None, log
                     tag,
                     case["prompt"],
                     schema=case["schema"],
-                    options=models.ENVELOPE,
+                    options=options,
                     think=think,
                     keep_alive=models.KEEP_ALIVE,
                     wall_timeout=models.BATTERY_CALL_WALL_TIMEOUT_S,
@@ -477,6 +499,82 @@ def _cmd_report_extension():
     )
 
 
+def _cmd_sensitivity(client):
+    """Rerun ONLY the first tranche's length-censored qwen3.5:9b calls with num_predict 8192; everything else identical."""
+    runtime = _runtime_identity(client)
+    require_cuda(runtime)
+    manifest_path, private_path, freeze_path = _paths()
+    battery = load_frozen_battery(manifest_path, private_path, freeze_path)
+    original_dir, arm_dir = WORK_DIR / sensitivity.ORIGINAL_KEY, WORK_DIR / sensitivity.ARM_KEY
+    sensitivity.assert_separate_dirs(original_dir, arm_dir)
+    s0 = _load_json(original_dir / "stage0.json")
+    if s0.get("verdict") != "ok":
+        raise SystemExit(f"{sensitivity.ORIGINAL_KEY}: original Stage 0 verdict is {s0.get('verdict')!r}")
+    original = _read_rows(original_dir / "battery_calls.jsonl")
+    selected = sensitivity.select_censored_cases(original, [c["case_id"] for c in battery["manifest"]["cases"]])
+    options = sensitivity.envelope_8k()
+    for row in original:  # pre-run estimate only; the returned token counts are authoritative and re-checked afterwards
+        if row["case_id"] in selected:
+            room = sensitivity.context_headroom(
+                row["call"]["timings"]["prompt_eval_count"], options["num_predict"], options["num_ctx"]
+            )
+            if not room["ok"]:
+                raise SystemExit(f"{row['case_id']}: prompt + {options['num_predict']} exceeds num_ctx ({room})")
+    tag = _candidate(sensitivity.ORIGINAL_KEY)["tag"]
+    entry = next((m for m in client.tags() if m["name"] in (tag, f"{tag}:latest")), {})
+    arm_dir.mkdir(parents=True, exist_ok=True)
+    _save_json(
+        arm_dir / "arm.json",
+        {
+            "selected": selected,
+            "options": options,
+            "think": s0.get("think_setting"),
+            "artifact": extension.capture_artifact(client, tag),
+            "artifact_modified_at": entry.get("modified_at"),
+            "runtime": {
+                "api_version": runtime.get("api_version"),
+                "gpu_library": (runtime.get("gpu_backend") or {}).get("library"),
+                "nvidia_driver_live": runtime.get("nvidia_driver_live"),
+                "binary_sha256": (runtime.get("identity") or {}).get("binary_sha256"),
+            },
+        },
+    )
+    result = run_battery(
+        client,
+        {"key": sensitivity.ARM_KEY, "tag": tag},
+        battery=battery,
+        out_dir=arm_dir,
+        think=s0.get("think_setting"),
+        sampler=juno_resources.JunoSampler(out_dir=arm_dir),
+        log=print,
+        options=options,
+        case_ids=selected,
+    )
+    print(f"{sensitivity.ARM_KEY}: {len(result['calls'])} calls recorded")
+
+
+def _cmd_sensitivity_report():
+    """Text-free per-case receipt: both caps side by side, verdicts, ids, tokens, timings. No gates, no Qualified flag."""
+    arm_dir = WORK_DIR / sensitivity.ARM_KEY
+    original = {r["case_id"]: r for r in _read_rows(WORK_DIR / sensitivity.ORIGINAL_KEY / "battery_calls.jsonl")}
+    specs = {s["case_id"]: s for s in cases.build_case_specs()}
+    arm = {r["case_id"]: r for r in _read_rows(arm_dir / "battery_calls.jsonl")}
+    records = [
+        sensitivity.case_record(specs[cid], original[cid], arm[cid], models.ENVELOPE["num_ctx"])
+        for cid in specs
+        if cid in arm
+    ]
+    receipt = {
+        **sensitivity.arm_block(bb.PACKAGE_DIR / bb.FREEZE_NAME, _load_json(arm_dir / "arm.json")),
+        "residency": _load_json(arm_dir / "residency.json"),
+        "resources": _load_json(arm_dir / "resources.json"),
+        "cases": records,
+    }
+    RECEIPT_DIR.mkdir(exist_ok=True)
+    _save_json(RECEIPT_DIR / f"{sensitivity.ARM_KEY}.json", receipt)
+    print(f"receipt: {sensitivity.ARM_KEY} ({len(records)} cases)")
+
+
 def main(argv):
     command = argv[0] if argv else ""
     if command == "report":
@@ -485,13 +583,16 @@ def main(argv):
     if command == "report-extension":
         _cmd_report_extension()
         return 0
+    if command == "sensitivity-report":
+        _cmd_sensitivity_report()
+        return 0
     if command == "score" and len(argv) == 2:
         _cmd_score(argv[1])
         return 0
     if command == "setup-isolated":
         _cmd_setup_isolated()
         return 0
-    if command in ("preflight", "pull", "stage0", "battery"):
+    if command in ("preflight", "pull", "stage0", "battery", "sensitivity"):
         client = OllamaClient(ollama_url())
         try:
             if command == "preflight":
@@ -500,6 +601,8 @@ def main(argv):
                 _cmd_pull(client, argv[1])
             elif command == "stage0" and len(argv) == 2:
                 _cmd_stage0(client, argv[1])
+            elif command == "sensitivity" and len(argv) == 1:
+                _cmd_sensitivity(client)
             elif command == "battery" and len(argv) >= 2:
                 retry = argv[argv.index("--retry-technical") + 1 :] if "--retry-technical" in argv else []
                 _cmd_battery(client, argv[1], set(retry))

@@ -1,0 +1,372 @@
+{
+  "arm_of": "first-tranche",
+  "artifact": {
+    "digest": "6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7",
+    "size_bytes": 6594474711
+  },
+  "battery_manifest_sha256": "370ea09c59af8bb54eed70f42c13d6459b1bfe0b943da055d9e3d6542c281985",
+  "candidate": "qwen3.5-9b",
+  "cases": [
+    {
+      "cap_4096": {
+        "done_reason": "length",
+        "eval_count": 4096,
+        "status": "ok",
+        "verdict": "unusable"
+      },
+      "cap_8192": {
+        "absence_hits": 0,
+        "approx_split": {
+          "approximate": true,
+          "final": 104,
+          "reasoning": 5415
+        },
+        "completed": true,
+        "context": {
+          "generated": 5519,
+          "headroom": 6282,
+          "ok": true,
+          "prompt_tokens": 487,
+          "total": 6006
+        },
+        "done_reason": "stop",
+        "eval_count": 5519,
+        "hit_cap": false,
+        "invented_ids": [],
+        "reasons": [
+          "missing required ['s1-o1']"
+        ],
+        "result": {
+          "selected": []
+        },
+        "status": "ok",
+        "structured_valid": true,
+        "tokens_per_second": 32.541136973528744,
+        "verdict": "fail",
+        "wall_seconds": 214.93800000000192
+      },
+      "case_id": "A1.original",
+      "prefix": {
+        "common_chars": 17609,
+        "fraction_of_original": 1.0,
+        "original_chars": 17609
+      }
+    },
+    {
+      "cap_4096": {
+        "done_reason": "length",
+        "eval_count": 4096,
+        "status": "ok",
+        "verdict": "unusable"
+      },
+      "cap_8192": {
+        "absence_hits": 0,
+        "approx_split": {
+          "approximate": true,
+          "final": 85,
+          "reasoning": 6100
+        },
+        "completed": true,
+        "context": {
+          "generated": 6185,
+          "headroom": 5617,
+          "ok": true,
+          "prompt_tokens": 486,
+          "total": 6671
+        },
+        "done_reason": "stop",
+        "eval_count": 6185,
+        "hit_cap": false,
+        "invented_ids": [],
+        "reasons": [],
+        "result": {
+          "selected": [
+            "s3-o1"
+          ]
+        },
+        "status": "ok",
+        "structured_valid": true,
+        "tokens_per_second": 32.278723842152004,
+        "verdict": "pass",
+        "wall_seconds": 192.40699999999924
+      },
+      "case_id": "A7.original",
+      "prefix": {
+        "common_chars": 16708,
+        "fraction_of_original": 1.0,
+        "original_chars": 16708
+      }
+    },
+    {
+      "cap_4096": {
+        "done_reason": "length",
+        "eval_count": 4096,
+        "status": "ok",
+        "verdict": "unusable"
+      },
+      "cap_8192": {
+        "absence_hits": 0,
+        "approx_split": {
+          "approximate": true,
+          "final": 0,
+          "reasoning": 8192
+        },
+        "completed": false,
+        "context": {
+          "generated": 8192,
+          "headroom": 3610,
+          "ok": true,
+          "prompt_tokens": 486,
+          "total": 8678
+        },
+        "done_reason": "length",
+        "eval_count": 8192,
+        "hit_cap": true,
+        "invented_ids": [],
+        "reasons": [
+          "done_reason=length (output not completed)",
+          "unparseable JSON (Expecting value)"
+        ],
+        "result": null,
+        "status": "ok",
+        "structured_valid": false,
+        "tokens_per_second": 33.19622640761675,
+        "verdict": "unusable",
+        "wall_seconds": 247.51499999999942
+      },
+      "case_id": "A7.reversed",
+      "prefix": {
+        "common_chars": 17114,
+        "fraction_of_original": 1.0,
+        "original_chars": 17114
+      }
+    },
+    {
+      "cap_4096": {
+        "done_reason": "length",
+        "eval_count": 4096,
+        "status": "ok",
+        "verdict": "unusable"
+      },
+      "cap_8192": {
+        "absence_hits": 0,
+        "approx_split": {
+          "approximate": true,
+          "final": 0,
+          "reasoning": 8192
+        },
+        "completed": false,
+        "context": {
+          "generated": 8192,
+          "headroom": 3036,
+          "ok": true,
+          "prompt_tokens": 1060,
+          "total": 9252
+        },
+        "done_reason": "length",
+        "eval_count": 8192,
+        "hit_cap": true,
+        "invented_ids": [],
+        "reasons": [
+          "done_reason=length (output not completed)",
+          "unparseable JSON (Expecting value)"
+        ],
+        "result": null,
+        "status": "ok",
+        "structured_valid": false,
+        "tokens_per_second": 33.51116737358308,
+        "verdict": "unusable",
+        "wall_seconds": 245.7970000000023
+      },
+      "case_id": "B1.original",
+      "prefix": {
+        "common_chars": 15606,
+        "fraction_of_original": 1.0,
+        "original_chars": 15606
+      }
+    },
+    {
+      "cap_4096": {
+        "done_reason": "length",
+        "eval_count": 4096,
+        "status": "ok",
+        "verdict": "unusable"
+      },
+      "cap_8192": {
+        "absence_hits": 0,
+        "approx_split": {
+          "approximate": true,
+          "final": 0,
+          "reasoning": 8192
+        },
+        "completed": false,
+        "context": {
+          "generated": 8192,
+          "headroom": 3036,
+          "ok": true,
+          "prompt_tokens": 1060,
+          "total": 9252
+        },
+        "done_reason": "length",
+        "eval_count": 8192,
+        "hit_cap": true,
+        "invented_ids": [],
+        "reasons": [
+          "done_reason=length (output not completed)",
+          "unparseable JSON (Expecting value)"
+        ],
+        "result": null,
+        "status": "ok",
+        "structured_valid": false,
+        "tokens_per_second": 33.55236449578404,
+        "verdict": "unusable",
+        "wall_seconds": 245.59399999999732
+      },
+      "case_id": "B1.reversed",
+      "prefix": {
+        "common_chars": 16419,
+        "fraction_of_original": 1.0,
+        "original_chars": 16419
+      }
+    },
+    {
+      "cap_4096": {
+        "done_reason": "length",
+        "eval_count": 4096,
+        "status": "ok",
+        "verdict": "unusable"
+      },
+      "cap_8192": {
+        "absence_hits": 0,
+        "approx_split": {
+          "approximate": true,
+          "final": 185,
+          "reasoning": 5897
+        },
+        "completed": true,
+        "context": {
+          "generated": 6082,
+          "headroom": 4458,
+          "ok": true,
+          "prompt_tokens": 1748,
+          "total": 7830
+        },
+        "done_reason": "stop",
+        "eval_count": 6082,
+        "hit_cap": false,
+        "invented_ids": [],
+        "reasons": [],
+        "result": {
+          "plan": {
+            "s1-o1": "s1-o1:MARK_COVERED:p3",
+            "s2-o1": "s2-o1:MARK_COVERED:p1",
+            "s3-o1": "s3-o1:PRESERVE_UNRESOLVED",
+            "s4-o1": "s4-o1:NOMINATE",
+            "s5-o1": "s5-o1:PRESERVE_UNRESOLVED",
+            "s6-o1": "s6-o1:PRESERVE_UNRESOLVED"
+          }
+        },
+        "status": "ok",
+        "structured_valid": true,
+        "tokens_per_second": 32.48994174011769,
+        "verdict": "pass",
+        "wall_seconds": 189.10900000000038
+      },
+      "case_id": "C1.original",
+      "prefix": {
+        "common_chars": 15402,
+        "fraction_of_original": 1.0,
+        "original_chars": 15402
+      }
+    },
+    {
+      "cap_4096": {
+        "done_reason": "length",
+        "eval_count": 4096,
+        "status": "ok",
+        "verdict": "unusable"
+      },
+      "cap_8192": {
+        "absence_hits": 0,
+        "approx_split": {
+          "approximate": true,
+          "final": 155,
+          "reasoning": 6918
+        },
+        "completed": true,
+        "context": {
+          "generated": 7073,
+          "headroom": 3467,
+          "ok": true,
+          "prompt_tokens": 1748,
+          "total": 8821
+        },
+        "done_reason": "stop",
+        "eval_count": 7073,
+        "hit_cap": false,
+        "invented_ids": [],
+        "reasons": [],
+        "result": {
+          "plan": {
+            "s1-o1": "s1-o1:MARK_COVERED:p3",
+            "s2-o1": "s2-o1:MARK_COVERED:p4",
+            "s3-o1": "s3-o1:PRESERVE_UNRESOLVED",
+            "s4-o1": "s4-o1:NOMINATE",
+            "s5-o1": "s5-o1:PRESERVE_UNRESOLVED",
+            "s6-o1": "s6-o1:PRESERVE_UNRESOLVED"
+          }
+        },
+        "status": "ok",
+        "structured_valid": true,
+        "tokens_per_second": 32.53362137953759,
+        "verdict": "pass",
+        "wall_seconds": 219.34400000000096
+      },
+      "case_id": "C1.reversed",
+      "prefix": {
+        "common_chars": 16701,
+        "fraction_of_original": 1.0,
+        "original_chars": 16701
+      }
+    }
+  ],
+  "changed_variable": {
+    "num_predict": [
+      4096,
+      8192
+    ]
+  },
+  "envelope": {
+    "num_batch": 512,
+    "num_ctx": 12288,
+    "num_predict": 8192,
+    "num_thread": 6,
+    "seed": 42,
+    "temperature": 0
+  },
+  "first_tranche_freeze_commit": "3d12610d",
+  "first_tranche_results_commit": "87e3d7c3",
+  "freeze_sha256": "5848f8c4c2aaac6b90e22ff09ea6216f2e86d2d85d8accd9a2c70f521e70697e",
+  "kind": "execution-envelope sensitivity arm on the first tranche's length-censored calls; post-hoc, predeclared; not part of the frozen first tranche",
+  "private_battery_sha256": "037806d3e29f08275b205aa3d6890cfdece364b6ade7de9f8f3bf5137707e4fd",
+  "residency": {
+    "gpu_fraction": 1.0,
+    "size": 5766905854,
+    "size_vram": 5766905854
+  },
+  "resources": {
+    "min_ram_available_mib": 10416,
+    "n_samples": 3596,
+    "peak_gpu_mem_mib": 6700,
+    "peak_ollama_rss_mib": 44,
+    "peak_ram_used_mib": 5487,
+    "peak_swap_used_mib": 1326
+  },
+  "runtime": {
+    "api_version": "0.34.3",
+    "binary_sha256": "825106b5e961f30ca5445519e222ad911cbd544a326d695f64ebdbd97f88bcca",
+    "gpu_library": "CUDA",
+    "nvidia_driver_live": "580.178.04"
+  },
+  "unchanged": "num_ctx, prompts, schemas, orderings, temperature, seed, think, num_thread, num_batch, keep-alive, watchdogs"
+}
