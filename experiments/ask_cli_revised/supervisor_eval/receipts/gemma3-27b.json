@@ -1,0 +1,472 @@
+{
+  "candidate": "gemma3-27b",
+  "cases": {
+    "A1.original": {
+      "diagnostic_selected": [
+        "s2-o1"
+      ],
+      "duplicates": [],
+      "reasons": [],
+      "selected": [
+        "s1-o1",
+        "s2-o1"
+      ],
+      "verdict": "pass"
+    },
+    "A1.reversed": {
+      "diagnostic_selected": [
+        "s2-o1"
+      ],
+      "duplicates": [],
+      "reasons": [],
+      "selected": [
+        "s1-o1",
+        "s2-o1"
+      ],
+      "verdict": "pass"
+    },
+    "A1.rotated": {
+      "diagnostic_selected": [
+        "s2-o1"
+      ],
+      "duplicates": [],
+      "reasons": [],
+      "selected": [
+        "s1-o1",
+        "s2-o1"
+      ],
+      "verdict": "pass"
+    },
+    "A2.original": {
+      "diagnostic_selected": [
+        "s2-o1"
+      ],
+      "duplicates": [],
+      "reasons": [],
+      "selected": [
+        "s4-o1",
+        "s2-o1"
+      ],
+      "verdict": "pass"
+    },
+    "A2.reversed": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [],
+      "selected": [
+        "s4-o1"
+      ],
+      "verdict": "pass"
+    },
+    "A2.rotated": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [],
+      "selected": [
+        "s4-o1"
+      ],
+      "verdict": "pass"
+    },
+    "A3.original": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [
+        "selected forbidden ['s2-o1']"
+      ],
+      "selected": [
+        "s2-o1"
+      ],
+      "verdict": "fail"
+    },
+    "A3.reversed": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [
+        "selected forbidden ['s2-o1']"
+      ],
+      "selected": [
+        "s2-o1"
+      ],
+      "verdict": "fail"
+    },
+    "A3.rotated": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [
+        "selected forbidden ['s1-o1', 's2-o1']"
+      ],
+      "selected": [
+        "s1-o1",
+        "s2-o1"
+      ],
+      "verdict": "fail"
+    },
+    "A4.original": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [
+        "selected forbidden ['s2-o1']"
+      ],
+      "selected": [
+        "s2-o1"
+      ],
+      "verdict": "fail"
+    },
+    "A5.original": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [],
+      "selected": [],
+      "verdict": "pass"
+    },
+    "A6.original": {
+      "diagnostic_selected": [
+        "s2-o1"
+      ],
+      "duplicates": [],
+      "reasons": [],
+      "selected": [
+        "s2-o1"
+      ],
+      "verdict": "diagnostic"
+    },
+    "A7.original": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [],
+      "selected": [
+        "s3-o1"
+      ],
+      "verdict": "pass"
+    },
+    "A7.reversed": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [],
+      "selected": [
+        "s3-o1"
+      ],
+      "verdict": "pass"
+    },
+    "A7.rotated": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [],
+      "selected": [
+        "s3-o1"
+      ],
+      "verdict": "pass"
+    },
+    "B1.original": {
+      "attached": [
+        "p1",
+        "p2",
+        "p3",
+        "p4",
+        "p5",
+        "p6"
+      ],
+      "reasons": [
+        "p2 attached as support for s3-o1",
+        "p5 attached as support for s3-o1",
+        "p6 attached as support for s5-o1"
+      ],
+      "unmapped": [],
+      "verdict": "fail"
+    },
+    "B1.reversed": {
+      "attached": [
+        "p1",
+        "p2",
+        "p3",
+        "p4",
+        "p5"
+      ],
+      "reasons": [
+        "p2 attached as support for s3-o1",
+        "p5 attached as support for s3-o1"
+      ],
+      "unmapped": [
+        "p6"
+      ],
+      "verdict": "fail"
+    },
+    "C1.original": {
+      "plan": {
+        "s1-o1": "s1-o1:MARK_COVERED:p3",
+        "s2-o1": "s2-o1:MARK_COVERED:p4",
+        "s3-o1": "s3-o1:PRESERVE_UNRESOLVED",
+        "s4-o1": "s4-o1:NOMINATE",
+        "s5-o1": "s5-o1:PRESERVE_UNRESOLVED",
+        "s6-o1": "s6-o1:PRESERVE_UNRESOLVED"
+      },
+      "reasons": [],
+      "verdict": "pass"
+    },
+    "C1.reversed": {
+      "plan": {
+        "s1-o1": "s1-o1:PRESERVE_UNRESOLVED",
+        "s2-o1": "s2-o1:PRESERVE_UNRESOLVED",
+        "s3-o1": "s3-o1:PRESERVE_UNRESOLVED",
+        "s4-o1": "s4-o1:NOMINATE",
+        "s5-o1": "s5-o1:PRESERVE_UNRESOLVED",
+        "s6-o1": "s6-o1:PRESERVE_UNRESOLVED"
+      },
+      "reasons": [],
+      "verdict": "pass"
+    }
+  },
+  "diagnostics": {
+    "negative_cases_with_any_selection": 4
+  },
+  "extension": {
+    "artifact": {
+      "digest": "a418f5838eaf7fe2cfe0a3046c8384b68ba43a4435542c942f9db00a5f342203",
+      "size_bytes": 17396936941
+    },
+    "battery_manifest_sha256": "370ea09c59af8bb54eed70f42c13d6459b1bfe0b943da055d9e3d6542c281985",
+    "envelope": {
+      "num_batch": 512,
+      "num_ctx": 12288,
+      "num_predict": 4096,
+      "num_thread": 6,
+      "seed": 42,
+      "temperature": 0
+    },
+    "extension_of": "first-tranche",
+    "first_tranche_freeze_commit": "3d12610d",
+    "first_tranche_results_commit": "87e3d7c3",
+    "freeze_sha256": "5848f8c4c2aaac6b90e22ff09ea6216f2e86d2d85d8accd9a2c70f521e70697e",
+    "kind": "post-hoc, predeclared same-family scale extension, run after the first tranche's results were observed",
+    "private_battery_sha256": "037806d3e29f08275b205aa3d6890cfdece364b6ade7de9f8f3bf5137707e4fd"
+  },
+  "gates": {
+    "G1": {
+      "detail": [],
+      "status": "PASS"
+    },
+    "G2": {
+      "detail": [],
+      "status": "PASS"
+    },
+    "G3": {
+      "detail": [],
+      "status": "PASS"
+    },
+    "G4": {
+      "detail": [
+        "A3.original: selected forbidden ['s2-o1']",
+        "A3.reversed: selected forbidden ['s2-o1']",
+        "A3.rotated: selected forbidden ['s1-o1', 's2-o1']",
+        "A4.original: selected forbidden ['s2-o1']"
+      ],
+      "status": "FAIL"
+    },
+    "G5": {
+      "detail": [
+        "A2: selection changed with presentation order {'original': ['s2-o1', 's4-o1'], 'reversed': ['s4-o1'], 'rotated': ['s4-o1']}",
+        "A3: selection changed with presentation order {'original': ['s2-o1'], 'reversed': ['s2-o1'], 'rotated': ['s1-o1', 's2-o1']}"
+      ],
+      "status": "FAIL"
+    },
+    "G6": {
+      "detail": [
+        "B1.original: p2 attached as support for s3-o1; p5 attached as support for s3-o1; p6 attached as support for s5-o1",
+        "B1.reversed: p2 attached as support for s3-o1; p5 attached as support for s3-o1"
+      ],
+      "status": "FAIL"
+    },
+    "G7": {
+      "detail": [],
+      "status": "PASS"
+    },
+    "G8": {
+      "hits": 0,
+      "status": "PASS"
+    }
+  },
+  "performance": {
+    "call_statuses": {
+      "ok": 19
+    },
+    "first_call_load_seconds": 140.263395529,
+    "generated_tokens_total": 2180,
+    "max_prompt_tokens": 1797,
+    "residency": {
+      "gpu_fraction": 0.3099832578102314,
+      "size": 18472137413,
+      "size_vram": 5726053334
+    },
+    "resources": {
+      "min_ram_available_mib": 10165,
+      "n_samples": 3152,
+      "peak_gpu_mem_mib": 6746,
+      "peak_ollama_rss_mib": 45,
+      "peak_ram_used_mib": 5737,
+      "peak_swap_used_mib": 5068
+    },
+    "tokens_per_second": {
+      "max": 2.2818709158851123,
+      "median": 2.2687794059375768,
+      "min": 2.0076287811699056
+    },
+    "total_battery_wall_s": 1425.4209999999985,
+    "warm_calls": 18,
+    "warm_latency_s": {
+      "max": 203.28199999999924,
+      "median": 40.90599999999904,
+      "min": 33.1720000000023
+    }
+  },
+  "qualified": false,
+  "stage0": {
+    "enum_enforced": true,
+    "envelope": {
+      "num_batch": 512,
+      "num_ctx": 12288,
+      "num_predict": 4096,
+      "num_thread": 6,
+      "seed": 42,
+      "temperature": 0
+    },
+    "host": {
+      "host_after": {
+        "gpu_mem_total_mib": 8192,
+        "gpu_mem_used_mib": 6810,
+        "gpu_util_pct": 0,
+        "ollama_rss_mib": 41,
+        "ram_available_mib": 11318,
+        "ram_used_mib": 4585,
+        "swap_used_mib": 1264
+      },
+      "host_before": {
+        "gpu_mem_total_mib": 8192,
+        "gpu_mem_used_mib": 61,
+        "gpu_util_pct": 0,
+        "ollama_rss_mib": 60,
+        "ram_available_mib": 14072,
+        "ram_used_mib": 1830,
+        "swap_used_mib": 800
+      },
+      "host_resident": {
+        "gpu_mem_total_mib": 8192,
+        "gpu_mem_used_mib": 6740,
+        "gpu_util_pct": 0,
+        "ollama_rss_mib": 42,
+        "ram_available_mib": 12940,
+        "ram_used_mib": 2962,
+        "swap_used_mib": 1258
+      }
+    },
+    "identity": {
+      "capabilities": [
+        "completion",
+        "vision"
+      ],
+      "context_length": 131072,
+      "family": "gemma3",
+      "license_head": "Gemma Terms of Use ",
+      "parameter_size": "27.4B",
+      "quantization_level": "Q4_K_M"
+    },
+    "padded": {
+      "blocks": 1574,
+      "in_band": true,
+      "prompt_tokens": 7926,
+      "target": 8064
+    },
+    "reason": null,
+    "residency": {
+      "gpu_fraction": 0.3099832578102314,
+      "size": 18472137413,
+      "size_vram": 5726053334
+    },
+    "runtime": {
+      "api_version": "0.34.3",
+      "asset": {
+        "name": "ollama-linux-amd64.tar.zst",
+        "sha256": "e83a089fd0cd2f79ee2933cca2085846a2065f497adbc6467c402177c68423f9",
+        "size": 1427391999,
+        "url": "https://github.com/ollama/ollama/releases/download/v0.34.3/ollama-linux-amd64.tar.zst"
+      },
+      "gpu_backend": {
+        "available": "7.5 GiB",
+        "compute": "8.6",
+        "driver": "13.0",
+        "libdirs": "ollama,cuda_v13",
+        "library": "CUDA",
+        "name": "CUDA0",
+        "total": "7.7 GiB"
+      },
+      "identity": {
+        "binary_sha256": "825106b5e961f30ca5445519e222ad911cbd544a326d695f64ebdbd97f88bcca",
+        "binary_version": "0.34.3",
+        "nvidia_driver": "580.178.04"
+      },
+      "install_dir": "/media/brain/JUNO/ollama-bakeoff/ollama-v0.34.3",
+      "listen": "127.0.0.1:11435",
+      "models_dir": "/media/brain/JUNO/ollama-models/ask-070-bakeoff",
+      "nvidia_driver_live": "580.178.04",
+      "pid": 4395,
+      "release_tag": "v0.34.3",
+      "server_env": {
+        "OLLAMA_HOST": "127.0.0.1:11435",
+        "OLLAMA_MAX_LOADED_MODELS": "1",
+        "OLLAMA_MODELS": "/media/brain/JUNO/ollama-models/ask-070-bakeoff",
+        "OLLAMA_NUM_PARALLEL": "1"
+      },
+      "started_utc": "2026-09-23T19:43:29Z"
+    },
+    "store": {
+      "free_gb": 406.0,
+      "ok": true,
+      "reason": null,
+      "store_path": "/media/brain/JUNO/ollama-models/ask-070-bakeoff"
+    },
+    "think_setting": null,
+    "trials": [
+      {
+        "generated_tokens": 20,
+        "load_seconds": 162.366660632,
+        "name": "compact-cold",
+        "prompt_tokens": 44,
+        "status": "ok",
+        "tokens_per_second": 2.4056150905196874,
+        "valid_json": true,
+        "wall_seconds": 175.79699999999866
+      },
+      {
+        "generated_tokens": 20,
+        "load_seconds": 0.079689598,
+        "name": "compact-warm-1",
+        "prompt_tokens": 44,
+        "status": "ok",
+        "tokens_per_second": 2.4690595969260207,
+        "valid_json": true,
+        "wall_seconds": 9.328000000001339
+      },
+      {
+        "generated_tokens": 20,
+        "load_seconds": 0.010916274,
+        "name": "compact-warm-2",
+        "prompt_tokens": 44,
+        "status": "ok",
+        "tokens_per_second": 2.4887446523099284,
+        "valid_json": true,
+        "wall_seconds": 9.140999999999622
+      },
+      {
+        "generated_tokens": 27,
+        "load_seconds": 0.053927993,
+        "name": "padded",
+        "prompt_tokens": 7926,
+        "status": "ok",
+        "tokens_per_second": 1.9426755304475536,
+        "valid_json": true,
+        "wall_seconds": 65.95400000000154
+      }
+    ],
+    "verdict": "ok"
+  },
+  "tag": "gemma3:27b"
+}

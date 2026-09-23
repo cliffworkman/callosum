@@ -7,6 +7,7 @@
     python -m experiments.ask_cli_revised.supervisor_eval.run_eval battery <key> [--retry-technical CASE_ID ...]
     python -m experiments.ask_cli_revised.supervisor_eval.run_eval score   <key>
     python -m experiments.ask_cli_revised.supervisor_eval.run_eval report
+    python -m experiments.ask_cli_revised.supervisor_eval.run_eval report-extension   # post-hoc extension arm only
 
 Experimental discipline enforced here: the freeze is verified before any call; every frozen case is observed
 once per model; a recorded case is never re-observed on resume; only a pre-observation technical failure
@@ -26,6 +27,7 @@ from experiments.ask_070.hashing import digest
 from experiments.ask_cli_revised.supervisor_eval import build_battery as bb
 from experiments.ask_cli_revised.supervisor_eval import (
     cases,
+    extension,
     freeze,
     isolated_ollama,
     juno_resources,
@@ -259,7 +261,20 @@ def _paths():
 
 
 def _candidate(key):
-    return models.by_key(key)
+    """The first tranche's frozen registry first, then the post-hoc extension registry (never merged into it)."""
+    for registry in (models.CANDIDATES, extension.CANDIDATES):
+        for cand in registry:
+            if cand["key"] == key:
+                return cand
+    raise KeyError(f"unknown candidate {key!r}")
+
+
+def _record_artifact(client, cand):
+    """Write the runtime-observed artifact identity (digest, size) beside the candidate's run, if it is present."""
+    artifact = extension.capture_artifact(client, cand["tag"])
+    if artifact:
+        (WORK_DIR / cand["key"]).mkdir(parents=True, exist_ok=True)
+        _save_json(WORK_DIR / cand["key"] / "artifact.json", artifact)
 
 
 def _runtime_identity(client):
@@ -304,6 +319,7 @@ def _cmd_pull(client, key):
         raise SystemExit(f"{key}: store check failed: {store['reason']}")
     result = client.pull(cand["tag"], on_progress=stage0.progress_logger(print, cand["tag"]))
     print(f"{key}: pull {result.get('status')} {result.get('error') or ''}")
+    _record_artifact(client, cand)
 
 
 def _cmd_stage0(client, key):
@@ -418,9 +434,10 @@ def _cmd_score(key):
     print(json.dumps({"qualified": scored["qualified"], "gates": {g: v["status"] for g, v in scored["gates"].items()}}))
 
 
-def _cmd_report():
+def _write_receipts(candidates, extra=None):
+    """Write a text-free receipt per candidate that has a Stage-0 record; `extra(cand)` adds an optional block."""
     RECEIPT_DIR.mkdir(exist_ok=True)
-    for cand in models.CANDIDATES:
+    for cand in candidates:
         out_dir = WORK_DIR / cand["key"]
         s0 = _load_json(out_dir / "stage0.json")
         if not s0:
@@ -439,14 +456,34 @@ def _cmd_report():
                     for k in ("verdict", "reason", "identity", "think_setting", "envelope", "runtime", "store")
                 },
             }
+        if extra:
+            receipt = {**receipt, "extension": extra(cand)}
         _save_json(RECEIPT_DIR / f"{cand['key']}.json", receipt)
         print(f"receipt: {cand['key']}")
+
+
+def _cmd_report():
+    """First-tranche receipts only; the extension is never written (or read) here."""
+    _write_receipts(models.CANDIDATES)
+
+
+def _cmd_report_extension():
+    freeze_path = bb.PACKAGE_DIR / bb.FREEZE_NAME
+    _write_receipts(
+        extension.CANDIDATES,
+        extra=lambda cand: extension.extension_block(
+            freeze_path, _load_json(WORK_DIR / cand["key"] / "artifact.json") or None
+        ),
+    )
 
 
 def main(argv):
     command = argv[0] if argv else ""
     if command == "report":
         _cmd_report()
+        return 0
+    if command == "report-extension":
+        _cmd_report_extension()
         return 0
     if command == "score" and len(argv) == 2:
         _cmd_score(argv[1])

@@ -224,3 +224,5 @@ Public artifacts: this report, `README.md`, `FREEZE.txt` (`freeze_sha256 5848f8c
 gate results), and `receipts/infrastructure.json`. Private (gitignored, `.local/ask-070-supervisor-bakeoff/`): the
 battery with verbatim quotes, and per-model raw outputs, thinking text, resource CSVs. 247 offline tests pass; ruff
 is clean on the package. The freeze commit is `3d12610d`; the results commit follows it and is not pushed.
+
+**Follow-up (post-hoc, after this report):** the predeclared same-family tier-up extension is in [`GEMMA27_EXTENSION.md`](GEMMA27_EXTENSION.md). It does not alter any conclusion or table above.
