@@ -177,6 +177,23 @@ class ParseTests(unittest.TestCase):
     def test_unparseable_identity_is_empty_not_a_crash(self):
         self.assertEqual(iso.parse_identity("boom"), {})
 
+    def test_the_latest_backend_selection_wins_across_server_restarts(self):
+        # the log is append-only: a Vulkan start followed by a CUDA start after a driver upgrade must report CUDA
+        old = 'time=1 level=INFO source=types.go msg="inference compute" id=0 library=Vulkan compute=0.0 name=Vulkan0 total="8.2 GiB"'
+        new = (
+            'time=2 level=INFO source=types.go msg="inference compute" id=GPU-abc library=CUDA compute=8.6 name=CUDA0 '
+            'description="NVIDIA GeForce RTX 3050" libdirs=ollama,cuda_v13 driver=13.0 total="8.0 GiB" available="7.7 GiB"'
+        )
+        got = iso.parse_gpu_backend(old + "\n" + new + "\n")
+        self.assertEqual(got["library"], "CUDA")
+        self.assertEqual(got["libdirs"], "ollama,cuda_v13")
+        self.assertEqual(got["driver"], "13.0")
+
+    def test_the_log_probe_asks_only_for_backend_selection_lines(self):
+        cmd = iso.log_tail_command()
+        self.assertIn("inference compute", cmd)
+        self.assertIn("driver too old", cmd)
+
     def test_gpu_backend_is_read_from_the_server_log(self):
         log = 'time=... level=INFO source=types.go msg="inference compute" id=GPU-abc library=CUDA compute=8.6 name=CUDA0 total="8.0 GiB" available="7.6 GiB"\n'
         self.assertEqual(iso.parse_gpu_backend(log)["library"], "CUDA")

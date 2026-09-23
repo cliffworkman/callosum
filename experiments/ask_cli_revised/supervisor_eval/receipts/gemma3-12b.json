@@ -1,0 +1,430 @@
+{
+  "candidate": "gemma3-12b",
+  "cases": {
+    "A1.original": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [],
+      "selected": [
+        "s1-o1"
+      ],
+      "verdict": "pass"
+    },
+    "A1.reversed": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [],
+      "selected": [
+        "s1-o1"
+      ],
+      "verdict": "pass"
+    },
+    "A1.rotated": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [],
+      "selected": [
+        "s1-o1"
+      ],
+      "verdict": "pass"
+    },
+    "A2.original": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [],
+      "selected": [
+        "s4-o1"
+      ],
+      "verdict": "pass"
+    },
+    "A2.reversed": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [],
+      "selected": [
+        "s4-o1"
+      ],
+      "verdict": "pass"
+    },
+    "A2.rotated": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [],
+      "selected": [
+        "s4-o1"
+      ],
+      "verdict": "pass"
+    },
+    "A3.original": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [
+        "selected forbidden ['s2-o1']"
+      ],
+      "selected": [
+        "s2-o1"
+      ],
+      "verdict": "fail"
+    },
+    "A3.reversed": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [
+        "selected forbidden ['s2-o1']"
+      ],
+      "selected": [
+        "s2-o1"
+      ],
+      "verdict": "fail"
+    },
+    "A3.rotated": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [
+        "selected forbidden ['s2-o1']"
+      ],
+      "selected": [
+        "s2-o1"
+      ],
+      "verdict": "fail"
+    },
+    "A4.original": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [],
+      "selected": [],
+      "verdict": "pass"
+    },
+    "A5.original": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [],
+      "selected": [],
+      "verdict": "pass"
+    },
+    "A6.original": {
+      "diagnostic_selected": [
+        "s2-o1"
+      ],
+      "duplicates": [],
+      "reasons": [],
+      "selected": [
+        "s2-o1"
+      ],
+      "verdict": "diagnostic"
+    },
+    "A7.original": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [],
+      "selected": [
+        "s3-o1"
+      ],
+      "verdict": "pass"
+    },
+    "A7.reversed": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [],
+      "selected": [
+        "s3-o1"
+      ],
+      "verdict": "pass"
+    },
+    "A7.rotated": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [],
+      "selected": [
+        "s3-o1"
+      ],
+      "verdict": "pass"
+    },
+    "B1.original": {
+      "attached": [
+        "p1",
+        "p2",
+        "p3",
+        "p4",
+        "p5"
+      ],
+      "reasons": [
+        "p5 attached as support for s3-o1"
+      ],
+      "unmapped": [
+        "p6"
+      ],
+      "verdict": "fail"
+    },
+    "B1.reversed": {
+      "attached": [
+        "p1",
+        "p2",
+        "p3",
+        "p4",
+        "p5"
+      ],
+      "reasons": [
+        "p1 attached as support for s3-o1",
+        "p2 attached as support for s3-o1",
+        "p5 attached as support for s3-o1"
+      ],
+      "unmapped": [
+        "p6"
+      ],
+      "verdict": "fail"
+    },
+    "C1.original": {
+      "plan": {
+        "s1-o1": "s1-o1:PRESERVE_UNRESOLVED",
+        "s2-o1": "s2-o1:PRESERVE_UNRESOLVED",
+        "s3-o1": "s3-o1:PRESERVE_UNRESOLVED",
+        "s4-o1": "s4-o1:NOMINATE",
+        "s5-o1": "s5-o1:PRESERVE_UNRESOLVED",
+        "s6-o1": "s6-o1:PRESERVE_UNRESOLVED"
+      },
+      "reasons": [],
+      "verdict": "pass"
+    },
+    "C1.reversed": {
+      "plan": {
+        "s1-o1": "s1-o1:PRESERVE_UNRESOLVED",
+        "s2-o1": "s2-o1:PRESERVE_UNRESOLVED",
+        "s3-o1": "s3-o1:PRESERVE_UNRESOLVED",
+        "s4-o1": "s4-o1:NOMINATE",
+        "s5-o1": "s5-o1:PRESERVE_UNRESOLVED",
+        "s6-o1": "s6-o1:PRESERVE_UNRESOLVED"
+      },
+      "reasons": [],
+      "verdict": "pass"
+    }
+  },
+  "diagnostics": {
+    "negative_cases_with_any_selection": 3
+  },
+  "gates": {
+    "G1": {
+      "detail": [],
+      "status": "PASS"
+    },
+    "G2": {
+      "detail": [],
+      "status": "PASS"
+    },
+    "G3": {
+      "detail": [],
+      "status": "PASS"
+    },
+    "G4": {
+      "detail": [
+        "A3.original: selected forbidden ['s2-o1']",
+        "A3.reversed: selected forbidden ['s2-o1']",
+        "A3.rotated: selected forbidden ['s2-o1']"
+      ],
+      "status": "FAIL"
+    },
+    "G5": {
+      "detail": [],
+      "status": "PASS"
+    },
+    "G6": {
+      "detail": [
+        "B1.original: p5 attached as support for s3-o1",
+        "B1.reversed: p1 attached as support for s3-o1; p2 attached as support for s3-o1; p5 attached as support for s3-o1"
+      ],
+      "status": "FAIL"
+    },
+    "G7": {
+      "detail": [],
+      "status": "PASS"
+    },
+    "G8": {
+      "hits": 0,
+      "status": "PASS"
+    }
+  },
+  "performance": {
+    "call_statuses": {
+      "ok": 19
+    },
+    "first_call_load_seconds": 6.096738997,
+    "generated_tokens_total": 1953,
+    "max_prompt_tokens": 1797,
+    "residency": {
+      "gpu_fraction": 0.6217970160748142,
+      "size": 8970173960,
+      "size_vram": 5577627402
+    },
+    "resources": {
+      "min_ram_available_mib": 8802,
+      "n_samples": 606,
+      "peak_gpu_mem_mib": 6920,
+      "peak_ollama_rss_mib": 324,
+      "peak_ram_used_mib": 7100,
+      "peak_swap_used_mib": 180
+    },
+    "tokens_per_second": {
+      "max": 9.244525084094363,
+      "median": 9.157428614777217,
+      "min": 8.337233549694783
+    },
+    "total_battery_wall_s": 262.59500000000116,
+    "warm_calls": 18,
+    "warm_latency_s": {
+      "max": 40.4380000000001,
+      "median": 8.60949999999957,
+      "min": 6.07799999999952
+    }
+  },
+  "qualified": false,
+  "stage0": {
+    "enum_enforced": true,
+    "envelope": {
+      "num_batch": 512,
+      "num_ctx": 12288,
+      "num_predict": 4096,
+      "num_thread": 6,
+      "seed": 42,
+      "temperature": 0
+    },
+    "host": {
+      "host_after": {
+        "gpu_mem_total_mib": 8192,
+        "gpu_mem_used_mib": 6932,
+        "gpu_util_pct": 0,
+        "ollama_rss_mib": 75,
+        "ram_available_mib": 11332,
+        "ram_used_mib": 4570,
+        "swap_used_mib": 112
+      },
+      "host_before": {
+        "gpu_mem_total_mib": 8192,
+        "gpu_mem_used_mib": 61,
+        "gpu_util_pct": 0,
+        "ollama_rss_mib": 83,
+        "ram_available_mib": 13441,
+        "ram_used_mib": 2461,
+        "swap_used_mib": 54
+      },
+      "host_resident": {
+        "gpu_mem_total_mib": 8192,
+        "gpu_mem_used_mib": 6882,
+        "gpu_util_pct": 0,
+        "ollama_rss_mib": 78,
+        "ram_available_mib": 12515,
+        "ram_used_mib": 3388,
+        "swap_used_mib": 105
+      }
+    },
+    "identity": {
+      "capabilities": [
+        "completion",
+        "vision"
+      ],
+      "context_length": 131072,
+      "family": "gemma3",
+      "license_head": "Gemma Terms of Use ",
+      "parameter_size": "12.2B",
+      "quantization_level": "Q4_K_M"
+    },
+    "padded": {
+      "blocks": 1574,
+      "in_band": true,
+      "prompt_tokens": 7926,
+      "target": 8064
+    },
+    "reason": null,
+    "residency": {
+      "gpu_fraction": 0.6217970160748142,
+      "size": 8970173960,
+      "size_vram": 5577627402
+    },
+    "runtime": {
+      "api_version": "0.34.3",
+      "asset": {
+        "name": "ollama-linux-amd64.tar.zst",
+        "sha256": "e83a089fd0cd2f79ee2933cca2085846a2065f497adbc6467c402177c68423f9",
+        "size": 1427391999,
+        "url": "https://github.com/ollama/ollama/releases/download/v0.34.3/ollama-linux-amd64.tar.zst"
+      },
+      "gpu_backend": {
+        "available": "7.5 GiB",
+        "compute": "8.6",
+        "driver": "13.0",
+        "libdirs": "ollama,cuda_v13",
+        "library": "CUDA",
+        "name": "CUDA0",
+        "total": "7.7 GiB"
+      },
+      "identity": {
+        "binary_sha256": "825106b5e961f30ca5445519e222ad911cbd544a326d695f64ebdbd97f88bcca",
+        "binary_version": "0.34.3",
+        "nvidia_driver": "580.178.04"
+      },
+      "install_dir": "/media/brain/JUNO/ollama-bakeoff/ollama-v0.34.3",
+      "listen": "127.0.0.1:11435",
+      "models_dir": "/media/brain/JUNO/ollama-models/ask-070-bakeoff",
+      "nvidia_driver_live": "580.178.04",
+      "pid": 4395,
+      "release_tag": "v0.34.3",
+      "server_env": {
+        "OLLAMA_HOST": "127.0.0.1:11435",
+        "OLLAMA_MAX_LOADED_MODELS": "1",
+        "OLLAMA_MODELS": "/media/brain/JUNO/ollama-models/ask-070-bakeoff",
+        "OLLAMA_NUM_PARALLEL": "1"
+      },
+      "started_utc": "2026-09-23T19:43:29Z"
+    },
+    "store": {
+      "free_gb": 422.0,
+      "ok": true,
+      "reason": null,
+      "store_path": "/media/brain/JUNO/ollama-models/ask-070-bakeoff"
+    },
+    "think_setting": null,
+    "trials": [
+      {
+        "generated_tokens": 28,
+        "load_seconds": 56.807457864,
+        "name": "compact-cold",
+        "prompt_tokens": 44,
+        "status": "ok",
+        "tokens_per_second": 9.387237982910534,
+        "valid_json": true,
+        "wall_seconds": 67.86000000000058
+      },
+      {
+        "generated_tokens": 28,
+        "load_seconds": 0.001411507,
+        "name": "compact-warm-1",
+        "prompt_tokens": 44,
+        "status": "ok",
+        "tokens_per_second": 9.38675964028596,
+        "valid_json": true,
+        "wall_seconds": 3.2819999999992433
+      },
+      {
+        "generated_tokens": 28,
+        "load_seconds": 0.001001493,
+        "name": "compact-warm-2",
+        "prompt_tokens": 44,
+        "status": "ok",
+        "tokens_per_second": 9.354999512203596,
+        "valid_json": true,
+        "wall_seconds": 3.3439999999991414
+      },
+      {
+        "generated_tokens": 28,
+        "load_seconds": 0.007867494,
+        "name": "padded",
+        "prompt_tokens": 7926,
+        "status": "ok",
+        "tokens_per_second": 7.525253271805429,
+        "valid_json": true,
+        "wall_seconds": 19.82799999999952
+      }
+    ],
+    "verdict": "ok"
+  },
+  "tag": "gemma3:12b"
+}

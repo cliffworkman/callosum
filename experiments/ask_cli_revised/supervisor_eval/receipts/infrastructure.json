@@ -1,0 +1,194 @@
+{
+  "apt_transaction": {
+    "counts": {
+      "installed": 17,
+      "removed": 26,
+      "upgraded": 33
+    },
+    "end": "2026-09-23  15:38:25",
+    "installed": [
+      "libcudadebugger1",
+      "libnvidia-api1",
+      "libnvidia-egl-xcb1",
+      "libnvidia-egl-xlib1",
+      "libnvidia-fbc1",
+      "libnvidia-gpucomp",
+      "libnvidia-ngx1",
+      "libnvidia-nvvm704",
+      "libnvidia-opticalflow1",
+      "libnvidia-present",
+      "libnvidia-sandboxutils",
+      "libnvidia-vksc-core",
+      "libnvoptix1",
+      "nvidia-driver-cuda",
+      "nvidia-kernel-open-dkms",
+      "nvidia-open-580",
+      "nvidia-xconfig"
+    ],
+    "removed": [
+      "libgl1-nvidia-glvnd-glx",
+      "libnppc11",
+      "libnppial11",
+      "libnppicc11",
+      "libnppidei11",
+      "libnppif11",
+      "libnppig11",
+      "libnppim11",
+      "libnppist11",
+      "libnppisu11",
+      "libnppitc11",
+      "libnpps11",
+      "nvidia-alternative",
+      "nvidia-cuda-dev",
+      "nvidia-cuda-toolkit",
+      "nvidia-driver-bin",
+      "nvidia-egl-common",
+      "nvidia-installer-cleanup",
+      "nvidia-kernel-common",
+      "nvidia-kernel-dkms",
+      "nvidia-legacy-check",
+      "nvidia-opencl-common",
+      "nvidia-smi",
+      "nvidia-support",
+      "nvidia-suspend-common",
+      "nvidia-vulkan-common"
+    ],
+    "start": "2026-09-23  15:31:14",
+    "upgraded": [
+      "dkms",
+      "firmware-nvidia-gsp",
+      "libcuda1",
+      "libegl-nvidia0",
+      "libgles-nvidia1",
+      "libgles-nvidia2",
+      "libglx-nvidia0",
+      "libnvcuvid1",
+      "libnvidia-allocator1",
+      "libnvidia-cfg1",
+      "libnvidia-egl-gbm1",
+      "libnvidia-egl-wayland1",
+      "libnvidia-eglcore",
+      "libnvidia-encode1",
+      "libnvidia-glcore",
+      "libnvidia-glvkspirv",
+      "libnvidia-ml1",
+      "libnvidia-nvvm4",
+      "libnvidia-pkcs11-openssl3",
+      "libnvidia-ptxjitcompiler1",
+      "libnvidia-rtcore",
+      "libxnvctrl0",
+      "nvidia-driver",
+      "nvidia-driver-libs",
+      "nvidia-egl-icd",
+      "nvidia-kernel-support",
+      "nvidia-modprobe",
+      "nvidia-opencl-icd",
+      "nvidia-persistenced",
+      "nvidia-settings",
+      "nvidia-vdpau-driver",
+      "nvidia-vulkan-icd",
+      "xserver-xorg-video-nvidia"
+    ]
+  },
+  "authorized_by": "maintainer (explicit instruction: upgrade the NVIDIA driver, reboot, do not restore the CUDA toolkit)",
+  "cuda_runner_smoke_test": {
+    "evidence": "llama-server runner of the isolated install listed under nvidia-smi compute apps; log: CUDA0 KV buffer, Flash Attention enabled, n_ctx_slot=4096",
+    "gpu_fraction": 1.0,
+    "model": "smollm2:135m (removed afterward; not a candidate)"
+  },
+  "date": "2026-09-23",
+  "driver_after": "580.178.04 (NVIDIA Debian 12 repo, R580 long-term-support branch, OPEN kernel modules via nvidia-open-580; GSP firmware 580.178.04; CUDA 13.0)",
+  "driver_before": "535.309.01 (Debian packages, proprietary kernel module via DKMS nvidia-current)",
+  "host": {
+    "gpu": "NVIDIA GeForce RTX 3050 8 GB (GA107, Ampere)",
+    "kernel": "6.1.0-52-amd64 (unchanged)",
+    "os": "Debian GNU/Linux 12.15 (bookworm), not upgraded",
+    "secure_boot": "disabled"
+  },
+  "isolated_ollama": {
+    "binary_sha256": "825106b5e961f30ca5445519e222ad911cbd544a326d695f64ebdbd97f88bcca",
+    "gpu_backend_after": {
+      "available": "7.5 GiB",
+      "compute": "8.6",
+      "driver": "13.0",
+      "libdirs": "ollama,cuda_v13",
+      "library": "CUDA",
+      "name": "CUDA0",
+      "total": "7.7 GiB"
+    },
+    "gpu_backend_before_driver_upgrade": {
+      "library": "Vulkan",
+      "reason": "NVIDIA driver too old (535 < 550)"
+    },
+    "listen": "127.0.0.1:11435",
+    "models_dir": "/media/brain/JUNO/ollama-models/ask-070-bakeoff",
+    "server_env": {
+      "OLLAMA_HOST": "127.0.0.1:11435",
+      "OLLAMA_MAX_LOADED_MODELS": "1",
+      "OLLAMA_MODELS": "/media/brain/JUNO/ollama-models/ask-070-bakeoff",
+      "OLLAMA_NUM_PARALLEL": "1"
+    },
+    "version": "0.34.3"
+  },
+  "os_disk_free_gb": {
+    "after_transaction": 9.8,
+    "before": 7.6
+  },
+  "pre_change_state_on_juno": "/media/brain/JUNO/ollama-bakeoff/pre-driver-state/ (dpkg list, nvidia-smi -q, dkms status, apt sources, running services)",
+  "purpose": "Enable the CUDA backend for the isolated bakeoff Ollama (current Ollama requires NVIDIA driver >= 550; Vulkan results were ruled out).",
+  "removed_development_toolkit": {
+    "note": "Debian's CUDA 11.8 developer toolkit (nvcc, headers, NPP libraries) removed because it conflicts with NVIDIA's driver packaging; deliberately NOT restored (maintainer decision). CUDA 11.8 runtime libraries and profilers were left installed.",
+    "packages": [
+      "libnppc11",
+      "libnppial11",
+      "libnppicc11",
+      "libnppidei11",
+      "libnppif11",
+      "libnppig11",
+      "libnppim11",
+      "libnppist11",
+      "libnppisu11",
+      "libnppitc11",
+      "libnpps11",
+      "nvidia-cuda-dev",
+      "nvidia-cuda-toolkit"
+    ]
+  },
+  "route": {
+    "branch_pin": "nvidia-driver-pinning-580 580-5 (pins NVIDIA driver source packages to 580*)",
+    "chosen_over": "cuda-drivers-580 (proprietary modules): both resolved cleanly at 580.178.04-1; the open-module route added only the swap of Debian's proprietary nvidia-kernel-dkms for nvidia-kernel-open-dkms",
+    "debian_native_option": "none: bookworm and bookworm-backports only carry 535.x",
+    "repo_added": "https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64 (cuda-keyring 1.1-1)",
+    "signing_key_fingerprint": "EB693B3035CD5710E231E123A4B469963BF863CC (cudatools@nvidia.com)"
+  },
+  "shared_ollama": {
+    "changed": false,
+    "models_before_and_after": [
+      "callosum-managed-local:latest",
+      "llava:7b",
+      "moondream:latest",
+      "qwen3:8b"
+    ],
+    "version": "0.12.3"
+  },
+  "validation_after_reboot": {
+    "dkms": "nvidia/580.178.04 installed for 6.1.0-39, -50, -52",
+    "docker_containers": [
+      "authentik-postgresql-1",
+      "authentik-server-1",
+      "authentik-worker-1"
+    ],
+    "kernel_log": "only the standard out-of-tree / unsigned-module taint notices; GSP firmware nvidia/580.178.04/gsp_ga10x.bin loaded",
+    "module": "NVIDIA UNIX Open Kernel Module 580.178.04 (Dual MIT/GPL)",
+    "nvidia_smi_driver": "580.178.04",
+    "services_active": [
+      "plexmediaserver",
+      "jellyfin",
+      "docker",
+      "tailscaled",
+      "cloudflared",
+      "lightdm",
+      "ollama"
+    ]
+  }
+}

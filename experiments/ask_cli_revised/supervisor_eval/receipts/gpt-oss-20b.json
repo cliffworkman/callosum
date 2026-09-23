@@ -1,0 +1,416 @@
+{
+  "candidate": "gpt-oss-20b",
+  "cases": {
+    "A1.original": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [
+        "missing required ['s1-o1']"
+      ],
+      "selected": [],
+      "verdict": "fail"
+    },
+    "A1.reversed": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [
+        "missing required ['s1-o1']"
+      ],
+      "selected": [],
+      "verdict": "fail"
+    },
+    "A1.rotated": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [
+        "missing required ['s1-o1']"
+      ],
+      "selected": [],
+      "verdict": "fail"
+    },
+    "A2.original": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [],
+      "selected": [
+        "s4-o1"
+      ],
+      "verdict": "pass"
+    },
+    "A2.reversed": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [],
+      "selected": [
+        "s4-o1"
+      ],
+      "verdict": "pass"
+    },
+    "A2.rotated": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [],
+      "selected": [
+        "s4-o1"
+      ],
+      "verdict": "pass"
+    },
+    "A3.original": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [],
+      "selected": [],
+      "verdict": "pass"
+    },
+    "A3.reversed": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [],
+      "selected": [],
+      "verdict": "pass"
+    },
+    "A3.rotated": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [],
+      "selected": [],
+      "verdict": "pass"
+    },
+    "A4.original": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [],
+      "selected": [],
+      "verdict": "pass"
+    },
+    "A5.original": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [],
+      "selected": [],
+      "verdict": "pass"
+    },
+    "A6.original": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [],
+      "selected": [],
+      "verdict": "diagnostic"
+    },
+    "A7.original": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [
+        "missing required ['s3-o1']"
+      ],
+      "selected": [],
+      "verdict": "fail"
+    },
+    "A7.reversed": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [
+        "missing required ['s3-o1']"
+      ],
+      "selected": [],
+      "verdict": "fail"
+    },
+    "A7.rotated": {
+      "diagnostic_selected": [],
+      "duplicates": [],
+      "reasons": [
+        "missing required ['s3-o1']"
+      ],
+      "selected": [],
+      "verdict": "fail"
+    },
+    "B1.original": {
+      "attached": [
+        "p1",
+        "p2",
+        "p3",
+        "p4",
+        "p5",
+        "p6"
+      ],
+      "reasons": [
+        "p5 attached as support for s2-o1",
+        "p6 attached as support for s2-o1"
+      ],
+      "unmapped": [],
+      "verdict": "fail"
+    },
+    "B1.reversed": {
+      "attached": [
+        "p1",
+        "p2",
+        "p3",
+        "p4",
+        "p5"
+      ],
+      "reasons": [
+        "p5 attached as support for s2-o1"
+      ],
+      "unmapped": [
+        "p6"
+      ],
+      "verdict": "fail"
+    },
+    "C1.original": {
+      "plan": {
+        "s1-o1": "s1-o1:MARK_COVERED:p3",
+        "s2-o1": "s2-o1:PRESERVE_UNRESOLVED",
+        "s3-o1": "s3-o1:PRESERVE_UNRESOLVED",
+        "s4-o1": "s4-o1:NOMINATE",
+        "s5-o1": "s5-o1:PRESERVE_UNRESOLVED",
+        "s6-o1": "s6-o1:PRESERVE_UNRESOLVED"
+      },
+      "reasons": [],
+      "verdict": "pass"
+    },
+    "C1.reversed": {
+      "plan": {
+        "s1-o1": "s1-o1:PRESERVE_UNRESOLVED",
+        "s2-o1": "s2-o1:PRESERVE_UNRESOLVED",
+        "s3-o1": "s3-o1:PRESERVE_UNRESOLVED",
+        "s4-o1": "s4-o1:NOMINATE",
+        "s5-o1": "s5-o1:PRESERVE_UNRESOLVED",
+        "s6-o1": "s6-o1:PRESERVE_UNRESOLVED"
+      },
+      "reasons": [],
+      "verdict": "pass"
+    }
+  },
+  "diagnostics": {
+    "negative_cases_with_any_selection": 0
+  },
+  "gates": {
+    "G1": {
+      "detail": [],
+      "status": "PASS"
+    },
+    "G2": {
+      "detail": [],
+      "status": "PASS"
+    },
+    "G3": {
+      "detail": [
+        "A1.original: missing required ['s1-o1']",
+        "A1.reversed: missing required ['s1-o1']",
+        "A1.rotated: missing required ['s1-o1']",
+        "A7.original: missing required ['s3-o1']",
+        "A7.reversed: missing required ['s3-o1']",
+        "A7.rotated: missing required ['s3-o1']"
+      ],
+      "status": "FAIL"
+    },
+    "G4": {
+      "detail": [],
+      "status": "PASS"
+    },
+    "G5": {
+      "detail": [],
+      "status": "PASS"
+    },
+    "G6": {
+      "detail": [
+        "B1.original: p5 attached as support for s2-o1; p6 attached as support for s2-o1",
+        "B1.reversed: p5 attached as support for s2-o1"
+      ],
+      "status": "FAIL"
+    },
+    "G7": {
+      "detail": [],
+      "status": "PASS"
+    },
+    "G8": {
+      "hits": 0,
+      "status": "PASS"
+    }
+  },
+  "performance": {
+    "call_statuses": {
+      "ok": 19
+    },
+    "first_call_load_seconds": 22.997271244,
+    "generated_tokens_total": 10132,
+    "max_prompt_tokens": 1726,
+    "residency": {
+      "gpu_fraction": 0.4723458744416912,
+      "size": 14060054048,
+      "size_vram": 6641208524
+    },
+    "resources": {
+      "min_ram_available_mib": 12647,
+      "n_samples": 1196,
+      "peak_gpu_mem_mib": 6820,
+      "peak_ollama_rss_mib": 231,
+      "peak_ram_used_mib": 3256,
+      "peak_swap_used_mib": 850
+    },
+    "tokens_per_second": {
+      "max": 22.81350673140376,
+      "median": 22.629938723406994,
+      "min": 22.23260997241226
+    },
+    "total_battery_wall_s": 523.625,
+    "warm_calls": 18,
+    "warm_latency_s": {
+      "max": 50.09400000000096,
+      "median": 19.89849999999933,
+      "min": 10.531999999999243
+    }
+  },
+  "qualified": false,
+  "stage0": {
+    "enum_enforced": true,
+    "envelope": {
+      "num_batch": 512,
+      "num_ctx": 12288,
+      "num_predict": 4096,
+      "num_thread": 6,
+      "seed": 42,
+      "temperature": 0
+    },
+    "host": {
+      "host_after": {
+        "gpu_mem_total_mib": 8192,
+        "gpu_mem_used_mib": 6810,
+        "gpu_util_pct": 0,
+        "ollama_rss_mib": 47,
+        "ram_available_mib": 12942,
+        "ram_used_mib": 2960,
+        "swap_used_mib": 534
+      },
+      "host_before": {
+        "gpu_mem_total_mib": 8192,
+        "gpu_mem_used_mib": 61,
+        "gpu_util_pct": 0,
+        "ollama_rss_mib": 55,
+        "ram_available_mib": 13610,
+        "ram_used_mib": 2293,
+        "swap_used_mib": 285
+      },
+      "host_resident": {
+        "gpu_mem_total_mib": 8192,
+        "gpu_mem_used_mib": 6804,
+        "gpu_util_pct": 0,
+        "ollama_rss_mib": 47,
+        "ram_available_mib": 12959,
+        "ram_used_mib": 2943,
+        "swap_used_mib": 535
+      }
+    },
+    "identity": {
+      "capabilities": [
+        "completion",
+        "tools",
+        "thinking"
+      ],
+      "context_length": 131072,
+      "family": "gptoss",
+      "license_head": "Apache License",
+      "parameter_size": "20.9B",
+      "quantization_level": "MXFP4"
+    },
+    "padded": {
+      "blocks": 1568,
+      "in_band": true,
+      "prompt_tokens": 7949,
+      "target": 8064
+    },
+    "reason": null,
+    "residency": {
+      "gpu_fraction": 0.4723458744416912,
+      "size": 14060054048,
+      "size_vram": 6641208524
+    },
+    "runtime": {
+      "api_version": "0.34.3",
+      "asset": {
+        "name": "ollama-linux-amd64.tar.zst",
+        "sha256": "e83a089fd0cd2f79ee2933cca2085846a2065f497adbc6467c402177c68423f9",
+        "size": 1427391999,
+        "url": "https://github.com/ollama/ollama/releases/download/v0.34.3/ollama-linux-amd64.tar.zst"
+      },
+      "gpu_backend": {
+        "available": "7.5 GiB",
+        "compute": "8.6",
+        "driver": "13.0",
+        "libdirs": "ollama,cuda_v13",
+        "library": "CUDA",
+        "name": "CUDA0",
+        "total": "7.7 GiB"
+      },
+      "identity": {
+        "binary_sha256": "825106b5e961f30ca5445519e222ad911cbd544a326d695f64ebdbd97f88bcca",
+        "binary_version": "0.34.3",
+        "nvidia_driver": "580.178.04"
+      },
+      "install_dir": "/media/brain/JUNO/ollama-bakeoff/ollama-v0.34.3",
+      "listen": "127.0.0.1:11435",
+      "models_dir": "/media/brain/JUNO/ollama-models/ask-070-bakeoff",
+      "nvidia_driver_live": "580.178.04",
+      "pid": 4395,
+      "release_tag": "v0.34.3",
+      "server_env": {
+        "OLLAMA_HOST": "127.0.0.1:11435",
+        "OLLAMA_MAX_LOADED_MODELS": "1",
+        "OLLAMA_MODELS": "/media/brain/JUNO/ollama-models/ask-070-bakeoff",
+        "OLLAMA_NUM_PARALLEL": "1"
+      },
+      "started_utc": "2026-09-23T19:43:29Z"
+    },
+    "store": {
+      "free_gb": 422.0,
+      "ok": true,
+      "reason": null,
+      "store_path": "/media/brain/JUNO/ollama-models/ask-070-bakeoff"
+    },
+    "think_setting": "medium",
+    "trials": [
+      {
+        "generated_tokens": 280,
+        "load_seconds": 96.100358677,
+        "name": "compact-cold",
+        "prompt_tokens": 99,
+        "status": "ok",
+        "tokens_per_second": 15.679059507294514,
+        "valid_json": true,
+        "wall_seconds": 136.29699999999866
+      },
+      {
+        "generated_tokens": 398,
+        "load_seconds": 0.114249312,
+        "name": "compact-warm-1",
+        "prompt_tokens": 99,
+        "status": "ok",
+        "tokens_per_second": 22.841461775502406,
+        "valid_json": true,
+        "wall_seconds": 17.79699999999866
+      },
+      {
+        "generated_tokens": 398,
+        "load_seconds": 0.001338725,
+        "name": "compact-warm-2",
+        "prompt_tokens": 99,
+        "status": "ok",
+        "tokens_per_second": 22.898575305877213,
+        "valid_json": true,
+        "wall_seconds": 17.65599999999904
+      },
+      {
+        "generated_tokens": 157,
+        "load_seconds": 0.003157093,
+        "name": "padded",
+        "prompt_tokens": 7949,
+        "status": "ok",
+        "tokens_per_second": 22.338210177231645,
+        "valid_json": true,
+        "wall_seconds": 18.186999999999898
+      }
+    ],
+    "verdict": "ok"
+  },
+  "tag": "gpt-oss:20b"
+}

@@ -125,7 +125,7 @@ def identity_command(tag):
 
 
 def log_tail_command():
-    return f"grep -i -E 'inference compute|library=|runner started|no compatible|gpu' {LOG_FILE} | tail -12"
+    return f"grep -i -E 'inference compute|driver too old|no compatible' {LOG_FILE} | tail -6"
 
 
 def parse_env(text):
@@ -153,11 +153,12 @@ def parse_identity(text):
 
 
 def parse_gpu_backend(log_text):
-    line = next((ln for ln in (log_text or "").splitlines() if "inference compute" in ln), "")
-    if not line:
+    # the log is append-only across restarts: the LAST selection line is the one the running server made
+    lines = [ln for ln in (log_text or "").splitlines() if "inference compute" in ln]
+    if not lines:
         return {}
-    out = {}
-    for key in ("library", "compute", "name", "total", "available"):
+    line, out = lines[-1], {}
+    for key in ("library", "compute", "name", "libdirs", "driver", "total", "available"):
         found = re.search(rf'\b{key}=(?:"([^"]*)"|(\S+))', line)
         if found:
             out[key] = found.group(1) if found.group(1) is not None else found.group(2)

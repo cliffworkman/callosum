@@ -2,6 +2,7 @@
 
     python -m experiments.ask_cli_revised.supervisor_eval.run_eval setup-isolated
     python -m experiments.ask_cli_revised.supervisor_eval.run_eval preflight
+    python -m experiments.ask_cli_revised.supervisor_eval.run_eval pull   <key>
     python -m experiments.ask_cli_revised.supervisor_eval.run_eval stage0  <key>
     python -m experiments.ask_cli_revised.supervisor_eval.run_eval battery <key> [--retry-technical CASE_ID ...]
     python -m experiments.ask_cli_revised.supervisor_eval.run_eval score   <key>
@@ -51,6 +52,16 @@ class FreezeError(Exception):
 
 class IneligibleRetry(Exception):
     """Only a pre-observation technical failure may be retried."""
+
+
+class WrongBackend(Exception):
+    """The isolated Ollama is not on CUDA; no model may be pulled or run (no Vulkan/CPU-confounded results)."""
+
+
+def require_cuda(runtime):
+    backend = ((runtime or {}).get("gpu_backend") or {}).get("library")
+    if backend != "CUDA":
+        raise WrongBackend(f"the isolated Ollama reports GPU backend {backend or 'unknown'!r}, not CUDA")
 
 
 def load_frozen_battery(manifest_path, private_path, freeze_path):
@@ -255,6 +266,14 @@ def _runtime_identity(client):
     """Everything needed to reproduce the runtime: the saved install identity plus what the live server reports."""
     saved = _load_json(WORK_DIR / RUNTIME_FILE)
     identity = {**saved, "api_version": client.version()}
+    # re-probe live: the server log is append-only, so a restart on a different backend must show up here
+    live_backend = isolated_ollama.parse_gpu_backend(
+        juno_resources.run_remote(isolated_ollama.log_tail_command() + "; true")
+    )
+    identity["gpu_backend"] = live_backend or saved.get("gpu_backend")
+    identity["nvidia_driver_live"] = juno_resources.run_remote(
+        "nvidia-smi --query-gpu=driver_version --format=csv,noheader"
+    ).strip()
     if saved.get("pid"):
         identity["server_env"] = isolated_ollama.parse_env(
             juno_resources.run_remote(isolated_ollama.env_probe_command(saved["pid"]))
@@ -275,8 +294,22 @@ def _cmd_preflight(client):
     print(json.dumps({k: out[k] for k in ("runtime", "models_present", "resident_now", "host")}, indent=2))
 
 
+def _cmd_pull(client, key):
+    cand = _candidate(key)
+    require_cuda(_runtime_identity(client))
+    store = juno_resources.assess_store(
+        juno_resources.run_remote(isolated_ollama.store_probe_command()), cand["size_gb"]
+    )
+    if not store["ok"]:
+        raise SystemExit(f"{key}: store check failed: {store['reason']}")
+    result = client.pull(cand["tag"], on_progress=stage0.progress_logger(print, cand["tag"]))
+    print(f"{key}: pull {result.get('status')} {result.get('error') or ''}")
+
+
 def _cmd_stage0(client, key):
     cand = _candidate(key)
+    runtime = _runtime_identity(client)
+    require_cuda(runtime)
     store_check = juno_resources.assess_store(
         juno_resources.run_remote(isolated_ollama.store_probe_command()), cand["size_gb"]
     )
@@ -285,7 +318,7 @@ def _cmd_stage0(client, key):
         cand,
         host_snapshot=juno_resources.snapshot,
         store_check=store_check,
-        runtime=_runtime_identity(client),
+        runtime=runtime,
         log=print,
     )
     (WORK_DIR / key).mkdir(parents=True, exist_ok=True)
@@ -339,6 +372,7 @@ def _cmd_setup_isolated():
 
 
 def _cmd_battery(client, key, retry):
+    require_cuda(_runtime_identity(client))
     manifest_path, private_path, freeze_path = _paths()
     battery = load_frozen_battery(manifest_path, private_path, freeze_path)
     out_dir = WORK_DIR / key
@@ -420,11 +454,13 @@ def main(argv):
     if command == "setup-isolated":
         _cmd_setup_isolated()
         return 0
-    if command in ("preflight", "stage0", "battery"):
+    if command in ("preflight", "pull", "stage0", "battery"):
         client = OllamaClient(ollama_url())
         try:
             if command == "preflight":
                 _cmd_preflight(client)
+            elif command == "pull" and len(argv) == 2:
+                _cmd_pull(client, argv[1])
             elif command == "stage0" and len(argv) == 2:
                 _cmd_stage0(client, argv[1])
             elif command == "battery" and len(argv) >= 2:

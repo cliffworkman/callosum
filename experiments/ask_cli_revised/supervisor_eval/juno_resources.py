@@ -38,7 +38,12 @@ def shell_executable(which=shutil.which):
 def run_remote(command, *, runner=subprocess.run, ps1=None, timeout=120):
     ps1 = ps1 or os.environ.get("JUNO_PS1", DEFAULT_JUNO_PS1)
     done = runner(
-        [shell_executable(), "-NoProfile", "-File", ps1, command], capture_output=True, text=True, timeout=timeout
+        [shell_executable(), "-NoProfile", "-File", ps1, command],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=timeout,
     )
     if done.returncode != 0:
         raise RuntimeError(f"remote command failed ({done.returncode}): {done.stderr.strip()[:400]}")

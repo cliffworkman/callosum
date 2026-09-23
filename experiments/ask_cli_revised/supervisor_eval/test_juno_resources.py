@@ -207,6 +207,24 @@ class JunoSamplerTests(unittest.TestCase):
         self.assertEqual(jr.JunoSampler(run=self._runner([])).stop()["n_samples"], 0)
 
 
+class DecodingTests(unittest.TestCase):
+    """Remote output is UTF-8 (package descriptions, file contents); Windows' default codec would crash the reader."""
+
+    def test_remote_output_is_decoded_as_utf8_with_replacement_not_the_windows_codec(self):
+        seen = {}
+
+        class Done:
+            returncode, stdout, stderr = 0, "ok", ""
+
+        def runner(args, **kw):
+            seen.update(kw)
+            return Done()
+
+        jr.run_remote("x", runner=runner, ps1="p")
+        self.assertEqual(seen["encoding"], "utf-8")
+        self.assertEqual(seen["errors"], "replace")
+
+
 class ShellChoiceTests(unittest.TestCase):
     """juno.ps1 is unsigned: it runs under pwsh (RemoteSigned) but not under this machine's Windows PowerShell 5.1."""
 

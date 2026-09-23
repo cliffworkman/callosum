@@ -256,6 +256,23 @@ class ResumeAndRetryTests(RunnerCase):
             self.run_all(PerfectClient(self.battery()), retry_technical={"Z9.original"})
 
 
+class CudaGuardTests(unittest.TestCase):
+    """The bakeoff must never produce Vulkan (or CPU-only) results: performance would carry a backend confound."""
+
+    def test_cuda_passes(self):
+        run_eval.require_cuda({"gpu_backend": {"library": "CUDA", "libdirs": "ollama,cuda_v13"}})
+
+    def test_vulkan_is_refused(self):
+        with self.assertRaises(run_eval.WrongBackend) as ctx:
+            run_eval.require_cuda({"gpu_backend": {"library": "Vulkan"}})
+        self.assertIn("Vulkan", str(ctx.exception))
+
+    def test_an_unknown_or_missing_backend_is_refused_not_assumed(self):
+        for runtime in ({}, {"gpu_backend": {}}, {"gpu_backend": {"library": ""}}, None):
+            with self.assertRaises(run_eval.WrongBackend):
+                run_eval.require_cuda(runtime)
+
+
 class ClientTargetTests(unittest.TestCase):
     def test_defaults_to_the_isolated_bakeoff_ollama_never_the_shared_port(self):
         self.assertEqual(run_eval.ollama_url(env={}), "http://127.0.0.1:11435")
