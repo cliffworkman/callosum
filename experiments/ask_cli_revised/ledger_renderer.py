@@ -74,13 +74,127 @@ def render_ledger(ledger: dict) -> tuple[str, dict]:
                               "scientific_aggregates": 0, "completeness": "not_certified"}
 
 
+_HEADER = (
+    "Every claim below is source-verified: it was checked against its source passage. Whether a claim answers a part "
+    "of your request is a separate judgment, shown separately, and it is not certified. This is a report on the "
+    "evidence retrieved in this run; it makes no statement about what the library or the literature holds."
+)
+_ITEM_NONE = (
+    "No claim has been judged responsive to this item from the evidence retrieved. This describes what was retrieved "
+    "and assessed in this run, not the library or the literature."
+)
+_ITEM_NOT_ASSESSED = (
+    "Responsiveness could not be assessed for this item in this run (a mechanical failure), so no judgment is shown."
+)
+_ITEM_GAPS = (
+    "{n} source-verified claim(s) retrieved for this item could not be assessed for responsiveness in this run "
+    "(a mechanical failure), so this is not settled."
+)
+_TAIL = (
+    "Judged-responsive claims do not certify that every part of your request is answered, and an item without one "
+    "reflects the limits of this run's retrieval and assessment."
+)
+
+
+def _claim_block(row: dict) -> list[str]:
+    return [
+        "> " + _literal(row["proposition_text"]),
+        "",
+        f"[{row['proposition_id']}]",
+        "",
+        f"Source-verified evidence: paper {row['paper_id']}, chunk {row['evidence_anchor_chunk_id']}, "
+        + _literal(str(row["evidence_span_id"]))
+        + ".",
+        "",
+    ]
+
+
+def render_responsive_ledger(ledger: dict) -> tuple[str, dict]:
+    """Source-verified claims arranged by the responsiveness judgments the run made, verbatim and unaggregated.
+
+    Source verification and responsiveness stay separate: a claim is listed under an item only if the coverage
+    authority judged it responsive to that item; every other source-verified claim is still shown, either as not
+    judged responsive or, where no judgment could be made, as not assessed. Model and role names live in the manifest
+    (a trace/debug surface), not in the prose. Nothing here certifies completeness or speaks to the literature.
+    """
+    rows = validate_ledger(ledger)
+    assessed = bool(ledger.get("coverage_assessed", True))
+    lines = ["# What the retrieved evidence shows for your request", "", _HEADER, ""]
+    contract = ledger.get("request_contract")
+    if contract:
+        lines += ["## Your request (verbatim)", "", "> " + _literal(contract["original_question"]), ""]
+    by_id = {r["proposition_id"]: r for r in rows}
+    lines += ["## By request item", ""]
+    for state in ledger["obligation_states"]:
+        lines += [f"### {state['source_unit_id']}: {_literal(state['note'])}", ""]
+        if state["state"] == "not_assessed":
+            lines += [_ITEM_NOT_ASSESSED, ""]
+        elif state["proposition_ids"]:
+            lines += ["Judged responsive to this item:", ""]
+            for pid in state["proposition_ids"]:
+                lines += _claim_block(by_id[pid])
+        else:
+            lines += [_ITEM_NONE, ""]
+        if state.get("mechanical_gaps"):
+            lines += [_ITEM_GAPS.format(n=state["mechanical_gaps"]), ""]
+
+    def responsiveness(row: dict) -> str:
+        if row.get("responsive_obligation_ids"):
+            return "judged_responsive"
+        if not assessed or row.get("mapping_state") == "no_answer":
+            return "not_assessed"
+        return "not_judged_responsive"
+
+    not_judged = [r for r in rows if responsiveness(r) == "not_judged_responsive"]
+    not_assessed = [r for r in rows if responsiveness(r) == "not_assessed"]
+    lines += ["## Source-verified but not judged responsive", ""]
+    if not_judged:
+        for row in not_judged:
+            lines += _claim_block(row)
+    else:
+        lines += ["None.", ""]
+    if not_assessed:
+        lines += ["## Source-verified claims whose responsiveness was not assessed", ""]
+        for row in not_assessed:
+            lines += _claim_block(row)
+    lines += ["## Completeness remains unresolved", "", _TAIL, ""]
+    claims = [
+        {
+            "proposition_ids": [row["proposition_id"]],
+            "text": row["proposition_text"],
+            "aggregation": "none",
+            "paper_id": row["paper_id"],
+            "chunk_id": row["evidence_anchor_chunk_id"],
+            "span_id": row["evidence_span_id"],
+            "responsive_obligation_ids": list(row.get("responsive_obligation_ids", [])),
+            "responsiveness_state": responsiveness(row),
+        }
+        for row in rows
+    ]
+    manifest = {
+        "mode": "responsive-ledger-v1",
+        "claims": claims,
+        "obligation_states": ledger["obligation_states"],
+        "coverage_authority": ledger.get("coverage_authority"),
+        "coverage_assessed": assessed,
+        "scientific_aggregates": 0,
+        "completeness": "not_certified",
+    }
+    return "\n".join(lines).rstrip() + "\n", manifest
+
+
+def render_answer(ledger: dict) -> tuple[str, dict]:
+    """The authoritative deterministic answer: responsiveness-aware when the ledger carries per-item judgments."""
+    return render_responsive_ledger(ledger) if "obligation_states" in ledger else render_ledger(ledger)
+
+
 def audit_final(ledger: dict, markdown: str) -> dict:
     """Citation diagnostics for any answer; strict conformance for safe output.
 
     Arbitrary prose entailment is NOT decidable by citation presence. Nonmatching
     prose is explicitly unassessed, never blessed by a successful ID check.
     """
-    expected, manifest = render_ledger(ledger)
+    expected, manifest = render_answer(ledger)
     ids = {r["proposition_id"] for r in ledger["verified_propositions"]}
     cited = re.findall(r"(?<!\\)\[(p\d+(?:\s*,\s*p\d+)*)\]", markdown)
     citations = [pid.strip() for group in cited for pid in group.split(",")]
