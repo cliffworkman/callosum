@@ -943,3 +943,28 @@ durability, deletion ownership, provenance, attachment-safety, no second identit
 real-Edge end to end (R2–R4 PASS, R1 partial); the one real failure observed (R1's attachment/
 indexing step) is in unrelated pre-existing infrastructure this increment calls but does not modify,
 and is tracked separately rather than gating this security audit's PASS for F13's own scope.
+
+### 2026-09-24 addendum: capture completion notification (#103)
+
+Cliff's real Intel Mac test at `b0d98e63` required a reload to reveal the Import Queue;
+confirmation then revealed the paper automatically. This addendum covers the narrow visibility
+fix, not a new native-host, extension identity, pairing, or admission mechanism.
+
+`GET /library/capture-updates` returns one opaque, app-scoped random revision. The existing
+desktop/remote-access middleware applies without an exemption. The existing frontend auth-fetch
+shim supplies authentication; no token is placed in the query string. A notification causes
+ordinary authorized queue/paper reads and is never filesystem or persistence authority.
+Capture routes publish only after their existing successful persistence operations. Restart
+changes the revision, so a reconnect retrieves current authoritative state.
+
+Resource bounds: maximum 64 async waiters per app, maximum 25 seconds per wait, hexadecimal cursor
+of at most 32 characters. Waiting holds no database connection or worker thread. Timeout and
+cancellation release registrations; disconnected waits are bounded even if cancellation arrives
+late. The single-worker launch contract is required, as with JobStore. A future multi-worker
+deployment needs shared notification state. No new external request, secret store, producer
+permission, wildcard origin, or production extension identity is introduced.
+
+Regression coverage exercises lost-wakeup races, concurrent subscribers, cancellation, timeout,
+capacity, input bounds, app isolation, remote bearer rejection/acceptance, disabled-tunnel denial,
+and frontend retry/cleanup. Real packaged Mac retest and fresh CI/CodeQL remain pending for this
+change; earlier audit passes and CI receipts must not be represented as this head's verification.

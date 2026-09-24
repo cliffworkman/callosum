@@ -73,6 +73,8 @@ jobs:
         run: cargo test --manifest-path app/desktop-shell/connector-host/Cargo.toml
       - name: Extension pure-logic tests
         run: node --test app/desktop-shell/extension/background.test.mjs
+      - name: Frontend capture notification and queue regression tests
+        run: node --test tests/frontend/*.test.mjs
 
   e2e-smoke:
     runs-on: ubuntu-latest

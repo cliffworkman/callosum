@@ -26,6 +26,8 @@ from app.backend.api.capture_startup import (
 from app.backend.api.capture_startup import (
     recover_provisional_captures as _recover_provisional_captures,
 )
+from app.backend.api.capture_updates import CaptureUpdates
+from app.backend.api.capture_updates import router as capture_updates_router
 from app.backend.api.frontend import FRONTEND_DIR, build_frontend_document, frontend_sources_available
 from app.backend.api.job_store import JobStore
 from app.backend.api.routers import (
@@ -227,6 +229,7 @@ def create_app(
 
     api = FastAPI(title="Callosum Local API", version="0.1.0", lifespan=lifespan)
     api.state.engine = engine
+    api.state.capture_updates = CaptureUpdates()
     api.state.db_url = resolved_db_url
     api.state.frontend_path = resolved_frontend_path
     api.state.summary_jobs = JobStore()
@@ -515,6 +518,7 @@ def create_app(
     api.include_router(access.router)  # /access/recover — in-app recovery from a remote-access lockout (inc 254)
     # /capture/* — bounded browser-capture intake, separately authorized, UI-instance only (#61 Phase 1)
     api.include_router(capture.router)
+    api.include_router(capture_updates_router)
     api.include_router(status.router)  # /status/jobs — cross-feature async-job aggregator (inc 406)
     api.include_router(
         agent.router

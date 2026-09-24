@@ -9,6 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-24 — browser capture (#103): wake the open app when capture commits
+- **What:** an app-scoped bounded async notification wakes the frontend to retrieve authoritative
+  Import Queue state and invalidate Library. Successful capture completion has no polling delay;
+  focus recovery also handles suspended windows. Admission, identity, extension and host rules stay intact.
+- **Why:** Cliff's actual `b0d98e63` Mac capture required reload after roughly 5–30 seconds for the
+  queue, while confirmation-to-Library already worked. A focus-only recheck would miss early return.
+- **Files:** `api/capture_updates.py`, capture router/app wiring, `03a_capture_updates.jsx`, Library
+  hook/generated frontend, focused Python/Node/browser regressions, CI Node step, latency/security
+  documentation, QA route 27 and website review receipt.
+- **Verification:** 177 focused Python tests and 26 Node tests passed; isolated local Chromium
+  showed queue visibility 230.6–395.0 ms after upload response across three captures. Auth gate
+  checks and final hooks are recorded in the accompanying receipt. This is not real-Mac acceptance
+  or fresh CI. Details and limits: `docs/research/2026-09-24_capture-visibility.md`.
+- **Experience:** directly addresses Cliff's need for immediate visible confirmation, without
+  skipping human identity review. No visual or existing Help-copy changes are required.
+- **Lineage:** Cliff supplied observations and latency requirement; Codex implemented this fix.
+- **Revert:** revert this commit; no persisted schema or user-data migration is involved.
+
 ## 2026-09-21 — browser capture (#61): queue filesystem authority, probe-token redaction, audit corrections (draft PR #103, second pass)
 - **Files:** `app/backend/capture/trusted_paths.py`, new `app/backend/capture/owned_artifacts.py`, `provisional.py`,
   `provisional_review.py`, `provisional_recovery.py`, `api/routers/import_queue.py`, `persistence/provisional_artifacts_repo.py`,

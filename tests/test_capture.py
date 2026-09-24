@@ -257,10 +257,12 @@ def test_envelope_version_must_be_pinned(temp_db_url: str) -> None:
 def test_capture_admits_a_new_paper_and_indexes_it(temp_db_url: str) -> None:
     client = _client(temp_db_url)
     headers = _paired(client)
+    before = client.app.state.capture_updates.revision
     body = client.post("/capture/item", json=_envelope(), headers=headers).json()
 
     assert body["status"] == "added"
     assert body["created"] is True
+    assert client.app.state.capture_updates.revision != before
     paper_id = body["paper_id"]
 
     engine = make_engine(temp_db_url)
@@ -648,6 +650,7 @@ def test_provisional_pdf_with_no_findable_identity_is_queued_for_review(temp_db_
     headers = _paired(client)
     capture_id = _direct_pdf_capture_id(client, headers)
     pdf = _pdf_with_metadata_title(tmp_path / "mystery.pdf", title=None)
+    before = client.app.state.capture_updates.revision
 
     response = client.post(
         f"/capture/item/{capture_id}/pdf",
@@ -659,6 +662,7 @@ def test_provisional_pdf_with_no_findable_identity_is_queued_for_review(temp_db_
     assert body["status"] == "direct_pdf_queued_for_review"
     assert body["paper_id"] is None
     assert body["pdf_reason"] == "provisional_capture"
+    assert client.app.state.capture_updates.revision != before
 
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:

@@ -279,6 +279,8 @@ async def capture_item(
 
     result = CaptureResult(capture_id=capture_id, **outcome.as_dict())
     idempotency.remember(idempotency_key, result.model_dump())
+    if result.created:
+        request.app.state.capture_updates.changed()
     return result
 
 
@@ -355,6 +357,7 @@ async def capture_pdf(
                 embedding_model=_embedding_model(request.app),
             )
             pending.provisional_result = result
+            request.app.state.capture_updates.changed()
             return _provisional_capture_result(minted_id, result)
 
         managed_root = library_dir()
@@ -381,6 +384,7 @@ async def capture_pdf(
             managed_path.unlink(missing_ok=True)
             raise
         pending.attached = True
+        request.app.state.capture_updates.changed()
         return CaptureResult(
             status=pending.status,
             capture_id=minted_id,

@@ -40,6 +40,10 @@ the full per-increment narrative for all other increments now lives in the reloc
 
 **Stack:**
 - **Backend:** Python 3.11+, FastAPI + Uvicorn (`app/backend/api/app.py`).
+- **Browser-capture visibility (#103):** capture commits wake bounded async observers via
+  `/library/capture-updates`; the UI retrieves authoritative queue state and invalidates Library.
+  Reuse the existing auth-fetch and single-worker contract; a notification carries only an opaque
+  revision, never paper data or credentials. See `.claude/LATENCY.md` and QA route 27.
 - **Generation output ceilings must cover what the schema permits (inc 575).** `_PRIMARY_SYNTHESIS_SCHEMA`
   allows 7 claims × 3 citations, and the "no quote may exceed 80 words" instruction is *prose the grammar
   does not enforce* — so an unbounded `quote` string could consume the whole allowance. A citation-dense

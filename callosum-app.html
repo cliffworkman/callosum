@@ -4695,10 +4695,11 @@
       });
     }, []);
     const refreshImportQueueChip = useCallback((refreshLibrary = false) => {
-      api("/library/import-queue").then((r) => {
-        if (!r.ok) return;
+      return api("/library/import-queue").then((r) => {
+        if (!r.ok) return false;
         setImportQueueCount((r.data.items || []).length);
         if (refreshLibrary) setLibRefresh((n) => n + 1);
+        return true;
       });
     }, []);
     const [findingsByPaper, setFindingsByPaper] = useState({});
@@ -4988,9 +4989,7 @@
     useEffect(() => {
       refreshBayesChip();
     }, [refreshBayesChip]);
-    useEffect(() => {
-      refreshImportQueueChip();
-    }, [refreshImportQueueChip]);
+    useCaptureUpdates(refreshImportQueueChip, healthLoaded);
     const libraryBits = {
       state: listState,
       query,
@@ -5123,6 +5122,61 @@
       sharePaperIds,
       setSharePaperIds
     };
+  }
+  function observeCaptureUpdates(refresh) {
+    let active = true, revision = "", controller = null, retry = null;
+    const retrySoon = () => {
+      retry = window.setTimeout(() => {
+        retry = null;
+        request();
+      }, JOB_STATUS_FALLBACK_RETRY_MS);
+    };
+    const request = async () => {
+      controller = new AbortController();
+      const response = await api(`/library/capture-updates?after=${revision}&wait_seconds=20`, { signal: controller.signal });
+      controller = null;
+      if (!active) return;
+      if (!response.ok) {
+        const retryable = response.status == null || response.status >= 500 || [408, 429].includes(response.status);
+        if (retryable) retrySoon();
+        return;
+      }
+      if (response.data.revision !== revision) {
+        const refreshed = await refresh(true);
+        if (!active) return;
+        if (refreshed === false) {
+          retrySoon();
+          return;
+        }
+        revision = response.data.revision;
+      }
+      request();
+    };
+    request();
+    return () => {
+      active = false;
+      if (controller) controller.abort();
+      if (retry != null) window.clearTimeout(retry);
+    };
+  }
+  function useCaptureUpdates(refresh, healthLoaded) {
+    useEffect(() => {
+      if (!healthLoaded) return;
+      if (isDemoMode()) {
+        refresh();
+        return;
+      }
+      let stop = observeCaptureUpdates(refresh);
+      const onFocus = () => {
+        stop();
+        stop = observeCaptureUpdates(refresh);
+      };
+      window.addEventListener("focus", onFocus);
+      return () => {
+        window.removeEventListener("focus", onFocus);
+        stop();
+      };
+    }, [refresh, healthLoaded]);
   }
   function _loadLayout(key, fallback) {
     try {

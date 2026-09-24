@@ -1,6 +1,6 @@
 <!-- qa-coverage
-api: /library/scan*, /library/watched*, /library/import*
-fe: 27_scan.jsx, 28_import.jsx
+api: /library/scan*, /library/watched*, /library/import*, /library/capture-updates, /capture/session, /capture/item, /capture/item/{capture_id}/pdf
+fe: 27_scan.jsx, 28_import.jsx, 03a_capture_updates.jsx, 10l_import_queue.jsx
 -->
 
 # ROUTE 27 - Scan, watched folders, and import
@@ -47,6 +47,26 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
    a crash; submit an over-5MB file directly and confirm the resource cap returns a readable error.
 
 ## Pass criteria
+
+### Browser capture visibility regression (#103)
+
+Use a fresh disposable Library and the real extension/native host for the manual packaged run.
+Capture a known public PDF and return to the app both (a) after the extension reports completion
+and (b) while upload is still underway. The Import Queue must appear automatically when the
+backend commits the capture, without focus changes, right-click Refresh or reload. Record backend
+response and visible-chip timestamps separately; target sub-second visibility after completion.
+An idle `/library/capture-updates` request may remain held for 20 seconds, but must wake immediately
+on a change; that timeout is not an accepted completion delay. Authoritative queue/paper GETs must
+follow a changed revision, including after reconnect. Unchanged idle responses must not repeatedly
+fetch the queue. Close/reopen the app view to exercise observer cleanup/reconnection.
+
+Confirm the identity only after recording the provisional state. The paper must appear in Library
+without reload, preserve the source checksum and user-confirmation provenance, and leave exactly
+one canonical attachment with the queued copy removed. For repeated stimuli, use isolated DBs or
+distinct PDFs so content deduplication cannot masquerade as queue-update success.
+
+`tests/e2e/test_capture_updates.py` covers the HTTP-to-render notification path locally. It is
+explicitly not evidence of a real extension click or packaged macOS acceptance.
 
 - Scan, watched rescan/delete, and import jobs complete through UI polling.
 - 0 console/page errors and 0 genai-host requests.

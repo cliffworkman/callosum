@@ -289,7 +289,7 @@ function useLibrary(opts) {
     api("/methods/bayes/summary").then(r => { if (r.ok) setBayesFlagged(r.data.flagged || 0); });
   }, []);
   const refreshImportQueueChip = useCallback((refreshLibrary = false) => {
-    api("/library/import-queue").then(r => { if (!r.ok) return; setImportQueueCount((r.data.items || []).length); if (refreshLibrary) setLibRefresh(n => n + 1); });
+    return api("/library/import-queue").then(r => { if (!r.ok) return false; setImportQueueCount((r.data.items || []).length); if (refreshLibrary) setLibRefresh(n => n + 1); return true; });
   }, []);
 
   // --- findings overview → the "N to review" badge + FactMark; re-fetched after a review ---
@@ -548,7 +548,7 @@ function useLibrary(opts) {
   useEffect(() => { refreshLmmChip(); }, [refreshLmmChip]);
   useEffect(() => { refreshMetaChip(); }, [refreshMetaChip]);
   useEffect(() => { refreshBayesChip(); }, [refreshBayesChip]);
-  useEffect(() => { refreshImportQueueChip(); }, [refreshImportQueueChip]);
+  useCaptureUpdates(refreshImportQueueChip, healthLoaded);
 
   // The LibraryFrame prop bundle (minus the focus + selected props App still owns + spreads in).
   const libraryBits = {
