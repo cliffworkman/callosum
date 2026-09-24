@@ -1,0 +1,155 @@
+"""The six approved Wave-1 topologies as pinned role bindings (W / R / C / P), validated, with no inference."""
+
+import unittest
+
+from experiments.ask_cli_revised import execution_policy as policy
+from experiments.ask_cli_revised import topology as topo
+
+Q25 = topo.Binding("managed_local", "callosum-managed-local")
+
+
+def summary(name):
+    """(kind, model) per role, the shape the approved plan tabulates."""
+    profile = topo.WAVE1[name]
+    return {
+        role: (b.kind, b.model) for role, b in (("W", profile.W), ("R", profile.R), ("C", profile.C), ("P", profile.P))
+    }
+
+
+class Wave1BindingTests(unittest.TestCase):
+    def test_the_six_arms_and_no_others(self):
+        self.assertEqual(list(topo.WAVE1), ["T0", "T1", "T2", "T3", "T4", "T5"])
+
+    def test_t0_repaired_q25_baseline(self):
+        self.assertEqual(
+            summary("T0"),
+            {
+                "W": ("managed_local", "callosum-managed-local"),
+                "R": ("managed_local", "callosum-managed-local"),
+                "C": ("det", None),
+                "P": ("legacy", None),
+            },
+        )
+
+    def test_t1_q25_plus_qwen35_uses_qwen35_only_where_earned(self):
+        self.assertEqual(
+            summary("T1"),
+            {
+                "W": ("managed_local", "callosum-managed-local"),
+                "R": ("ollama", "qwen3.5:9b"),
+                "C": ("det", None),
+                "P": ("ollama", "qwen3.5:9b"),
+            },
+        )
+
+    def test_t2_changes_only_the_worker_relative_to_t1(self):
+        t1, t2 = summary("T1"), summary("T2")
+        self.assertEqual(t2["W"], ("ollama", "qwen3.5:9b"))
+        self.assertEqual({r: t2[r] for r in "RCP"}, {r: t1[r] for r in "RCP"})
+
+    def test_t3_and_t4_change_only_the_supervisory_model_relative_to_t2(self):
+        t2 = summary("T2")
+        for name, model in (("T3", "gemma3:12b"), ("T4", "gpt-oss:20b")):
+            with self.subTest(arm=name):
+                arm = summary(name)
+                self.assertEqual(arm["W"], t2["W"])
+                self.assertEqual(arm["C"], ("det", None))  # neither Gemma's failed C nor an unqualified C is bound
+                self.assertEqual(arm["R"], ("ollama", model))
+                self.assertEqual(arm["P"], ("ollama", model))
+
+    def test_t5_role_specialist_composes_the_only_c_passer_with_the_cheap_recovery_passer(self):
+        self.assertEqual(
+            summary("T5"),
+            {
+                "W": ("managed_local", "callosum-managed-local"),
+                "R": ("off", None),
+                "C": ("ollama", "phi4:14b"),
+                "P": ("ollama", "gemma3:12b"),
+            },
+        )
+
+    def test_no_arm_binds_qwen35_to_coverage_audit(self):
+        for name, profile in topo.WAVE1.items():
+            with self.subTest(arm=name):
+                self.assertFalse(profile.C.model and profile.C.model.startswith("qwen3.5"))
+
+    def test_no_noncausal_r_is_bound_where_a_model_audits_coverage(self):
+        for name, profile in topo.WAVE1.items():
+            if profile.C.kind == "ollama":
+                self.assertEqual(profile.R.kind, "off", name)
+
+    def test_every_det_coverage_arm_has_a_causal_r(self):
+        for name, profile in topo.WAVE1.items():
+            if profile.C.kind == "det":
+                self.assertNotEqual(profile.R.kind, "off", name)
+
+    def test_qwen35_workers_run_with_thinking_off(self):
+        for name in ("T2", "T3", "T4"):
+            self.assertIs(topo.WAVE1[name].W.think, False)
+
+    def test_supervisory_models_use_their_native_reasoning_default(self):
+        self.assertIs(topo.WAVE1["T1"].R.think, True)  # qwen3.5
+        self.assertEqual(topo.WAVE1["T4"].R.think, "medium")  # gpt-oss
+        self.assertIsNone(topo.WAVE1["T3"].R.think)  # gemma (no thinking capability)
+        self.assertIsNone(topo.WAVE1["T5"].C.think)  # phi4
+
+    def test_only_qwen35_recovery_planning_gets_the_larger_allowance(self):
+        for name, profile in topo.WAVE1.items():
+            if profile.P.kind != "ollama":
+                continue
+            with self.subTest(arm=name):
+                allowance = policy.generation_allowance(
+                    topo.SUPERVISOR_BASE_OPTIONS, profile.P.model, policy.RECOVERY_PLANNING
+                )
+                self.assertEqual(allowance, 8192 if profile.P.model.startswith("qwen3.5") else 4096)
+
+    def test_the_base_options_match_the_bakeoff_envelope_without_importing_it(self):
+        self.assertEqual(
+            topo.SUPERVISOR_BASE_OPTIONS,
+            {"num_ctx": 12288, "num_predict": 4096, "temperature": 0, "seed": 42, "num_thread": 6, "num_batch": 512},
+        )
+
+    def test_the_profiles_hold_no_secrets_or_paths(self):
+        text = repr(topo.WAVE1) + repr(topo.ENDPOINTS)
+        for forbidden in ("password", "token", "C:\\", "sk-"):
+            self.assertNotIn(forbidden, text)
+
+    def test_endpoints_are_loopback_only(self):
+        for url in topo.ENDPOINTS.values():
+            self.assertTrue(url.startswith("http://127.0.0.1:"), url)
+
+
+class ValidationTests(unittest.TestCase):
+    def profile(self, **roles):
+        base = {"W": Q25, "R": Q25, "C": topo.Binding("det"), "P": topo.Binding("legacy")}
+        base.update(roles)
+        return topo.Profile(name="X", **base)
+
+    def test_a_valid_profile_passes(self):
+        topo.validate(self.profile())
+
+    def test_the_worker_cannot_be_off(self):
+        with self.assertRaises(ValueError):
+            topo.validate(self.profile(W=topo.Binding("off")))
+
+    def test_a_model_coverage_audit_with_a_causal_r_is_rejected_as_a_wasted_stage(self):
+        with self.assertRaises(ValueError):
+            topo.validate(self.profile(C=topo.Binding("ollama", "phi4:14b", endpoint="isolated")))
+
+    def test_det_coverage_without_r_is_rejected(self):
+        with self.assertRaises(ValueError):
+            topo.validate(self.profile(R=topo.Binding("off")))
+
+    def test_unknown_kinds_are_rejected(self):
+        with self.assertRaises(ValueError):
+            topo.validate(self.profile(P=topo.Binding("cloud", "gemini")))
+
+    def test_an_ollama_binding_needs_a_model_and_a_known_endpoint(self):
+        with self.assertRaises(ValueError):
+            topo.validate(self.profile(P=topo.Binding("ollama", None, endpoint="isolated")))
+        with self.assertRaises(ValueError):
+            topo.validate(self.profile(P=topo.Binding("ollama", "gemma3:12b", endpoint="elsewhere")))
+
+
+if __name__ == "__main__":
+    unittest.main()

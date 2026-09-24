@@ -14,6 +14,8 @@ from typing import Any
 
 from app.backend.llm.managed_local import ManagedProviderRuntime
 from app.backend.llm.providers import ProviderError, complete
+from experiments.ask_cli_revised import execution_policy
+from experiments.ask_cli_revised.backends import NativeWorker
 from experiments.ask_cli_revised.request_contract import obligation_display
 from experiments.ask_cli_revised.retrieval import GATE_NO_ANSWER
 from experiments.ask_cli_revised.trace import TraceWriter
@@ -114,6 +116,7 @@ class _CallResult:
     failure_reason: str | None
     elapsed_seconds: float
     output_cap: int
+    extra: dict | None = None  # per-call telemetry (model, allowance, done_reason, ...) for Ollama-native workers
 
 
 @dataclass
@@ -121,7 +124,36 @@ class QwenTasks:
     config: object  # ManagedProviderConfig
     trace: TraceWriter
 
+    def _call_native(self, *, prompt: str, output_cap: int, json_schema: dict | None) -> _CallResult:
+        """An Ollama-native worker: one call through the execution-policy seam at the task's own small cap."""
+        if json_schema is None:
+            raise ValueError("native worker calls are schema-constrained; pass json_schema")
+        worker = self.config
+        result = execution_policy.run_stage_call(
+            worker.client,
+            model_tag=worker.model,
+            stage="worker",
+            prompt=prompt,
+            schema=json_schema,
+            base_options={**worker.base_options, "num_predict": output_cap},
+            think=worker.think,
+        )
+        record = result.record
+        outcome = record["outcome"]
+        return _CallResult(
+            raw_text=result.raw_text,
+            provider_ok=record["usable"],
+            failure_reason=None
+            if record["usable"]
+            else ("truncated_at_output_cap" if outcome == execution_policy.CAPPED else outcome),
+            elapsed_seconds=record.get("wall_seconds") or 0.0,
+            output_cap=output_cap,
+            extra=record,
+        )
+
     def _call(self, *, prompt: str, output_cap: int, json_schema: dict | None = None) -> _CallResult:
+        if isinstance(self.config, NativeWorker):
+            return self._call_native(prompt=prompt, output_cap=output_cap, json_schema=json_schema)
         started = time.monotonic()
         try:
             config = (
@@ -180,6 +212,7 @@ class QwenTasks:
             downstream_consequence=consequence,
             elapsed_seconds=call.elapsed_seconds,
             output_cap=call.output_cap,
+            extra=getattr(call, "extra", None),
         )
 
     # ---- Stage 1: question interpretation ---------------------------------------------------------

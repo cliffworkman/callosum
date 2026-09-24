@@ -24,7 +24,16 @@ GOOD = '{"rationale": "Answers the first item.", "responsive_obligation_ids": ["
 EMPTY = '{"rationale": "Answers none of the items.", "responsive_obligation_ids": []}'
 
 
-def rec(content="", *, status="ok", done_reason="stop", eval_count=120, prompt_eval_count=600, thinking=""):
+def rec(
+    content="",
+    *,
+    status="ok",
+    done_reason="stop",
+    eval_count=120,
+    prompt_eval_count=600,
+    thinking="",
+    load_duration=None,
+):
     """A call record shaped like OllamaClient.chat's return value."""
     return {
         "status": status,
@@ -32,7 +41,11 @@ def rec(content="", *, status="ok", done_reason="stop", eval_count=120, prompt_e
         "content": content,
         "thinking": thinking,
         "done_reason": done_reason,
-        "timings": {"prompt_eval_count": prompt_eval_count, "eval_count": eval_count},
+        "timings": {
+            "prompt_eval_count": prompt_eval_count,
+            "eval_count": eval_count,
+            "load_duration": load_duration,
+        },
         "wall_seconds": 7.5,
     }
 
@@ -161,6 +174,8 @@ class RunStageCallTests(unittest.TestCase):
                 "prompt_tokens": 600,
                 "generated_tokens": 120,
                 "wall_seconds": 7.5,
+                "load_seconds": None,
+                "thinking_chars": 0,
             },
         )
 
@@ -239,6 +254,18 @@ class RunStageCallTests(unittest.TestCase):
                 base_options={"num_ctx": 12288},
             )
         self.assertEqual(client.calls, [])
+
+    def test_load_time_and_thinking_size_are_recorded_without_the_thinking_text(self):
+        result = self.run_call(FakeClient(rec(GOOD, thinking="x" * 5000, load_duration=2_500_000_000)))
+        self.assertEqual(result.record["load_seconds"], 2.5)
+        self.assertEqual(result.record["thinking_chars"], 5000)
+        self.assertNotIn("xxxx", " ".join(str(v) for v in result.record.values()))
+
+    def test_the_raw_content_is_returned_beside_the_record_for_the_caller_to_keep_private(self):
+        self.assertEqual(self.run_call(FakeClient(rec(GOOD))).raw_text, GOOD)
+        capped = self.run_call(FakeClient(rec("partial", done_reason="length")))
+        self.assertIsNone(capped.answer)
+        self.assertEqual(capped.raw_text, "partial")  # kept for postmortem, never interpreted
 
     def test_the_record_holds_no_model_text(self):
         result = self.run_call(FakeClient(rec(GOOD, thinking="private reasoning")))

@@ -56,7 +56,8 @@ def stage_options(base_options: dict, model_tag: str, stage: str) -> dict:
 @dataclass(frozen=True)
 class StageResult:
     answer: dict | list | None  # the parsed structured answer iff usable; None == NO ANSWER (mechanically unresolved)
-    record: dict  # model, stage, allowance, done_reason, usable, outcome, status, tokens, wall (never any text)
+    record: dict  # model, stage, allowance, done_reason, usable, outcome, status, tokens, timing (never any text)
+    raw_text: str = ""  # the raw content, for the caller's private trace; never interpreted, even when capped
 
 
 def _classify(call: dict, schema: dict) -> tuple[dict | list | None, str]:
@@ -117,6 +118,8 @@ def run_stage_call(
         "prompt_tokens": timings.get("prompt_eval_count"),
         "generated_tokens": timings.get("eval_count"),
         "wall_seconds": call.get("wall_seconds"),
+        "load_seconds": (timings["load_duration"] / 1e9) if timings.get("load_duration") is not None else None,
+        "thinking_chars": len(call.get("thinking") or ""),
     }
     if trace is not None:
         trace.qwen_call(
@@ -137,4 +140,4 @@ def run_stage_call(
             output_cap=allowance,
             extra=record,
         )
-    return StageResult(answer=answer, record=record)
+    return StageResult(answer=answer, record=record, raw_text=call.get("content") or "")
