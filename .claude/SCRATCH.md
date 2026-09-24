@@ -2,6 +2,17 @@
 
 Private operational handoff for Claude and Codex. Keep this file small.
 
+## Ask 0.7 E2E lane - first two scored AIB runs COMPLETE; awaiting Cliff's review (2026-09-24)
+
+**Read this first; the older lanes below are historical. No inference is pending. Do not start T1-T4, built-env, LLD, or Wave 2 without Cliff's go-ahead.**
+
+* Worktree `.claude/worktrees/ask-e2e`, branch `experiment/ask-e2e`, local-only (no push). Tags: `e2e-substrate-v1` = `c58faff6` (harness ready), **`e2e-substrate-v2` = `6d863121`** (T5 -> T5*; the exact code both scored runs used). Docs in `experiments/ask_cli_revised/`: `E2E_RESULTS_AIB_T0_T5S.md` (results, aggregates only), `E2E_HARNESS.md`, `E2E_READINESS.md`, `E2E_TOPOLOGY_PLAN.md`.
+* Done: **T0** (repaired Q2.5 baseline: W/R Qwen2.5, C det, P legacy) and **T5\*** (W qwen3.5:9b `think:false`, R off, C phi4:14b, P gemma3:12b; CLI key `T5`, manifest name `T5*`). T0 vs T5* is a system-level contrast (worker, R/C architecture, planner, recovery budget all differ), never a causal estimate for one model.
+* Key facts: T0 = 0 source-verified claims (Q2.5 claims have exact quotes but ~0 NLI support; gate discards 82-95%). T5* = 14 source-verified claims (11 anchors, 5 papers); phi4 judged 6/6 items responsive, every claim attached to the item it was retrieved for (anchoring possible, unadjudicated); P/gemma recovery and C2 were never exercised (no unresolved items).
+* Next decision (Cliff): review the results + the private 15-item blinded adjudication sheet (`ask-e2e/.local/e2e-runs/scored/adjudication/`, key file alongside), then decide whether/which of T3 or T4 to run (same Qwen3.5 worker, so they isolate R/C/P; they are the only arms likely to leave gaps for P to act on).
+* Run one arm: `python -m experiments.ask_cli_revised.e2e --profile T0..T5 --question aib|lld|builtenv --db <library copy> --out <private dir under ask-e2e/.local/e2e-runs/> [--juno-sampler] [--smoke]`. Library copy `<ask-cli-staged-synthesis worktree>/.local/ask-060-fix-run/library_copy.sqlite` (frozen fingerprint beside it, read-only). Q2.5-bound arms (T0-T1) need `CALLOSUM_APP_DATA_DIR` = that worktree's `.local/dev-app-data-juno-tunnel` (never print `auth-token`); T2-T5 do not. A scored run refuses a dirty tree, drifted contracts, or a drifted library copy; retry only clearly transient infrastructure failures (fresh out dir, same SHA); library drift = STOP.
+* JUNO: both tunnels and both Ollamas (isolated 0.34.3 :11435, shared 0.12.3 :11434) are up and idle - leave them. `juno.ps1` runs under `pwsh`.
+
 ## Governance
 
 - Assume a fresh agent chat. Do not rely on inherited conversation context.
