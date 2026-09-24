@@ -35,7 +35,7 @@ class ExperimentRuntime:
     vector_store: SQLiteVecVectorStore
     verifier: LocalCitationVerifier
     provider_runtime: ProviderClientRuntime
-    qwen_config: object  # ManagedProviderConfig — intermediate stages
+    qwen_config: object | None  # ManagedProviderConfig — None when no role is bound to managed-local Qwen
     gemini_config: object | None  # terminal only; None if no key
     registry: ModelRuntimeRegistry
 
@@ -49,12 +49,16 @@ class ExperimentRuntime:
                 self.engine.dispose()
 
 
-def build_runtime(db_path: str | Path, *, want_gemini: bool = False, want_verifier: bool = True) -> ExperimentRuntime:
+def build_runtime(
+    db_path: str | Path, *, want_gemini: bool = False, want_verifier: bool = True, want_qwen: bool = True
+) -> ExperimentRuntime:
     """Construct the isolated runtime over ``db_path`` (a COPY). Raises QwenUnavailableError if Qwen is not
     provisioned (``CALLOSUM_APP_DATA_DIR`` + a live descriptor, e.g. via ``python tools/run_local_ai.py``).
 
     ``want_verifier=False`` skips the NLI CrossEncoder load (Run 0.5 calibration only needs the embedding
-    model + Qwen config; loading the verifier is wasted memory and can OOM a constrained machine)."""
+    model + Qwen config; loading the verifier is wasted memory and can OOM a constrained machine).
+    ``want_qwen=False`` is for a topology that binds no role to managed-local Qwen (every worker is Ollama-native),
+    so such an arm does not depend on a descriptor it never uses."""
     db_url = f"sqlite:///{Path(db_path).resolve().as_posix()}"
     engine = make_engine(db_url)
     registry = ModelRuntimeRegistry()
@@ -72,7 +76,7 @@ def build_runtime(db_path: str | Path, *, want_gemini: bool = False, want_verifi
             model=model, vector_store=vector_store, config=VerificationConfig(), support_scorer=support_scorer
         )
 
-    qwen_config = _resolve_qwen(provider_runtime)
+    qwen_config = _resolve_qwen(provider_runtime) if want_qwen else None
     gemini_config = _resolve_gemini(provider_runtime) if want_gemini else None
 
     return ExperimentRuntime(
