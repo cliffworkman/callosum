@@ -11,9 +11,9 @@
   ],
   "review": {
     "reviewed_at": "2026-09-24",
-    "reviewed_rev": "b0d98e63",
+    "reviewed_rev": "b2f2f242",
     "reviewed_increment": 603,
-    "source_fingerprint": "577e23df9865bfb5a6213d7c3936652a2193b483d6ef85e83b7a9a53930f9da2",
+    "source_fingerprint": "a180bc277962beb06d0a07adf91c28b3dfdd5f427ed4127d08029cffe27c46fc",
     "note": "Reviewed cap-import copy and Library map: capture completion notification changes no controls, layout, or public capability claims; packaged Mac acceptance remains pending.",
     "declined_at": null,
     "declined_rev": null,
