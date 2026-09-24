@@ -184,6 +184,22 @@ class ResidencyGuardTests(unittest.TestCase):
         self.assertEqual(event["resident"]["isolated"], [])
         self.assertIn("wall_seconds", event)
 
+    def test_an_after_phase_observation_records_what_the_model_actually_occupied(self):
+        guard, shared, _ = self.guard()
+        guard.enter("shared", "callosum-managed-local", phase="W1")
+        shared.resident = ["callosum-managed-local"]  # loaded by the phase's first call
+        guard.observe("W1")
+        obs = guard.observations[-1]
+        self.assertEqual(obs["phase"], "W1")
+        self.assertEqual(obs["resident"]["shared"], [{"name": "callosum-managed-local", "size": 100, "size_vram": 60}])
+        self.assertEqual(len(guard.events), 1)  # entry events are unchanged
+
+    def test_a_failing_observation_is_recorded_not_raised(self):
+        guard, shared, _ = self.guard()
+        shared.ps = lambda: (_ for _ in ()).throw(RuntimeError("tunnel closed"))
+        guard.observe("W1")
+        self.assertIn("tunnel closed", guard.observations[-1]["error"])
+
     def test_release_all_unloads_everything_the_run_loaded_and_nothing_else(self):
         guard, shared, isolated = self.guard()
         guard.enter("shared", "callosum-managed-local", phase="W")

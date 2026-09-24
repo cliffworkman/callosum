@@ -232,6 +232,10 @@ class CausalDetTopologyTests(unittest.TestCase):
         self.assertTrue(all(e["unloaded"] == [] for e in events))
         self.assertEqual(result["skipped"], [])
 
+    def test_each_model_stage_is_observed_again_after_it_runs(self):
+        self.h.run()
+        self.assertEqual([o["phase"] for o in self.h.guard.observations], ["W1", "R1", "W2", "R2"])
+
 
 class NoNewEvidenceTests(unittest.TestCase):
     def test_a_recovery_that_finds_nothing_new_skips_round_two_r_and_c_and_reuses_round_one_coverage(self):

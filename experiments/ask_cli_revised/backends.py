@@ -73,6 +73,7 @@ class ResidencyGuard:
 
     clients: dict
     events: list = field(default_factory=list)
+    observations: list = field(default_factory=list)  # what was resident after a phase ran (its model's real footprint)
     _touched: list = field(default_factory=list)
 
     def _resident(self) -> dict:
@@ -104,6 +105,15 @@ class ResidencyGuard:
         }
         self.events.append(event)
         return event
+
+    def observe(self, phase: str) -> dict:
+        """Record what is resident now. Entry snapshots precede the load; this one shows the model's real footprint."""
+        try:
+            observation = {"phase": phase, "resident": self._resident()}
+        except Exception as exc:  # noqa: BLE001 - telemetry must never abort a run
+            observation = {"phase": phase, "error": f"{type(exc).__name__}: {exc}"}
+        self.observations.append(observation)
+        return observation
 
     def release_all(self) -> None:
         for endpoint, model in list(self._touched):

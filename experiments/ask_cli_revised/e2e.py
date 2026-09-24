@@ -291,6 +291,8 @@ def execute(
         finally:
             entry["wall_seconds"] = round(time.monotonic() - started, 3)
             stage_log.append(entry)
+            if target is not None:
+                guard.observe(name)
 
     def skip(name: str, reason: str) -> None:
         skipped.append({"stage": name, "reason": reason})
@@ -588,6 +590,7 @@ def run_topology(
         "stage_log": result["stage_log"],
         "skipped": result["skipped"],
         "residency_events": guard.events,
+        "residency_observations": guard.observations,
         "sealed_hash": result["sealed_hash"],
         "records_total": result["records_total"],
         "verified_claims": len(result["sealed"]["verified_propositions"]),
