@@ -4694,9 +4694,11 @@
         if (r.ok) setBayesFlagged(r.data.flagged || 0);
       });
     }, []);
-    const refreshImportQueueChip = useCallback(() => {
+    const refreshImportQueueChip = useCallback((refreshLibrary = false) => {
       api("/library/import-queue").then((r) => {
-        if (r.ok) setImportQueueCount((r.data.items || []).length);
+        if (!r.ok) return;
+        setImportQueueCount((r.data.items || []).length);
+        if (refreshLibrary) setLibRefresh((n) => n + 1);
       });
     }, []);
     const [findingsByPaper, setFindingsByPaper] = useState({});
@@ -5066,7 +5068,7 @@
       findingsByPaper,
       referenceWarningsByPaper,
       importQueueCount,
-      onImportQueueChanged: refreshImportQueueChip,
+      onImportQueueChanged: () => refreshImportQueueChip(true),
       onToggleTrash: toggleTrash,
       onRestore: restorePaper,
       onPurge: purgePaper,

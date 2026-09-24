@@ -288,8 +288,8 @@ function useLibrary(opts) {
   const refreshBayesChip = useCallback(() => {
     api("/methods/bayes/summary").then(r => { if (r.ok) setBayesFlagged(r.data.flagged || 0); });
   }, []);
-  const refreshImportQueueChip = useCallback(() => {
-    api("/library/import-queue").then(r => { if (r.ok) setImportQueueCount((r.data.items || []).length); });
+  const refreshImportQueueChip = useCallback((refreshLibrary = false) => {
+    api("/library/import-queue").then(r => { if (!r.ok) return; setImportQueueCount((r.data.items || []).length); if (refreshLibrary) setLibRefresh(n => n + 1); });
   }, []);
 
   // --- findings overview → the "N to review" badge + FactMark; re-fetched after a review ---
@@ -579,7 +579,7 @@ function useLibrary(opts) {
     bayesFlagged, onShowBayesFlagged: showBayesFlagged,
     findingsToReview, onShowFindingsToReview: showFindingsToReview,
     findingsByPaper, referenceWarningsByPaper,
-    importQueueCount, onImportQueueChanged: refreshImportQueueChip,
+    importQueueCount, onImportQueueChanged: () => refreshImportQueueChip(true),
     onToggleTrash: toggleTrash, onRestore: restorePaper,
     onPurge: purgePaper, onEmptyTrash: emptyTrash,
     onCitationsRefreshed: () => setLibRefresh(n => n + 1), onEnriched: () => setLibRefresh(n => n + 1),
