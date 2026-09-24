@@ -1,0 +1,238 @@
+{
+  "version": 1,
+  "questions": {
+    "aib": {
+      "question_hash": "6e037bab4baad2c0b4427a1c73c6e1720296292b3be36189cd9cf02436e57030",
+      "n_units": 6,
+      "obligations": [
+        {
+          "field_id": "s1-o1",
+          "source_unit_id": "u1",
+          "start": 0,
+          "end": 78,
+          "note": "how does the anomalous is bad bias manifest in brain, behavior, and attitudes?",
+          "display": "how does the anomalous is bad bias manifest in brain, behavior, and attitudes?"
+        },
+        {
+          "field_id": "s2-o1",
+          "source_unit_id": "u2",
+          "start": 79,
+          "end": 323,
+          "note": "please return specific brain areas and whether and how they relate to behaviors, which kinds of behaviors, and whether they relate to attitudes, and which kinds of attitudes. what kind of specific personality traits relate to its manifestation?",
+          "display": "please return specific brain areas and whether and how they relate to behaviors, which kinds of behaviors, and whether they relate to attitudes, and which kinds of attitudes. what kind of specific personality traits relate to its manifestation?"
+        },
+        {
+          "field_id": "s3-o1",
+          "source_unit_id": "u3",
+          "start": 324,
+          "end": 347,
+          "note": "and using which scales?",
+          "display": "and using which scales?"
+        },
+        {
+          "field_id": "s4-o1",
+          "source_unit_id": "u4",
+          "start": 348,
+          "end": 398,
+          "note": "is there any cross-cultural evidence for the bias?",
+          "display": "is there any cross-cultural evidence for the bias?"
+        },
+        {
+          "field_id": "s5-o1",
+          "source_unit_id": "u5",
+          "start": 399,
+          "end": 440,
+          "note": "which cultures and how was this measures?",
+          "display": "which cultures and how was this measures?"
+        },
+        {
+          "field_id": "s6-o1",
+          "source_unit_id": "u6",
+          "start": 441,
+          "end": 500,
+          "note": "and are there effective interventions aimed at reducing it?",
+          "display": "and are there effective interventions aimed at reducing it?"
+        }
+      ],
+      "model_facing_sha256": "3ae8f4357933763b650865c291fbe52a711de79274135682ed02b175374c375a"
+    },
+    "lld": {
+      "question_hash": "f399387564e6ab502bee4419f67026b9cecae06a31346fedfaf3f331f00cd6be",
+      "n_units": 8,
+      "obligations": [
+        {
+          "field_id": "s1-o1",
+          "source_unit_id": "u1",
+          "start": 0,
+          "end": 173,
+          "note": "Synthesize the neural and biological systems implicated in late-life depression and its relationship to cognitive decline and dementia based on the literature in my library.",
+          "display": "Synthesize the neural and biological systems implicated in late-life depression and its relationship to cognitive decline and dementia based on the literature in my library."
+        },
+        {
+          "field_id": "s2-o1",
+          "source_unit_id": "u2",
+          "start": 174,
+          "end": 227,
+          "note": "I am particularly interested in serotonergic function",
+          "display": "I am particularly interested in serotonergic function [part of the request sentence: \"I am particularly interested in serotonergic function, amyloid, glucose metabolism, gray-matter structure, memory and executive function, and other relevant neurobiological or cognitive findings.\"]",
+          "source_sentence": "I am particularly interested in serotonergic function, amyloid, glucose metabolism, gray-matter structure, memory and executive function, and other relevant neurobiological or cognitive findings.",
+          "list_position": 1,
+          "list_size": 6
+        },
+        {
+          "field_id": "s3-o1",
+          "source_unit_id": "u3",
+          "start": 229,
+          "end": 236,
+          "note": "amyloid",
+          "display": "amyloid [part of the request sentence: \"I am particularly interested in serotonergic function, amyloid, glucose metabolism, gray-matter structure, memory and executive function, and other relevant neurobiological or cognitive findings.\"]",
+          "source_sentence": "I am particularly interested in serotonergic function, amyloid, glucose metabolism, gray-matter structure, memory and executive function, and other relevant neurobiological or cognitive findings.",
+          "list_position": 2,
+          "list_size": 6
+        },
+        {
+          "field_id": "s4-o1",
+          "source_unit_id": "u4",
+          "start": 238,
+          "end": 256,
+          "note": "glucose metabolism",
+          "display": "glucose metabolism [part of the request sentence: \"I am particularly interested in serotonergic function, amyloid, glucose metabolism, gray-matter structure, memory and executive function, and other relevant neurobiological or cognitive findings.\"]",
+          "source_sentence": "I am particularly interested in serotonergic function, amyloid, glucose metabolism, gray-matter structure, memory and executive function, and other relevant neurobiological or cognitive findings.",
+          "list_position": 3,
+          "list_size": 6
+        },
+        {
+          "field_id": "s5-o1",
+          "source_unit_id": "u5",
+          "start": 258,
+          "end": 279,
+          "note": "gray-matter structure",
+          "display": "gray-matter structure [part of the request sentence: \"I am particularly interested in serotonergic function, amyloid, glucose metabolism, gray-matter structure, memory and executive function, and other relevant neurobiological or cognitive findings.\"]",
+          "source_sentence": "I am particularly interested in serotonergic function, amyloid, glucose metabolism, gray-matter structure, memory and executive function, and other relevant neurobiological or cognitive findings.",
+          "list_position": 4,
+          "list_size": 6
+        },
+        {
+          "field_id": "s6-o1",
+          "source_unit_id": "u6",
+          "start": 281,
+          "end": 310,
+          "note": "memory and executive function",
+          "display": "memory and executive function [part of the request sentence: \"I am particularly interested in serotonergic function, amyloid, glucose metabolism, gray-matter structure, memory and executive function, and other relevant neurobiological or cognitive findings.\"]",
+          "source_sentence": "I am particularly interested in serotonergic function, amyloid, glucose metabolism, gray-matter structure, memory and executive function, and other relevant neurobiological or cognitive findings.",
+          "list_position": 5,
+          "list_size": 6
+        },
+        {
+          "field_id": "s7-o1",
+          "source_unit_id": "u7",
+          "start": 312,
+          "end": 369,
+          "note": "and other relevant neurobiological or cognitive findings.",
+          "display": "and other relevant neurobiological or cognitive findings. [part of the request sentence: \"I am particularly interested in serotonergic function, amyloid, glucose metabolism, gray-matter structure, memory and executive function, and other relevant neurobiological or cognitive findings.\"]",
+          "source_sentence": "I am particularly interested in serotonergic function, amyloid, glucose metabolism, gray-matter structure, memory and executive function, and other relevant neurobiological or cognitive findings.",
+          "list_position": 6,
+          "list_size": 6
+        },
+        {
+          "field_id": "s8-o1",
+          "source_unit_id": "u8",
+          "start": 370,
+          "end": 538,
+          "note": "Give me a structured account of the systems and processes involved, what role each appears to play, and where the literature reports mixed, null, or uncertain findings.",
+          "display": "Give me a structured account of the systems and processes involved, what role each appears to play, and where the literature reports mixed, null, or uncertain findings."
+        }
+      ],
+      "model_facing_sha256": "ecdab58a0f69868c5e7e42a5c2ee265fbb3dfa932152497a11a734b6943cf288"
+    },
+    "builtenv": {
+      "question_hash": "36e4623ef3b58fab08066661b5eb1fa12286dc3fca514432980bdb12c9aa0ce0",
+      "n_units": 8,
+      "obligations": [
+        {
+          "field_id": "s1-o1",
+          "source_unit_id": "u1",
+          "start": 0,
+          "end": 132,
+          "note": "I want you to do a synthesis of the brain areas involved in the human perception of built environment based on fMRI and EEG studies.",
+          "display": "I want you to do a synthesis of the brain areas involved in the human perception of built environment based on fMRI and EEG studies."
+        },
+        {
+          "field_id": "s2-o1",
+          "source_unit_id": "u2",
+          "start": 133,
+          "end": 174,
+          "note": "I am interested in aesthetic appreciation",
+          "display": "I am interested in aesthetic appreciation [part of the request sentence: \"I am interested in aesthetic appreciation, coherence, fascination, hominess, ceiling height, visuospatial processing and more.\"]",
+          "source_sentence": "I am interested in aesthetic appreciation, coherence, fascination, hominess, ceiling height, visuospatial processing and more.",
+          "list_position": 1,
+          "list_size": 6
+        },
+        {
+          "field_id": "s3-o1",
+          "source_unit_id": "u3",
+          "start": 176,
+          "end": 185,
+          "note": "coherence",
+          "display": "coherence [part of the request sentence: \"I am interested in aesthetic appreciation, coherence, fascination, hominess, ceiling height, visuospatial processing and more.\"]",
+          "source_sentence": "I am interested in aesthetic appreciation, coherence, fascination, hominess, ceiling height, visuospatial processing and more.",
+          "list_position": 2,
+          "list_size": 6
+        },
+        {
+          "field_id": "s4-o1",
+          "source_unit_id": "u4",
+          "start": 187,
+          "end": 198,
+          "note": "fascination",
+          "display": "fascination [part of the request sentence: \"I am interested in aesthetic appreciation, coherence, fascination, hominess, ceiling height, visuospatial processing and more.\"]",
+          "source_sentence": "I am interested in aesthetic appreciation, coherence, fascination, hominess, ceiling height, visuospatial processing and more.",
+          "list_position": 3,
+          "list_size": 6
+        },
+        {
+          "field_id": "s5-o1",
+          "source_unit_id": "u5",
+          "start": 200,
+          "end": 208,
+          "note": "hominess",
+          "display": "hominess [part of the request sentence: \"I am interested in aesthetic appreciation, coherence, fascination, hominess, ceiling height, visuospatial processing and more.\"]",
+          "source_sentence": "I am interested in aesthetic appreciation, coherence, fascination, hominess, ceiling height, visuospatial processing and more.",
+          "list_position": 4,
+          "list_size": 6
+        },
+        {
+          "field_id": "s6-o1",
+          "source_unit_id": "u6",
+          "start": 210,
+          "end": 224,
+          "note": "ceiling height",
+          "display": "ceiling height [part of the request sentence: \"I am interested in aesthetic appreciation, coherence, fascination, hominess, ceiling height, visuospatial processing and more.\"]",
+          "source_sentence": "I am interested in aesthetic appreciation, coherence, fascination, hominess, ceiling height, visuospatial processing and more.",
+          "list_position": 5,
+          "list_size": 6
+        },
+        {
+          "field_id": "s7-o1",
+          "source_unit_id": "u7",
+          "start": 226,
+          "end": 259,
+          "note": "visuospatial processing and more.",
+          "display": "visuospatial processing and more. [part of the request sentence: \"I am interested in aesthetic appreciation, coherence, fascination, hominess, ceiling height, visuospatial processing and more.\"]",
+          "source_sentence": "I am interested in aesthetic appreciation, coherence, fascination, hominess, ceiling height, visuospatial processing and more.",
+          "list_position": 6,
+          "list_size": 6
+        },
+        {
+          "field_id": "s8-o1",
+          "source_unit_id": "u8",
+          "start": 260,
+          "end": 318,
+          "note": "Give me a list of the brain areas involved and their role.",
+          "display": "Give me a list of the brain areas involved and their role."
+        }
+      ],
+      "model_facing_sha256": "732284ffbca58c0260a854b3ae2d655e6ac5024ab5a8d39a048cdecb4f25b14b"
+    }
+  }
+}

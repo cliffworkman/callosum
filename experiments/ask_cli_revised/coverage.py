@@ -7,6 +7,8 @@ the separate original-request audit retains the higher-fidelity denominator.
 
 from __future__ import annotations
 
+from experiments.ask_cli_revised.request_contract import obligation_display
+
 
 def _verified(rec: dict) -> bool:
     return rec.get("verification", {}).get("status") == "verified"
@@ -44,6 +46,7 @@ def audit_coverage(subquestions: list[dict], records: list[dict]) -> dict:
                 "field_id": field_id,
                 "subquestion_id": sid,
                 "note": obligation.get("note", ""),
+                "display": obligation_display(obligation),
                 "state": state,
             }
             if obligation.get("kind"):

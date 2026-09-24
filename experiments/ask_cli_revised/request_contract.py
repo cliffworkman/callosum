@@ -10,6 +10,53 @@ import hashlib
 from experiments.ask_cli_revised.calibration.run06.segment import segment_source_units_v2
 
 
+_SENTENCE_TERMINATORS = ".!?"
+
+
+def _sentence_spans(question: str) -> list[tuple[int, int]]:
+    """Exact [start, end) spans of the request's sentences (each ends at its terminator)."""
+    spans: list[tuple[int, int]] = []
+    start = None
+    for index, char in enumerate(question):
+        if start is None and not char.isspace():
+            start = index
+        if char in _SENTENCE_TERMINATORS and start is not None:
+            spans.append((start, index + 1))
+            start = None
+    if start is not None:
+        spans.append((start, len(question.rstrip())))
+    return spans
+
+
+def _with_frames(question: str, units: list[dict]) -> list[dict]:
+    """Attach the exact containing sentence to every unit that is only a fragment of it.
+
+    Deterministic and derived from offsets alone, so it is independent of how the segmenter split the request.
+    A unit that already starts and ends on sentence boundaries (a full sentence, or a whole '?' clause) is left
+    exactly as it was; a fragment keeps its literal text and gains ``source_sentence`` / ``list_position`` /
+    ``list_size`` so a bare list item ("amyloid", "coherence") does not lose the frame it was written in.
+    """
+    spans = _sentence_spans(question)
+    enclosing = []
+    for unit in units:
+        touched = [s for s in spans if s[0] < unit["end"] and s[1] > unit["start"]]
+        enclosing.append((min(s[0] for s in touched), max(s[1] for s in touched)) if touched else None)
+    siblings: dict[tuple[int, int], list[int]] = {}
+    for index, (unit, frame) in enumerate(zip(units, enclosing, strict=True)):
+        if frame is not None and frame != (unit["start"], unit["end"]):
+            siblings.setdefault(frame, []).append(index)
+    out = [dict(unit) for unit in units]
+    for frame, members in siblings.items():
+        for position, index in enumerate(members, start=1):
+            out[index].update(
+                source_sentence=question[frame[0]:frame[1]], list_position=position, list_size=len(members)
+            )
+    return out
+
+
+_FRAME_KEYS = ("source_sentence", "list_position", "list_size")
+
+
 def build_request_contract(question: str) -> dict:
     if not isinstance(question, str) or not question.strip():
         raise ValueError("a nonempty original question is required")
@@ -21,6 +68,7 @@ def build_request_contract(question: str) -> dict:
         start = question.index(text, cursor)
         cursor = start + len(text)
         units.append({**unit, "start": start, "end": cursor, "question_hash": digest})
+    units = _with_frames(question, units)
     return {"version": "literal-request-v1", "original_question": question,
             "question_hash": digest, "source_units": units,
             "semantic_completeness": "not_certified"}
@@ -40,9 +88,20 @@ def request_subquestions(contract: dict) -> list[dict]:
          "text": f"Requested focus (literal):\n{unit['text']}\n\nOriginal request (context):\n{question}",
          "retrieval_view_kind": "literal_focus_with_original_context",
          "obligations": [{"field_id": f"s{i}-o1", "note": unit["text"],
-                          "source_unit_id": unit["source_unit_id"], "coverage_basis": "literal_unit"}]}
+                          "source_unit_id": unit["source_unit_id"], "coverage_basis": "literal_unit",
+                          **{k: unit[k] for k in _FRAME_KEYS if k in unit}}]}
         for i, unit in enumerate(contract["source_units"], 1)
     ]
+
+
+def obligation_display(obligation: dict) -> str:
+    """The obligation as model-facing stages show it: the literal unit, plus its exact frame if it is a fragment.
+
+    ``note`` stays the literal unit text (provenance, rendering, evaluation); this is what a model reads.
+    """
+    note = obligation.get("note", "")
+    sentence = obligation.get("source_sentence")
+    return f'{note} [part of the request sentence: "{sentence}"]' if sentence else note
 
 
 def audit_original_request(contract: dict, subquestions: list[dict], records: list[dict]) -> dict:
