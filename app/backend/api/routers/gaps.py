@@ -67,7 +67,7 @@ def gaps_list(
     for row in rows:  # filter at read time so Add/Dismiss take effect without a recompute
         if row["openalex_work_id"] in dismissed or (row["doi"] and row["doi"] in dismissed):
             continue
-        if row["doi"] and find_existing_paper_by_identity(conn, doi=row["doi"]) is not None:
+        if row["doi"] and find_existing_paper_by_identity(conn, doi=row["doi"], include_trashed=True) is not None:
             continue
         out.append(
             GapCandidateResponse(

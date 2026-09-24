@@ -1,0 +1,64 @@
+{
+  "cases": [
+    {
+      "case": "B",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC1817752/pdf/pone.0000308.pdf",
+      "click_result": "RESULT:CLICKED_VIA_MENU via keyboard",
+      "click_log": "WINDOW_NAME:pone.0000308 1..5 - Profile 1 - Microsoft? Edge\nANCHORED_FOCUS_VIA_ADDRESS_BAR at 392,70\nTAB 0 -> 'Add this page to favorites (Ctrl+D)'\nTAB 1 -> 'Extensions'\nOPENED_EXT_MENU\nMENU_TAB 0 -> 'Callosum Capture (dev) Allowed only when clicked New Extension'\nRESULT:CLICKED_VIA_MENU via keyboard\n",
+      "extension_state_raw": "RESULT:{\"id\":2,\"result\":{\"result\":{\"type\":\"string\",\"value\":\"[\\\"Callosum couldn't tell what scholarly work this PDF is. Try capturing it from the article's own page instead.\\\",\\\"?\\\"]\"}}}\nAdd-Type : Cannot add type. One or more required assemblies are missing.\nAt C:\\Users\\cliff\\Dropbox\\Dropbox\\01_Work\\callosum\\.claude\\worktrees\\browser-capture-research\\.claude\\experiments\\brows\ner-capture-acceptance\\read_extension_state.ps1:8 char:1\n+ Add-Type -AssemblyName System.Net.WebSockets.Client -ErrorAction Sile ...\n+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n    + CategoryInfo          : InvalidData: (:) [Add-Type], InvalidOperationException\n    + FullyQualifiedErrorId : ASSEMBLY_LOAD_ERRORS,Microsoft.PowerShell.Commands.AddTypeCommand\n \n",
+      "screenshot": "C:\\Users\\cliff\\Dropbox\\Dropbox\\01_Work\\callosum\\.claude\\worktrees\\browser-capture-research\\.claude\\experiments\\browser-capture-acceptance\\evidence-run\\case_B_after_click.png",
+      "db_before": {
+        "total_papers": 0
+      },
+      "db_after": {
+        "total_papers": 0
+      },
+      "notes": [
+        "all papers after B: []",
+        "backend.log /capture/item lines: ['INFO:     127.0.0.1:53470 - \"POST /capture/item HTTP/1.1\" 200 OK']",
+        "backend.log /capture/item/*/pdf lines (must be empty): []"
+      ]
+    },
+    {
+      "case": "E",
+      "url": "http://127.0.0.1:64409/existing.pdf",
+      "click_result": "RESULT:CLICKED_VIA_MENU via keyboard",
+      "click_log": "WINDOW_NAME:existing.pdf - Profile 1 - Microsoft? Edge\nANCHORED_FOCUS_VIA_ADDRESS_BAR at 392,70\nTAB 0 -> 'Add this page to favorites (Ctrl+D)'\nTAB 1 -> 'Extensions'\nOPENED_EXT_MENU\nMENU_TAB 0 -> 'Callosum Capture (dev) Allowed on this site New Extension'\nRESULT:CLICKED_VIA_MENU via keyboard\n",
+      "extension_state_raw": "RESULT:{\"id\":2,\"result\":{\"result\":{\"type\":\"string\",\"value\":\"[\\\"Callosum couldn't tell what scholarly work this PDF is. Try capturing it from the article's own page instead.\\\",\\\"?\\\"]\"}}}\nAdd-Type : Cannot add type. One or more required assemblies are missing.\nAt C:\\Users\\cliff\\Dropbox\\Dropbox\\01_Work\\callosum\\.claude\\worktrees\\browser-capture-research\\.claude\\experiments\\brows\ner-capture-acceptance\\read_extension_state.ps1:8 char:1\n+ Add-Type -AssemblyName System.Net.WebSockets.Client -ErrorAction Sile ...\n+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n    + CategoryInfo          : InvalidData: (:) [Add-Type], InvalidOperationException\n    + FullyQualifiedErrorId : ASSEMBLY_LOAD_ERRORS,Microsoft.PowerShell.Commands.AddTypeCommand\n \n",
+      "screenshot": "C:\\Users\\cliff\\Dropbox\\Dropbox\\01_Work\\callosum\\.claude\\worktrees\\browser-capture-research\\.claude\\experiments\\browser-capture-acceptance\\evidence-run\\case_E_after_click.png",
+      "db_before": {
+        "rows": [
+          {
+            "id": 1,
+            "title": "A Fixture Paper With An Existing Attachment",
+            "doi": "10.9999/fixture-e",
+            "deleted_at": null,
+            "imported_source": "capture:browser",
+            "attachments": 1,
+            "annotations": 0,
+            "embeddings": 0
+          }
+        ]
+      },
+      "db_after": {
+        "rows": [
+          {
+            "id": 1,
+            "title": "A Fixture Paper With An Existing Attachment",
+            "doi": "10.9999/fixture-e",
+            "deleted_at": null,
+            "imported_source": "capture:browser",
+            "attachments": 1,
+            "annotations": 0,
+            "embeddings": 0
+          }
+        ]
+      },
+      "notes": [
+        "total papers before=1 after=1",
+        "all papers after E: [{'id': 1, 'title': 'A Fixture Paper With An Existing Attachment', 'doi': '10.9999/fixture-e'}]",
+        "backend.log /capture/item/*/pdf lines (must be empty): []"
+      ]
+    }
+  ]
+}

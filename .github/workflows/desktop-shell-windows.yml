@@ -63,7 +63,9 @@ jobs:
       - name: Cache Rust build artifacts
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: app/desktop-shell/src-tauri
+          workspaces: |
+            app/desktop-shell/src-tauri
+            app/desktop-shell/connector-host
 
       - name: Install uv
         uses: astral-sh/setup-uv@v9.0.0
@@ -98,6 +100,22 @@ jobs:
 
       - name: Stage callosum source into resources/callosum-src
         run: python app/desktop-shell/packaging/stage_source.py
+
+      - name: Generate the connector's NSIS include from connector/identity.json
+        run: python app/desktop-shell/packaging/generate_connector_nsh.py
+
+      - name: Build and stage the browser-capture connector host into resources/connector
+        run: python app/desktop-shell/packaging/stage_connector.py
+
+      # Rust tests: the connector host (unit tests + real-binary caller-admission tests) and the desktop shell
+      # (includes the #98 byte-safe child-output drain regressions). Run after staging because Tauri validates its
+      # bundle resource paths on ANY cargo build of the package, tests included.
+      - name: Rust tests -- browser-capture connector host
+        run: cargo test --release --manifest-path app/desktop-shell/connector-host/Cargo.toml
+
+      - name: Rust tests -- desktop shell (src-tauri)
+        working-directory: app/desktop-shell/src-tauri
+        run: cargo test --release --lib
 
       - name: Install Tauri CLI
         working-directory: app/desktop-shell
@@ -205,6 +223,92 @@ jobs:
               ForEach-Object { Write-Host "--- $($_.FullName) ---"; Get-Content $_.FullName -Tail 120 }
             throw "installed Windows application lifecycle verification failed"
           }
+
+      - name: "Verify: browser-capture connector registration is correct after install"
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          function Get-DefaultRegValue($regPath) {
+            if (-not (Test-Path $regPath)) { throw "$regPath was not created by the installer" }
+            $value = (Get-Item -LiteralPath $regPath).GetValue("")
+            if ([string]::IsNullOrEmpty($value)) { throw "$regPath has no default value" }
+            return $value
+          }
+
+          # What the installer MUST have threaded into the manifest: exactly connector/identity.json's configured
+          # production ids -- an empty list while the extension is unpublished, both stores' ids once they exist.
+          $identity = Get-Content "app/desktop-shell/connector/identity.json" -Raw | ConvertFrom-Json
+          $expectedOrigins = @($identity.production_extension_ids | ForEach-Object { "chrome-extension://$_/" })
+          $manifestPaths = @()
+
+          foreach ($browserKey in @("Google\Chrome", "Microsoft\Edge")) {
+            $regPath = "HKCU:\Software\$browserKey\NativeMessagingHosts\org.callosum.connector"
+            $manifestPath = Get-DefaultRegValue $regPath
+            $manifestPaths += $manifestPath
+            Write-Host "$browserKey -> $manifestPath"
+            if (-not (Test-Path $manifestPath)) { throw "manifest does not exist at $manifestPath" }
+            $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+            if ($manifest.name -ne "org.callosum.connector") { throw "unexpected manifest name: $($manifest.name)" }
+            if ($manifest.type -ne "stdio") { throw "unexpected manifest type: $($manifest.type)" }
+            if (-not (Test-Path $manifest.path)) { throw "manifest 'path' does not resolve to a real file: $($manifest.path)" }
+            # Compare against what identity.json is CONFIGURED with, never a hard-coded expectation (see
+            # connector/identity.json's own comment for why production_extension_ids may be empty).
+            $actualOrigins = @($manifest.allowed_origins)
+            if (($actualOrigins -join ",") -ne ($expectedOrigins -join ",")) {
+              throw "allowed_origins does not match connector/identity.json: expected [$($expectedOrigins -join ',')], got [$($actualOrigins -join ',')]"
+            }
+          }
+          # Chrome and Edge read ONE shared manifest, so both stores' ids are in the single allowed_origins list.
+          if (($manifestPaths | Select-Object -Unique).Count -ne 1) {
+            throw "Chrome and Edge must point at ONE shared manifest; got: $($manifestPaths -join ' | ')"
+          }
+          Write-Host "connector registration verified for Chrome and Edge ($($expectedOrigins.Count) allowed origin(s), one shared manifest)"
+
+      - name: "Verify: update-mode uninstall preserves connector registration; ordinary uninstall removes it"
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $installDir = "$env:LOCALAPPDATA\Callosum"
+          $uninstaller = "$installDir\uninstall.exe"
+          if (-not (Test-Path $uninstaller)) { throw "uninstaller not found at $uninstaller" }
+
+          $chromeKey = "HKCU:\Software\Google\Chrome\NativeMessagingHosts\org.callosum.connector"
+          $edgeKey = "HKCU:\Software\Microsoft\Edge\NativeMessagingHosts\org.callosum.connector"
+
+          # Pre-seed an unrelated third-party entry to prove neither uninstall path below ever
+          # touches a NativeMessagingHosts sibling registered under a different name.
+          $thirdPartyKey = "HKCU:\Software\Google\Chrome\NativeMessagingHosts\com.example.thirdparty"
+          New-Item -Path $thirdPartyKey -Force | Out-Null
+          Set-ItemProperty -Path $thirdPartyKey -Name "(default)" -Value "C:\not-callosum\manifest.json"
+
+          # These exact arguments are not a guess: extracted from the actual NSIS template embedded
+          # in @tauri-apps/cli-win32-x64-msvc. The installer, when itself launched with /UPDATE by
+          # tauri-plugin-updater, re-invokes the OLD version's "$INSTDIR\uninstall.exe" with /UPDATE
+          # appended (plus /P, since this app's updater.windows.installMode is "passive") before the
+          # new version's files land. /S is added purely for CI unattendedness; it does not change
+          # $UpdateMode. _?=$INSTDIR makes the uninstaller run in place and synchronously, so -Wait
+          # actually waits for completion rather than for a self-copy-and-relaunch stub.
+          Write-Host "Running update-mode uninstall: $uninstaller /S /UPDATE _?=$installDir"
+          Start-Process -FilePath $uninstaller -ArgumentList "/S", "/UPDATE", "_?=$installDir" -Wait
+
+          if (-not (Test-Path $chromeKey)) { throw "update-mode uninstall removed the Chrome connector key -- the /UPDATE guard is broken" }
+          if (-not (Test-Path $edgeKey)) { throw "update-mode uninstall removed the Edge connector key -- the /UPDATE guard is broken" }
+          Write-Host "confirmed: update-mode uninstall preserved both connector registry keys"
+
+          Write-Host "Running ordinary uninstall: $uninstaller /S _?=$installDir"
+          Start-Process -FilePath $uninstaller -ArgumentList "/S", "_?=$installDir" -Wait
+
+          if (Test-Path $chromeKey) { throw "ordinary uninstall left the Chrome connector key behind" }
+          if (Test-Path $edgeKey) { throw "ordinary uninstall left the Edge connector key behind" }
+          Write-Host "confirmed: ordinary uninstall removed both connector registry keys"
+
+          if (-not (Test-Path $thirdPartyKey)) { throw "ordinary uninstall deleted an unrelated third-party NativeMessagingHosts entry -- the ownership check is broken" }
+          if ((Get-Item -LiteralPath $thirdPartyKey).GetValue("") -ne "C:\not-callosum\manifest.json") {
+            throw "third-party NativeMessagingHosts entry's value was modified"
+          }
+          Write-Host "confirmed: third-party NativeMessagingHosts entry survived untouched"
+          Remove-Item -Path $thirdPartyKey -Force -ErrorAction SilentlyContinue
 
       - name: Upload verification screenshot
         if: always()

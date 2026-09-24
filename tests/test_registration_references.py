@@ -16,6 +16,7 @@ from app.backend.pdf_processing.ingest import attach_pdf_to_paper
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import create_attachment, create_paper, get_chunks_for_attachment
 from app.backend.persistence.schema import attachments
+from tests.api_helpers import indexing_collaborators
 
 
 @dataclass
@@ -111,7 +112,7 @@ def test_pdf_ingest_persists_multiple_references_and_endpoint_states(temp_db_url
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:
         paper_id = create_paper(conn, title="References", csl_json={"title": "References"})
-        attach_pdf_to_paper(conn, paper_id, pdf, role="article-fulltext")
+        attach_pdf_to_paper(conn, paper_id, pdf, role="article-fulltext", **indexing_collaborators())
     engine.dispose()
 
     body = TestClient(create_app(db_url=temp_db_url)).get(f"/papers/{paper_id}/transparency").json()
@@ -149,7 +150,7 @@ def test_same_printed_and_manual_reference_is_one_identity_with_printed_evidence
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:
         paper_id = create_paper(conn, title="Same reference", csl_json={"title": "Same reference"})
-        attach_pdf_to_paper(conn, paper_id, pdf, role="article-fulltext")
+        attach_pdf_to_paper(conn, paper_id, pdf, role="article-fulltext", **indexing_collaborators())
     engine.dispose()
     client = TestClient(create_app(db_url=temp_db_url))
     assert (

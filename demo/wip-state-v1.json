@@ -1922,12 +1922,12 @@
           "due_date": null,
           "file_id": null,
           "finding_id": null,
-          "id": 1,
+          "id": 2,
           "manuscript_id": 1,
           "paper_id": null,
-          "section_id": 5,
-          "status": "in-progress",
-          "title": "Resolve the intentionally surfaced detector candidates",
+          "section_id": 6,
+          "status": "open",
+          "title": "Connect every interpretive claim to quoted evidence",
           "updated_at": "2026-08-11T12:00:00"
         },
         {
@@ -1937,12 +1937,12 @@
           "due_date": null,
           "file_id": null,
           "finding_id": null,
-          "id": 2,
+          "id": 1,
           "manuscript_id": 1,
           "paper_id": null,
-          "section_id": 6,
-          "status": "open",
-          "title": "Connect every interpretive claim to quoted evidence",
+          "section_id": 5,
+          "status": "in-progress",
+          "title": "Resolve the intentionally surfaced detector candidates",
           "updated_at": "2026-08-11T12:00:00"
         }
       ]
@@ -3462,12 +3462,12 @@
           "due_date": null,
           "file_id": null,
           "finding_id": null,
-          "id": 4,
+          "id": 5,
           "manuscript_id": 2,
           "paper_id": null,
-          "section_id": 18,
-          "status": "in-progress",
-          "title": "Resolve the intentionally surfaced detector candidates",
+          "section_id": 19,
+          "status": "open",
+          "title": "Connect every interpretive claim to quoted evidence",
           "updated_at": "2026-08-11T12:00:00"
         },
         {
@@ -3477,12 +3477,12 @@
           "due_date": null,
           "file_id": null,
           "finding_id": null,
-          "id": 5,
+          "id": 4,
           "manuscript_id": 2,
           "paper_id": null,
-          "section_id": 19,
-          "status": "open",
-          "title": "Connect every interpretive claim to quoted evidence",
+          "section_id": 18,
+          "status": "in-progress",
+          "title": "Resolve the intentionally surfaced detector candidates",
           "updated_at": "2026-08-11T12:00:00"
         }
       ]

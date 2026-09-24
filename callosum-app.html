@@ -3376,6 +3376,15 @@
   .funding-evidence-meta small, .funding-evidence-meta a { font-size: 11px; }
   .funding-evidence-meta a { color: var(--accent); text-decoration: none; }
   .funding-evidence-meta a:hover { text-decoration: underline; }
+
+  /* #61 Import Queue review cards: a captured-but-not-yet-canonical PDF, its evidence, and its actions. */
+  .iq-card { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .iq-card-body { flex: 1; min-width: 0; }
+  .iq-card-headline { font-size: 13px; font-weight: 650; color: var(--ink); }
+  .iq-thumb { width: 96px; height: 124px; object-fit: contain; border: 1px solid var(--line-2);
+    border-radius: var(--radius-sm); background: var(--panel-2); flex-shrink: 0; }
+  .iq-thumb-fallback { display: flex; align-items: center; justify-content: center; color: var(--ink-3);
+    font-size: 11px; }
 </style>
 </head>
 <body>
@@ -4274,6 +4283,7 @@
     const [lmmFlagged, setLmmFlagged] = useState(0);
     const [metaFlagged, setMetaFlagged] = useState(0);
     const [bayesFlagged, setBayesFlagged] = useState(0);
+    const [importQueueCount, setImportQueueCount] = useState(0);
     const [librarySort, setLibrarySort] = useState(() => {
       try {
         return localStorage.getItem("callosum.librarySort") || "added";
@@ -4684,6 +4694,14 @@
         if (r.ok) setBayesFlagged(r.data.flagged || 0);
       });
     }, []);
+    const refreshImportQueueChip = useCallback((refreshLibrary = false) => {
+      return api("/library/import-queue").then((r) => {
+        if (!r.ok) return false;
+        setImportQueueCount((r.data.items || []).length);
+        if (refreshLibrary) setLibRefresh((n) => n + 1);
+        return true;
+      });
+    }, []);
     const [findingsByPaper, setFindingsByPaper] = useState({});
     const [findingsRefresh, setFindingsRefresh] = useState(0);
     const [referenceWarningsByPaper, setReferenceWarningsByPaper] = useState({});
@@ -4971,6 +4989,7 @@
     useEffect(() => {
       refreshBayesChip();
     }, [refreshBayesChip]);
+    useCaptureUpdates(refreshImportQueueChip, healthLoaded);
     const libraryBits = {
       state: listState,
       query,
@@ -5047,6 +5066,8 @@
       onShowFindingsToReview: showFindingsToReview,
       findingsByPaper,
       referenceWarningsByPaper,
+      importQueueCount,
+      onImportQueueChanged: () => refreshImportQueueChip(true),
       onToggleTrash: toggleTrash,
       onRestore: restorePaper,
       onPurge: purgePaper,
@@ -5101,6 +5122,61 @@
       sharePaperIds,
       setSharePaperIds
     };
+  }
+  function observeCaptureUpdates(refresh) {
+    let active = true, revision = "", controller = null, retry = null;
+    const retrySoon = () => {
+      retry = window.setTimeout(() => {
+        retry = null;
+        request();
+      }, JOB_STATUS_FALLBACK_RETRY_MS);
+    };
+    const request = async () => {
+      controller = new AbortController();
+      const response = await api(`/library/capture-updates?after=${revision}&wait_seconds=20`, { signal: controller.signal });
+      controller = null;
+      if (!active) return;
+      if (!response.ok) {
+        const retryable = response.status == null || response.status >= 500 || [408, 429].includes(response.status);
+        if (retryable) retrySoon();
+        return;
+      }
+      if (response.data.revision !== revision) {
+        const refreshed = await refresh(true);
+        if (!active) return;
+        if (refreshed === false) {
+          retrySoon();
+          return;
+        }
+        revision = response.data.revision;
+      }
+      request();
+    };
+    request();
+    return () => {
+      active = false;
+      if (controller) controller.abort();
+      if (retry != null) window.clearTimeout(retry);
+    };
+  }
+  function useCaptureUpdates(refresh, healthLoaded) {
+    useEffect(() => {
+      if (!healthLoaded) return;
+      if (isDemoMode()) {
+        refresh();
+        return;
+      }
+      let stop = observeCaptureUpdates(refresh);
+      const onFocus = () => {
+        stop();
+        stop = observeCaptureUpdates(refresh);
+      };
+      window.addEventListener("focus", onFocus);
+      return () => {
+        window.removeEventListener("focus", onFocus);
+        stop();
+      };
+    }, [refresh, healthLoaded]);
   }
   function _loadLayout(key, fallback) {
     try {
@@ -10908,6 +10984,8 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     onShowFindingsToReview,
     findingsByPaper,
     referenceWarningsByPaper,
+    importQueueCount,
+    onImportQueueChanged,
     onToggleTrash,
     onRestore,
     onPurge,
@@ -11044,7 +11122,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       },
       "\u{1F4CB} Review \xB7 ",
       findingsToReview
-    )), !trashView && (demoMode ? /* @__PURE__ */ React.createElement(
+    )), !trashView && /* @__PURE__ */ React.createElement(ImportQueuePanel, { count: importQueueCount, onChanged: onImportQueueChanged, onOpenPaper: onOpenPdf }), !trashView && (demoMode ? /* @__PURE__ */ React.createElement(
       DemoLockedLibraryButton,
       {
         label: "Unsorted",
@@ -13120,6 +13198,266 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         }
       }
     );
+  }
+  function ImportQueueThumbnail({ artifactId }) {
+    const [state, setState] = useState({ status: "loading" });
+    const canvasRef = useRef(null);
+    useEffect(() => {
+      let cancelled = false;
+      (async () => {
+        let pdfjsLib2;
+        try {
+          pdfjsLib2 = await loadPdfJs();
+        } catch (e) {
+          if (!cancelled) setState({ status: "error" });
+          return;
+        }
+        const { path } = buildPdfPreviewRequest(artifactId);
+        let res;
+        try {
+          res = await callosumFetch(API_BASE + path, { headers: { Accept: "application/pdf" } });
+        } catch (e) {
+          if (!cancelled) setState({ status: "error" });
+          return;
+        }
+        if (!res.ok) {
+          if (!cancelled) setState({ status: "error" });
+          return;
+        }
+        try {
+          const buf = await res.arrayBuffer();
+          const doc = await pdfjsLib2.getDocument({ data: buf }).promise;
+          const page = await doc.getPage(1);
+          const targetWidth = 96;
+          const base = page.getViewport({ scale: 1 });
+          const viewport = page.getViewport({ scale: targetWidth / base.width });
+          if (cancelled) return;
+          setState({ status: "ready", width: viewport.width, height: viewport.height });
+          requestAnimationFrame(async () => {
+            if (cancelled || !canvasRef.current) return;
+            const canvas = canvasRef.current;
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            try {
+              await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+            } catch (e) {
+            }
+          });
+        } catch (e) {
+          if (!cancelled) setState({ status: "error" });
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [artifactId]);
+    if (state.status === "error") return /* @__PURE__ */ React.createElement("div", { className: "iq-thumb iq-thumb-fallback" }, "PDF");
+    if (state.status !== "ready") return /* @__PURE__ */ React.createElement("div", { className: "iq-thumb iq-thumb-fallback" }, "\u2026");
+    return /* @__PURE__ */ React.createElement("canvas", { ref: canvasRef, className: "iq-thumb", width: state.width, height: state.height });
+  }
+  function ImportQueueDoiEntry({ artifactId, onConfirmed, busy, setBusy }) {
+    const [doi, setDoi] = useState("");
+    const [preview, setPreview] = useState(null);
+    const lookup = useCallback(async () => {
+      const value = doi.trim();
+      if (!value) return;
+      setBusy(true);
+      setPreview(null);
+      const req = buildPreviewDoiRequest(artifactId, value);
+      const r = await apiPost(req.path, req.body);
+      setBusy(false);
+      setPreview(r.ok ? r.data : { status: "invalid", error: r.error || "The lookup failed." });
+    }, [artifactId, doi, setBusy]);
+    const confirm = useCallback(async () => {
+      const value = doi.trim();
+      if (!value) return;
+      setBusy(true);
+      const req = buildConfirmRequest(artifactId, value, "manual");
+      const r = await apiPost(req.path, req.body);
+      setBusy(false);
+      if (r.ok) onConfirmed(r.data);
+    }, [artifactId, doi, onConfirmed, setBusy]);
+    return /* @__PURE__ */ React.createElement("div", { className: "gap-row", style: { flexDirection: "column", alignItems: "stretch" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6 } }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "reffind-text",
+        style: { minHeight: "auto", flex: 1 },
+        placeholder: "Enter a different DOI\u2026",
+        value: doi,
+        onChange: (e) => {
+          setDoi(e.target.value);
+          setPreview(null);
+        }
+      }
+    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy || !doi.trim(), onClick: lookup }, "Look up")), preview && preview.status === "resolved" && /* @__PURE__ */ React.createElement("div", { className: "gap-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, preview.title || preview.doi), /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, [(preview.authors || []).slice(0, 3).join(", "), preview.year].filter(Boolean).join(" \xB7 ")), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: busy, onClick: confirm, style: { marginTop: 6 } }, "Confirm this identity")), preview && preview.status === "existing" && /* @__PURE__ */ React.createElement("div", { className: "gap-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, preview.title), /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, "Already in your Library."), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: busy, onClick: confirm, style: { marginTop: 6 } }, "Attach to this paper")), preview && (preview.status === "invalid" || preview.status === "unresolved") && /* @__PURE__ */ React.createElement("div", { className: "reffind-outcome err" }, preview.error || "That doesn't look like a resolvable DOI."));
+  }
+  function ImportQueueCard({ item, onOpenPaper, onChanged, onRemove }) {
+    const [busy, setBusy] = useState(false);
+    const [showDoiEntry, setShowDoiEntry] = useState(false);
+    const [confirmingDelete, setConfirmingDelete] = useState(false);
+    const headline = importQueueStateHeadline(item.identity_state, item.promotion_state);
+    const actions = importQueueStateActions(item.identity_state, item.promotion_state, !!item.best_candidate);
+    const afterMutation = useCallback((data) => {
+      setBusy(false);
+      onChanged();
+      if (data && data.promotion_state === "promoted") {
+        onRemove(item.artifact_id);
+      } else {
+        onRemove(item.artifact_id, data);
+      }
+    }, [item.artifact_id, onChanged, onRemove]);
+    const confirmCandidate = useCallback(async () => {
+      if (!item.best_candidate) return;
+      setBusy(true);
+      const req = buildConfirmRequest(item.artifact_id, item.best_candidate.doi, "candidate");
+      const r = await apiPost(req.path, req.body);
+      if (r.ok) afterMutation(r.data);
+      else setBusy(false);
+    }, [item, afterMutation]);
+    const retry = useCallback(async () => {
+      setBusy(true);
+      const req = buildRetryRequest(item.artifact_id);
+      const r = await apiPost(req.path, req.body);
+      if (r.ok) afterMutation(r.data);
+      else setBusy(false);
+    }, [item.artifact_id, afterMutation]);
+    const doDelete = useCallback(async () => {
+      setBusy(true);
+      const req = buildDeleteRequest(item.artifact_id);
+      const r = await apiDelete(req.path);
+      setBusy(false);
+      if (r.ok) {
+        onChanged();
+        onRemove(item.artifact_id);
+      }
+    }, [item.artifact_id, onChanged, onRemove]);
+    const openExisting = useCallback(() => {
+      if (onOpenPaper) onOpenPaper(openExistingPaperArgs(item));
+    }, [item, onOpenPaper]);
+    const sourceHost = (() => {
+      if (!item.last_source_url) return null;
+      try {
+        return new URL(item.last_source_url).hostname;
+      } catch (e) {
+        return item.last_source_url;
+      }
+    })();
+    return /* @__PURE__ */ React.createElement("div", { className: "iq-card" }, /* @__PURE__ */ React.createElement(ImportQueueThumbnail, { artifactId: item.artifact_id }), /* @__PURE__ */ React.createElement("div", { className: "iq-card-body" }, /* @__PURE__ */ React.createElement("div", { className: "iq-card-headline" }, headline), /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, item.last_original_filename || "PDF", sourceHost && ` \xB7 ${sourceHost}`, item.last_captured_at && ` \xB7 ${item.last_captured_at}`, item.encounter_count > 1 && ` \xB7 captured ${item.encounter_count} times`), /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, item.explanation), item.best_candidate && /* @__PURE__ */ React.createElement("div", { className: "gap-row-info", style: { marginTop: 4 } }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, item.best_candidate.title || item.best_candidate.doi), item.best_candidate.doi && /* @__PURE__ */ React.createElement("div", { className: "reffind-doi" }, item.best_candidate.doi)), item.promotion_state === "attachment_conflict" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint", style: { marginTop: 4 } }, importQueueAttachmentConflictExplanation()), (item.promotion_state === "processing_failed" || item.promotion_state === "indexing_unavailable") && /* @__PURE__ */ React.createElement("div", { className: "axis-hint", style: { marginTop: 4 } }, importQueueProcessingFailedExplanation()), /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions", style: { marginTop: 8, flexWrap: "wrap" } }, actions.includes("confirm_candidate") && /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: busy, onClick: confirmCandidate }, "Confirm this identity"), actions.includes("open_existing_paper") && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: openExisting }, "Open existing Paper"), actions.includes("retry") && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: retry }, "Retry"), actions.includes("enter_doi") && !showDoiEntry && /* @__PURE__ */ React.createElement("button", { className: "btn btn-link", disabled: busy, onClick: () => setShowDoiEntry(true) }, "Enter a different DOI\u2026"), !confirmingDelete && /* @__PURE__ */ React.createElement("button", { className: "btn btn-link", disabled: busy, onClick: () => setConfirmingDelete(true) }, "Delete"), confirmingDelete && /* @__PURE__ */ React.createElement("span", { className: "reffind-outcome err", style: { display: "flex", alignItems: "center", gap: 6 } }, importQueueDeleteConfirmMessage(), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: busy, onClick: doDelete }, "Delete"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: () => setConfirmingDelete(false) }, "Cancel"))), showDoiEntry && /* @__PURE__ */ React.createElement(
+      ImportQueueDoiEntry,
+      {
+        artifactId: item.artifact_id,
+        busy,
+        setBusy,
+        onConfirmed: (data) => {
+          setShowDoiEntry(false);
+          afterMutation(data);
+        }
+      }
+    )));
+  }
+  const IMPORT_QUEUE_FILTERS = [
+    { key: "all", label: "All" },
+    { key: "needs_identity", label: "Needs identity" },
+    { key: "attachment_conflict", label: "Attachment conflict" },
+    { key: "processing_failed", label: "Processing failed" }
+  ];
+  function importQueueMatchesFilter(item, filter) {
+    if (filter === "all") return true;
+    if (filter === "needs_identity") return item.identity_state === "unresolved";
+    if (filter === "attachment_conflict") return item.promotion_state === "attachment_conflict";
+    if (filter === "processing_failed") return item.promotion_state === "processing_failed" || item.promotion_state === "indexing_unavailable";
+    return true;
+  }
+  function ImportQueueReviewModal({ onClose, onOpenPaper, onChanged }) {
+    const [items, setItems] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [filter, setFilter] = useState("all");
+    const load = useCallback(() => {
+      setLoading(true);
+      const req = buildListRequest();
+      api(req.path).then((r) => {
+        setLoading(false);
+        if (r.ok) setItems(r.data.items || []);
+      });
+    }, []);
+    useEffect(() => {
+      load();
+    }, [load]);
+    const removeOrUpdate = useCallback((artifactId, updatedFields) => {
+      setItems((prev) => {
+        if (!updatedFields) return prev.filter((it) => it.artifact_id !== artifactId);
+        return prev.map((it) => it.artifact_id === artifactId ? { ...it, ...updatedFields } : it);
+      });
+    }, []);
+    const visible = items.filter((it) => importQueueMatchesFilter(it, filter));
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onMouseDown: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onMouseDown: (e) => e.stopPropagation(), style: { maxWidth: 640 } }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Import Queue"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Direct-PDF captures Callosum preserved but has not yet identified confidently, or matched to a paper it could not safely attach to automatically. Nothing here has been lost."), /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter", role: "group", "aria-label": "Import Queue filter" }, IMPORT_QUEUE_FILTERS.map((f) => /* @__PURE__ */ React.createElement("button", { key: f.key, className: "tags-srcfilter-btn" + (filter === f.key ? " on" : ""), onClick: () => setFilter(f.key) }, f.label))), loading && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Loading\u2026"), !loading && visible.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Nothing here."), !loading && visible.map((item) => /* @__PURE__ */ React.createElement(
+      ImportQueueCard,
+      {
+        key: item.artifact_id,
+        item,
+        onOpenPaper,
+        onChanged,
+        onRemove: removeOrUpdate
+      }
+    ))));
+  }
+  function ImportQueuePanel({ count, onChanged, onOpenPaper }) {
+    return count > 0 ? /* @__PURE__ */ React.createElement(ImportQueueChip, { count, onChanged, onOpenPaper }) : null;
+  }
+  function ImportQueueChip({ count, onChanged, onOpenPaper }) {
+    const [open, setOpen] = useState(false);
+    return /* @__PURE__ */ React.createElement("span", { className: "lib-chip-group lib-chip-queue" }, /* @__PURE__ */ React.createElement("button", { className: "trash-toggle findings-chip", onClick: () => setOpen(true) }, "\u{1F5C2} Import Queue (", count, ")"), open && /* @__PURE__ */ React.createElement(
+      ImportQueueReviewModal,
+      {
+        onClose: () => setOpen(false),
+        onOpenPaper,
+        onChanged
+      }
+    ));
+  }
+  const IMPORT_QUEUE_STATE_COPY = {
+    "unresolved:pending_review": "Saved \u2014 needs review",
+    "resolved:attachment_conflict": "Identified \u2014 attachment needs review",
+    "resolved:processing_failed": "Saved \u2014 processing could not finish",
+    "resolved:indexing_unavailable": "Saved \u2014 processing could not finish"
+  };
+  function importQueueStateHeadline(identityState, promotionState) {
+    return IMPORT_QUEUE_STATE_COPY[`${identityState}:${promotionState}`] || "Saved \u2014 needs review";
+  }
+  function importQueueStateActions(identityState, promotionState, hasBestCandidate) {
+    if (promotionState === "attachment_conflict") return ["open_existing_paper", "delete"];
+    if (promotionState === "processing_failed" || promotionState === "indexing_unavailable") return ["retry", "delete"];
+    return hasBestCandidate ? ["confirm_candidate", "enter_doi", "delete"] : ["enter_doi", "delete"];
+  }
+  function importQueueAttachmentConflictExplanation() {
+    return "This paper is already in your Library and Callosum cannot safely attach this captured PDF automatically.";
+  }
+  function importQueueProcessingFailedExplanation() {
+    return "Your PDF is safe \u2014 Callosum just couldn't finish processing it yet.";
+  }
+  function importQueueDeleteConfirmMessage() {
+    return "Delete this capture? This permanently removes the saved PDF and its capture history from Callosum \u2014 this can't be undone.";
+  }
+  function buildPreviewDoiRequest(artifactId, doi) {
+    return { method: "POST", path: `/library/import-queue/${encodeURIComponent(artifactId)}/preview-doi`, body: { doi } };
+  }
+  function buildConfirmRequest(artifactId, doi, source) {
+    return { method: "POST", path: `/library/import-queue/${encodeURIComponent(artifactId)}/confirm`, body: { doi, source } };
+  }
+  function buildRetryRequest(artifactId) {
+    return { method: "POST", path: `/library/import-queue/${encodeURIComponent(artifactId)}/retry`, body: null };
+  }
+  function buildDeleteRequest(artifactId) {
+    return { method: "DELETE", path: `/library/import-queue/${encodeURIComponent(artifactId)}`, body: null };
+  }
+  function buildPdfPreviewRequest(artifactId) {
+    return { method: "GET", path: `/library/import-queue/${encodeURIComponent(artifactId)}/pdf`, body: null };
+  }
+  function buildListRequest() {
+    return { method: "GET", path: "/library/import-queue", body: null };
+  }
+  function openExistingPaperArgs(item) {
+    return { id: item.resolved_paper_id, title: item.resolved_paper_title || null };
   }
   function AxisEditModal({ mode, axisId, initialTitle, initialDescription, initialTerms, onClose, onSaved }) {
     return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement(
@@ -18704,7 +19042,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       /* @__PURE__ */ React.createElement("div", { className: "discover-title" }, it.title),
       relevance[it.dedup_key] ? /* @__PURE__ */ React.createElement("div", { className: "relevance-highlight", title: "A likely match to one of your axes (a hint \u2014 the full list is never filtered)." }, "likely: ", relevance[it.dedup_key].axis_label, " \xB7 match ", relevance[it.dedup_key].similarity.toFixed(2)) : null,
       /* @__PURE__ */ React.createElement("div", { className: "paper-meta" }, it.authors && it.authors.length ? /* @__PURE__ */ React.createElement("span", { className: "paper-authors" }, it.authors.slice(0, 3).join("; "), it.authors.length > 3 ? " et al." : "") : null, it.year ? /* @__PURE__ */ React.createElement("span", { className: "mono" }, it.year) : null, it.journal ? /* @__PURE__ */ React.createElement("span", { className: "paper-venue" }, it.journal) : null),
-      /* @__PURE__ */ React.createElement("div", { className: "discover-foot" }, (it.sources || []).map((s) => /* @__PURE__ */ React.createElement("span", { key: s, className: "discover-source" }, s)), it.saved ? /* @__PURE__ */ React.createElement("span", { className: "discover-inlib" }, "\u2713 in library") : /* @__PURE__ */ React.createElement(
+      /* @__PURE__ */ React.createElement("div", { className: "discover-foot" }, (it.sources || []).map((s) => /* @__PURE__ */ React.createElement("span", { key: s, className: "discover-source" }, s)), it.saved ? it.library_state === "trashed" ? /* @__PURE__ */ React.createElement("span", { className: "discover-inlib", title: "This paper is in your Trash. Restore it from Trash rather than saving a second copy." }, "\u2713 in Trash") : /* @__PURE__ */ React.createElement("span", { className: "discover-inlib" }, "\u2713 in library") : /* @__PURE__ */ React.createElement(
         "button",
         {
           className: "btn btn-link",

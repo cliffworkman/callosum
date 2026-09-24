@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Callosum Capture",
+  "version": "0.1.0",
+  "description": "Send the page you're reading straight into your Callosum library.",
+
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+
+  "action": {
+    "default_title": "Capture to Callosum",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+
+  "permissions": ["nativeMessaging", "activeTab", "scripting"],
+  "host_permissions": ["http://127.0.0.1/*"]
+}

@@ -11,7 +11,7 @@
   ],
   "platforms": {
     "windows-x86_64": {
-      "runtime_id": "win-x86_64-py3.11-s1-962dfec5237a5e93",
+      "runtime_id": "win-x86_64-py3.11-s1-b864259efc703853",
       "os": "windows",
       "arch": "x86_64",
       "python_version": "3.11.15",
@@ -23,7 +23,7 @@
       "dependency_recipe": "cpu-torch-2.13.0-then-frozen-uv-export-without-dependency-resolution"
     },
     "macos-aarch64": {
-      "runtime_id": "macos-aarch64-py3.11-s1-c382a287dade03b9",
+      "runtime_id": "macos-aarch64-py3.11-s1-6f4950ebeedd34a5",
       "os": "macos",
       "arch": "aarch64",
       "python_version": "3.11.15",
@@ -35,7 +35,7 @@
       "dependency_recipe": "cpu-torch-2.13.0-then-frozen-uv-export-without-dependency-resolution"
     },
     "macos-x86_64": {
-      "runtime_id": "macos-x86_64-py3.11-s1-6d36a5056fd72fbd",
+      "runtime_id": "macos-x86_64-py3.11-s1-73624c15ff4d9219",
       "os": "macos",
       "arch": "x86_64",
       "python_version": "3.11.15",
@@ -47,7 +47,7 @@
       "dependency_recipe": "numpy-1x-and-cpu-torch-2.2.2-then-frozen-uv-export-without-dependency-resolution"
     },
     "linux-x86_64": {
-      "runtime_id": "linux-x86_64-py3.11-s1-fac12cb5788842a3",
+      "runtime_id": "linux-x86_64-py3.11-s1-a41e303eabab6d1c",
       "os": "linux",
       "arch": "x86_64",
       "python_version": "3.11.15",

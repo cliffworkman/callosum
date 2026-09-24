@@ -246,6 +246,7 @@ def _visible_candidates(
                 openalex_work_id=work_id,
                 title=candidate.get("title"),
                 year=candidate.get("year"),
+                include_trashed=True,
             )
             is not None
         ):

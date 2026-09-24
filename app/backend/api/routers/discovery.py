@@ -14,8 +14,10 @@ from pydantic import BaseModel, Field
 from sqlalchemy import Connection, Engine
 
 from app.backend.api.dependencies import get_connection, get_engine, resolve_embedding_model
+from app.backend.api.routers.library import _embedding_model, _vector_store
 from app.backend.discovery.relevance import score_axis_relevance
 from app.backend.discovery.search import run_search, save_item
+from app.backend.embeddings.admission import ensure_paper_indexed
 from app.backend.embeddings.models import EmbeddingModel
 from app.backend.metadata import enrich_paper_metadata_multi
 from app.backend.metadata.enrich_sources import build_default_enrich_registry
@@ -24,18 +26,26 @@ from app.backend.persistence.sqlite_retry import run_write
 router = APIRouter()
 
 
-def _enrich_saved_paper_bg(app: FastAPI, paper_id: int) -> None:
-    """Background: run the multi-pass enrich on a just-saved discovery paper (inc 307) so it arrives with the same
-    keyword tags (OpenAlex topics + PubMed MeSH + Crossref subjects) + gap-fills as any enriched paper. Rides the
-    app registry (hermetic in tests: an empty `app.state.enrich_registry` fetches nothing). Fail-closed — a save is
-    never blocked or failed by enrichment; this runs after the response is sent."""
-    try:
-        registry = app.state.enrich_registry or build_default_enrich_registry(
-            crossref_client=app.state.crossref_client, openalex_client=app.state.openalex_client
-        )
-        run_write(app.state.engine, lambda conn: enrich_paper_metadata_multi(conn, paper_id, registry=registry))
-    except Exception:  # noqa: BLE001 — background enrichment is best-effort; never surface to the caller
-        pass
+def _enrich_and_index_saved_paper_bg(app: FastAPI, paper_id: int, *, enrich: bool) -> None:
+    """Background: enrich a just-saved discovery paper (inc 307), then apply the post-admission indexing
+    invariant (#61) so it is searchable regardless of which front end admitted it.
+
+    Order matters: ``embed_papers`` keys its skip check on the constant ``PAPER_TEXT_VERSION``, not on the
+    paper's text, so an embedding written BEFORE enrichment would never be refreshed when enrichment fills
+    in the abstract/venue/year that ``paper_embedding_text`` joins. Index last.
+
+    Rides the app registry (hermetic in tests: an empty `app.state.enrich_registry` fetches nothing).
+    Fail-closed — a save is never blocked or failed by enrichment or indexing; this runs after the
+    response is sent."""
+    if enrich:
+        try:
+            registry = app.state.enrich_registry or build_default_enrich_registry(
+                crossref_client=app.state.crossref_client, openalex_client=app.state.openalex_client
+            )
+            run_write(app.state.engine, lambda conn: enrich_paper_metadata_multi(conn, paper_id, registry=registry))
+        except Exception:  # noqa: BLE001 — background enrichment is best-effort; never surface to the caller
+            pass
+    ensure_paper_indexed(app.state.engine, paper_id, model=_embedding_model(app), vector_store=_vector_store(app))
 
 
 # The embedding model is heavy to load; cache the default on app.state (a sync endpoint must not reload it per
@@ -128,6 +138,11 @@ def discovery_save(
     result = run_write(engine, _do)
     # inc 307: a newly-saved paper skips the enrich cascade (bare create), so enrich it in the background — it
     # arrives with the same keyword tags as any enriched paper. The save response returns immediately.
-    if result.get("created") and (payload.doi or payload.pmid):
-        background.add_task(_enrich_saved_paper_bg, request.app, int(result["paper_id"]))
+    if result.get("created"):
+        background.add_task(
+            _enrich_and_index_saved_paper_bg,
+            request.app,
+            int(result["paper_id"]),
+            enrich=bool(payload.doi or payload.pmid),
+        )
     return result

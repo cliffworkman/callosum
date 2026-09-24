@@ -103,12 +103,17 @@ def import_mendeley_snapshot(
             fields["citation_key"] = document.csl.get("citation-key")
             fields["language"] = document.csl.get("language")
             source_match = _paper_for_mendeley_id(conn, document.external_id)
+            # include_trashed keeps this symmetric with ``_paper_for_mendeley_id`` above, which resolves the
+            # Mendeley external id without a deleted_at filter. If only one side stopped seeing trashed rows,
+            # the conflict guard below would compare a live match against a trashed one and abort the whole
+            # import on a conflict that isn't real.
             identity_match = find_existing_paper_by_identity(
                 conn,
                 doi=fields["doi"],
                 title=fields["title"],
                 year=fields["year"],
                 first_author_family_name=fields["first_author_family_name"],
+                include_trashed=True,
             )
             identity_id = int(identity_match[1]["id"]) if identity_match is not None else None
             if source_match is not None and identity_id is not None and source_match != identity_id:

@@ -13,8 +13,39 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
+      # The two MUTATING whitespace hooks skip a fixed set of byte-significant artifacts (captured or
+      # generated output, a real unedited GROBID response, and dated/frozen records such as audits,
+      # increment notes, the preregistration and its amendments). Artifact bytes are evidence; formatter
+      # preference does not outrank provenance. Exact paths only -- no wildcards, no directory globs -- so a
+      # new artifact needs an explicit entry here. Every non-mutating check still runs on these files.
       - id: trailing-whitespace
+        exclude: &byte_significant_artifacts |
+          (?x)^(
+            # captured or generated output
+            \.claude/docs/research/2026-09-15_zotero-translator-license-inventory\.json
+            |\.claude/experiments/browser-capture-acceptance/evidence-run/evidence\.json
+            |\.claude/experiments/browser-capture-acceptance/evidence-run-be-direct-pdf/evidence\.json
+            |\.claude/experiments/browser-capture-acceptance/evidence-run-import-queue-review/evidence\.json
+            |\.claude/experiments/browser-capture-acceptance/evidence-run-provisional-direct-pdf/evidence\.json
+            |\.claude/experiments/native-messaging-probe/extension/manifest\.json
+            |\.claude/experiments/native-messaging-probe/nm-manifest\.json
+            |\.claude/experiments/native-messaging-probe/packaged-role-observation\.json
+            # real, unedited third-party response used as test data
+            |tests/fixtures/grobid/sample_fulltext\.tei\.xml
+            # dated, frozen or historical records
+            |\.claude/GOVERNANCE-COMMITMENTS\.md
+            |\.claude/docs/2026-09-03_callosum-mobile-architecture-research-report\.md
+            |\.claude/docs/increment-notes/INCREMENT-(429|430|431)-NOTES\.md
+            |\.claude/docs/research/2026-08-21_word_citation_migration_formats\.md
+            |\.claude/docs/research/2026-09-04_evidence-hygiene-architecture\.md
+            |\.claude/docs/research/2026-09-05_codex-h1b-source-component-amendment-0(1|2)\.md
+            |\.claude/docs/research/2026-09-05_codex-h1b1-hardening-preregistration\.md
+            |\.claude/security-audits/2026-07-24_writer-bibliography-heading\.md
+            |\.claude/security-audits/2026-08-01_status-ai-progress-navigation\.md
+            |\.claude/security-audits/2026-08-10_static-online-demo\.md
+          )$
       - id: end-of-file-fixer
+        exclude: *byte_significant_artifacts
       - id: check-merge-conflict
       - id: check-added-large-files
         args: ["--maxkb=1000"]

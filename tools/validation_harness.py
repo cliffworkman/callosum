@@ -125,6 +125,14 @@ def run_validation(
     quote_checks = quote_checks or []
     queries = queries or []
     axes = axes or []
+    # Attaching a PDF now indexes it (#61): indexing is a property of attaching, not a per-caller
+    # convention. Resolve the same collaborators the later phases already use, once, up front.
+    harness_model = embedding_model or SentenceTransformerEmbeddingModel(
+        name=DEFAULT_EMBEDDING_MODEL,
+        version=DEFAULT_EMBEDDING_MODEL,
+        local_files_only=True,
+    )
+    harness_store = vector_store or SQLiteVecVectorStore()
 
     with engine.begin() as conn:
         if pdf_dir is not None:
@@ -139,6 +147,8 @@ def run_validation(
                         quote_checks,
                         output_dir,
                         reuse_existing=reuse_db,
+                        embedding_model=harness_model,
+                        vector_store=harness_store,
                     )
                 )
                 if progress:
@@ -627,6 +637,8 @@ def _validate_pdf(
     output_dir: Path | None = None,
     *,
     reuse_existing: bool = False,
+    embedding_model: EmbeddingModel,
+    vector_store: VectorStore,
 ) -> PdfReport:
     if reuse_existing:
         existing = _existing_pdf_report(conn, pdf_path, quote_checks)
@@ -673,7 +685,9 @@ def _validate_pdf(
         report.chunk_count = len(drafts)
         report.pages_with_text = sum(1 for pd in report.page_details if pd.has_text)
         report.zero_text = report.chunk_count == 0
-        ingest_pdf_scaffold(conn, pdf_path, title=pdf_path.stem)
+        ingest_pdf_scaffold(
+            conn, pdf_path, title=pdf_path.stem, vector_store=vector_store, embedding_model=embedding_model
+        )
     except Exception as exc:
         report.error = f"{type(exc).__name__}: {exc}"
 

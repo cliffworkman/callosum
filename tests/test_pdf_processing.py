@@ -30,7 +30,7 @@ from app.backend.persistence.database import make_engine
 from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES
 from app.backend.persistence.repository import create_attachment, create_chunk, create_paper, get_chunks_for_paper
 from app.backend.persistence.schema import embeddings, papers
-from tests.api_helpers import ApiFakeEmbeddingModel
+from tests.api_helpers import ApiFakeEmbeddingModel, indexing_collaborators
 
 FIXTURE_QUOTES = [
     {
@@ -122,7 +122,7 @@ def test_extraction_ingest_writes_chunks_with_provenance(tmp_path: Path) -> None
     engine = make_engine(url)
 
     with engine.begin() as conn:
-        result = ingest_pdf_scaffold(conn, pdf_path, title="Generated Quote Fixture")
+        result = ingest_pdf_scaffold(conn, pdf_path, title="Generated Quote Fixture", **indexing_collaborators())
         chunks = get_chunks_for_paper(conn, result["paper_id"], document_roles=ARTICLE_DOCUMENT_ROLES)
         attachment_match = locate_quote_for_attachment(
             conn,
@@ -219,7 +219,7 @@ def test_section_metadata_survives_pdf_ingest(tmp_path: Path) -> None:
     engine = make_engine(url)
 
     with engine.begin() as conn:
-        result = ingest_pdf_scaffold(conn, pdf_path, title="Sectioned Fixture")
+        result = ingest_pdf_scaffold(conn, pdf_path, title="Sectioned Fixture", **indexing_collaborators())
         chunks = get_chunks_for_paper(conn, result["paper_id"], document_roles=ARTICLE_DOCUMENT_ROLES)
 
     sections_by_text = {chunk["text"]: chunk["section"] for chunk in chunks}
@@ -773,3 +773,37 @@ def test_a_missing_pdf_degrades_precision_without_falsifying_the_quote(tmp_path:
     assert match.found is False  # no rectangle: coordinate localization failed
     # ...but the SEMANTIC question is answered from the stored chunk text and is unaffected.
     assert canonical_text_contains(needle=quote, haystack=chunk_text) is True
+
+
+def test_attaching_a_pdf_embeds_its_chunks(tmp_path: Path) -> None:
+    """Indexing must not depend on which front end attached the PDF (browser-capture substrate, #61).
+
+    ``reprocess_pdf_attachment`` already embeds, with the rationale that otherwise the paper "would
+    silently drop out of vector-search retrieval (find-related, gap-finder, axis scoring, library-wide
+    citation suggest)". That argument applies verbatim to the FIRST attach, which did not embed — so
+    an OA-acquired or registration-uploaded PDF became ``fully-chunked`` with zero chunk embeddings
+    and was invisible to citation suggest, whose ``search_similar`` path has no lazy backfill.
+    """
+    pdf_path = _make_fixture_pdf(tmp_path / "embed-on-attach.pdf")
+    db_path = tmp_path / "embed-on-attach.sqlite"
+    url = f"sqlite:///{db_path.as_posix()}"
+    config = Config("alembic.ini")
+    config.set_main_option("sqlalchemy.url", url)
+    command.upgrade(config, "head")
+    engine = make_engine(url)
+    model = ApiFakeEmbeddingModel()
+    store = InMemoryVectorStore()
+
+    with engine.begin() as conn:
+        result = ingest_pdf_scaffold(
+            conn, pdf_path, title="Embedded On Attach", vector_store=store, embedding_model=model
+        )
+        chunk_ids = list(result["chunk_ids"])
+        embedded = conn.execute(
+            select(func.count())
+            .select_from(embeddings)
+            .where(embeddings.c.target_type == "chunk", embeddings.c.target_id.in_(chunk_ids))
+        ).scalar_one()
+
+    assert chunk_ids, "the fixture PDF must produce chunks for this assertion to mean anything"
+    assert embedded == len(chunk_ids)

@@ -15,7 +15,7 @@ from sqlalchemy import Connection, select
 
 from app.backend.acquisition.registry import PaperRef
 from app.backend.discovery.providers import Item, SourceProvider, SourceRegistry
-from app.backend.persistence.repository import find_existing_paper_by_identity
+from app.backend.persistence.repository import resolve_library_state
 from app.backend.persistence.schema import papers
 from app.backend.summarization.verification import Stance, StanceScorer, classify_stances
 from integrations.openalex.adapter import OPENALEX_BASE_URL, OpenAlexClient, _meta_with_abstract
@@ -451,14 +451,14 @@ def _dedupe_mark_library(conn: Connection, items: list[Item]) -> list[Item]:
     out: list[Item] = []
     for key in order:
         item = merged[key]
-        existing = find_existing_paper_by_identity(
+        state, _row = resolve_library_state(
             conn,
             doi=item.doi,
             title=item.title,
             year=item.year,
             first_author_family_name=_first_family(item.authors),
         )
-        out.append(item if existing is None else replace(item, in_library=True))
+        out.append(item if state == "absent" else replace(item, library_state=state))
     return out
 
 

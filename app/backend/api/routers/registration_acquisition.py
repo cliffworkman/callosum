@@ -15,6 +15,7 @@ from sqlalchemy.exc import NoResultFound
 
 from app.backend.api.dependencies import get_connection
 from app.backend.api.job_store import JobStore
+from app.backend.api.routers.library import _embedding_model, _vector_store
 from app.backend.persistence.registration_schema import registration_document_versions
 from app.backend.persistence.registration_versions_repo import (
     get_registration_link,
@@ -218,7 +219,15 @@ def _run_acquisition_job(app: FastAPI, job_id: str, paper_id: int, link_id: int)
 
         def write(conn: Connection) -> tuple[dict, int]:
             _require_still_confirmed(conn, paper_id, link_id)
-            attachment = import_acquired_registration(conn, paper_id, acquired, temp_path, managed_path)
+            attachment = import_acquired_registration(
+                conn,
+                paper_id,
+                acquired,
+                temp_path,
+                managed_path,
+                vector_store=_vector_store(app),
+                embedding_model=_embedding_model(app),
+            )
             version_id, _ = record_acquired_registration_version(
                 conn, paper_id, link_id, int(attachment["attachment_id"]), acquired
             )

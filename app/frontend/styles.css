@@ -3352,3 +3352,12 @@
   .funding-evidence-meta small, .funding-evidence-meta a { font-size: 11px; }
   .funding-evidence-meta a { color: var(--accent); text-decoration: none; }
   .funding-evidence-meta a:hover { text-decoration: underline; }
+
+  /* #61 Import Queue review cards: a captured-but-not-yet-canonical PDF, its evidence, and its actions. */
+  .iq-card { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .iq-card-body { flex: 1; min-width: 0; }
+  .iq-card-headline { font-size: 13px; font-weight: 650; color: var(--ink); }
+  .iq-thumb { width: 96px; height: 124px; object-fit: contain; border: 1px solid var(--line-2);
+    border-radius: var(--radius-sm); background: var(--panel-2); flex-shrink: 0; }
+  .iq-thumb-fallback { display: flex; align-items: center; justify-content: center; color: var(--ink-3);
+    font-size: 11px; }

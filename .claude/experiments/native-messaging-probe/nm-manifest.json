@@ -1,0 +1,9 @@
+{
+  "name": "com.callosum.connector.probe",
+  "description": "EXPERIMENTAL native-messaging feasibility probe for issue #61",
+  "path": "C:\\Users\\cliff\\Dropbox\\Dropbox\\01_Work\\callosum\\.claude\\experiments\\native-messaging-probe\\host.bat",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://hpmccheafnpmlokifdmajgihenkcnnih/"
+  ]
+}

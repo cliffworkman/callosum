@@ -174,7 +174,7 @@ def list_saved_beyond_library_suggestions(engine: Engine = Depends(get_engine)) 
         )
         items = []
         for row in rows:  # read-time filter, like gaps_list's own -- Add elsewhere makes a row vanish for free
-            if row["doi"] and find_existing_paper_by_identity(conn, doi=row["doi"]) is not None:
+            if row["doi"] and find_existing_paper_by_identity(conn, doi=row["doi"], include_trashed=True) is not None:
                 continue
             items.append(_row_to_item(row))
         return SavedBeyondLibraryListResponse(items=items)

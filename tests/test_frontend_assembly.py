@@ -73,6 +73,20 @@ def test_frontend_uses_one_injectable_transport_without_changing_live_default():
         assert not re.search(r"(?<![.\w])fetch\(", source), f"{chunk.name} bypasses callosumFetch"
 
 
+def test_import_queue_mutation_refreshes_library_list():
+    """A queue mutation must refresh both the queue badge and the library rows.
+
+    The live Intel-Mac capture showed that the mutation callback only refreshed the
+    badge, leaving the newly promoted paper absent until a manual browser refresh.
+    Keep this wiring assertion beside the frontend assembly guards so the generated
+    artifact cannot silently lose the fix.
+    """
+    source = (FRONTEND_DIR / "js" / "03_library.jsx").read_text(encoding="utf-8")
+    assert "const refreshImportQueueChip = useCallback((refreshLibrary = false)" in source
+    assert "if (refreshLibrary) setLibRefresh(n => n + 1);" in source
+    assert "onImportQueueChanged: () => refreshImportQueueChip(true)" in source
+
+
 def test_my_publications_emerging_topics_is_explicit_grounded_and_scoped():
     raw = assemble_jsx()
     assert "function MyPubsEmergingTopics({ domains, onSelectPaper })" in raw
