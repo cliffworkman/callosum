@@ -46,11 +46,13 @@ class SelectionContractTests(unittest.TestCase):
                 self.assertEqual(call.call_args.kwargs['json_schema'], evidence_selection_schema(['e1']))
                 self.assertEqual(call.call_args.kwargs['output_cap'], 96)
 
-    def test_other_tasks_remain_unconstrained(self):
+    def test_only_the_legacy_decomposition_task_remains_unconstrained(self):
+        # The gate and recovery query are schema-constrained (see test_worker_mechanical_validity); the legacy
+        # request-decomposition task is unused by the E2E harness and stays as it was.
         task = QwenTasks(SimpleNamespace(), SimpleNamespace(qwen_call=lambda **kw: None))
-        with patch.object(task, '_call', return_value=SimpleNamespace(raw_text='{"action":"accept"}', provider_ok=True,
-                failure_reason=None, elapsed_seconds=0, output_cap=48)) as call:
-            task.context_gate(packet_text='A null result.', subquestion='Which results?')
+        with patch.object(task, '_call', return_value=SimpleNamespace(raw_text='[{"requested":"x"}]', provider_ok=True,
+                failure_reason=None, elapsed_seconds=0, output_cap=256)) as call:
+            task._requested_information('Which results?', 's1')
             self.assertNotIn('json_schema', call.call_args.kwargs)
 
     def test_form_claim_now_uses_schema_and_preserves_empty_string_policy(self):

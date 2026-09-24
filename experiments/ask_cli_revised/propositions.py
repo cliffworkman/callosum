@@ -103,9 +103,11 @@ def marshal_and_verify(
 ) -> list[dict]:
     """Return candidate proposition records with unchanged verifier results and complete provenance."""
     if packet.discarded:
+        # A mechanical gate failure keeps its own reason code: it is not a semantic discard.
+        reason = getattr(packet, "discard_reason", None)
         trace.decision(
             "06_extract",
-            "context_controller_discarded_branch",
+            "gate_no_answer" if reason == "gate_no_answer" else "context_controller_discarded_branch",
             kept=False,
             chunk_id=packet.retrieval_anchor_chunk_id,
         )

@@ -25,6 +25,10 @@ WITHIN_PAPER_TOP_K = 8
 PER_PAPER_CHUNK_CAP = 3
 MAX_GROWTH_ITERS = 2
 MAX_PACKET_CHARS = 6000
+# The gate could not produce a usable answer (call failed, capped, unparseable, or out of enum). This is a
+# mechanical state, never a semantic accept/discard: the packet is neither accepted nor grown and does not enter
+# evidence extraction, and it is recorded as its own discard reason so it can be counted and reported.
+GATE_NO_ANSWER = "no_answer"
 _DEPRIORITIZED_ROLES = frozenset({"bibliographic", "structural"})
 
 
@@ -48,6 +52,8 @@ class ContextPacket:
     decisions: list[dict] = field(default_factory=list)
     retrieval_score: float = 0.0
     discarded: bool = False
+    # Why a packet was excluded: "gate_no_answer" (mechanical), "gate_discard" (semantic), "incomplete_clause".
+    discard_reason: str | None = None
 
 
 def _candidate_chunk_rows(conn: Connection, paper_ids: list[int]) -> list[SourceChunk]:
@@ -298,6 +304,7 @@ def grow_context(
         # become a claim (rule 4 below).
         if _ends_mid_clause(anchor.text):
             packet.discarded = True
+            packet.discard_reason = "incomplete_clause"
         return packet
 
     lo = hi = index
@@ -310,7 +317,8 @@ def grow_context(
             if gate is not None
             else {"action": "accept"}
         )
-        action = decision.get("action", "accept")
+        # A missing action is NO ANSWER, never an implicit accept.
+        action = decision.get("action") or GATE_NO_ANSWER
         packet.decisions.append(
             {
                 "iteration": iteration,
@@ -318,25 +326,30 @@ def grow_context(
                 "packet_chunks": [c["chunk_id"] for c in packet.chunks],
             }
         )
+        if action == GATE_NO_ANSWER:
+            packet.discarded = True
+            packet.discard_reason = "gate_no_answer"
+            break
         if action == "discard":
             packet.discarded = True
+            packet.discard_reason = "gate_discard"
             break
         if action == "accept":
             if not _ends_mid_clause(packet_text):
                 break
-            # The gate said "accept" -- a genuine judgment, or the frozen truncation
-            # fallback (qwen.py's _FROZEN_GATE_FALLBACK) when the gate's own call was cut
-            # off -- but the packet's own text visibly breaks off before a clause
-            # completes. Do not trust that "accept" as final: prefer the existing "grow
-            # after" mechanism to try to reach the rest of the sentence first (rule 3
-            # below), and only fail closed if no further neighboring chunk is available
-            # or the growth budget is exhausted (rule 4 below).
+            # The gate said "accept" -- a genuine semantic judgment -- but the packet's own text
+            # visibly breaks off before a clause completes. Do not trust that "accept" as final:
+            # prefer the existing "grow after" mechanism to try to reach the rest of the sentence
+            # first (rule 3 below), and only fail closed if no further neighboring chunk is
+            # available or the growth budget is exhausted (rule 4 below).
             if iteration >= MAX_GROWTH_ITERS or hi + 1 >= len(ordered):
                 packet.discarded = True
+                packet.discard_reason = "incomplete_clause"
                 break
             candidate = ordered[hi + 1]
             if not _addable(candidate, packet):
                 packet.discarded = True
+                packet.discard_reason = "incomplete_clause"
                 break
             hi += 1
             packet.chunks.append(_packet_chunk(candidate))
@@ -367,6 +380,7 @@ def grow_context(
         final_text = "\n\n".join(c["text"] for c in packet.chunks)
         if _ends_mid_clause(final_text):
             packet.discarded = True
+            packet.discard_reason = "incomplete_clause"
     return packet
 
 

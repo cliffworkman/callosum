@@ -108,6 +108,7 @@ def _process_hits(
                 "retrieval_anchor_chunk_id": packet.retrieval_anchor_chunk_id,
                 "grown": packet.grown,
                 "discarded": packet.discarded,
+                "discard_reason": getattr(packet, "discard_reason", None),
                 "decisions": packet.decisions,
                 "packet_chunks": [chunk["chunk_id"] for chunk in packet.chunks],
             }
@@ -461,7 +462,24 @@ def _recover(
         # subquestion in the current request-contract decomposition (all of which carry
         # source_unit_id) skipped qwen.recovery_query() entirely and reused the literal original
         # text verbatim, guaranteeing byte-identical retrieval against the same papers below.
-        query = qwen.recovery_query(subquestion=subquestion["text"], obligation_note=gap.get("note", ""))
+        query = qwen.recovery_query(
+            subquestion=subquestion["text"], obligation_note=gap.get("display") or gap.get("note", "")
+        )
+        if query is None:
+            # NO ANSWER (mechanical): no search state was created, so none is claimed as recovery.
+            log.append(
+                {
+                    "gap": gap,
+                    "recovery_query": None,
+                    "existing_candidate_papers": 0,
+                    "existing_hits": 0,
+                    "new_papers_nominated": [],
+                    "new_hits": 0,
+                    "new_verified": 0,
+                    "reason_code": "recovery_query_no_answer",
+                }
+            )
+            continue
         original_noms = initial_nominations.get(subquestion["subquestion_id"], [])
         original_ids = [nom.paper_id for nom in original_noms]
         original_reasons = {nom.paper_id: nom.reasons for nom in original_noms}

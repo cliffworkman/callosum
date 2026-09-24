@@ -14,6 +14,8 @@ from typing import Any
 
 from app.backend.llm.managed_local import ManagedProviderRuntime
 from app.backend.llm.providers import ProviderError, complete
+from experiments.ask_cli_revised.request_contract import obligation_display
+from experiments.ask_cli_revised.retrieval import GATE_NO_ANSWER
 from experiments.ask_cli_revised.trace import TraceWriter
 from experiments.ask_cli_revised.calibration.structured_output import schema_config, RESPONSE_FORMAT
 
@@ -48,6 +50,26 @@ _CLAIM_SCHEMA = {
     "required": ["claim"],
     "additionalProperties": False,
     "properties": {"claim": {"type": "string", "maxLength": 800}},
+}
+
+
+# The gate action is a closed enum, so it is schema-constrained like the other worker tasks. The unconstrained
+# 48-token call let the model write prose before its JSON: 99 of 152 gate calls in run9 were truncated and then
+# silently treated as "accept". A residual mechanical failure now returns NO ANSWER, never an implicit accept.
+_GATE_ACTIONS = ["accept", "before", "after", "both", "discard"]
+_GATE_SCHEMA = {
+    "type": "object",
+    "required": ["action"],
+    "additionalProperties": False,
+    "properties": {"action": {"type": "string", "enum": _GATE_ACTIONS}},
+}
+# Same repair for the recovery query (3 of 6 run9 queries were truncated and replaced by the literal obligation
+# text, i.e. a "recovery" that re-searched the initial view).
+_QUERY_SCHEMA = {
+    "type": "object",
+    "required": ["query"],
+    "additionalProperties": False,
+    "properties": {"query": {"type": "string", "maxLength": 200}},
 }
 
 
@@ -278,12 +300,12 @@ class QwenTasks:
             'Return only JSON: {"action":"accept|before|after|both|discard"}\n\n'
             f"Question:\n{subquestion}\n\nCurrent text:\n{packet_text}"
         )
-        call = self._call(prompt=prompt, output_cap=_GATE_OUTPUT_TOKENS)
+        call = self._call(prompt=prompt, output_cap=_GATE_OUTPUT_TOKENS, json_schema=_GATE_SCHEMA)
         parsed = _extract_json(call.raw_text) if call.provider_ok else None
         gate, valid = _validate_gate(parsed)
-        used_fallback = not (call.provider_ok and valid)
-        if used_fallback:
-            gate = dict(_FROZEN_GATE_FALLBACK)
+        no_answer = not (call.provider_ok and valid)
+        if no_answer:
+            gate = {"action": GATE_NO_ANSWER}
         self._record(
             stage="05_context_gate",
             task="context_gate",
@@ -292,8 +314,12 @@ class QwenTasks:
             call=call,
             parsed=parsed,
             valid=valid,
-            fallback_used=used_fallback,
-            consequence=f"action={gate['action']}",
+            fallback_used=False,  # NO ANSWER is a mechanical state, not a fallback verdict
+            consequence=(
+                "NO ANSWER (mechanical): packet not accepted, not grown, excluded from evidence extraction"
+                if no_answer
+                else f"action={gate['action']}"
+            ),
         )
         return gate
 
@@ -302,7 +328,7 @@ class QwenTasks:
     def select_evidence(
         self, *, spans: list[dict], subquestion: str, obligations: list[dict], max_spans: int = 4
     ) -> list[str]:
-        requested = "\n".join(f"- {o['field_id']}: {o.get('note', '')}" for o in obligations)
+        requested = "\n".join(f"- {o['field_id']}: {obligation_display(o)}" for o in obligations)
         span_text = "\n\n".join(f"[{s['span_id']}] {s['text']}" for s in spans)
         prompt = (
             "You are choosing exact source excerpts that may answer one scholarly question.\n\n"
@@ -379,7 +405,7 @@ class QwenTasks:
             return []
         if len(obligations) == 1:
             return [obligations[0]["field_id"]]
-        requested = "\n".join(f"- {o['field_id']}: {o.get('note', '')}" for o in obligations)
+        requested = "\n".join(f"- {o['field_id']}: {obligation_display(o)}" for o in obligations)
         prompt = (
             "You are mapping one candidate scientific claim to the user's requested information.\n\n"
             "Select only requested items that the claim directly helps answer. Do not infer extra relationships.\n"
@@ -409,7 +435,8 @@ class QwenTasks:
 
     # ---- Stage 10: recovery query ----------------------------------------------------------------
 
-    def recovery_query(self, *, subquestion: str, obligation_note: str) -> str:
+    def recovery_query(self, *, subquestion: str, obligation_note: str) -> str | None:
+        """A short retrieval phrase, or ``None`` (NO ANSWER) when the call fails: never the literal obligation text."""
         prompt = (
             "Write a short retrieval phrase for finding the missing information below.\n"
             "Use wording from the scholarly question and missing information.\n"
@@ -418,13 +445,10 @@ class QwenTasks:
             'Return only JSON: {"query":"..."}\n\n'
             f"Scholarly question:\n{subquestion}\n\nMissing information:\n{obligation_note}"
         )
-        call = self._call(prompt=prompt, output_cap=_RECOVERY_OUTPUT_TOKENS)
+        call = self._call(prompt=prompt, output_cap=_RECOVERY_OUTPUT_TOKENS, json_schema=_QUERY_SCHEMA)
         parsed = _extract_json(call.raw_text) if call.provider_ok else None
         query, valid = _validate_query(parsed)
-        used_fallback = not (call.provider_ok and valid)
-        if used_fallback:
-            query = obligation_note.strip() or subquestion.strip()
-        query = query[:200]
+        no_answer = not (call.provider_ok and valid)
         self._record(
             stage="10_recovery",
             task="recovery_query",
@@ -433,10 +457,14 @@ class QwenTasks:
             call=call,
             parsed=parsed,
             valid=valid,
-            fallback_used=used_fallback,
-            consequence=f"recovery query = {query!r}",
+            fallback_used=False,  # NO ANSWER is a mechanical state, not a fallback query
+            consequence=(
+                "NO ANSWER (mechanical): no recovery search for this gap"
+                if no_answer
+                else f"recovery query = {query[:200]!r}"
+            ),
         )
-        return query
+        return None if no_answer else query[:200]
 
 
 # ---- strict validators + deterministic fallbacks -------------------------------------------------
@@ -480,13 +508,13 @@ def _validate_requested_items(payload: Any) -> tuple[list[str], bool]:
 
 def _validate_gate(payload: Any) -> tuple[dict, bool]:
     if not isinstance(payload, dict):
-        return dict(_FROZEN_GATE_FALLBACK), False
+        return {"action": GATE_NO_ANSWER}, False
     action = payload.get("action")
     if not isinstance(action, str):
-        return dict(_FROZEN_GATE_FALLBACK), False
+        return {"action": GATE_NO_ANSWER}, False
     action = action.strip().lower()
-    if action not in {"accept", "before", "after", "both", "discard"}:
-        return dict(_FROZEN_GATE_FALLBACK), False
+    if action not in _GATE_ACTIONS:
+        return {"action": GATE_NO_ANSWER}, False
     return {"action": action}, True
 
 
@@ -521,5 +549,3 @@ def _validate_query(payload: Any) -> tuple[str, bool]:
     query = payload["query"].strip()
     return (query, bool(query))
 
-
-_FROZEN_GATE_FALLBACK = {"action": "accept"}
