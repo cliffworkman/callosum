@@ -54,3 +54,9 @@ Recommendation (not applied; the approved plan is unchanged): given findings 1-2
 Also flagged: the recovery-query repair (beyond the gate); the first planning call treats the initial pass as neither DEEPEN nor NOMINATE and P arms perform one bounded
 action per item (T0's legacy recovery does deepen-then-nominate, so its search budget is not strictly equal); R is off in T5; LLD is `q_depr`; gate NO ANSWER is reported
 per run with no threshold.
+
+## Amendment 2026-09-24 — T5 replaced by T5* (Cliff's decision after this report)
+
+T5 is now **T5\*** = W Qwen3.5:9b (`think:false`) · R off · C phi4:14b · P gemma3:12b · deterministic render (finding 1 above is why the Q2.5 worker was dropped).
+The CLI key stays `T5`; the manifest names it `T5*`. It is a role-specialist topology, not an upper bound. The first two scored AIB runs are **T0** and **T5\***; T1-T4, built-env, LLD and
+Wave 2 are held. The T0-vs-T5\* comparison is a system-level contrast (worker, R/C architecture, planner and recovery budget all differ), not a causal estimate for any one model.

@@ -44,7 +44,7 @@ claims bypass R when C depends on R):
 `W -> verify -> R -> C -> P -> W -> verify -> R -> C -> render`
 
 - **det-C arms (T0-T4):** deterministic coverage consumes R's mappings, so R is causal. Round 2 runs R on the newly source-verified claims before C is recalculated.
-- **model-C arm (T5):** C (frozen Task-B contract, unchanged) is the final authority on coverage state and never sees R, so R would be **noncausal**. **R is off** in Wave 1: no R call is spent on it. Round 2 is `W -> verify -> C`.
+- **model-C arm (T5*, was T5):** C (frozen Task-B contract, unchanged) is the final authority on coverage state and never sees R, so R would be **noncausal**. **R is off** in Wave 1: no R call is spent on it. Round 2 is `W -> verify -> C`.
 - R runs after source verification, on source-verified claims only (ledger-equivalent: only source-verified claims enter the ledger and the ledger ignores `obligation_ids`; a stub-R identity test asserts it; R calls fall from ~92 to ~6-30).
 - If C is later changed to *see* R's candidates, R becomes causal (W2-3). If the R/C reconciliation is ever needed, R is run **once on cached source-verified claims** (diagnostic D-R), not inside every run.
 - NO ANSWER handling: R no-answer -> claim unmapped-mechanical (never `[]`); C no-answer -> obligations unresolved-mechanical; P no-answer -> no planned recovery, recorded (legacy-recovery fallback is the alternative; default is fail closed).
@@ -62,7 +62,7 @@ everything else 4,096; `num_ctx` unchanged.
 | **T2** Qwen3.5 + Qwen3.5 | Qwen3.5 | Qwen3.5 | det | Qwen3.5 @8K | T1->T2 changes **W only**: is a stronger worker better |
 | **T3** Qwen3.5 + Gemma12 | Qwen3.5 | gemma12 | det | gemma12 | T2->T3 changes S. Gemma's earned jurisdictions are clear-positive recall and bounded recovery; its nearest-category R errors are a known weakness and det has no auditor, so this arm measures whether they reach the final surface. **Control-like; not a strong-architecture candidate** |
 | **T4** Qwen3.5 + GPT-OSS | Qwen3.5 | gpt-oss | det | gpt-oss | T2->T4 changes S: conservative, order-robust R (but never selects s1/s3) vs Qwen3.5 R |
-| **T5 role-specialist topology** | Q2.5 | off | **phi4** | **gemma12** | *Does assigning the demonstrated C and P specialists outperform the simpler architectures?* Composes the only tested C-passer (both orderings) with the cheap, clean recovery passer. **Not an upper bound**: W is still Q2.5, R is noncausal here, and Qwen3.5-vs-Q2.5 worker superiority is unknown |
+| **T5\* role-specialist topology** (amended 2026-09-24; W was Q2.5) | **Qwen3.5** (think off) | off | **phi4** | **gemma12** | *Does assigning the demonstrated C and P specialists outperform the simpler architectures?* Composes the only tested C-passer (both orderings) with the cheap, clean recovery passer. **Not an upper bound**: R is noncausal here and the composition is untested E2E. The worker was changed from Q2.5 because the repaired Q2.5 gate discards ~95% of packets, which would leave phi4's whole-ledger audit almost nothing to test |
 
 R evidence behind T1/T2 vs T4 (frozen Task A: claim-only, all obligations + original request): generic negatives are equal (5/5 both). At the
 E2E's 4K allowance Qwen3.5 is 4/9 correct + 3/9 NO ANSWER on the positives; gpt-oss is 3/9 correct + **6/9 confident wrong `[]`**, but is
@@ -146,3 +146,13 @@ T0 ~7 min; T1 25-45; T2 35-65; T3 20-35; T4 20-35; **T5 12-22** (no R). About 2.
 2. Fate of the uncommitted WIP as the E2E base (recommended: commit after a green run).
 3. The responsiveness-aware renderer's wording and behavior (principles-gated, section 6.9).
 4. Gate NO ANSWER comparability limit (proposed 2%) and the P no-answer default (fail closed vs legacy recovery).
+
+## Amendment 2026-09-24 — T5 → T5*
+
+The original T5 (W = Q2.5) is replaced by **T5\*** (W = Qwen3.5:9b `think:false`; R off; C = phi4:14b; P = gemma3:12b). Profile key stays `T5` (an asterisk is not
+path-safe); the manifest's `profile.name` reads `T5*` and its W binding is Qwen3.5. Nothing else changed: contracts, verification, execution policy, recovery contracts,
+renderer, and the frozen bakeoff are untouched. Consequences for the plan above:
+
+- T5\* differs from T2/T3/T4 in **R (off), C, and P together**, and from T0 in the worker, the responsiveness/coverage architecture, the planner, and the recovery search budget.
+  A T0-vs-T5\* result is therefore a **system-level contrast**, not a causal estimate of phi4's, gemma's, or Qwen3.5's contribution.
+- W2-2 ("specialist with W = Qwen3.5") is now realized by T5\* itself. The W2-4 trigger ("T5-vs-T1 delta ambiguous between C and P") no longer applies as written: T5\* also differs from T1 in W and R.

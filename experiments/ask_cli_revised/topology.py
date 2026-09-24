@@ -115,8 +115,12 @@ WAVE1 = {
         C=Binding("det"),
         P=_ollama("gpt-oss:20b", think="medium"),
     ),
-    # Role-specialist topology (NOT an upper bound): only tested C-passer + cheap clean recovery; R noncausal, so off.
-    "T5": Profile("T5", W=_Q25, R=Binding("off"), C=_ollama("phi4:14b"), P=_ollama("gemma3:12b")),
+    # T5* role-specialist topology (NOT an upper bound): the only tested C-passer + the cheap clean recovery passer; R is
+    # noncausal under model-C, so off. Amended 2026-09-24 from a Q2.5 worker: the repaired Q2.5 gate discards ~95% of packets,
+    # which would leave phi4's whole-ledger audit almost nothing to test. The key stays "T5" (an asterisk is not path-safe).
+    "T5": Profile(
+        "T5*", W=_ollama(_QWEN35, think=False), R=Binding("off"), C=_ollama("phi4:14b"), P=_ollama("gemma3:12b")
+    ),
 }
 
 for _profile in WAVE1.values():

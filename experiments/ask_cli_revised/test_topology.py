@@ -57,15 +57,20 @@ class Wave1BindingTests(unittest.TestCase):
                 self.assertEqual(arm["R"], ("ollama", model))
                 self.assertEqual(arm["P"], ("ollama", model))
 
-    def test_t5_role_specialist_composes_the_only_c_passer_with_the_cheap_recovery_passer(self):
+    def test_t5_star_role_specialist_gives_the_c_and_p_specialists_a_worker_that_yields_evidence(self):
+        # Amended 2026-09-24: the repaired Q2.5 gate discards ~95% of packets, leaving phi4 nothing to audit.
+        self.assertEqual(topo.WAVE1["T5"].name, "T5*")  # Windows-safe key "T5"; the manifest names it T5*
         self.assertEqual(
             summary("T5"),
             {
-                "W": ("managed_local", "callosum-managed-local"),
+                "W": ("ollama", "qwen3.5:9b"),
                 "R": ("off", None),
                 "C": ("ollama", "phi4:14b"),
                 "P": ("ollama", "gemma3:12b"),
             },
+        )
+        self.assertEqual(
+            {b.endpoint for b in (topo.WAVE1["T5"].W, topo.WAVE1["T5"].C, topo.WAVE1["T5"].P)}, {"isolated"}
         )
 
     def test_no_arm_binds_qwen35_to_coverage_audit(self):
@@ -84,7 +89,7 @@ class Wave1BindingTests(unittest.TestCase):
                 self.assertNotEqual(profile.R.kind, "off", name)
 
     def test_qwen35_workers_run_with_thinking_off(self):
-        for name in ("T2", "T3", "T4"):
+        for name in ("T2", "T3", "T4", "T5"):
             self.assertIs(topo.WAVE1[name].W.think, False)
 
     def test_supervisory_models_use_their_native_reasoning_default(self):
