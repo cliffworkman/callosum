@@ -179,6 +179,45 @@ def _recover_round(conn, *, rt, qwen, subquestions, gaps, plan, sink: Sink, trac
     )
 
 
+def seed_pass_from(path):
+    """Smoke only: hand round one the source-verified claims of an earlier run instead of running W.
+
+    A worker whose gate discards nearly everything leaves R / C / P nothing to judge in a small smoke, so their live
+    plumbing would go unexercised. The seeded claims keep their recorded source verification and evidence spans, are
+    reset to pending (R has not judged them), and are marked ``seeded``. The ledger must be for the same request.
+    """
+    raw = Path(path).read_bytes()
+    ledger = json.loads(raw.decode("utf-8"))
+    digest = hashlib.sha256(raw).hexdigest()
+
+    def _seed(conn, *, rt, qwen, subquestions, sink: Sink, trace) -> dict:
+        if ledger["request_contract"]["question_hash"] != subquestions[0].get("question_hash"):
+            raise ValueError("the seed ledger is for a different request")
+        wanted = set()
+        for row in ledger["verified_propositions"]:
+            record = {key: value for key, value in row.items() if key != "proposition_id"}
+            record["obligation_ids"] = []
+            record["mapping_state"] = "pending"
+            record["provenance"] = {**record.get("provenance", {}), "origin": "initial", "seeded": True}
+            sink.all_records.append(record)
+            wanted.add((row["paper_id"], row["evidence_anchor_chunk_id"], row["evidence_span_id"]))
+        for span in ledger["evidence_spans"]:
+            if (span["paper_id"], span["chunk_id"], span["span_id"]) in wanted:
+                sink.evidence_packets.append(
+                    {
+                        "origin": "initial",
+                        "paper_id": span["paper_id"],
+                        "discarded": False,
+                        "candidate_spans": [
+                            {"chunk_id": span["chunk_id"], "span_id": span["span_id"], "text": span["text"]}
+                        ],
+                    }
+                )
+        return {"seeded_claims": len(ledger["verified_propositions"]), "ledger_sha256": digest}
+
+    return _seed
+
+
 @contextlib.contextmanager
 def smoke_caps(limits: dict | None):
     """Lower the retrieval breadth caps for an unscored plumbing smoke run, restoring them on exit."""
@@ -220,7 +259,15 @@ def _binding_record(binding: topo.Binding) -> dict:
 
 
 def execute(
-    *, rt, profile: topo.Profile, contract: dict, trace, guard, bound: Bound, smoke_limits: dict | None = None
+    *,
+    rt,
+    profile: topo.Profile,
+    contract: dict,
+    trace,
+    guard,
+    bound: Bound,
+    smoke_limits: dict | None = None,
+    seed_pass=None,
 ) -> dict:
     subquestions = request_subquestions(contract)
     obligations = [sq["obligations"][0] for sq in subquestions]
@@ -271,9 +318,14 @@ def execute(
 
     trace.write_json("01_request_contract.json", contract)
     with rt.engine.connect() as conn:
-        with stage("W1", "W"):
+        with stage("W1", "W") as entry:
             initial_subquestions = subquestions[: smoke.get("max_initial_subquestions") or len(subquestions)]
-            _initial_pass(conn, rt=rt, qwen=bound.qwen, subquestions=initial_subquestions, sink=sink, trace=trace)
+            first_round = seed_pass or _initial_pass
+            detail = first_round(
+                conn, rt=rt, qwen=bound.qwen, subquestions=initial_subquestions, sink=sink, trace=trace
+            )
+            if detail:
+                entry["detail"] = detail
         responsiveness("R1")
         coverage_initial = coverage("C1")
 
@@ -387,8 +439,10 @@ def _digests(clients: dict, profile: topo.Profile) -> dict:
         with contextlib.suppress(Exception):
             for entry in client.tags():
                 name = entry.get("name") or entry.get("model")
-                if name in wanted:
-                    found[name] = entry.get("digest")
+                bare = name[: -len(":latest")] if name.endswith(":latest") else name  # implicit tag on untagged aliases
+                for model in (name, bare):
+                    if model in wanted:
+                        found[model] = entry.get("digest")
     return found
 
 
@@ -410,6 +464,7 @@ def run_topology(
     git_root,
     scored: bool = True,
     smoke_limits: dict | None = None,
+    smoke_seed=None,
     git_state_fn=provenance.git_state,
     verify_library=library_copy.verify,
     verify_contracts=e2e_contracts.verify_frozen,
@@ -419,8 +474,8 @@ def run_topology(
     sampler=None,
 ) -> dict:
     """One arm on one question. Refuses to start unless every comparison precondition holds; returns the manifest."""
-    if scored and smoke_limits:
-        raise ValueError("a scored run may not carry smoke limits")
+    if scored and (smoke_limits or smoke_seed):
+        raise ValueError("a scored run may not carry smoke limits or a seeded ledger")
     profile = topo.WAVE1[profile_name]
     question = e2e_contracts.E2E_QUESTIONS[question_key]
     verify_contracts()
@@ -441,6 +496,7 @@ def run_topology(
         trace.write_json("BLOCKED.json", {"blocked": True, "reason": str(exc)})
         return {"blocked": True, "reason": str(exc)}
 
+    seed_pass = seed_pass_from(smoke_seed) if smoke_seed else None
     clients = {endpoint: client_factory(topo.ENDPOINTS[endpoint]) for endpoint in endpoints_used(profile)}
     guard = backends.ResidencyGuard(clients)
     started = time.monotonic()
@@ -458,7 +514,7 @@ def run_topology(
                 caps = _caps()
                 result = execute(
                     rt=rt, profile=profile, contract=contract, trace=trace, guard=guard, bound=bound,
-                    smoke_limits=smoke_limits,
+                    smoke_limits=smoke_limits, seed_pass=seed_pass,
                 )  # fmt: skip
         except Exception as exc:
             trace.write_json("RUN_FAILED.json", {"error_type": type(exc).__name__, "message": str(exc)[:500]})
@@ -508,6 +564,7 @@ def run_topology(
         "residency_events": guard.events,
         "sealed_hash": result["sealed_hash"],
         "records_total": result["records_total"],
+        "verified_claims": len(result["sealed"]["verified_propositions"]),
         "sampler": sampler_summary,
         "mechanical_checks": {name: check["ok"] for name, check in report["checks"].items()},
         "gate_no_answer": report["no_answer"]["gate"],
@@ -523,9 +580,9 @@ def run_topology(
 ROOT = Path(__file__).resolve().parents[2]
 # Unscored plumbing smoke: the same code path over a sliver of the work. Recorded in the manifest, never scored.
 SMOKE_LIMITS = {
-    "per_subq_paper_cap": 2,
-    "within_paper_top_k": 2,
-    "max_initial_subquestions": 2,
+    "per_subq_paper_cap": 4,
+    "within_paper_top_k": 8,
+    "max_initial_subquestions": 3,
     "max_recovery_gaps": 2,
 }
 
@@ -538,8 +595,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--library-frozen", help="its frozen fingerprint (default: <db>.fingerprint.json)")
     parser.add_argument("--out", required=True, help="run directory (private; outside the repository tree)")
     parser.add_argument("--smoke", action="store_true", help="unscored plumbing smoke over a sliver of the work")
+    parser.add_argument("--smoke-seed", help="with --smoke: an earlier run's ledger whose claims replace round-one W")
     parser.add_argument("--juno-sampler", action="store_true", help="sample JUNO GPU/RAM/swap around the run")
     args = parser.parse_args(argv)
+    if args.smoke_seed and not args.smoke:
+        parser.error("--smoke-seed requires --smoke")
     args.library_frozen = args.library_frozen or f"{args.db}.fingerprint.json"
     return args
 
@@ -561,13 +621,15 @@ def main(argv: list[str] | None = None) -> int:
         git_root=ROOT,
         scored=not args.smoke,
         smoke_limits=SMOKE_LIMITS if args.smoke else None,
+        smoke_seed=args.smoke_seed,
         sampler=sampler,
     )
     if manifest.get("blocked"):
         print(f"[e2e] BLOCKED: {manifest['reason']}")
         return 2
     print(
-        f"[e2e] {args.profile}/{args.question}: {manifest['records_total']} records, "
+        f"[e2e] {args.profile}/{args.question}: {manifest['records_total']} records "
+        f"({manifest['verified_claims']} source-verified), "
         f"{manifest['elapsed_seconds']}s, technical validity {manifest['technical_validity']['valid']}, "
         f"gate NO ANSWER {manifest['gate_no_answer']['no_answer']}/{manifest['gate_no_answer']['calls']}"
     )

@@ -76,7 +76,10 @@ class ScriptedClient:
         self.unloaded.append(model)
 
     def tags(self):
-        return [{"name": name, "digest": f"digest-of-{name}"} for name in ("callosum-managed-local", "qwen3.5:9b")]
+        # Ollama lists an untagged alias with its implicit ":latest" tag.
+        return [
+            {"name": name, "digest": f"digest-of-{name}"} for name in ("callosum-managed-local:latest", "qwen3.5:9b")
+        ]
 
     def version(self):
         return "0.34.3"
@@ -148,7 +151,7 @@ class Harness:
             add(sink, dict(record, provenance=dict(record["provenance"])))
         return [{"gap": g, "action": plan.get(g["field_id"])} for g in gaps]
 
-    def run(self, managed_chat=None, smoke_limits=None):
+    def run(self, managed_chat=None, smoke_limits=None, seed_pass=None):
         bound = e2e.bind(
             self.profile,
             rt=self.rt,
@@ -168,6 +171,7 @@ class Harness:
                 guard=self.guard,
                 bound=bound,
                 smoke_limits=smoke_limits,
+                seed_pass=seed_pass,
             )
 
 
@@ -474,6 +478,53 @@ class SmokeLimitTests(unittest.TestCase):
             )
 
 
+class SeededSmokeTests(unittest.TestCase):
+    """A smoke-only way to hand the supervisory stages real source-verified claims when the worker yields none."""
+
+    def seed_ledger(self):
+        first = Harness(topo.WAVE1["T0"], initial=INITIAL, recovery=[], clients={"shared": ScriptedClient(r=r_none)})
+        self.addCleanup(first.close)
+        first.run()
+        return first.trace.dir / "11_verified_ledger.json"
+
+    def test_seeded_claims_enter_round_one_as_pending_source_verified_and_r_then_judges_them(self):
+        path = self.seed_ledger()
+        shared = ScriptedClient(r=r_maps("s3-o1"))
+        h = Harness(topo.WAVE1["T0"], initial=[], recovery=[], clients={"shared": shared})
+        self.addCleanup(h.close)
+        result = h.run(seed_pass=e2e.seed_pass_from(path))
+        self.assertEqual(len(result["sealed"]["verified_propositions"]), 2)
+        self.assertEqual(shared.kinds(), ["R", "R"])  # both seeded claims were pending until R judged them
+        self.assertTrue(all(r["provenance"].get("seeded") for r in result["sealed"]["verified_propositions"]))
+        self.assertTrue(result["final_audit"]["constrained_render_match"])  # spans travelled with the claims
+        w1 = next(s for s in result["stage_log"] if s["stage"] == "W1")
+        self.assertEqual(w1["detail"]["seeded_claims"], 2)
+        self.assertEqual(len(w1["detail"]["ledger_sha256"]), 64)
+
+    def test_a_ledger_for_a_different_request_is_refused(self):
+        path = self.seed_ledger()
+        ledger = json.loads(path.read_text(encoding="utf-8"))
+        ledger["request_contract"]["question_hash"] = "0" * 64
+        path.write_text(json.dumps(ledger), encoding="utf-8")
+        h = Harness(topo.WAVE1["T0"], initial=[], recovery=[], clients={"shared": ScriptedClient()})
+        self.addCleanup(h.close)
+        with self.assertRaises(ValueError):
+            h.run(seed_pass=e2e.seed_pass_from(path))
+
+    def test_a_scored_run_may_not_be_seeded(self):
+        with self.assertRaises(ValueError):
+            e2e.run_topology(
+                "T0",
+                "lld",
+                db_path="x",
+                library_frozen="y",
+                out_dir="z",
+                git_root=".",
+                scored=True,
+                smoke_seed="s.json",
+            )
+
+
 class GuardedRunEndToEndTests(unittest.TestCase):
     """run_topology around a fully faked runtime: the manifest, the checks, cleanup, and the after-run library check."""
 
@@ -531,9 +582,10 @@ class GuardedRunEndToEndTests(unittest.TestCase):
         self.assertTrue(all(manifest["mechanical_checks"].values()))
         self.assertEqual(manifest["technical_validity"], {"valid": True, "issues": []})
         self.assertTrue(manifest["library_unchanged_after_run"])
-        self.assertEqual(manifest["model_digests"]["callosum-managed-local"], "digest-of-callosum-managed-local")
+        self.assertEqual(manifest["model_digests"]["callosum-managed-local"], "digest-of-callosum-managed-local:latest")
         self.assertEqual(manifest["ollama_versions"], {"shared": "0.34.3"})
         self.assertIn("gate_no_answer", manifest)
+        self.assertEqual(manifest["verified_claims"], 3)  # 2 in round one + 1 from recovery
         for name in ("15_run_manifest.json", "16_mechanical_checks.json", "00_question.json"):
             self.assertTrue((out / name).is_file(), name)
         self.assertEqual(self.build_kwargs["want_qwen"], True)

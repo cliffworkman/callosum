@@ -119,6 +119,11 @@ class E2eCliTests(unittest.TestCase):
             {"per_subq_paper_cap", "within_paper_top_k", "max_initial_subquestions", "max_recovery_gaps"},
         )
 
+    def test_a_seeded_ledger_is_only_allowed_for_a_smoke_run(self):
+        with self.assertRaises(SystemExit):
+            self.parse("--smoke-seed", "ledger.json")
+        self.assertEqual(self.parse("--smoke", "--smoke-seed", "ledger.json").smoke_seed, "ledger.json")
+
     def test_an_unknown_profile_or_question_is_rejected(self):
         with self.assertRaises(SystemExit):
             e2e.parse_args(["--profile", "T9", "--question", "aib", "--db", "x", "--out", "y"])
