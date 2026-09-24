@@ -100,8 +100,13 @@ def marshal_and_verify(
     origin: str,
     trace: TraceWriter,
     candidate_spans: list[dict] | None = None,
+    map_claims: bool = True,
 ) -> list[dict]:
-    """Return candidate proposition records with unchanged verifier results and complete provenance."""
+    """Return candidate proposition records with unchanged verifier results and complete provenance.
+
+    ``map_claims=False`` defers claim -> obligation mapping (the R role) until after source verification: records come
+    back with ``obligation_ids == []`` and ``mapping_state == "pending"`` for the caller to attach later.
+    """
     if packet.discarded:
         # A mechanical gate failure keeps its own reason code: it is not a semantic discard.
         reason = getattr(packet, "discard_reason", None)
@@ -160,7 +165,7 @@ def marshal_and_verify(
             )
             continue
         seen.add(key)
-        obligation_ids = qwen.map_obligations(claim=claim, obligations=obligations)
+        obligation_ids = qwen.map_obligations(claim=claim, obligations=obligations) if map_claims else []
         staged.append(
             {
                 "claim": claim,
@@ -212,6 +217,7 @@ def marshal_and_verify(
             {
                 "subquestion_id": packet.subquestion_id,
                 "obligation_ids": candidate["obligation_ids"],
+                "mapping_state": "mapped" if map_claims else "pending",
                 "paper_id": packet.paper_id,
                 "retrieval_anchor_chunk_id": packet.retrieval_anchor_chunk_id,
                 "evidence_anchor_chunk_id": candidate["evidence_anchor_chunk_id"],

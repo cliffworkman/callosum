@@ -76,6 +76,7 @@ def _process_hits(
     evidence_packets: list[dict],
     propositions: list[dict],
     verifications: list[dict],
+    map_claims: bool = True,
 ) -> int:
     sid = subquestion["subquestion_id"]
     sq_text = subquestion["text"]
@@ -137,6 +138,7 @@ def _process_hits(
             origin=origin,
             trace=trace,
             candidate_spans=candidate_spans,
+            map_claims=map_claims,
         )
         all_records.extend(records)
         for record in records:
@@ -433,6 +435,11 @@ def _new_unique_verified(all_records: list[dict], since_index: int) -> int:
     return new_unique
 
 
+# Plan actions that search. Everything else (MARK_COVERED:<claim>, NO_RECOVERY_NEEDED, PRESERVE_UNRESOLVED) creates
+# no search state: coverage is never written by the planner, only by the coverage authority.
+_SEARCH_ACTIONS = frozenset({"DEEPEN", "NOMINATE", "LEGACY"})
+
+
 def _recover(
     conn,
     *,
@@ -449,13 +456,40 @@ def _recover(
     evidence_packets,
     propositions,
     verifications,
+    plan: dict[str, str] | None = None,
+    map_claims: bool = True,
 ) -> list[dict]:
-    """One recovery pass: existing candidate papers first, then one new nomination pass if still empty."""
+    """One recovery pass.
+
+    Without a plan (the shipped behavior, action ``LEGACY``): existing candidate papers first, then one new nomination
+    pass if that added nothing. With a plan, each obligation runs exactly the planned action: ``DEEPEN`` re-searches only
+    the existing candidates, ``NOMINATE`` searches only papers that are not already candidates, and any other planned
+    action (or an obligation absent from the plan) creates no search state. ``map_claims=False`` defers claim ->
+    obligation mapping until after source verification.
+    """
     sq_by_id = {subquestion["subquestion_id"]: subquestion for subquestion in subquestions}
     log: list[dict] = []
     for gap in gaps:
         subquestion = sq_by_id.get(gap["subquestion_id"])
         if subquestion is None:
+            continue
+        action = "LEGACY" if plan is None else plan.get(gap["field_id"])
+        if action is None:
+            continue
+        if action not in _SEARCH_ACTIONS:
+            log.append(
+                {
+                    "gap": gap,
+                    "action": action,
+                    "recovery_query": None,
+                    "existing_candidate_papers": 0,
+                    "existing_hits": 0,
+                    "new_papers_nominated": [],
+                    "new_hits": 0,
+                    "new_verified": 0,
+                    "reason_code": "plan_no_search",
+                }
+            )
             continue
         # Always reformulate via the existing recovery-query mechanism -- the previous
         # `subquestion["text"] if subquestion.get("source_unit_id") else ...` shortcut meant every
@@ -470,6 +504,7 @@ def _recover(
             log.append(
                 {
                     "gap": gap,
+                    "action": action,
                     "recovery_query": None,
                     "existing_candidate_papers": 0,
                     "existing_hits": 0,
@@ -483,50 +518,55 @@ def _recover(
         original_noms = initial_nominations.get(subquestion["subquestion_id"], [])
         original_ids = [nom.paper_id for nom in original_noms]
         original_reasons = {nom.paper_id: nom.reasons for nom in original_noms}
+        gap_subquestion = {
+            **subquestion,
+            "obligations": [
+                obligation
+                for obligation in subquestion.get("obligations", [])
+                if obligation["field_id"] == gap["field_id"]
+            ],
+        }
 
-        existing_hits = retrieval.within_paper_retrieve(
-            conn,
-            subquestion_id=subquestion["subquestion_id"],
-            subquestion_text=query,
-            paper_ids=original_ids,
-            model=rt.model,
-            vector_store=rt.vector_store,
-        )
-        existing_before = len(all_records)
-        _process_hits(
-            conn,
-            rt=rt,
-            qwen=qwen,
-            subquestion={
-                **subquestion,
-                "obligations": [
-                    obligation
-                    for obligation in subquestion.get("obligations", [])
-                    if obligation["field_id"] == gap["field_id"]
-                ],
-            },
-            hits=existing_hits,
-            reason_by_paper=original_reasons,
-            origin="recovery",
-            trace=trace,
-            all_records=all_records,
-            chunk_hits=chunk_hits,
-            context_growth=context_growth,
-            evidence_packets=evidence_packets,
-            propositions=propositions,
-            verifications=verifications,
-        )
-        # Recovery-only: a record identical (by paper+chunk+exact claim text) to evidence already
-        # verified before this call does not count as progress -- it's marked in place (visible in
-        # the full trace) and excluded here, rather than trusting _process_hits's own raw delta
-        # (which would count a 100%-duplicate re-verification as "added"). _process_hits itself is
-        # unmodified; the initial pass never calls this helper.
-        existing_added = _new_unique_verified(all_records, existing_before)
+        existing_hits: list = []
+        existing_added = 0
+        if action in {"DEEPEN", "LEGACY"}:
+            existing_hits = retrieval.within_paper_retrieve(
+                conn,
+                subquestion_id=subquestion["subquestion_id"],
+                subquestion_text=query,
+                paper_ids=original_ids,
+                model=rt.model,
+                vector_store=rt.vector_store,
+            )
+            existing_before = len(all_records)
+            _process_hits(
+                conn,
+                rt=rt,
+                qwen=qwen,
+                subquestion=gap_subquestion,
+                hits=existing_hits,
+                reason_by_paper=original_reasons,
+                origin="recovery",
+                trace=trace,
+                all_records=all_records,
+                chunk_hits=chunk_hits,
+                context_growth=context_growth,
+                evidence_packets=evidence_packets,
+                propositions=propositions,
+                verifications=verifications,
+                map_claims=map_claims,
+            )
+            # Recovery-only: a record identical (by paper+chunk+exact claim text) to evidence already
+            # verified before this call does not count as progress -- it's marked in place (visible in
+            # the full trace) and excluded here, rather than trusting _process_hits's own raw delta
+            # (which would count a 100%-duplicate re-verification as "added"). _process_hits itself is
+            # unmodified; the initial pass never calls this helper.
+            existing_added = _new_unique_verified(all_records, existing_before)
 
         new_noms = []
         new_hits = []
         new_added = 0
-        if existing_added == 0:
+        if action == "NOMINATE" or (action == "LEGACY" and existing_added == 0):
             nominated, _ = discovery.nominate_papers(
                 conn,
                 subquestion_text=query,
@@ -549,14 +589,7 @@ def _recover(
                 conn,
                 rt=rt,
                 qwen=qwen,
-                subquestion={
-                    **subquestion,
-                    "obligations": [
-                        obligation
-                        for obligation in subquestion.get("obligations", [])
-                        if obligation["field_id"] == gap["field_id"]
-                    ],
-                },
+                subquestion=gap_subquestion,
                 hits=new_hits,
                 reason_by_paper=new_reasons,
                 origin="recovery",
@@ -567,6 +600,7 @@ def _recover(
                 evidence_packets=evidence_packets,
                 propositions=propositions,
                 verifications=verifications,
+                map_claims=map_claims,
             )
             new_added = _new_unique_verified(all_records, new_before)
 
@@ -574,6 +608,7 @@ def _recover(
         log.append(
             {
                 "gap": gap,
+                "action": action,
                 "recovery_query": query,
                 "existing_candidate_papers": len(original_ids),
                 "existing_hits": len(existing_hits),
