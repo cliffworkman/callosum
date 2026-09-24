@@ -25,7 +25,13 @@ class CLI060Tests(unittest.TestCase):
                 rt = MagicMock()
                 qwen = MagicMock()
                 qwen.interpret.side_effect = AssertionError("derived decomposition must not replace original")
-                qwen.recovery_query.side_effect = AssertionError("generated recovery must not replace source")
+                # Recovery now genuinely calls recovery_query() (the shortcut that skipped it for
+                # every source_unit_id-bearing subquestion was the demonstrated duplicate-recovery
+                # defect). The mock is a passthrough -- it returns the literal subquestion text
+                # unchanged -- purely so this test's own traceability assertion below (every
+                # discovery call, initial or recovery, references the real case text) still holds;
+                # production's real recovery_query() genuinely reformulates the query.
+                qwen.recovery_query.side_effect = lambda subquestion, obligation_note: subquestion
                 stack.enter_context(patch.object(cli, "build_runtime", return_value=rt))
                 stack.enter_context(patch.object(cli, "QwenTasks", return_value=qwen))
                 stack.enter_context(patch.object(cli.discovery, "corpus_stats", return_value={}))

@@ -7,6 +7,7 @@ or is a dead end. Deterministic code alone controls how far reading may expand.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 from sqlalchemy import Connection, select
@@ -148,6 +149,123 @@ def _attachment_chunks_ordered(conn: Connection, attachment_id: int) -> list[dic
     return out
 
 
+# A small, closed, fixed class of English function words that cannot themselves end a
+# grammatical clause: articles, prepositions, coordinating/subordinating conjunctions, and
+# the complementizer/relative-pronoun uses of "that"/"which". This is deliberately NOT a
+# phrase or topic vocabulary (a growing blacklist of specific wordings such as "is needed
+# to" or "future research") -- it is a bounded, standard part-of-speech class, checked only
+# against a span's LAST WORD, so it generalizes to any sentence that happens to break off on
+# one of these words rather than encoding any one manifestation of the underlying defect.
+_INCOMPLETE_CLAUSE_TRAILING_WORDS = frozenset(
+    {
+        # Articles
+        "a",
+        "an",
+        "the",
+        # Coordinating conjunctions
+        "and",
+        "but",
+        "or",
+        "nor",
+        "so",
+        "yet",
+        # Subordinating conjunctions
+        "because",
+        "although",
+        "though",
+        "while",
+        "if",
+        "unless",
+        "until",
+        "when",
+        "whenever",
+        "where",
+        "wherever",
+        "whereas",
+        "whether",
+        "since",
+        "as",
+        "than",
+        # Complementizer / relative-pronoun uses that leave a clause open
+        "that",
+        "which",
+        # Prepositions
+        "to",
+        "of",
+        "in",
+        "on",
+        "at",
+        "by",
+        "for",
+        "with",
+        "from",
+        "into",
+        "onto",
+        "upon",
+        "about",
+        "above",
+        "across",
+        "after",
+        "against",
+        "along",
+        "among",
+        "around",
+        "before",
+        "behind",
+        "below",
+        "beneath",
+        "beside",
+        "between",
+        "beyond",
+        "concerning",
+        "despite",
+        "down",
+        "during",
+        "except",
+        "inside",
+        "near",
+        "off",
+        "out",
+        "outside",
+        "over",
+        "past",
+        "regarding",
+        "through",
+        "throughout",
+        "toward",
+        "towards",
+        "under",
+        "underneath",
+        "unto",
+        "up",
+        "via",
+        "within",
+        "without",
+    }
+)
+
+_TRAILING_WORD = re.compile(r"[A-Za-z']+$")
+
+
+def _ends_mid_clause(text: str) -> bool:
+    """True if ``text`` visibly breaks off before a grammatical clause completes.
+
+    A text ending in terminal punctuation is never flagged. Otherwise this looks only at
+    the last word: an ordinary content word (noun, verb, adjective, ...) is never flagged
+    even without a trailing period -- title- or list-style text that merely lacks
+    punctuation is not "incomplete" by this test. Only a text whose last word is one of the
+    small closed class above (a word that grammatically demands something after it) is
+    flagged, regardless of the text's topic.
+    """
+    stripped = text.rstrip()
+    if not stripped or stripped[-1] in ".!?":
+        return False
+    match = _TRAILING_WORD.search(stripped)
+    if match is None:
+        return False
+    return match.group(0).casefold() in _INCOMPLETE_CLAUSE_TRAILING_WORDS
+
+
 def grow_context(
     conn: Connection,
     *,
@@ -174,6 +292,12 @@ def grow_context(
         retrieval_score=hit.score,
     )
     if index is None:
+        # Growth is architecturally unavailable here -- there is no positional index into
+        # the attachment's chunk ordering to grow from. If the lone anchor chunk itself is
+        # visibly incomplete, there is no seam left to try; fail closed rather than let it
+        # become a claim (rule 4 below).
+        if _ends_mid_clause(anchor.text):
+            packet.discarded = True
         return packet
 
     lo = hi = index
@@ -198,7 +322,26 @@ def grow_context(
             packet.discarded = True
             break
         if action == "accept":
-            break
+            if not _ends_mid_clause(packet_text):
+                break
+            # The gate said "accept" -- a genuine judgment, or the frozen truncation
+            # fallback (qwen.py's _FROZEN_GATE_FALLBACK) when the gate's own call was cut
+            # off -- but the packet's own text visibly breaks off before a clause
+            # completes. Do not trust that "accept" as final: prefer the existing "grow
+            # after" mechanism to try to reach the rest of the sentence first (rule 3
+            # below), and only fail closed if no further neighboring chunk is available
+            # or the growth budget is exhausted (rule 4 below).
+            if iteration >= MAX_GROWTH_ITERS or hi + 1 >= len(ordered):
+                packet.discarded = True
+                break
+            candidate = ordered[hi + 1]
+            if not _addable(candidate, packet):
+                packet.discarded = True
+                break
+            hi += 1
+            packet.chunks.append(_packet_chunk(candidate))
+            packet.grown.append(candidate["chunk_id"])
+            continue
         if iteration >= MAX_GROWTH_ITERS:
             break
 
@@ -219,6 +362,11 @@ def grow_context(
                 added = True
         if not added:
             break
+
+    if not packet.discarded and packet.chunks:
+        final_text = "\n\n".join(c["text"] for c in packet.chunks)
+        if _ends_mid_clause(final_text):
+            packet.discarded = True
     return packet
 
 

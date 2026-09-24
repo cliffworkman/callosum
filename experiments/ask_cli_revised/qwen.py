@@ -21,7 +21,7 @@ _DECOMPOSE_OUTPUT_TOKENS = 512
 _OBLIGATION_OUTPUT_TOKENS = 256
 _GATE_OUTPUT_TOKENS = 48
 _EVIDENCE_SELECT_OUTPUT_TOKENS = 96
-_CLAIM_OUTPUT_TOKENS = 192
+_CLAIM_OUTPUT_TOKENS = 512
 _OBLIGATION_MAP_OUTPUT_TOKENS = 96
 _RECOVERY_OUTPUT_TOKENS = 64
 
@@ -37,6 +37,18 @@ def evidence_selection_schema(span_ids: list[str], max_spans: int = 4) -> dict:
             "items": {"type": "string", "enum": span_ids},
         }},
     }
+
+
+# Same grammar-constrained mechanism as evidence_selection_schema, applied to the demonstrated
+# claim-formation truncation failure (Sep-7/Sep-9 postmortems). A plain string (empty = no claim)
+# avoids relying on the grammar converter's nullable-type support -- the untested question here is
+# "does schema enforcement fix truncation", not "does this topology support `string|null`".
+_CLAIM_SCHEMA = {
+    "type": "object",
+    "required": ["claim"],
+    "additionalProperties": False,
+    "properties": {"claim": {"type": "string", "maxLength": 800}},
+}
 
 
 def _extract_json(text: str):
@@ -337,12 +349,13 @@ class QwenTasks:
             "the excerpt and its context.\n"
             "Preserve negation, null findings, direction, uncertainty, and qualifications.\n"
             "Do not turn a hypothesis or method into a result.\n"
-            "If the exact excerpt does not support a scientific claim responsive to the question, return null.\n\n"
-            'Return only JSON: {"claim":"..."} or {"claim":null}\n\n'
+            "If the exact excerpt does not support a scientific claim responsive to the question, return an "
+            "empty string.\n\n"
+            'Return only JSON: {"claim":"..."} or {"claim":""}\n\n'
             f"Question:\n{subquestion}\n\nSurrounding context:\n{context_text}\n\n"
             f"Exact evidence:\n{quote}"
         )
-        call = self._call(prompt=prompt, output_cap=_CLAIM_OUTPUT_TOKENS)
+        call = self._call(prompt=prompt, output_cap=_CLAIM_OUTPUT_TOKENS, json_schema=_CLAIM_SCHEMA)
         parsed = _extract_json(call.raw_text) if call.provider_ok else None
         claim, valid = _validate_claim(parsed)
         used_fallback = not (call.provider_ok and valid)
@@ -494,11 +507,12 @@ def _validate_claim(payload: Any) -> tuple[str | None, bool]:
     if not isinstance(payload, dict) or "claim" not in payload:
         return None, False
     value = payload.get("claim")
-    if value is None:
-        return None, True
-    if not isinstance(value, str) or not value.strip():
+    if not isinstance(value, str):
         return None, False
-    return value.strip()[:800], True
+    stripped = value.strip()
+    if not stripped:
+        return None, True  # explicit "no claim" (empty string), not a fallback
+    return stripped[:800], True
 
 
 def _validate_query(payload: Any) -> tuple[str, bool]:

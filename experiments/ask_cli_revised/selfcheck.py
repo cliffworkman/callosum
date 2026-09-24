@@ -51,8 +51,10 @@ def main() -> int:
 
     claim, ok = _validate_claim({"claim": "Amygdala response correlated with less prosociality."})
     _check("claim valid", ok and claim is not None)
+    claim, ok = _validate_claim({"claim": ""})
+    _check("claim empty string is a valid explicit decline", ok and claim is None)
     claim, ok = _validate_claim({"claim": None})
-    _check("claim null valid", ok and claim is None)
+    _check("claim null is no longer schema-valid (string-only contract)", not ok and claim is None)
 
     query, ok = _validate_query({"query": "Hadza anomalous is bad bias"})
     _check("recovery query", ok and query == "Hadza anomalous is bad bias")

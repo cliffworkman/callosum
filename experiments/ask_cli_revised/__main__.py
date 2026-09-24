@@ -295,8 +295,16 @@ def run(db_path: str, out_dir: str, terminal: str = "render", *, question: str =
                 verifications=verifications,
             )
             trace.write_json("13_gap_recovery.json", recovery_log)
-            audit = coverage_mod.audit_coverage(subquestions, all_records)
-            audit["original_request"] = audit_original_request(request_contract, subquestions, all_records)
+            # Recovery-only dedup markers (see _new_unique_verified) exclude a rediscovered item
+            # from the authoritative coverage/ledger view while it stays fully visible in the raw
+            # trace below (all_records / propositions.jsonl / verifications.jsonl are untouched).
+            # The PRE-recovery initial_audit call above correctly used all_records: no markers exist
+            # yet at that point, so effective_records would be identical there.
+            effective_records = [
+                r for r in all_records if not r["provenance"].get("duplicate_of_existing_evidence")
+            ]
+            audit = coverage_mod.audit_coverage(subquestions, effective_records)
+            audit["original_request"] = audit_original_request(request_contract, subquestions, effective_records)
             trace.write_json("12_coverage_audit.json", audit)
 
             trace.write_jsonl("06_chunk_retrieval.jsonl", chunk_hits)
@@ -305,7 +313,7 @@ def run(db_path: str, out_dir: str, terminal: str = "render", *, question: str =
             trace.write_jsonl("09_propositions.jsonl", propositions)
             trace.write_jsonl("10_verification.jsonl", verifications)
 
-        verified_raw = [record for record in all_records if record["verification"]["status"] == "verified"]
+        verified_raw = [record for record in effective_records if record["verification"]["status"] == "verified"]
         verified = [
             {"proposition_id": f"p{index}", **record}
             for index, record in enumerate(verified_raw, start=1)
@@ -394,6 +402,36 @@ def run(db_path: str, out_dir: str, terminal: str = "render", *, question: str =
         rt.close()
 
 
+def _new_unique_verified(all_records: list[dict], since_index: int) -> int:
+    """Recovery-only dedup. Mark (never delete) a newly-verified record at/after ``since_index`` as
+    a duplicate of pre-existing evidence when its (paper_id, evidence_anchor_chunk_id, exact claim
+    text) identity already exists among records present before this call. Mirrors
+    propositions.py::marshal_and_verify's own existing same-call duplicate-claim identity,
+    ``(chunk_id, claim.casefold())``, extended with paper_id for explicitness -- the smallest exact
+    identity that distinguishes the demonstrated duplicate (same paper+chunk+scientific claim), no
+    fuzzy/semantic matching. A marked record stays in ``all_records`` (the full trace --
+    propositions.jsonl/verifications.jsonl -- shows it and what it duplicates); callers decide what
+    counts as authoritative via ``effective_records`` in ``run()``. Never called by the initial
+    pass -- ``_process_hits`` itself is not modified, so first-pass behavior is unchanged by
+    construction, not merely because its return value used to go unused."""
+
+    def identity(record: dict) -> tuple:
+        return (record["paper_id"], record["evidence_anchor_chunk_id"], record["proposition_text"].casefold())
+
+    seen = {identity(r) for r in all_records[:since_index] if r["verification"]["status"] == "verified"}
+    new_unique = 0
+    for record in all_records[since_index:]:
+        if record["verification"]["status"] != "verified":
+            continue
+        key = identity(record)
+        if key in seen:
+            record["provenance"]["duplicate_of_existing_evidence"] = True
+            continue
+        seen.add(key)
+        new_unique += 1
+    return new_unique
+
+
 def _recover(
     conn,
     *,
@@ -418,10 +456,12 @@ def _recover(
         subquestion = sq_by_id.get(gap["subquestion_id"])
         if subquestion is None:
             continue
-        query = subquestion["text"] if subquestion.get("source_unit_id") else qwen.recovery_query(
-            subquestion=subquestion["text"],
-            obligation_note=gap.get("note", ""),
-        )
+        # Always reformulate via the existing recovery-query mechanism -- the previous
+        # `subquestion["text"] if subquestion.get("source_unit_id") else ...` shortcut meant every
+        # subquestion in the current request-contract decomposition (all of which carry
+        # source_unit_id) skipped qwen.recovery_query() entirely and reused the literal original
+        # text verbatim, guaranteeing byte-identical retrieval against the same papers below.
+        query = qwen.recovery_query(subquestion=subquestion["text"], obligation_note=gap.get("note", ""))
         original_noms = initial_nominations.get(subquestion["subquestion_id"], [])
         original_ids = [nom.paper_id for nom in original_noms]
         original_reasons = {nom.paper_id: nom.reasons for nom in original_noms}
@@ -434,7 +474,8 @@ def _recover(
             model=rt.model,
             vector_store=rt.vector_store,
         )
-        existing_added = _process_hits(
+        existing_before = len(all_records)
+        _process_hits(
             conn,
             rt=rt,
             qwen=qwen,
@@ -457,6 +498,12 @@ def _recover(
             propositions=propositions,
             verifications=verifications,
         )
+        # Recovery-only: a record identical (by paper+chunk+exact claim text) to evidence already
+        # verified before this call does not count as progress -- it's marked in place (visible in
+        # the full trace) and excluded here, rather than trusting _process_hits's own raw delta
+        # (which would count a 100%-duplicate re-verification as "added"). _process_hits itself is
+        # unmodified; the initial pass never calls this helper.
+        existing_added = _new_unique_verified(all_records, existing_before)
 
         new_noms = []
         new_hits = []
@@ -479,7 +526,8 @@ def _recover(
                 model=rt.model,
                 vector_store=rt.vector_store,
             )
-            new_added = _process_hits(
+            new_before = len(all_records)
+            _process_hits(
                 conn,
                 rt=rt,
                 qwen=qwen,
@@ -502,6 +550,7 @@ def _recover(
                 propositions=propositions,
                 verifications=verifications,
             )
+            new_added = _new_unique_verified(all_records, new_before)
 
         total_added = existing_added + new_added
         log.append(
