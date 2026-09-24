@@ -388,6 +388,8 @@ def execute(
                 skip("C2", "no_new_source_verified_evidence")
         elif plan_record["state"] == "planned":
             skip("W2", "no_search_action_planned")
+        elif plan_record["state"] == "no_answer":
+            skip("W2", "recovery_plan_no_answer")
 
     sealed = stages.seal(contract, subquestions, sink.all_records, sink.evidence_packets, coverage_final)
     sealed_hash = hashlib.sha256(json.dumps(sealed, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
@@ -432,17 +434,33 @@ def execute(
 # ---- the guarded run ---------------------------------------------------------------------------------------------------
 
 
-def _digests(clients: dict, profile: topo.Profile) -> dict:
-    wanted = {getattr(profile, role).model for role in _ROLES if getattr(profile, role).kind in _MODEL_KINDS}
-    found = {}
-    for client in clients.values():
-        with contextlib.suppress(Exception):
-            for entry in client.tags():
-                name = entry.get("name") or entry.get("model")
-                bare = name[: -len(":latest")] if name.endswith(":latest") else name  # implicit tag on untagged aliases
-                for model in (name, bare):
-                    if model in wanted:
-                        found[model] = entry.get("digest")
+class ModelMissingError(RuntimeError):
+    """A model the profile binds is not installed on the Ollama endpoint it is bound to."""
+
+
+def require_models(clients: dict, profile: topo.Profile) -> dict[str, str]:
+    """Digest of every bound model, or ``ModelMissingError`` naming what is absent and where (before any work starts)."""
+    listed: dict[str, dict[str, str]] = {}
+    for endpoint, client in clients.items():
+        digests = {}
+        for entry in client.tags():
+            name = entry.get("name") or entry.get("model")
+            digests[name] = entry.get("digest")
+            if name.endswith(":latest"):  # an untagged alias is listed with its implicit tag
+                digests[name[: -len(":latest")]] = entry.get("digest")
+        listed[endpoint] = digests
+    found, missing = {}, []
+    for role in _ROLES:
+        target = _endpoint_model(getattr(profile, role))
+        if target is None:
+            continue
+        endpoint, model = target
+        if model in listed[endpoint]:
+            found[model] = listed[endpoint][model]
+        else:
+            missing.append(f"{model} (endpoint {endpoint}, role {role})")
+    if missing:
+        raise ModelMissingError("bound model(s) not installed: " + "; ".join(missing))
     return found
 
 
@@ -489,15 +507,26 @@ def run_topology(
     trace.write_json(
         "00_question.json", {"question_key": question_key, "question": question, "hash": contract["question_hash"]}
     )
+    seed_pass = seed_pass_from(smoke_seed) if smoke_seed else None
+    clients = {endpoint: client_factory(topo.ENDPOINTS[endpoint]) for endpoint in endpoints_used(profile)}
+
+    def close_clients() -> None:
+        for client in clients.values():
+            with contextlib.suppress(Exception):
+                client.close()
+
+    try:
+        digests = require_models(clients, profile)
+    except Exception:
+        close_clients()
+        raise
     needs_qwen = any(getattr(profile, role).kind == "managed_local" for role in _ROLES)
     try:
         rt = runtime_factory(db_path, want_verifier=True, want_qwen=needs_qwen)
     except QwenUnavailableError as exc:
+        close_clients()
         trace.write_json("BLOCKED.json", {"blocked": True, "reason": str(exc)})
         return {"blocked": True, "reason": str(exc)}
-
-    seed_pass = seed_pass_from(smoke_seed) if smoke_seed else None
-    clients = {endpoint: client_factory(topo.ENDPOINTS[endpoint]) for endpoint in endpoints_used(profile)}
     guard = backends.ResidencyGuard(clients)
     started = time.monotonic()
     issues: list[str] = []
@@ -505,7 +534,6 @@ def run_topology(
     result = None
     try:
         bound = bind(profile, rt=rt, clients=clients, trace=trace, managed_chat=managed_chat)
-        digests = _digests(clients, profile)
         versions = _versions(clients)
         if sampler is not None:
             sampler.start(f"{profile_name}-{question_key}")
@@ -525,9 +553,7 @@ def run_topology(
     finally:
         with contextlib.suppress(Exception):
             guard.release_all()
-        for client in clients.values():
-            with contextlib.suppress(Exception):
-                client.close()
+        close_clients()
         rt.close()
 
     try:

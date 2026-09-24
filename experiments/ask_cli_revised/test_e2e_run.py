@@ -295,6 +295,7 @@ class FailClosedTests(unittest.TestCase):
         self.assertEqual(stage_names(result), ["W1", "C1", "P1"])
         self.assertEqual(result["recovery_plan"]["state"], "no_answer")
         self.assertEqual(result["recovery_plan"]["reason_code"], "recovery_plan_no_answer")
+        self.assertEqual(result["skipped"], [{"stage": "W2", "reason": "recovery_plan_no_answer"}])
         self.assertEqual(result["recovery_log"], [])
         self.assertEqual(len(result["sealed"]["verified_propositions"]), 2)  # no round-two evidence exists
 
@@ -443,6 +444,42 @@ class RunTopologyGuardTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):  # reaches the runtime build: the guards passed
             self.run_it(dirty=["x.py"], scored=False)
         self.assertEqual(self.calls, ["runtime"])
+
+
+class ModelPresenceTests(unittest.TestCase):
+    """A bound model that is not on its Ollama fails the run at the start, not halfway through it."""
+
+    def test_every_bound_model_present_returns_its_digest(self):
+        clients = {"shared": ScriptedClient(), "isolated": ScriptedClient()}
+        digests = e2e.require_models(clients, topo.WAVE1["T1"])
+        self.assertEqual(set(digests), {"callosum-managed-local", "qwen3.5:9b"})
+
+    def test_a_missing_model_is_named_with_its_endpoint_before_any_work(self):
+        clients = {"shared": ScriptedClient(), "isolated": ScriptedClient()}  # neither lists gemma3:12b or phi4:14b
+        with self.assertRaises(e2e.ModelMissingError) as caught:
+            e2e.require_models(clients, topo.WAVE1["T5"])
+        self.assertIn("phi4:14b", str(caught.exception))
+        self.assertIn("isolated", str(caught.exception))
+
+    def test_run_topology_checks_models_before_running(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        client = ScriptedClient()
+        with self.assertRaises(e2e.ModelMissingError):
+            e2e.run_topology(
+                "T5", "lld",
+                db_path=Path(tmp.name) / "l.sqlite", library_frozen=Path(tmp.name) / "l.json",
+                out_dir=Path(tmp.name) / "out", git_root=Path(tmp.name), scored=False,
+                git_state_fn=lambda root: {"sha": "x", "branch": "b", "dirty_paths": []},
+                verify_library=lambda db, frozen: {"sha256": "same"},
+                verify_contracts=lambda: None,
+                runtime_factory=lambda db, **kw: SimpleNamespace(
+                    engine=SimpleNamespace(connect=lambda: contextlib.nullcontext(MagicMock())),
+                    qwen_config="Q", close=lambda: None),
+                client_factory=lambda url: client,
+                managed_chat=lambda config: client,
+            )  # fmt: skip
+        self.assertEqual(client.calls, [])  # nothing was sent to any model
 
 
 class SmokeLimitTests(unittest.TestCase):
