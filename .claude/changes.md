@@ -9,6 +9,27 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-09-24 — local Ioannidis DOI-review correction (not pushed)
+- **Cause:** page-wide Summary/abstract state classified the page-1 publication DOI as body;
+  review ignored unresolved observations and falsely said no DOI was found. An InDesign
+  filename suppressed the useful visible title.
+- **Behavior:** retain conservative automatic admission, show a unique observed article DOI
+  for explicit lookup/review, exclude reference/component identifiers, refuse arbitrary
+  ambiguous selection, prefer prominent visible title evidence over conflicting metadata.
+- **Evidence/tests:** exact checksum-pinned CC-BY acceptance PDF and original manual-confirmation
+  provenance, synthetic adversarial cases, endpoint and assembled-browser regressions.
+- **Principles/experience:** observed text stays distinct from verified identity; Cliff can
+  review a found DOI without transcribing it. See `docs/research/2026-09-24_ioannidis-doi-review.md`
+  and `security-audits/2026-09-24_doi-review.md`; QA route 27 covers the flow.
+- **Scope/revert:** separate local branch; no runtime, capture-notification, schema, or live
+  data changes. Revert source/generated UI changes; no user-data rollback needed.
+- **Lineage:** Cliff supplied the real-Mac finding; Cody traced and prepared the local fix.
+- **Finalization:** Lucien identified the extraction-failure truthfulness gap and reinforced
+  the review boundary. Codex added fixed failure explanations using existing schema-1
+  dispositions, with four extraction/no-DOI/lookup/backward-compatibility regressions.
+  Cliff's evidence/product direction, Lucien's critique and Codex's implementation are
+  recorded separately in the investigation addendum.
+
 ## 2026-09-24 — browser capture (#103): wake the open app when capture commits
 - **What:** an app-scoped bounded async notification wakes the frontend to retrieve authoritative
   Import Queue state and invalidate Library. Successful capture completion has no polling delay;

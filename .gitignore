@@ -12,6 +12,8 @@ __pycache__/
 *.pdf
 # …except the committed QA/test fixture PDF (a tiny real 2-page doc the seed renders; inc 120)
 !tests/fixtures/seed.pdf
+# Exact CC-BY publisher PDF used for the Ioannidis DOI-review regression.
+!tests/fixtures/capture/ioannidis-pmed.0020124.pdf
 # Public demo documents are individually license-audited and checksum-pinned by the whitelist exporter.
 !demo/documents/*.pdf
 

@@ -21,7 +21,7 @@ from sqlalchemy import Connection, Engine
 
 from app.backend.capture import provisional
 from app.backend.capture.owned_artifacts import resolve_owned_queue_artifact_id
-from app.backend.capture.provisional_evidence import SIDECAR_SCHEMA_VERSION, _Evidence
+from app.backend.capture.provisional_evidence import SIDECAR_SCHEMA_VERSION, _Evidence, is_component_doi
 from app.backend.metadata.doi import normalize_doi
 from app.backend.persistence import provisional_artifacts_repo
 from app.backend.persistence.repository import find_existing_paper_by_identity
@@ -78,6 +78,13 @@ def explain_evidence(evidence: dict[str, Any]) -> str:
     """
     resolutions = evidence.get("resolutions") or []
     candidates = evidence.get("candidates") or []
+    # These are fixed pipeline dispositions already persisted in schema-1 evidence,
+    # not raw exception text. An empty list alone says nothing about extraction failure.
+    reason = evidence.get("decision_reason")
+    if reason == "extraction failed; treated as unresolved":
+        return "Callosum couldn't inspect this PDF for identifiers. The PDF is saved for review."
+    if reason == "resolution failed; treated as unresolved" and (candidates or resolutions):
+        return "DOI text was found, but its metadata lookup could not be completed. The PDF is saved for review."
     strong = [r for r in resolutions if r.get("disposition") == "strong"]
     if len(strong) >= 2:
         return "Multiple plausible DOI candidates found."
@@ -87,11 +94,15 @@ def explain_evidence(evidence: dict[str, Any]) -> str:
     if len(strong) == 1:
         return "DOI found in the PDF front matter; the resolved title closely matches the PDF's own title."
     front_matter = [c for c in candidates if c.get("position_class") == "front_matter"]
-    if front_matter:
+    if front_matter and any(r.get("disposition") == "unresolved" for r in resolutions):
         return "DOI found in the PDF front matter, but it could not be resolved to a scholarly record."
     references_only = candidates and all(c.get("position_class") == "references" for c in candidates)
     if references_only:
         return "A DOI was found only in the References section, so it was not treated as this document's own identity."
+    if candidates or resolutions:
+        if best_candidate(evidence):
+            return "DOI text was found, but it has not been verified as this document's identity. Review it before confirming."
+        return "DOI text was found, but no single article identity could be selected safely. It may identify cited works, figures or tables."
     return "No DOI-shaped text was found in this PDF's first pages."
 
 
@@ -99,14 +110,33 @@ def best_candidate(evidence: dict[str, Any]) -> dict[str, Any] | None:
     """The single most useful DOI/title/evidence pairing to show on a review card, or None."""
     resolutions = evidence.get("resolutions") or []
     for wanted in ("strong", "insufficient_corroboration"):
-        for r in resolutions:
-            if r.get("disposition") == wanted:
-                return {
-                    "doi": r.get("doi"),
-                    "title": r.get("resolved_title"),
-                    "disposition": r.get("disposition"),
-                }
-    return None
+        matches = {
+            r["doi"]: r
+            for r in resolutions
+            if r.get("disposition") == wanted and r.get("doi") and not is_component_doi(r["doi"])
+        }
+        if len(matches) > 1:
+            return None  # Never choose the first of equally plausible resolved works.
+        if matches:
+            r = next(iter(matches.values()))
+            return {"doi": r["doi"], "title": r.get("resolved_title"), "disposition": wanted}
+    # Read-time fallback also works with existing schema-1 evidence. Do not resolve or
+    # rewrite history here. A unique observed DOI is a lookup suggestion, not an identity.
+    observed = {}
+    for c in evidence.get("candidates") or []:
+        doi = c.get("doi")
+        if doi and c.get("position_class") in {"front_matter", "body"} and not is_component_doi(doi):
+            observed.setdefault(doi, c)
+    if len(observed) != 1:
+        return None
+    doi, candidate = next(iter(observed.items()))
+    return {
+        "doi": doi,
+        "title": None,
+        "disposition": "observed_unverified",
+        "page": candidate.get("page"),
+        "position_class": candidate.get("position_class"),
+    }
 
 
 def preview_doi(conn: Connection, raw_doi: str, crossref_client: Any) -> dict[str, Any]:

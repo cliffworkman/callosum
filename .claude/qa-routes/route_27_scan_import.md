@@ -73,6 +73,26 @@ explicitly not evidence of a real extension click or packaged macOS acceptance.
 - Invalid paths/files fail closed with user-visible messages.
 - Mobile viewport has no horizontal overflow.
 
+### Observed DOI review regression (Ioannidis)
+
+In an isolated Library, capture `tests/fixtures/capture/ioannidis-pmed.0020124.pdf`.
+The artifact must remain provisional. Open Import Queue: it must say DOI text was found,
+show the observed article DOI, page 1 and its body classification, and offer **Review DOI**.
+Do not claim automatic verification or select any `.tNNN`/`.gNNN` DOI as the article.
+Review prefills the DOI; no confirm button exists until **Look up** succeeds. First inject
+an unresolved provider: no identity or paper is created. Then resolve the fixture record:
+inspect its title and explicitly confirm. Original observations/resolutions must survive;
+record candidate provenance for an unchanged suggestion and manual provenance after editing.
+References-only, component-only and equally plausible article DOIs must not yield an
+arbitrarily chosen article. Misleading internal PDF metadata must not override a prominent
+visible title. Run `tests/e2e/test_doi_review.py` for the assembled local browser regression;
+it does not establish packaged Intel-Mac acceptance of this new fix.
+
+Fault-inject an extraction exception after the PDF is durably saved: the card must say
+Callosum could not inspect the identifiers, not that no DOI was found. Compare with a
+successfully inspected DOI-free PDF and with a recorded DOI whose resolver failed. No raw
+exception, token or local path may appear in the review copy; all remain saved for review.
+
 ## Deposit
 
 Write `.claude/qa-inbox/<RUN_ID>/route_27_scan_import.md` + `screenshots/` (see `_TEMPLATE.md`).

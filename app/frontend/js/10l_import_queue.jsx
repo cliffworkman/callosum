@@ -67,8 +67,8 @@ function ImportQueueThumbnail({ artifactId }) {
   return <canvas ref={canvasRef} className="iq-thumb" width={state.width} height={state.height} />;
 }
 
-function ImportQueueDoiEntry({ artifactId, onConfirmed, busy, setBusy }) {
-  const [doi, setDoi] = useState("");
+function ImportQueueDoiEntry({ artifactId, onConfirmed, busy, setBusy, initialDoi = "" }) {
+  const [doi, setDoi] = useState(initialDoi);
   const [preview, setPreview] = useState(null); // { status, title, authors, year, paper_id, error }
 
   const lookup = useCallback(async () => {
@@ -85,11 +85,11 @@ function ImportQueueDoiEntry({ artifactId, onConfirmed, busy, setBusy }) {
     const value = doi.trim();
     if (!value) return;
     setBusy(true);
-    const req = buildConfirmRequest(artifactId, value, "manual");
+    const req = buildConfirmRequest(artifactId, value, initialDoi && value === initialDoi ? "candidate" : "manual");
     const r = await apiPost(req.path, req.body);
     setBusy(false);
     if (r.ok) onConfirmed(r.data);
-  }, [artifactId, doi, onConfirmed, setBusy]);
+  }, [artifactId, doi, initialDoi, onConfirmed, setBusy]);
 
   return (
     <div className="gap-row" style={{ flexDirection: "column", alignItems: "stretch" }}>
@@ -97,6 +97,8 @@ function ImportQueueDoiEntry({ artifactId, onConfirmed, busy, setBusy }) {
         <input
           className="reffind-text"
           style={{ minHeight: "auto", flex: 1 }}
+          aria-label="DOI to review"
+          disabled={busy}
           placeholder="Enter a different DOI…"
           value={doi}
           onChange={e => { setDoi(e.target.value); setPreview(null); }}
@@ -124,6 +126,7 @@ function ImportQueueDoiEntry({ artifactId, onConfirmed, busy, setBusy }) {
 function ImportQueueCard({ item, onOpenPaper, onChanged, onRemove }) {
   const [busy, setBusy] = useState(false);
   const [showDoiEntry, setShowDoiEntry] = useState(false);
+  const [reviewDoi, setReviewDoi] = useState("");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const headline = importQueueStateHeadline(item.identity_state, item.promotion_state);
@@ -143,6 +146,10 @@ function ImportQueueCard({ item, onOpenPaper, onChanged, onRemove }) {
 
   const confirmCandidate = useCallback(async () => {
     if (!item.best_candidate) return;
+    if (item.best_candidate.disposition === "observed_unverified") {
+      setReviewDoi(item.best_candidate.doi); setShowDoiEntry(true);
+      return;
+    }
     setBusy(true);
     const req = buildConfirmRequest(item.artifact_id, item.best_candidate.doi, "candidate");
     const r = await apiPost(req.path, req.body);
@@ -190,6 +197,11 @@ function ImportQueueCard({ item, onOpenPaper, onChanged, onRemove }) {
           <div className="gap-row-info" style={{ marginTop: 4 }}>
             <div className="gap-row-title">{item.best_candidate.title || item.best_candidate.doi}</div>
             {item.best_candidate.doi && <div className="reffind-doi">{item.best_candidate.doi}</div>}
+            {item.best_candidate.disposition === "observed_unverified" &&
+              <div className="axis-hint">Observed DOI — not verified as this paper.
+                {item.best_candidate.page && ` Found on page ${item.best_candidate.page}.`}
+                {item.best_candidate.position_class === "body" && " It was classified as body text."}
+              </div>}
           </div>}
 
         {item.promotion_state === "attachment_conflict" &&
@@ -199,13 +211,15 @@ function ImportQueueCard({ item, onOpenPaper, onChanged, onRemove }) {
 
         <div className="gap-row-actions" style={{ marginTop: 8, flexWrap: "wrap" }}>
           {actions.includes("confirm_candidate") &&
-            <button className="btn btn-primary" disabled={busy} onClick={confirmCandidate}>Confirm this identity</button>}
+            <button className="btn btn-primary" disabled={busy} onClick={confirmCandidate}>
+              {item.best_candidate.disposition === "observed_unverified" ? "Review DOI" : "Confirm this identity"}
+            </button>}
           {actions.includes("open_existing_paper") &&
             <button className="btn btn-ghost" disabled={busy} onClick={openExisting}>Open existing Paper</button>}
           {actions.includes("retry") &&
             <button className="btn btn-ghost" disabled={busy} onClick={retry}>Retry</button>}
           {actions.includes("enter_doi") && !showDoiEntry &&
-            <button className="btn btn-link" disabled={busy} onClick={() => setShowDoiEntry(true)}>Enter a different DOI…</button>}
+            <button className="btn btn-link" disabled={busy} onClick={() => { setReviewDoi(""); setShowDoiEntry(true); }}>Enter a different DOI…</button>}
           {!confirmingDelete &&
             <button className="btn btn-link" disabled={busy} onClick={() => setConfirmingDelete(true)}>Delete</button>}
           {confirmingDelete &&
@@ -218,6 +232,8 @@ function ImportQueueCard({ item, onOpenPaper, onChanged, onRemove }) {
 
         {showDoiEntry &&
           <ImportQueueDoiEntry
+            key={reviewDoi}
+            initialDoi={reviewDoi}
             artifactId={item.artifact_id}
             busy={busy}
             setBusy={setBusy}

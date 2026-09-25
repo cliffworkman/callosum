@@ -74,7 +74,10 @@ def test_explain_evidence_multiple_strong() -> None:
 
 
 def test_explain_evidence_front_matter_unresolved() -> None:
-    evidence = {"resolutions": [], "candidates": [{"position_class": "front_matter", "doi": "10.1/x"}]}
+    evidence = {
+        "resolutions": [{"doi": "10.1/x", "disposition": "unresolved"}],
+        "candidates": [{"position_class": "front_matter", "doi": "10.1/x"}],
+    }
     assert "could not be resolved" in explain_evidence(evidence)
 
 
@@ -259,7 +262,7 @@ def test_confirm_with_manually_entered_doi_promotes_and_records_provenance(temp_
     assert len(list(root.glob("capture-*.pdf"))) == 1
 
 
-def test_confirm_with_best_candidate_uses_source_candidate(temp_db_url: str, tmp_path: Path) -> None:
+def test_ambiguous_candidates_require_manual_choice_and_preserve_evidence(temp_db_url: str, tmp_path: Path) -> None:
     client = _client(temp_db_url)
     headers = _paired(client)
     capture_id = _direct_pdf_capture_id(client, headers)
@@ -290,10 +293,10 @@ def test_confirm_with_best_candidate_uses_source_candidate(temp_db_url: str, tmp
     assert len(listed) == 1
     artifact_id = listed[0]["artifact_id"]
     candidate = listed[0]["best_candidate"]
-    assert candidate is not None  # both candidates resolved+agreed; ambiguity is about UNIQUENESS, not strength
+    assert candidate is None  # equal candidates must not be presented as one selected identity
 
     response = client.post(
-        f"/library/import-queue/{artifact_id}/confirm", json={"doi": candidate["doi"], "source": "candidate"}
+        f"/library/import-queue/{artifact_id}/confirm", json={"doi": "10.1234/candidate-one", "source": "manual"}
     )
     assert response.json()["promotion_state"] == "promoted"
 
@@ -302,7 +305,7 @@ def test_confirm_with_best_candidate_uses_source_candidate(temp_db_url: str, tmp
         artifact = provisional_artifacts_repo.get(conn, artifact_id)
     engine.dispose()
     evidence = json.loads(artifact["evidence_json"])
-    assert evidence["user_actions"][0]["action"] == "user_confirmed_candidate"
+    assert evidence["user_actions"][0]["action"] == "user_entered_doi"
     # The original auto-pipeline's observations survive untouched.
     assert len(evidence["candidates"]) >= 2
 

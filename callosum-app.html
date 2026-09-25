@@ -13255,8 +13255,8 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     if (state.status !== "ready") return /* @__PURE__ */ React.createElement("div", { className: "iq-thumb iq-thumb-fallback" }, "\u2026");
     return /* @__PURE__ */ React.createElement("canvas", { ref: canvasRef, className: "iq-thumb", width: state.width, height: state.height });
   }
-  function ImportQueueDoiEntry({ artifactId, onConfirmed, busy, setBusy }) {
-    const [doi, setDoi] = useState("");
+  function ImportQueueDoiEntry({ artifactId, onConfirmed, busy, setBusy, initialDoi = "" }) {
+    const [doi, setDoi] = useState(initialDoi);
     const [preview, setPreview] = useState(null);
     const lookup = useCallback(async () => {
       const value = doi.trim();
@@ -13272,16 +13272,18 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       const value = doi.trim();
       if (!value) return;
       setBusy(true);
-      const req = buildConfirmRequest(artifactId, value, "manual");
+      const req = buildConfirmRequest(artifactId, value, initialDoi && value === initialDoi ? "candidate" : "manual");
       const r = await apiPost(req.path, req.body);
       setBusy(false);
       if (r.ok) onConfirmed(r.data);
-    }, [artifactId, doi, onConfirmed, setBusy]);
+    }, [artifactId, doi, initialDoi, onConfirmed, setBusy]);
     return /* @__PURE__ */ React.createElement("div", { className: "gap-row", style: { flexDirection: "column", alignItems: "stretch" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6 } }, /* @__PURE__ */ React.createElement(
       "input",
       {
         className: "reffind-text",
         style: { minHeight: "auto", flex: 1 },
+        "aria-label": "DOI to review",
+        disabled: busy,
         placeholder: "Enter a different DOI\u2026",
         value: doi,
         onChange: (e) => {
@@ -13294,6 +13296,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
   function ImportQueueCard({ item, onOpenPaper, onChanged, onRemove }) {
     const [busy, setBusy] = useState(false);
     const [showDoiEntry, setShowDoiEntry] = useState(false);
+    const [reviewDoi, setReviewDoi] = useState("");
     const [confirmingDelete, setConfirmingDelete] = useState(false);
     const headline = importQueueStateHeadline(item.identity_state, item.promotion_state);
     const actions = importQueueStateActions(item.identity_state, item.promotion_state, !!item.best_candidate);
@@ -13308,6 +13311,11 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     }, [item.artifact_id, onChanged, onRemove]);
     const confirmCandidate = useCallback(async () => {
       if (!item.best_candidate) return;
+      if (item.best_candidate.disposition === "observed_unverified") {
+        setReviewDoi(item.best_candidate.doi);
+        setShowDoiEntry(true);
+        return;
+      }
       setBusy(true);
       const req = buildConfirmRequest(item.artifact_id, item.best_candidate.doi, "candidate");
       const r = await apiPost(req.path, req.body);
@@ -13342,9 +13350,14 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         return item.last_source_url;
       }
     })();
-    return /* @__PURE__ */ React.createElement("div", { className: "iq-card" }, /* @__PURE__ */ React.createElement(ImportQueueThumbnail, { artifactId: item.artifact_id }), /* @__PURE__ */ React.createElement("div", { className: "iq-card-body" }, /* @__PURE__ */ React.createElement("div", { className: "iq-card-headline" }, headline), /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, item.last_original_filename || "PDF", sourceHost && ` \xB7 ${sourceHost}`, item.last_captured_at && ` \xB7 ${item.last_captured_at}`, item.encounter_count > 1 && ` \xB7 captured ${item.encounter_count} times`), /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, item.explanation), item.best_candidate && /* @__PURE__ */ React.createElement("div", { className: "gap-row-info", style: { marginTop: 4 } }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, item.best_candidate.title || item.best_candidate.doi), item.best_candidate.doi && /* @__PURE__ */ React.createElement("div", { className: "reffind-doi" }, item.best_candidate.doi)), item.promotion_state === "attachment_conflict" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint", style: { marginTop: 4 } }, importQueueAttachmentConflictExplanation()), (item.promotion_state === "processing_failed" || item.promotion_state === "indexing_unavailable") && /* @__PURE__ */ React.createElement("div", { className: "axis-hint", style: { marginTop: 4 } }, importQueueProcessingFailedExplanation()), /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions", style: { marginTop: 8, flexWrap: "wrap" } }, actions.includes("confirm_candidate") && /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: busy, onClick: confirmCandidate }, "Confirm this identity"), actions.includes("open_existing_paper") && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: openExisting }, "Open existing Paper"), actions.includes("retry") && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: retry }, "Retry"), actions.includes("enter_doi") && !showDoiEntry && /* @__PURE__ */ React.createElement("button", { className: "btn btn-link", disabled: busy, onClick: () => setShowDoiEntry(true) }, "Enter a different DOI\u2026"), !confirmingDelete && /* @__PURE__ */ React.createElement("button", { className: "btn btn-link", disabled: busy, onClick: () => setConfirmingDelete(true) }, "Delete"), confirmingDelete && /* @__PURE__ */ React.createElement("span", { className: "reffind-outcome err", style: { display: "flex", alignItems: "center", gap: 6 } }, importQueueDeleteConfirmMessage(), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: busy, onClick: doDelete }, "Delete"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: () => setConfirmingDelete(false) }, "Cancel"))), showDoiEntry && /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "iq-card" }, /* @__PURE__ */ React.createElement(ImportQueueThumbnail, { artifactId: item.artifact_id }), /* @__PURE__ */ React.createElement("div", { className: "iq-card-body" }, /* @__PURE__ */ React.createElement("div", { className: "iq-card-headline" }, headline), /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, item.last_original_filename || "PDF", sourceHost && ` \xB7 ${sourceHost}`, item.last_captured_at && ` \xB7 ${item.last_captured_at}`, item.encounter_count > 1 && ` \xB7 captured ${item.encounter_count} times`), /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, item.explanation), item.best_candidate && /* @__PURE__ */ React.createElement("div", { className: "gap-row-info", style: { marginTop: 4 } }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, item.best_candidate.title || item.best_candidate.doi), item.best_candidate.doi && /* @__PURE__ */ React.createElement("div", { className: "reffind-doi" }, item.best_candidate.doi), item.best_candidate.disposition === "observed_unverified" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Observed DOI \u2014 not verified as this paper.", item.best_candidate.page && ` Found on page ${item.best_candidate.page}.`, item.best_candidate.position_class === "body" && " It was classified as body text.")), item.promotion_state === "attachment_conflict" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint", style: { marginTop: 4 } }, importQueueAttachmentConflictExplanation()), (item.promotion_state === "processing_failed" || item.promotion_state === "indexing_unavailable") && /* @__PURE__ */ React.createElement("div", { className: "axis-hint", style: { marginTop: 4 } }, importQueueProcessingFailedExplanation()), /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions", style: { marginTop: 8, flexWrap: "wrap" } }, actions.includes("confirm_candidate") && /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: busy, onClick: confirmCandidate }, item.best_candidate.disposition === "observed_unverified" ? "Review DOI" : "Confirm this identity"), actions.includes("open_existing_paper") && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: openExisting }, "Open existing Paper"), actions.includes("retry") && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: retry }, "Retry"), actions.includes("enter_doi") && !showDoiEntry && /* @__PURE__ */ React.createElement("button", { className: "btn btn-link", disabled: busy, onClick: () => {
+      setReviewDoi("");
+      setShowDoiEntry(true);
+    } }, "Enter a different DOI\u2026"), !confirmingDelete && /* @__PURE__ */ React.createElement("button", { className: "btn btn-link", disabled: busy, onClick: () => setConfirmingDelete(true) }, "Delete"), confirmingDelete && /* @__PURE__ */ React.createElement("span", { className: "reffind-outcome err", style: { display: "flex", alignItems: "center", gap: 6 } }, importQueueDeleteConfirmMessage(), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: busy, onClick: doDelete }, "Delete"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: () => setConfirmingDelete(false) }, "Cancel"))), showDoiEntry && /* @__PURE__ */ React.createElement(
       ImportQueueDoiEntry,
       {
+        key: reviewDoi,
+        initialDoi: reviewDoi,
         artifactId: item.artifact_id,
         busy,
         setBusy,

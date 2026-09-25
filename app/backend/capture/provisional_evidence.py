@@ -12,6 +12,7 @@ promotion into the Library is decided (and gated) elsewhere.
 from __future__ import annotations
 
 import json
+import re
 import unicodedata
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
@@ -24,6 +25,46 @@ from sqlalchemy import Connection
 from app.backend.embeddings.models import normalize_text, strip_punctuation
 from app.backend.metadata.doi import DOI_PATTERN, find_doi_in_text, normalize_doi
 from app.backend.pdf_processing.sections import SectionTracker
+
+# PLOS assigns these DOIs to individual table/figure objects, not the article. Never
+# synthesize a parent DOI by stripping the suffix: a review DOI must itself be observed.
+_PLOS_COMPONENT_DOI = re.compile(r"^10\.1371/journal\.[a-z]+\.\d+\.[gt]\d{3}$", re.IGNORECASE)
+_CAPTION = re.compile(r"^(?:table|fig(?:ure)?\.?)\s+\d+\b", re.IGNORECASE)
+_FILE_TITLE = re.compile(r"\.(?:indd|pdf|docx?|tex|ps)$", re.IGNORECASE)
+
+
+def is_component_doi(doi: str) -> bool:
+    return bool(_PLOS_COMPONENT_DOI.fullmatch(doi))
+
+
+def _visible_title(blocks: list[dict[str, Any]], page_height: float) -> str | None:
+    """Prefer an unambiguous prominent heading near the top, joining its wrapped lines.
+
+    Layout evidence is only title corroboration; it never reclassifies a DOI as front matter.
+    No OCR, provider request, or assumption that a filename is a scholarly title.
+    """
+    choices: list[tuple[float, str]] = []
+    for block in blocks:
+        if block.get("type") != 0 or block["bbox"][3] > page_height * 0.35:
+            continue
+        spans = [s for line in block.get("lines", []) for s in line.get("spans", []) if s.get("text", "").strip()]
+        text = " ".join(
+            "".join(s.get("text", "") for s in line.get("spans", [])).strip() for line in block.get("lines", [])
+        )
+        if not spans or not 20 < len(text) <= 300 or len(text.split()) < 4:
+            continue
+        if DOI_PATTERN.search(text) or "http" in text.lower() or _CAPTION.match(text):
+            continue
+        # All lines must have heading-sized type, excluding body paragraphs and mixed blocks.
+        size = min(float(s.get("size", 0)) for s in spans)
+        if size >= 14:
+            choices.append((size, text))
+    if not choices:
+        return None
+    largest = max(size for size, _ in choices)
+    titles = {text for size, text in choices if size == largest}
+    return next(iter(titles)) if len(titles) == 1 else None
+
 
 # Only the front matter of a direct-PDF capture can ever influence the promotion decision (see
 # `_classify_position`), so scanning past this page never changes the outcome -- bounding the scan
@@ -44,7 +85,7 @@ SIDECAR_SCHEMA_VERSION = 1
 class DoiCandidate:
     doi: str
     page_number: int
-    position_class: str  # "front_matter" | "body" | "references"
+    position_class: str  # "front_matter" | "body" | "references" | "figure_table"
 
 
 @dataclass
@@ -87,7 +128,7 @@ def _extract_candidates(pdf_path: Path) -> tuple[list[DoiCandidate], list[str]]:
     title_candidates: list[str] = []
     with fitz.open(pdf_path) as document:
         meta_title = (document.metadata or {}).get("title")
-        if meta_title and isinstance(meta_title, str) and len(meta_title.strip()) > 8:
+        if isinstance(meta_title, str) and len(meta_title.strip()) > 8 and not _FILE_TITLE.search(meta_title.strip()):
             title_candidates.append(meta_title.strip())
 
         metadata_text = " ".join(str(v) for v in (document.metadata or {}).values() if v)
@@ -102,6 +143,11 @@ def _extract_candidates(pdf_path: Path) -> tuple[list[DoiCandidate], list[str]]:
             page = document[page_index]
             page_number = page_index + 1
             text_dict = page.get_text("dict", sort=True)
+            if page_number == 1:
+                visible_title = _visible_title(text_dict.get("blocks", []), page.rect.height)
+                if visible_title:
+                    # Conflicting internal metadata cannot corroborate a different work.
+                    title_candidates = [visible_title]
             for block in text_dict.get("blocks", []):
                 if block.get("type") != 0:
                     continue
@@ -121,6 +167,8 @@ def _extract_candidates(pdf_path: Path) -> tuple[list[DoiCandidate], list[str]]:
                     if not doi:
                         continue
                     position_class = _classify_position(page_number, tracker.current_section)
+                    if position_class != "references" and (is_component_doi(doi) or _CAPTION.match(block_text)):
+                        position_class = "figure_table"
                     candidates.append(DoiCandidate(doi=doi, page_number=page_number, position_class=position_class))
 
         if not title_candidates:
@@ -174,13 +222,17 @@ def _resolve_and_score(
     disposition is recorded in `evidence` regardless of outcome."""
     seen_dois: dict[str, DoiCandidate] = {}
     for candidate in candidates:
-        if candidate.position_class == "references":
+        if candidate.position_class in {"references", "figure_table"} or is_component_doi(candidate.doi):
             evidence.candidates.append(
                 {
                     "doi": candidate.doi,
                     "page": candidate.page_number,
                     "position_class": candidate.position_class,
-                    "disposition": "rejected_reference_section",
+                    "disposition": (
+                        "rejected_reference_section"
+                        if candidate.position_class == "references"
+                        else "rejected_figure_table"
+                    ),
                 }
             )
             continue

@@ -44,6 +44,10 @@ the full per-increment narrative for all other increments now lives in the reloc
   `/library/capture-updates`; the UI retrieves authoritative queue state and invalidates Library.
   Reuse the existing auth-fetch and single-worker contract; a notification carries only an opaque
   revision, never paper data or credentials. See `.claude/LATENCY.md` and QA route 27.
+- **Provisional DOI review:** observed DOI text is not canonical identity. A unique unverified
+  non-reference/non-component DOI may be offered for explicit lookup and confirmation;
+  body observations remain ineligible for automatic promotion. See the Ioannidis regression
+  fixture and `docs/research/2026-09-24_ioannidis-doi-review.md` for the exact acceptance cause.
 - **Generation output ceilings must cover what the schema permits (inc 575).** `_PRIMARY_SYNTHESIS_SCHEMA`
   allows 7 claims × 3 citations, and the "no quote may exceed 80 words" instruction is *prose the grammar
   does not enforce* — so an unbounded `quote` string could consume the whole allowance. A citation-dense

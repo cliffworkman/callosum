@@ -53,6 +53,8 @@ class BestCandidateOut(BaseModel):
     doi: str | None = None
     title: str | None = None
     disposition: str | None = None
+    page: int | None = None
+    position_class: str | None = None
 
 
 class ImportQueueItem(BaseModel):
