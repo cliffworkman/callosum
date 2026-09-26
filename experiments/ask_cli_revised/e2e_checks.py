@@ -16,14 +16,14 @@ import re
 import secrets
 from pathlib import Path
 
-from experiments.ask_cli_revised import e2e_contracts, hierarchy_contract, stages
+from experiments.ask_cli_revised import e2e_contracts, hierarchy_contract, overview_audit, stages
 from experiments.ask_cli_revised import topology as topo
 from experiments.ask_cli_revised.ledger_renderer import validate_ledger
 from experiments.ask_cli_revised.supervisor_eval import cases
 from experiments.ask_cli_revised.supervisor_eval.scoring import corpus_absence_hits
 
 WORKER_TASKS = ("context_gate", "select_evidence", "form_claim", "recovery_query")
-SUPERVISOR_TASKS = ("claim_responsiveness", "coverage_audit", "recovery_planning")
+SUPERVISOR_TASKS = ("claim_responsiveness", "coverage_audit", "recovery_planning", "overview_synthesis")
 _INFRASTRUCTURE_STATUSES = frozenset({"http_error", "runtime_error", "transport_error", "provider_error"})
 _SEARCH_ACTIONS = frozenset({"DEEPEN", "NOMINATE", "LEGACY"})
 _PLAN_ACTIONS = _SEARCH_ACTIONS | {"NO_RECOVERY_NEEDED", "PRESERVE_UNRESOLVED"}
@@ -234,7 +234,15 @@ def mechanical_report(run_dir, *, profile: topo.Profile | None = None, question_
     plan_record = _read_json(run / "13_recovery_plan.json")
     recovery_rows = _read_json(run / "13_gap_recovery.json")
     stage_log = _read_json(run / "stage_log.json")
-    answer = (run / "14_final_answer.md").read_text(encoding="utf-8")
+    answer_primary = (run / "14_final_answer.md").read_text(encoding="utf-8")
+    overview_record = _read_json(run / "14a_overview.json") if (run / "14a_overview.json").is_file() else None
+    detail_text = None
+    answer = answer_primary
+    if overview_record is not None:
+        # With an overview, 14_final_answer.md is the researcher-facing answer and the ledger rendering lives, unchanged, at
+        # the top of the detailed inspection. Ledger-level checks run over that rendering; the overview has its own check.
+        detail_text = (run / "14b_detailed_inspection.md").read_text(encoding="utf-8")
+        answer = detail_text.split("\n\n## Overview construction record", 1)[0] + "\n"
     calls = _read_jsonl(run / "qwen_calls.jsonl")
     growth = _read_jsonl(run / "07_context_growth.jsonl")
 
@@ -290,6 +298,8 @@ def mechanical_report(run_dir, *, profile: topo.Profile | None = None, question_
     )
 
     absence = corpus_absence_hits(answer)
+    if overview_record is not None:
+        absence += corpus_absence_hits(answer_primary)  # the researcher-facing prose too (not withheld proposals)
     labels = frozen_label_reuse(ledger, question_key) if question_key is not None else None
     checks = {
         "contract_preserved": _check(contract_ok, **({"hierarchy": hierarchy_detail} if hierarchical else {})),
@@ -303,6 +313,17 @@ def mechanical_report(run_dir, *, profile: topo.Profile | None = None, question_
         "coverage_from_authority": _coverage_from_authority(coverage_final, ledger_rows, profile),
         "corpus_absence": _check(not absence, hits=absence),
     }
+    if overview_record is not None:
+        sealed = {k: v for k, v in ledger.items() if k != "sealed_hash"}
+        audit_o = overview_audit.audit_overview(
+            sealed, ledger["sealed_hash"], overview_record, answer_primary, detail_text
+        )
+        checks["overview_screening"] = _check(
+            audit_o["ok"],
+            problems=audit_o["problems"],
+            failed=[name for name, ok in audit_o["checks"].items() if not ok],
+            screening_not_proof=True,
+        )
     if hierarchical:
         readiness = hierarchy_contract.readiness_record(contract)
         checks["hierarchy_readiness"] = _check(readiness.pop("ok"), **readiness)

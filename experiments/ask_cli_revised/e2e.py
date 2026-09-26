@@ -33,6 +33,9 @@ from experiments.ask_cli_revised import (
     e2e_contracts,
     hierarchy_contract,
     library_copy,
+    overview,
+    overview_audit,
+    overview_render,
     provenance,
     retrieval,
     stages,
@@ -82,8 +85,13 @@ def _endpoint_model(binding: topo.Binding) -> tuple[str, str] | None:
     return None
 
 
+def _roles(profile: topo.Profile) -> tuple[str, ...]:
+    """W/R/C/P always; S only when the profile binds it (so a Wave-1 profile's records are unchanged)."""
+    return (*_ROLES, "S") if profile.S.kind != "off" else _ROLES
+
+
 def endpoints_used(profile: topo.Profile) -> list[str]:
-    return sorted({em[0] for role in _ROLES if (em := _endpoint_model(getattr(profile, role)))})
+    return sorted({em[0] for role in _roles(profile) if (em := _endpoint_model(getattr(profile, role)))})
 
 
 def bind(profile: topo.Profile, *, rt, clients: dict, trace, managed_chat=backends.ManagedLocalChat) -> Bound:
@@ -107,6 +115,11 @@ def bind(profile: topo.Profile, *, rt, clients: dict, trace, managed_chat=backen
         supervisors[role] = stages.Supervisor(
             role=role, binding=binding, client=client, base_options=topo.SUPERVISOR_BASE_OPTIONS, trace=trace
         )
+    if profile.S.kind == "ollama":  # the overview role has its own explicit envelope (topology.OVERVIEW_S_OPTIONS)
+        supervisors["S"] = stages.Supervisor(
+            role="S", binding=profile.S, client=clients[profile.S.endpoint],
+            base_options=topo.OVERVIEW_S_OPTIONS, trace=trace,
+        )  # fmt: skip
     return Bound(qwen=QwenTasks(config=worker_config, trace=trace), supervisors=supervisors)
 
 
@@ -269,10 +282,16 @@ def execute(
     bound: Bound,
     smoke_limits: dict | None = None,
     seed_pass=None,
+    entail=None,
 ) -> dict:
+    if "S" in bound.supervisors and entail is None:
+        # Fail closed before any stage, trace file or model call: an overview is never shown unscreened.
+        raise ValueError("the overview stage (S) needs a local entailment scorer (entail=) to screen its statements")
     if contract.get("version") == hierarchy_contract.HIER_VERSION:
         hierarchy_contract.assert_executable(contract)  # fail closed before any stage, trace file or model call
-        if seed_pass is not None or any(k in (smoke_limits or {}) for k in ("max_initial_subquestions", "max_recovery_gaps")):
+        if seed_pass is not None or any(
+            k in (smoke_limits or {}) for k in ("max_initial_subquestions", "max_recovery_gaps")
+        ):
             raise ValueError(
                 "a hierarchical run may not slice its children or seed its claims (that would silently drop or replace approved children)"
             )
@@ -402,6 +421,15 @@ def execute(
 
     sealed = stages.seal(contract, subquestions, sink.all_records, sink.evidence_packets, coverage_final)
     sealed_hash = hashlib.sha256(json.dumps(sealed, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
+    overview_record, reasoning = None, ""
+    if "S" in bound.supervisors:
+        # After the last coverage stage, over the SEALED ledger, which this never modifies: the overview is a separate,
+        # separately hashed artifact that references the ledger hash.
+        with stage("S1", "S") as entry:
+            overview_record, reasoning = overview.build_overview(
+                sealed, sealed_hash, supervisor=bound.supervisors["S"], entail=entail
+            )
+            entry["detail"] = overview.stage_detail(overview_record)
     text, render_manifest = render_answer(sealed)
 
     trace.write_json("02_direct_papers.json", sink.direct_papers)
@@ -417,9 +445,30 @@ def execute(
     trace.write_json("13_recovery_plan.json", {**plan_record, "unresolved_items": [g["field_id"] for g in gaps]})
     trace.write_json("13_gap_recovery.json", recovery_log)
     trace.write_json("11_verified_ledger.json", {**sealed, "sealed_hash": sealed_hash})
-    final_path = trace.write_report("14_final_answer.md", [text.rstrip("\n")])
-    trace.write_json("14_render_manifest.json", render_manifest)
-    final_audit = audit_final(sealed, final_path.read_text(encoding="utf-8"))
+    if overview_record is None:
+        final_path = trace.write_report("14_final_answer.md", [text.rstrip("\n")])
+        trace.write_json("14_render_manifest.json", render_manifest)
+        final_audit = audit_final(sealed, final_path.read_text(encoding="utf-8"))
+    else:
+        # Two files: the researcher-facing answer, and the detailed inspection (the ledger rendering, unchanged, plus the
+        # construction record). Nothing is dropped; the second file is where every exclusion and receipt lives.
+        answer_text, answer_manifest = overview_render.researcher_answer(sealed, overview_record)
+        trace.write_json(overview_render.RECORD_FILE, overview_record)
+        if reasoning:
+            trace.write_report("14c_overview_reasoning.txt", [reasoning])  # private: model reasoning over library text
+        answer_path = trace.write_report(overview_render.ANSWER_FILE, [answer_text.rstrip("\n")])
+        detail_path = trace.write_report(
+            overview_render.DETAIL_FILE, [overview_render.detailed_inspection(sealed, overview_record).rstrip("\n")]
+        )
+        trace.write_json("14_render_manifest.json", {**render_manifest, "researcher_answer": answer_manifest})
+        final_audit = audit_final(sealed, text)
+        final_audit["overview_audit"] = overview_audit.audit_overview(
+            sealed,
+            sealed_hash,
+            overview_record,
+            answer_path.read_text(encoding="utf-8"),
+            detail_path.read_text(encoding="utf-8"),
+        )
     trace.write_json("14_final_audit.json", final_audit)
     trace.write_json("stage_log.json", {"stages": stage_log, "skipped": skipped})
     trace.flush_qwen()
@@ -435,6 +484,7 @@ def execute(
         "coverage_final": coverage_final,
         "final_audit": final_audit,
         "render_manifest": render_manifest,
+        "overview": overview_record,
         "supervisor_records": {role: sup.records for role, sup in bound.supervisors.items()},
         "records_total": len(sink.all_records),
     }
@@ -459,7 +509,7 @@ def require_models(clients: dict, profile: topo.Profile) -> dict[str, str]:
                 digests[name[: -len(":latest")]] = entry.get("digest")
         listed[endpoint] = digests
     found, missing = {}, []
-    for role in _ROLES:
+    for role in _roles(profile):
         target = _endpoint_model(getattr(profile, role))
         if target is None:
             continue
@@ -518,7 +568,7 @@ def run_topology(
         hier_contract = (hierarchy_loader or hierarchy_contract.load_contract_for_live)(hier_question)
         (authorization_checker or hierarchy_contract.check_authorization)(experiment_authorization, hier_question)
     effective_key = hierarchy_contract.HIER_QUESTION_KEY if hierarchy else question_key
-    profile = topo.WAVE1[profile_name]
+    profile = topo.resolve_profile(profile_name)
     question = e2e_contracts.E2E_QUESTIONS[question_key]
     verify_contracts()
     git = git_state_fn(git_root)
@@ -544,7 +594,7 @@ def run_topology(
     except Exception:
         close_clients()
         raise
-    needs_qwen = any(getattr(profile, role).kind == "managed_local" for role in _ROLES)
+    needs_qwen = any(getattr(profile, role).kind == "managed_local" for role in _roles(profile))
     try:
         rt = runtime_factory(db_path, want_verifier=True, want_qwen=needs_qwen)
     except QwenUnavailableError as exc:
@@ -567,6 +617,8 @@ def run_topology(
                 result = execute(
                     rt=rt, profile=profile, contract=contract, trace=trace, guard=guard, bound=bound,
                     smoke_limits=smoke_limits, seed_pass=seed_pass,
+                    # the local NLI scorer the run already uses for claim verification; screens the overview's statements
+                    entail=rt.verifier.support_scorer.support_and_contradiction_many if profile.S.kind != "off" else None,
                 )  # fmt: skip
         except Exception as exc:
             trace.write_json("RUN_FAILED.json", {"error_type": type(exc).__name__, "message": str(exc)[:500]})
@@ -592,7 +644,10 @@ def run_topology(
 
     manifest = {
         "created": datetime.now(timezone.utc).isoformat(),
-        "profile": {"name": profile.name, **{role: _binding_record(getattr(profile, role)) for role in _ROLES}},
+        "profile": {
+            "name": profile.name,
+            **{role: _binding_record(getattr(profile, role)) for role in _roles(profile)},
+        },
         "question_key": effective_key,
         "question_hash": contract["question_hash"],
         "model_facing_sha256": (
@@ -629,6 +684,8 @@ def run_topology(
     if hierarchy:
         manifest["request_kind"] = contract["version"]
         manifest["hierarchy"] = hierarchy_contract.manifest_record(contract)
+    if result.get("overview") is not None:
+        manifest["overview"] = overview.manifest_record(result["overview"])
     trace.write_json("15_run_manifest.json", manifest)
     return manifest
 
@@ -644,12 +701,15 @@ SMOKE_LIMITS = {
     "max_recovery_gaps": 2,
 }
 # A hierarchical smoke may only lower the retrieval caps: slicing children or recovery gaps would silently drop approved children.
-HIER_SMOKE_LIMITS = {"per_subq_paper_cap": SMOKE_LIMITS["per_subq_paper_cap"], "within_paper_top_k": SMOKE_LIMITS["within_paper_top_k"]}
+HIER_SMOKE_LIMITS = {
+    "per_subq_paper_cap": SMOKE_LIMITS["per_subq_paper_cap"],
+    "within_paper_top_k": SMOKE_LIMITS["within_paper_top_k"],
+}
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--profile", choices=sorted(topo.WAVE1))
+    parser.add_argument("--profile", choices=sorted(topo.profile_names()))
     parser.add_argument("--question", choices=sorted(e2e_contracts.E2E_QUESTIONS))
     parser.add_argument("--db", help="path to the frozen COPY of the library (never the live library)")
     parser.add_argument("--library-frozen", help="its frozen fingerprint (default: <db>.fingerprint.json)")
@@ -657,9 +717,19 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--smoke", action="store_true", help="unscored plumbing smoke over a sliver of the work")
     parser.add_argument("--smoke-seed", help="with --smoke: an earlier run's ledger whose claims replace round-one W")
     parser.add_argument("--juno-sampler", action="store_true", help="sample JUNO GPU/RAM/swap around the run")
-    parser.add_argument("--hierarchy", action="store_true", help="run the approved v8 hierarchy of --question aib (verified first; needs reviewed pins)")
-    parser.add_argument("--preflight-only", action="store_true", help="with --hierarchy: verify readiness and print what the models would see; touches nothing")
-    parser.add_argument("--experiment-authorization", help="authorization JSON for a live hierarchical run (see EXPERIMENT_GATE.md)")
+    parser.add_argument(
+        "--hierarchy",
+        action="store_true",
+        help="run the approved v8 hierarchy of --question aib (verified first; needs reviewed pins)",
+    )
+    parser.add_argument(
+        "--preflight-only",
+        action="store_true",
+        help="with --hierarchy: verify readiness and print what the models would see; touches nothing",
+    )
+    parser.add_argument(
+        "--experiment-authorization", help="authorization JSON for a live hierarchical run (see EXPERIMENT_GATE.md)"
+    )
     args = parser.parse_args(argv)
     if args.smoke_seed and not args.smoke:
         parser.error("--smoke-seed requires --smoke")
@@ -684,7 +754,11 @@ def main(argv: list[str] | None = None) -> int:
         hier_question = e2e_contracts.E2E_QUESTIONS["aib"]
         try:
             if args.preflight_only:
-                print(hierarchy_contract.preflight_report(hierarchy_contract.load_contract_for_preflight(hier_question)))
+                print(
+                    hierarchy_contract.preflight_report(hierarchy_contract.load_contract_for_preflight(hier_question))
+                )
+                if args.profile and topo.resolve_profile(args.profile).S.kind != "off":
+                    print("\n" + overview.preflight_report(topo.OVERVIEW_S_OPTIONS))
                 return 0
             hierarchy_contract.load_contract_for_live(hier_question)
             hierarchy_contract.check_authorization(args.experiment_authorization, hier_question)

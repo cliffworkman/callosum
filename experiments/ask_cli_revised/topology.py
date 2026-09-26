@@ -12,7 +12,7 @@ Two rules the validator enforces because they are causal, not stylistic:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 # Loopback only: the JUNO Ollamas are reached through the standing SSH forwards. `shared` hosts the Qwen2.5-1.5B
 # worker (`callosum-managed-local`); `isolated` hosts the bakeoff candidates and is where every Ollama-native
@@ -51,6 +51,9 @@ class Profile:
     R: Binding
     C: Binding
     P: Binding
+    S: Binding = Binding(
+        "off"
+    )  # researcher-facing overview synthesis; off in every Wave-1 profile (see OVERVIEW_PROFILES)
 
 
 def _ollama(model: str, think=None) -> Binding:
@@ -62,7 +65,7 @@ _QWEN35 = "qwen3.5:9b"
 
 
 def validate(profile: Profile) -> None:
-    roles = {"W": profile.W, "R": profile.R, "C": profile.C, "P": profile.P}
+    roles = {"W": profile.W, "R": profile.R, "C": profile.C, "P": profile.P, "S": profile.S}
     for role, binding in roles.items():
         if binding.kind not in _KINDS:
             raise ValueError(f"{profile.name}.{role}: unknown binding kind {binding.kind!r}")
@@ -79,6 +82,8 @@ def validate(profile: Profile) -> None:
         raise ValueError(f"{profile.name}: P must be legacy or a model")
     if profile.R.kind not in {"off", "managed_local", "ollama"}:
         raise ValueError(f"{profile.name}: R must be off or a model")
+    if profile.S.kind not in {"off", "ollama"}:
+        raise ValueError(f"{profile.name}: S must be off or an Ollama-native model")
     if profile.C.kind == "det" and profile.R.kind == "off":
         raise ValueError(f"{profile.name}: deterministic coverage consumes R's mappings, so R cannot be off")
     if profile.C.kind == "ollama" and profile.R.kind != "off":
@@ -125,3 +130,42 @@ WAVE1 = {
 
 for _profile in WAVE1.values():
     validate(_profile)
+
+# ---- overview-enabled profiles: NOT Wave 1 ---------------------------------------------------------------------------------
+# WAVE1 stays exactly T0..T5 and T5* is unchanged. An overview profile is DERIVED from a Wave-1 profile (so its W/R/C/P cannot
+# drift) and adds only the S role. S runs once, after the last coverage stage, over the sealed ledger.
+#
+# S is Qwen3.5 with thinking ON. Its envelope is explicit, fixed and recorded; nothing falls back or changes after a failed call.
+#   num_ctx 20,480 / num_predict 16,384: thinking + answer share the allowance. Recorded Qwen3.5 thinking-on calls spent ~all
+#     their tokens reasoning (final JSON ~85-190): 12 finished under 3.9K, 4 needed 5.5-7.1K, and 3 of 19 hit 8,192 with no
+#     output, including both whole-ledger audits. 16,384 is ~2x the largest budget at which any call finished. The prompt cap
+#     (12,000 chars, ~4,096 estimated tokens) + the allowance = num_ctx exactly. UNMEASURED on JUNO (8 GB): residency at this
+#     context, and whether 16K tokens finish inside the 1,200 s watchdog (needs >= ~14 tok/s; measured 32-34 at 12,288 ctx).
+#   Sampling is the Qwen3.5 model card's thinking-mode recommendation for general tasks (temperature 1.0, top_p 0.95, top_k 20,
+#     min_p 0, presence_penalty 1.5), with the harness seed. The harness's temperature 0 is the setting under which 3 of 19
+#     thinking-on calls capped with no output; the card recommends presence_penalty against endless repetition. This is a
+#     deliberate, recorded deviation for S only. Validation protects the answer either way, so this affects whether the call
+#     finishes, not what may be shown.
+OVERVIEW_S_OPTIONS = {
+    "num_ctx": 20480,
+    "num_predict": 16384,
+    "temperature": 1.0,
+    "top_p": 0.95,
+    "top_k": 20,
+    "min_p": 0.0,
+    "presence_penalty": 1.5,
+    "seed": 42,
+    "num_thread": SUPERVISOR_BASE_OPTIONS["num_thread"],
+    "num_batch": SUPERVISOR_BASE_OPTIONS["num_batch"],
+}
+OVERVIEW_PROFILES = {"T5O": replace(WAVE1["T5"], name="T5*+O", S=_ollama(_QWEN35, think=True))}
+for _profile in OVERVIEW_PROFILES.values():
+    validate(_profile)
+
+
+def profile_names() -> list[str]:
+    return [*WAVE1, *OVERVIEW_PROFILES]
+
+
+def resolve_profile(name: str) -> Profile:
+    return WAVE1[name] if name in WAVE1 else OVERVIEW_PROFILES[name]

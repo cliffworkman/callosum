@@ -43,6 +43,13 @@ digests, Ollama versions, caps, stage log with per-stage wall/swap seconds, resi
 `qwen_calls.jsonl` (every model call: model, stage, allowance, done_reason, outcome, tokens, wall, thinking chars).
 Run dirs are private (`.local/`, never committed): they contain library text.
 
+**With an overview profile (`T5O`, see `OVERVIEW_INTEGRATION.md`)** the run also has role S and stage `S1`, and the answer is split
+in two: `14_final_answer.md` is the researcher-facing Overview / Supporting findings / Unresolved parts, and
+`14b_detailed_inspection.md` is the unchanged ledger rendering plus the overview construction record. `14a_overview.json` is the
+separately hashed overview artifact (it references the sealed ledger's hash; the sealed ledger never contains model prose), and
+`14c_overview_reasoning.txt` is S's private reasoning trace. `14_final_audit.json` gains `overview_audit`. A profile without S
+writes exactly the files listed above, byte-for-byte as before.
+
 ## Utilities
 
 * `worker_preflight` — Qwen3.5 `think:false` worker: pass/fail on accepts-think-false, schemas hold, completes under caps.

@@ -91,7 +91,9 @@ class Supervisor:
         )
         record = {**result.record, "role": self.role}
         self.records.append(record)
-        return policy.StageResult(answer=result.answer, record=record, raw_text=result.raw_text)
+        return policy.StageResult(
+            answer=result.answer, record=record, raw_text=result.raw_text, thinking=result.thinking
+        )
 
 
 # ---- the ledger ------------------------------------------------------------------------------------------------
@@ -177,7 +179,9 @@ def _obligation_row(subquestion: dict, state: str, proposition_ids: list[str], m
         "proposition_ids": proposition_ids,
         "mechanical_gaps": mechanical_gaps,
     }
-    if "hierarchy" in obligation:  # a hierarchical child: its record travels with its item state (flat rows are unchanged)
+    if (
+        "hierarchy" in obligation
+    ):  # a hierarchical child: its record travels with its item state (flat rows are unchanged)
         row["hierarchy"] = obligation["hierarchy"]
     return row
 

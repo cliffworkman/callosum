@@ -58,6 +58,9 @@ class StageResult:
     answer: dict | list | None  # the parsed structured answer iff usable; None == NO ANSWER (mechanically unresolved)
     record: dict  # model, stage, allowance, done_reason, usable, outcome, status, tokens, timing (never any text)
     raw_text: str = ""  # the raw content, for the caller's private trace; never interpreted, even when capped
+    thinking: str = (
+        ""  # the model's reasoning text, for the caller's private trace; never interpreted, never in ``record``
+    )
 
 
 def _classify(call: dict, schema: dict) -> tuple[dict | list | None, str]:
@@ -140,4 +143,6 @@ def run_stage_call(
             output_cap=allowance,
             extra=record,
         )
-    return StageResult(answer=answer, record=record, raw_text=call.get("content") or "")
+    return StageResult(
+        answer=answer, record=record, raw_text=call.get("content") or "", thinking=call.get("thinking") or ""
+    )
