@@ -31,6 +31,7 @@ from experiments.ask_cli_revised import (
     discovery,
     e2e_checks,
     e2e_contracts,
+    hierarchy_contract,
     library_copy,
     provenance,
     retrieval,
@@ -269,6 +270,12 @@ def execute(
     smoke_limits: dict | None = None,
     seed_pass=None,
 ) -> dict:
+    if contract.get("version") == hierarchy_contract.HIER_VERSION:
+        hierarchy_contract.assert_executable(contract)  # fail closed before any stage, trace file or model call
+        if seed_pass is not None or any(k in (smoke_limits or {}) for k in ("max_initial_subquestions", "max_recovery_gaps")):
+            raise ValueError(
+                "a hierarchical run may not slice its children or seed its claims (that would silently drop or replace approved children)"
+            )
     subquestions = request_subquestions(contract)
     obligations = [sq["obligations"][0] for sq in subquestions]
     question = contract["original_question"]
@@ -485,6 +492,10 @@ def run_topology(
     scored: bool = True,
     smoke_limits: dict | None = None,
     smoke_seed=None,
+    hierarchy: bool = False,
+    experiment_authorization=None,
+    hierarchy_loader=None,
+    authorization_checker=None,
     git_state_fn=provenance.git_state,
     verify_library=library_copy.verify,
     verify_contracts=e2e_contracts.verify_frozen,
@@ -496,6 +507,17 @@ def run_topology(
     """One arm on one question. Refuses to start unless every comparison precondition holds; returns the manifest."""
     if scored and (smoke_limits or smoke_seed):
         raise ValueError("a scored run may not carry smoke limits or a seeded ledger")
+    # A hierarchical run is verified and gated FIRST: nothing below (git, library, models, runtime, trace directory) runs until it passes.
+    hier_contract = None
+    if hierarchy:
+        if question_key != "aib":
+            raise ValueError("only the aib request has an approved hierarchy")
+        if smoke_seed or any(k in (smoke_limits or {}) for k in ("max_initial_subquestions", "max_recovery_gaps")):
+            raise ValueError("a hierarchical run may not slice its children or seed its claims")
+        hier_question = e2e_contracts.E2E_QUESTIONS["aib"]
+        hier_contract = (hierarchy_loader or hierarchy_contract.load_contract_for_live)(hier_question)
+        (authorization_checker or hierarchy_contract.check_authorization)(experiment_authorization, hier_question)
+    effective_key = hierarchy_contract.HIER_QUESTION_KEY if hierarchy else question_key
     profile = topo.WAVE1[profile_name]
     question = e2e_contracts.E2E_QUESTIONS[question_key]
     verify_contracts()
@@ -504,10 +526,10 @@ def run_topology(
         provenance.assert_clean(git)
     library_before = verify_library(db_path, library_frozen)
 
-    contract = build_request_contract(question)
+    contract = hier_contract if hierarchy else build_request_contract(question)
     trace = TraceWriter(out_dir)
     trace.write_json(
-        "00_question.json", {"question_key": question_key, "question": question, "hash": contract["question_hash"]}
+        "00_question.json", {"question_key": effective_key, "question": question, "hash": contract["question_hash"]}
     )
     seed_pass = seed_pass_from(smoke_seed) if smoke_seed else None
     clients = {endpoint: client_factory(topo.ENDPOINTS[endpoint]) for endpoint in endpoints_used(profile)}
@@ -564,16 +586,20 @@ def run_topology(
         library_after = None
         issues.append(f"library_copy_drift_after_run: {exc}")
 
-    report = e2e_checks.mechanical_report(trace.dir, profile=profile, question_key=question_key)
+    report = e2e_checks.mechanical_report(trace.dir, profile=profile, question_key=effective_key)
     trace.write_json("16_mechanical_checks.json", report)
     issues += report["technical_validity"]["issues"]
 
     manifest = {
         "created": datetime.now(timezone.utc).isoformat(),
         "profile": {"name": profile.name, **{role: _binding_record(getattr(profile, role)) for role in _ROLES}},
-        "question_key": question_key,
+        "question_key": effective_key,
         "question_hash": contract["question_hash"],
-        "model_facing_sha256": e2e_contracts.frozen_record(question)["model_facing_sha256"],
+        "model_facing_sha256": (
+            hierarchy_contract.model_facing_sha256(contract)
+            if hierarchy
+            else e2e_contracts.frozen_record(question)["model_facing_sha256"]
+        ),
         "scored": scored,
         "smoke_limits": smoke_limits,
         "git": git,
@@ -600,6 +626,9 @@ def run_topology(
         "technical_validity": {"valid": not issues, "issues": issues},
         "elapsed_seconds": round(time.monotonic() - started, 1),
     }
+    if hierarchy:
+        manifest["request_kind"] = contract["version"]
+        manifest["hierarchy"] = hierarchy_contract.manifest_record(contract)
     trace.write_json("15_run_manifest.json", manifest)
     return manifest
 
@@ -614,27 +643,59 @@ SMOKE_LIMITS = {
     "max_initial_subquestions": 3,
     "max_recovery_gaps": 2,
 }
+# A hierarchical smoke may only lower the retrieval caps: slicing children or recovery gaps would silently drop approved children.
+HIER_SMOKE_LIMITS = {"per_subq_paper_cap": SMOKE_LIMITS["per_subq_paper_cap"], "within_paper_top_k": SMOKE_LIMITS["within_paper_top_k"]}
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--profile", required=True, choices=sorted(topo.WAVE1))
-    parser.add_argument("--question", required=True, choices=sorted(e2e_contracts.E2E_QUESTIONS))
-    parser.add_argument("--db", required=True, help="path to the frozen COPY of the library (never the live library)")
+    parser.add_argument("--profile", choices=sorted(topo.WAVE1))
+    parser.add_argument("--question", choices=sorted(e2e_contracts.E2E_QUESTIONS))
+    parser.add_argument("--db", help="path to the frozen COPY of the library (never the live library)")
     parser.add_argument("--library-frozen", help="its frozen fingerprint (default: <db>.fingerprint.json)")
-    parser.add_argument("--out", required=True, help="run directory (private; outside the repository tree)")
+    parser.add_argument("--out", help="run directory (private; outside the repository tree)")
     parser.add_argument("--smoke", action="store_true", help="unscored plumbing smoke over a sliver of the work")
     parser.add_argument("--smoke-seed", help="with --smoke: an earlier run's ledger whose claims replace round-one W")
     parser.add_argument("--juno-sampler", action="store_true", help="sample JUNO GPU/RAM/swap around the run")
+    parser.add_argument("--hierarchy", action="store_true", help="run the approved v8 hierarchy of --question aib (verified first; needs reviewed pins)")
+    parser.add_argument("--preflight-only", action="store_true", help="with --hierarchy: verify readiness and print what the models would see; touches nothing")
+    parser.add_argument("--experiment-authorization", help="authorization JSON for a live hierarchical run (see EXPERIMENT_GATE.md)")
     args = parser.parse_args(argv)
     if args.smoke_seed and not args.smoke:
         parser.error("--smoke-seed requires --smoke")
-    args.library_frozen = args.library_frozen or f"{args.db}.fingerprint.json"
+    if args.preflight_only and not args.hierarchy:
+        parser.error("--preflight-only requires --hierarchy")
+    if args.hierarchy and args.question not in (None, "aib"):
+        parser.error("--hierarchy is only approved for --question aib")
+    if args.hierarchy and args.smoke_seed:
+        parser.error("--smoke-seed cannot be combined with --hierarchy (it would replace approved children)")
+    if not args.preflight_only:
+        missing = [f"--{name}" for name in ("profile", "question", "db", "out") if getattr(args, name) is None]
+        if missing:
+            parser.error("the following arguments are required: " + ", ".join(missing))
+        args.library_frozen = args.library_frozen or f"{args.db}.fingerprint.json"
     return args
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    if args.hierarchy:
+        # Verified and gated before ANY side effect, including the sampler's output directory below.
+        hier_question = e2e_contracts.E2E_QUESTIONS["aib"]
+        try:
+            if args.preflight_only:
+                print(hierarchy_contract.preflight_report(hierarchy_contract.load_contract_for_preflight(hier_question)))
+                return 0
+            hierarchy_contract.load_contract_for_live(hier_question)
+            hierarchy_contract.check_authorization(args.experiment_authorization, hier_question)
+        except hierarchy_contract.HierarchyRejected as exc:
+            print("[e2e] HIERARCHY REFUSED:")
+            for problem in exc.problems:
+                print(f"  - {problem}")
+            return 3
+        except hierarchy_contract.AuthorizationRefused as exc:
+            print(f"[e2e] AUTHORIZATION REFUSED: {exc}")
+            return 3
     sampler = None
     if args.juno_sampler:
         from experiments.ask_cli_revised.supervisor_eval.juno_resources import JunoSampler
@@ -649,8 +710,10 @@ def main(argv: list[str] | None = None) -> int:
         out_dir=args.out,
         git_root=ROOT,
         scored=not args.smoke,
-        smoke_limits=SMOKE_LIMITS if args.smoke else None,
+        smoke_limits=(HIER_SMOKE_LIMITS if args.hierarchy else SMOKE_LIMITS) if args.smoke else None,
         smoke_seed=args.smoke_seed,
+        hierarchy=args.hierarchy,
+        experiment_authorization=args.experiment_authorization,
         sampler=sampler,
     )
     if manifest.get("blocked"):

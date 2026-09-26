@@ -167,7 +167,7 @@ def run_responsiveness(supervisor, *, question: str, obligations: list[dict], re
 
 def _obligation_row(subquestion: dict, state: str, proposition_ids: list[str], mechanical_gaps: int) -> dict:
     obligation = subquestion["obligations"][0]
-    return {
+    row = {
         "field_id": obligation["field_id"],
         "subquestion_id": subquestion["subquestion_id"],
         "source_unit_id": obligation.get("source_unit_id"),
@@ -177,6 +177,9 @@ def _obligation_row(subquestion: dict, state: str, proposition_ids: list[str], m
         "proposition_ids": proposition_ids,
         "mechanical_gaps": mechanical_gaps,
     }
+    if "hierarchy" in obligation:  # a hierarchical child: its record travels with its item state (flat rows are unchanged)
+        row["hierarchy"] = obligation["hierarchy"]
+    return row
 
 
 def det_coverage(subquestions: list[dict], records: list[dict], *, authority: dict) -> dict:
@@ -304,7 +307,7 @@ def seal(
     for pid, record in _ledger(records):
         verified.append({"proposition_id": pid, **record, "responsive_obligation_ids": attached.get(pid, [])})
     states = coverage["obligations"]
-    return {
+    sealed = {
         "request_contract": contract,
         "subquestions": subquestions,
         "verified_propositions": verified,
@@ -338,3 +341,8 @@ def seal(
             }
         },
     }
+    if contract.get("version") == "hierarchical-request-v1":  # hierarchy_contract.HIER_VERSION
+        from experiments.ask_cli_revised import hierarchy_contract
+
+        sealed["hierarchy"] = hierarchy_contract.rollup(contract, states)
+    return sealed

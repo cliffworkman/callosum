@@ -109,6 +109,81 @@ def _claim_block(row: dict) -> list[str]:
     ]
 
 
+def _roll_child(field_id: str, roll: dict) -> dict:
+    return next(c for c in roll["children"] if c["child_id"] == field_id)
+
+
+def _item_heading(state: dict, roll) -> str:
+    """The item heading; a hierarchical child also names its parent. Flat ledgers (no roll-up) are headed exactly as before."""
+    nested = ""
+    if roll:
+        parent = _roll_child(state["field_id"], roll)["parent"]
+        nested = f" (nested under {parent})" if parent != "R" else ""
+    return f"### {state['source_unit_id']}{nested}: {_literal(state['note'])}"
+
+
+def _contract_block(state: dict, roll: dict) -> list[str]:
+    """What was asked and approved for this item: a record for the researcher, never evidence and never a finding."""
+    child = _roll_child(state["field_id"], roll)
+    owned = [o for o in roll["obligations"] if o["owner_child"] == child["child_id"]]
+    approval = f" ({child['approval_ref']})" if child["approval_ref"] else ""
+    lines = ["Contract for this item (a record of what was asked and approved; it is not evidence):", ""]
+    lines.append("- Owned obligations (representation only): " + "; ".join(f"{o['obligation']} {_literal(o['text'])}" for o in owned))
+    lines.append(
+        f"- Wording provenance: {child['wording_provenance'] or 'none recorded'}; execution: {child['execution_state']}{approval}"
+    )
+    shown = [q["text"] for q in child["qualifications"] if q["model_facing"]] + [
+        r["text"] for r in child["active_constraints"] if r["model_facing"]
+    ]
+    if shown:
+        lines.append("- Constraints shown to the models: " + " ".join(f"({i}) {_literal(t)}" for i, t in enumerate(shown, 1)))
+    for q in child["qualifications"]:
+        if not q["model_facing"]:
+            lines.append(f"- Recorded, not shown to the models: {q['id']}: {_literal(q['text'])} ({q['excluded_reason']})")
+    scope = child["scope_carrier"]
+    if scope:
+        lines.append(f"- Scope carried into retrieval and assessment (from {scope['from']}): \"{_literal(scope['wording'])}\"")
+    for m in child["human_review_meanings"]:
+        lines.append(f"- Recorded human-review meaning ({m['id']}): {_literal(m['text'])}. {m['note']}")
+    for s in child["superseded"]:
+        lines.append(f"- Superseded ({s['id']}, {s['decision']}): {s['note']}")
+    lines += ["- " + roll["item_disclaimer"], ""]
+    return lines
+
+
+def _reconciliation_section(roll: dict) -> list[str]:
+    """Structural only: obligation -> owner item -> that item's state, copied. No obligation or parent is judged from it."""
+    labels = roll["labels"]
+    counts = roll["representation_accounted"]
+    lines = [
+        "## Parent reconciliation (structural; no verdict)",
+        "",
+        roll["note"],
+        "",
+        f"- Representation: {labels['representation']}: {counts['accounted']} of {counts['of']} obligations are owned by a child item ({counts['basis']}).",
+        "- Child-level responsiveness: assessed per item above (" + ", ".join(labels["child_item_states"]) + " for each item).",
+        "- Individual obligation fulfilment: NOT assessed by this run.",
+        "- Parent answer completeness: NOT certified.",
+        *([f"- {roll['human_review_statement']}"] if roll.get("human_review_statement") else []),
+        "",
+        "| obligation | owner item | owner item state | obligation fulfilment |",
+        "|---|---|---|---|",
+    ]
+    for o in roll["obligations"]:
+        lines.append(
+            f"| {o['obligation']} {_literal(o['text'])} ({o['kind']}) | {o['owner_child']} | {o['owner_item_state']} | {o['obligation_fulfilment']} |"
+        )
+    lines += ["", "Parent items (each keeps its own state; a subordinate item never changes its parent's state):", ""]
+    for p in roll["parents"]:
+        subs = ", ".join(f"{k} {v}" for k, v in p["subordinate_item_states"].items())
+        lines.append(f"- {p['node']}: own item {p['own_item_state']}; subordinate items {subs}; parent completeness {p['parent_completeness']}")
+    lines += [""]
+    if roll["background"]:
+        lines += ["Background (never asked): " + "; ".join(f"{b['id']} {_literal(b['text'])}" for b in roll["background"]), ""]
+    lines += ["Closure rule: " + _literal(roll["closure_rule"]), ""]
+    return lines
+
+
 def render_responsive_ledger(ledger: dict) -> tuple[str, dict]:
     """Source-verified claims arranged by the responsiveness judgments the run made, verbatim and unaggregated.
 
@@ -124,9 +199,10 @@ def render_responsive_ledger(ledger: dict) -> tuple[str, dict]:
     if contract:
         lines += ["## Your request (verbatim)", "", "> " + _literal(contract["original_question"]), ""]
     by_id = {r["proposition_id"]: r for r in rows}
+    roll = ledger.get("hierarchy")  # present only for a hierarchical run
     lines += ["## By request item", ""]
     for state in ledger["obligation_states"]:
-        lines += [f"### {state['source_unit_id']}: {_literal(state['note'])}", ""]
+        lines += [_item_heading(state, roll), ""]
         if state["state"] == "not_assessed":
             lines += [_ITEM_NOT_ASSESSED, ""]
         elif state["proposition_ids"]:
@@ -137,6 +213,8 @@ def render_responsive_ledger(ledger: dict) -> tuple[str, dict]:
             lines += [_ITEM_NONE, ""]
         if state.get("mechanical_gaps"):
             lines += [_ITEM_GAPS.format(n=state["mechanical_gaps"]), ""]
+        if roll:
+            lines += _contract_block(state, roll)
 
     def responsiveness(row: dict) -> str:
         if row.get("responsive_obligation_ids"):
@@ -157,6 +235,8 @@ def render_responsive_ledger(ledger: dict) -> tuple[str, dict]:
         lines += ["## Source-verified claims whose responsiveness was not assessed", ""]
         for row in not_assessed:
             lines += _claim_block(row)
+    if roll:
+        lines += _reconciliation_section(roll)
     lines += ["## Completeness remains unresolved", "", _TAIL, ""]
     claims = [
         {

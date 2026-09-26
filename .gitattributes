@@ -36,3 +36,7 @@ mcp_server/** text=auto eol=lf
 
 app/backend/api/routers/*.py text=auto eol=lf
 tools/demo/*.py text=auto eol=lf
+
+# hash-pinned by the reviewed hierarchy pins (hierarchy_contract.frozen.json): stored and checked out byte-for-byte
+experiments/ask_cli_revised/decompose/execution.py -text
+experiments/ask_cli_revised/decompose/tree.py -text

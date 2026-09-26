@@ -16,7 +16,7 @@ import re
 import secrets
 from pathlib import Path
 
-from experiments.ask_cli_revised import e2e_contracts, stages
+from experiments.ask_cli_revised import e2e_contracts, hierarchy_contract, stages
 from experiments.ask_cli_revised import topology as topo
 from experiments.ask_cli_revised.ledger_renderer import validate_ledger
 from experiments.ask_cli_revised.supervisor_eval import cases
@@ -239,17 +239,24 @@ def mechanical_report(run_dir, *, profile: topo.Profile | None = None, question_
     growth = _read_jsonl(run / "07_context_growth.jsonl")
 
     contract = ledger["request_contract"]
-    frozen = e2e_contracts.frozen_record(contract["original_question"])
-    frozen_ids = [o["field_id"] for o in frozen["obligations"]]
+    hierarchical = contract.get("version") == hierarchy_contract.HIER_VERSION
     state_ids = [s["field_id"] for s in ledger["obligation_states"]]
-    contract_ok = (
-        contract["question_hash"] == frozen["question_hash"]
-        and len(contract["source_units"]) == frozen["n_units"]
-        and state_ids == frozen_ids
-    )
-    if question_key is not None:
-        recorded = _read_json(e2e_contracts.FROZEN_PATH)["questions"].get(question_key, {})
-        contract_ok = contract_ok and recorded.get("model_facing_sha256") == frozen["model_facing_sha256"]
+    hierarchy_detail = None
+    if hierarchical:
+        # A hierarchical run is checked against the approved hierarchy (and its pins), never against the flat frozen contract.
+        hierarchy_detail = hierarchy_contract.verify_run_contract(contract, ledger)
+        contract_ok = hierarchy_detail["ok"]
+    else:
+        frozen = e2e_contracts.frozen_record(contract["original_question"])
+        frozen_ids = [o["field_id"] for o in frozen["obligations"]]
+        contract_ok = (
+            contract["question_hash"] == frozen["question_hash"]
+            and len(contract["source_units"]) == frozen["n_units"]
+            and state_ids == frozen_ids
+        )
+        if question_key is not None:
+            recorded = _read_json(e2e_contracts.FROZEN_PATH)["questions"].get(question_key, {})
+            contract_ok = contract_ok and recorded.get("model_facing_sha256") == frozen["model_facing_sha256"]
 
     try:
         validate_ledger(ledger)
@@ -285,7 +292,7 @@ def mechanical_report(run_dir, *, profile: topo.Profile | None = None, question_
     absence = corpus_absence_hits(answer)
     labels = frozen_label_reuse(ledger, question_key) if question_key is not None else None
     checks = {
-        "contract_preserved": _check(contract_ok),
+        "contract_preserved": _check(contract_ok, **({"hierarchy": hierarchy_detail} if hierarchical else {})),
         "ledger_valid": _check(ledger_ok, error=ledger_error),
         "final_conformant": _check(
             audit["constrained_render_match"] and not audit["nonexistent_ids"], nonexistent_ids=audit["nonexistent_ids"]
@@ -296,6 +303,13 @@ def mechanical_report(run_dir, *, profile: topo.Profile | None = None, question_
         "coverage_from_authority": _coverage_from_authority(coverage_final, ledger_rows, profile),
         "corpus_absence": _check(not absence, hits=absence),
     }
+    if hierarchical:
+        readiness = hierarchy_contract.readiness_record(contract)
+        checks["hierarchy_readiness"] = _check(readiness.pop("ok"), **readiness)
+        violations = hierarchy_contract.carriage_violations(contract, calls)
+        checks["hierarchy_carriage"] = _check(not violations, calls_checked=len(calls), violations=violations)
+        rollup_problems = hierarchy_contract.rollup_violations(ledger, answer)
+        checks["rollup_no_derived_verdict"] = _check(not rollup_problems, problems=rollup_problems)
     issues = []
     if table["infrastructure_failures"]:
         issues.append(f"infrastructure_failures: {table['infrastructure_failures']} call(s)")

@@ -1,0 +1,11 @@
+{
+  "reviewed_by": "Cliff",
+  "reviewed_at": "2026-09-26T10:08:30-04:00",
+  "pins_sha256": "1e1b1630291dcb6e81a73640ae44c07bec6eec7f92cf906c27f5e87637729e8d",
+  "inputs_sha256": {
+    "assembled_sha256": "bd1a4fa1776bf3844130d09b6b9f7a7023705000a5fb0daf96524fcabc1c6dcc",
+    "approvals_sha256": "04552bd3ba45dbfa7923dcde3bbdf8522ae247b88f074e345540ddca2a682844",
+    "decisions_sha256": "0a78accd144002477a9ec0ab35127073a22da563fa41a5a2142a2ae0282df52f",
+    "closure_sha256": "ce97bd04b369b9df96a2e82ad4242f5fce86e7a4943869319ca3e3307b2ce8bb"
+  }
+}

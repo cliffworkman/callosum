@@ -80,6 +80,10 @@ def request_subquestions(contract: dict) -> list[dict]:
     The query is a retrieval view, not a semantic rewrite. Its effectiveness and
     embedding truncation must be measured separately from literal retention.
     """
+    if contract.get("version") == "hierarchical-request-v1":  # hierarchy_contract.HIER_VERSION; the flat path below is unchanged
+        from experiments.ask_cli_revised import hierarchy_contract
+
+        return hierarchy_contract.hierarchy_subquestions(contract)
     question = contract["original_question"]
     return [
         {"subquestion_id": f"s{i}", "source_unit_id": unit["source_unit_id"],
@@ -99,6 +103,8 @@ def obligation_display(obligation: dict) -> str:
 
     ``note`` stays the literal unit text (provenance, rendering, evaluation); this is what a model reads.
     """
+    if "model_display" in obligation:  # a hierarchical child carries its exact model-facing item line
+        return obligation["model_display"]
     note = obligation.get("note", "")
     sentence = obligation.get("source_sentence")
     return f'{note} [part of the request sentence: "{sentence}"]' if sentence else note
