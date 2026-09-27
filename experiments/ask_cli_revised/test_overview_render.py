@@ -6,6 +6,7 @@ import unittest
 
 from experiments.ask_cli_revised import overview as ov
 from experiments.ask_cli_revised import overview_audit as audit
+from experiments.ask_cli_revised import overview_evidence as oe
 from experiments.ask_cli_revised import overview_render as rnd
 from experiments.ask_cli_revised.ledger_renderer import _literal, render_answer
 from experiments.ask_cli_revised.overview_test_support import (
@@ -370,6 +371,100 @@ class AuditTests(unittest.TestCase):
         self.assertEqual(record["displayed"], [0, 1])  # the two grounded statements; index 2 was withheld
         record["displayed"] = [0, 2]  # would display the withheld one
         self.assertIn("derived_fields_consistent", self.failed(self.run_audit(rehash(record))))
+
+
+class CoverageConstraintsTests(unittest.TestCase):
+    """`coverage_constraints` is optional and additive (2026-09-27, Gate 2 diagnostic): every existing caller that
+    omits it must see today's exact prompt and behavior, unchanged."""
+
+    QUESTION, STATES, BLOCKS = "the request", [{"field_id": "c1", "note": "part one"}], ["[U1] paper 1\nPassage: x"]
+
+    def test_no_constraints_reproduces_todays_exact_prompt(self):
+        default = ov.render_prompt(self.QUESTION, self.STATES, self.BLOCKS)
+        explicit_empty = ov.render_prompt(self.QUESTION, self.STATES, self.BLOCKS, coverage_constraints=())
+        original = ov.PROMPT_TEMPLATE.format(
+            question=self.QUESTION, parts=ov.render_part_lines(self.STATES), units="\n\n".join(self.BLOCKS)
+        )
+        self.assertEqual(default, original)
+        self.assertEqual(explicit_empty, original)
+
+    def test_a_constraint_inserts_one_clearly_labeled_section_before_the_closing_instructions(self):
+        prompt = ov.render_prompt(
+            self.QUESTION,
+            self.STATES,
+            self.BLOCKS,
+            coverage_constraints=("The passages above do not establish the requested link.",),
+        )
+        self.assertIn(ov.COVERAGE_CONSTRAINTS_HEADER, prompt)
+        self.assertIn("- The passages above do not establish the requested link.", prompt)
+        # comes after the source passages, before the model is told to write
+        self.assertLess(prompt.index("[U1] paper 1"), prompt.index(ov.COVERAGE_CONSTRAINTS_HEADER))
+        self.assertLess(prompt.index(ov.COVERAGE_CONSTRAINTS_HEADER), prompt.index("Write a short overview"))
+
+    def test_prompt_template_itself_is_never_touched(self):
+        before = ov.PROMPT_TEMPLATE
+        ov.render_prompt(self.QUESTION, self.STATES, self.BLOCKS, coverage_constraints=("anything",))
+        self.assertEqual(ov.PROMPT_TEMPLATE, before)
+
+    def test_select_for_prompt_with_no_constraints_matches_todays_behavior_exactly(self):
+        sealed = sealed_ledger([("claim", GIVING, [S1])])
+        units, claims = oe.build_units(sealed)
+        states = sealed["obligation_states"]
+        sent_a, prompt_a = ov.select_for_prompt(units, claims, sealed["request_contract"]["original_question"], states)
+        sent_b, prompt_b = ov.select_for_prompt(
+            units, claims, sealed["request_contract"]["original_question"], states, coverage_constraints=()
+        )
+        self.assertEqual((sent_a, prompt_a), (sent_b, prompt_b))
+
+    def test_a_constraint_is_never_added_as_a_citable_unit(self):
+        """The constraint text must be structurally impossible to cite: it never becomes a `unit`, so it can never
+        appear in the schema's closed `unit_ids` enum built from real, sent units."""
+        sealed = sealed_ledger([("claim", GIVING, [S1])])
+        client = OverviewClient(s={"overview": []})
+        record, _ = ov.build_overview(
+            sealed,
+            "hash",
+            supervisor=make_supervisor(client),
+            entail=Entail(),
+            coverage_constraints=("The passages above do not establish the requested link.",),
+        )
+        unit_texts = {u["passage"] for u in record["units"]}
+        self.assertNotIn("The passages above do not establish the requested link.", unit_texts)
+        schema = ov.schema_overview([u["unit_id"] for u in record["units"] if u["sent_to_model"]], ["c1"])
+        allowed_ids = schema["properties"]["overview"]["items"]["properties"]["unit_ids"]["items"]["enum"]
+        self.assertNotIn("constraint", [i.lower() for i in allowed_ids])  # only real Un ids are ever enumerable
+
+    def test_build_overview_records_the_supplied_constraints_in_its_receipt(self):
+        sealed = sealed_ledger([("claim", GIVING, [S1])])
+        client = OverviewClient(s={"overview": []})
+        default_record, _ = ov.build_overview(sealed, "hash", supervisor=make_supervisor(client), entail=Entail())
+        self.assertEqual(default_record["coverage_constraints"], [])
+        with_record, _ = ov.build_overview(
+            sealed,
+            "hash",
+            supervisor=make_supervisor(client),
+            entail=Entail(),
+            coverage_constraints=("a limit of the admitted evidence",),
+        )
+        self.assertEqual(with_record["coverage_constraints"], ["a limit of the admitted evidence"])
+
+    def test_the_prompt_cap_check_accounts_for_the_constraint_section_length(self):
+        """A long constraint section must be counted toward MAX_PROMPT_CHARS during packing, not added after the
+        cap check -- otherwise a packed prompt could silently exceed the cap once the section is inserted."""
+        long_constraint = "x" * (ov.MAX_PROMPT_CHARS)  # alone, larger than the whole cap
+        sealed = sealed_ledger([("claim", GIVING, [S1])])
+        units, claims = oe.build_units(sealed)
+        states = sealed["obligation_states"]
+        sent, prompt = ov.select_for_prompt(
+            units,
+            claims,
+            sealed["request_contract"]["original_question"],
+            states,
+            coverage_constraints=(long_constraint,),
+        )
+        self.assertEqual(sent, [])  # every unit omitted; the constraint section alone already exceeds the cap
+        for u in units:
+            self.assertEqual(u["not_sent_reason"], "omitted_by_prompt_cap")
 
 
 if __name__ == "__main__":

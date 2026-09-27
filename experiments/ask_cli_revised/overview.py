@@ -34,6 +34,16 @@ SCREENING_NOTE = (
 
 STATES = ("ok", "no_eligible_evidence", "model_no_answer", "model_returned_empty", "no_grounded_sentences")
 
+# An optional, additive section (never present unless a caller supplies constraints; the pinned PROMPT_TEMPLATE
+# below is untouched either way). A "coverage constraint" states a LIMIT of the admitted evidence -- it is never
+# itself a source passage, is never added to `units` so it is structurally impossible to cite in `unit_ids`
+# (schema `unit_ids` is a closed enum built only from real unit ids), and must never assert or imply that
+# something was measured and found absent -- only that the admitted evidence does not establish it.
+COVERAGE_CONSTRAINTS_HEADER = (
+    "EVIDENCE-COVERAGE LIMITS (instructions about what the admitted evidence does and does not establish -- never "
+    "a source passage, never citable in unit_ids, and never itself a finding to restate):"
+)
+
 PROMPT_TEMPLATE = """You are writing the opening OVERVIEW of a research answer for a scholar, using ONLY the retrieved source passages below.
 
 Original request (verbatim):
@@ -74,16 +84,39 @@ def render_unit_block(unit: dict, claims: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def render_prompt(question: str, states: list[dict], blocks: list[str]) -> str:
-    return PROMPT_TEMPLATE.format(question=question, parts=render_part_lines(states), units="\n\n".join(blocks))
+def render_coverage_constraints(coverage_constraints: tuple[str, ...]) -> str:
+    """The additive section text, or "" when there are no constraints (the caller then gets today's exact prompt)."""
+    if not coverage_constraints:
+        return ""
+    lines = "\n".join(f"- {c}" for c in coverage_constraints)
+    return f"{COVERAGE_CONSTRAINTS_HEADER}\n{lines}\n\n"
+
+
+def render_prompt(
+    question: str, states: list[dict], blocks: list[str], *, coverage_constraints: tuple[str, ...] = ()
+) -> str:
+    base = PROMPT_TEMPLATE.format(question=question, parts=render_part_lines(states), units="\n\n".join(blocks))
+    section = render_coverage_constraints(coverage_constraints)
+    if not section:
+        return base  # byte-identical to every existing caller; PROMPT_TEMPLATE itself is never touched
+    anchor = "Write a short overview"
+    idx = base.index(anchor)
+    return base[:idx] + section + base[idx:]
 
 
 def select_for_prompt(
-    units: list[dict], claims: list[dict], question: str, states: list[dict]
+    units: list[dict],
+    claims: list[dict],
+    question: str,
+    states: list[dict],
+    *,
+    coverage_constraints: tuple[str, ...] = (),
 ) -> tuple[list[str], str]:
     """Pack eligible units in ledger order until the prompt cap; the rest are recorded ``omitted_by_prompt_cap``.
 
     Marks every unit with ``sent_to_model`` and ``not_sent_reason`` (derived, deterministic, re-derived by the audit).
+    ``coverage_constraints`` is optional and additive (see `render_prompt`); omitting it reproduces today's exact
+    behavior, and when supplied it counts toward the same prompt cap so packing stays accurate.
     """
     by_unit: dict[str, list[dict]] = {}
     for claim in claims:
@@ -96,13 +129,14 @@ def select_for_prompt(
             unit["not_sent_reason"] = "ineligible"
             continue
         block = render_unit_block(unit, by_unit.get(unit["unit_id"], []))
-        if len(sent) >= oe.MAX_UNITS or len(render_prompt(question, states, [*blocks, block])) > MAX_PROMPT_CHARS:
+        prompt_len = len(render_prompt(question, states, [*blocks, block], coverage_constraints=coverage_constraints))
+        if len(sent) >= oe.MAX_UNITS or prompt_len > MAX_PROMPT_CHARS:
             unit["not_sent_reason"] = "omitted_by_prompt_cap"
             continue
         blocks.append(block)
         sent.append(unit["unit_id"])
         unit["sent_to_model"] = True
-    return sent, render_prompt(question, states, blocks)
+    return sent, render_prompt(question, states, blocks, coverage_constraints=coverage_constraints)
 
 
 def schema_overview(unit_ids: list[str], part_ids: list[str]) -> dict:
@@ -290,13 +324,18 @@ def _call_record(result, prompt: str, reasoning: str) -> dict:
     return record
 
 
-def build_overview(sealed: dict, sealed_hash: str, *, supervisor, entail) -> tuple[dict, str]:
-    """``(overview_record, reasoning_text)``. One model call and one NLI batch at most; the sealed ledger is only read."""
+def build_overview(
+    sealed: dict, sealed_hash: str, *, supervisor, entail, coverage_constraints: tuple[str, ...] = ()
+) -> tuple[dict, str]:
+    """``(overview_record, reasoning_text)``. One model call and one NLI batch at most; the sealed ledger is only read.
+
+    ``coverage_constraints`` is optional and additive (see `render_prompt`'s docstring) -- every existing caller
+    that omits it gets today's exact prompt and behavior, unchanged."""
     question = sealed["request_contract"]["original_question"]
     states = sealed["obligation_states"]
     part_ids = [s["field_id"] for s in states]
     units, claims = oe.build_units(sealed)
-    sent, prompt = select_for_prompt(units, claims, question, states)
+    sent, prompt = select_for_prompt(units, claims, question, states, coverage_constraints=coverage_constraints)
     by_id = {u["unit_id"]: u for u in units}
     options = dict(getattr(supervisor, "base_options", {}))
     binding = getattr(supervisor, "binding", None)
@@ -311,6 +350,7 @@ def build_overview(sealed: dict, sealed_hash: str, *, supervisor, entail) -> tup
         "options": options,
         "contract_sha256": contract_sha256(options),
         "limits": {"max_units": oe.MAX_UNITS, "max_prompt_chars": MAX_PROMPT_CHARS, "max_sentences": MAX_SENTENCES},
+        "coverage_constraints": list(coverage_constraints),
         "units": units,
         "claims": claims,
         "proposals": [],
