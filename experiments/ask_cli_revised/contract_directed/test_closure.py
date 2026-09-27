@@ -458,5 +458,111 @@ class CrossUnitPairingTests(unittest.TestCase):
         self.assertEqual(bonus["reason"], "no_connecting_proposition_found")
 
 
+class PacketSchemaCompatibilityTests(unittest.TestCase):
+    """Discovered 2026-09-27 re-auditing a live replay that reused Gate-1-era stored packets (built before the
+    clause-scoped attribution rewrite, Task A1) against this session's repaired closure rules: their attribution
+    records have no `clauses` field, so `_accepted_clause` returned `None` for every span unconditionally — every
+    core-slot exclusion looked exactly like a genuine decline. `derive_status` must refuse such a packet outright
+    rather than silently evaluate it into failed slots."""
+
+    def _strip_clauses(self, pk: dict, span_id: str) -> dict:
+        """A copy of `pk` with `span_id`'s attribution record downgraded to the pre-rewrite shape (no `clauses`),
+        matching exactly what a real Gate-1-era stored packet looks like."""
+        stale = dict(pk)
+        stale["attribution"] = dict(pk["attribution"])
+        old_record = dict(pk["attribution"][span_id])
+        del old_record["clauses"]
+        stale["attribution"][span_id] = old_record
+        return stale
+
+    def test_a_packet_missing_clause_level_attribution_on_a_core_span_is_refused(self):
+        pk = self._strip_clauses(P1, "p1")
+        with self.assertRaises(closure.IncompatiblePacketSchema):
+            closure.derive_status("manner", slots(manner_described=["p1"], tied_to_subject=["p1"]), pk)
+
+    def test_the_refusal_happens_before_any_slot_is_evaluated_not_as_a_missing_slot(self):
+        """A caller must be able to tell "this packet cannot be judged" apart from "this packet was judged and
+        came up short" — the first is an exception, never a status string."""
+        pk = self._strip_clauses(P1, "p1")
+        try:
+            closure.derive_status("manner", slots(manner_described=["p1"], tied_to_subject=["p1"]), pk)
+            self.fail("expected IncompatiblePacketSchema")
+        except closure.IncompatiblePacketSchema as exc:
+            self.assertIn("p1", str(exc))
+            self.assertIn("clause-scoped rewrite", str(exc))
+
+    def test_a_packet_with_clause_level_attribution_on_every_core_span_is_not_refused(self):
+        """The ordinary fixture helper (`packet()`) already builds compatible, clause-bearing attribution —
+        proving the guard does not fire on current-shape data, only on the pre-rewrite shape."""
+        result = closure.derive_status("manner", slots(manner_described=["p1"], tied_to_subject=["p1"]), P1)
+        self.assertEqual(result["status"], closure.DIRECTLY)
+
+    def test_a_linked_definition_or_study_context_part_needs_no_clause_attribution(self):
+        """Only establishing/qualifying/referent parts ever carry attribution (`packet.build_packet` never
+        computes it for a linked_definition or study_context part) — the guard must not demand `clauses` from a
+        part that structurally never has any attribution record at all."""
+        pk = packet([("p1", "establishing", 1, False), ("p2", "linked_definition", None, False)])
+        # p2 (linked_definition) is absent from `pk["attribution"]` entirely, exactly as `build_packet` leaves it.
+        self.assertNotIn("p2", pk["attribution"])
+        result = closure.derive_status("manner", slots(manner_described=["p1"], tied_to_subject=["p1"]), pk)
+        self.assertEqual(result["status"], closure.DIRECTLY)
+
+
+class RehydrationVerificationTests(unittest.TestCase):
+    """`verify_rehydration` is the one sanctioned way to substitute a fresh-attribution packet for a stale one:
+    it must accept a change to attribution alone and refuse anything else — a rehydration is not a license to
+    also change what was shown to the model."""
+
+    def test_identical_parts_with_different_attribution_are_accepted(self):
+        original = {**P1, "packet_id": "same-id"}
+        # A separately-built packet with the same identity-bearing shape but a distinct (still clause-bearing)
+        # attribution record — exactly what a fresh `build_packet` call produces for otherwise-identical spans.
+        rebuilt = packet([("p1", "establishing", 3, False)])
+        rehydrated = {**rebuilt, "packet_id": "same-id"}
+        report = closure.verify_rehydration(original, rehydrated)
+        self.assertTrue(report["identical"])
+        self.assertEqual(report["packet_id"], "same-id")
+
+    def test_a_different_packet_id_is_refused(self):
+        original = {**P1, "packet_id": "original-id"}
+        rehydrated = {**P1, "packet_id": "different-id"}
+        with self.assertRaises(closure.RehydrationMismatch):
+            closure.verify_rehydration(original, rehydrated)
+
+    def test_changed_span_text_is_refused_not_silently_substituted(self):
+        """A rehydration that (even accidentally) altered a span's text is a different evidence set, not the
+        same packet with fresh attribution — this must be caught, never let through."""
+        original = {**P1, "packet_id": "same-id"}
+        mutated_parts = [dict(p) for p in P1["parts"]]
+        mutated_parts[0]["text"] = "a different sentence entirely"
+        rehydrated = {**P1, "packet_id": "same-id", "parts": mutated_parts}
+        with self.assertRaises(closure.RehydrationMismatch):
+            closure.verify_rehydration(original, rehydrated)
+
+    def test_a_dropped_part_is_refused(self):
+        pk_two_parts = packet([("p1", "establishing", 1, False), ("p2", "referent", 2, False)])
+        pk_two_parts["packet_id"] = "same-id"
+        pk_one_part = {**pk_two_parts, "packet_id": "same-id", "parts": pk_two_parts["parts"][:1]}
+        with self.assertRaises(closure.RehydrationMismatch):
+            closure.verify_rehydration(pk_two_parts, pk_one_part)
+
+    def test_an_added_study_context_part_is_refused_by_default(self):
+        """Rehydrating these six packets is expected to change nothing but attribution (verified against the
+        real library before use); a rehydration that also introduces new evidence must be caught rather than
+        silently accepted — a study_context addition is only ever a deliberate, separately-approved change
+        (as it was for c9 packet `2c0006d1edba`), never an automatic side effect of rehydration."""
+        original = {**P1, "packet_id": "same-id"}
+        with_context = dict(original)
+        with_context["parts"] = list(original["parts"]) + [
+            {
+                "span_id": "p9", "role": "study_context", "unit_index": None, "unit_id": None,
+                "text": "abstract text", "pieces": [], "open_left": False, "open_right": False, "join": "none",
+                "section": "abstract", "page_start": 1, "page_end": 1, "note": None, "linked_from": None,
+            }
+        ]  # fmt: skip
+        with self.assertRaises(closure.RehydrationMismatch):
+            closure.verify_rehydration(original, with_context)
+
+
 if __name__ == "__main__":
     unittest.main()

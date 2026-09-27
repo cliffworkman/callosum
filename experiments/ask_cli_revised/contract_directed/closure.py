@@ -277,6 +277,80 @@ def _finalize(missing: list[str], any_present: bool) -> str:
     return NOT_ADDRESSED
 
 
+class IncompatiblePacketSchema(RuntimeError):
+    """A packet's attribution predates the clause-scoped rewrite (Task A1) and lacks the `clauses` field
+    `_accepted_clause` requires. Raised by `derive_status` BEFORE any slot is evaluated — a packet in this shape
+    would otherwise make `_accepted_clause` return `None` unconditionally for every span, indistinguishable from
+    a genuine model decline unless caught here (discovered 2026-09-27 re-auditing a live replay that reused
+    Gate-1-era stored packets against this session's repaired closure rules).
+
+    This is deliberately a REFUSAL, not a silent negative and not an in-place repair: `derive_status` never
+    mutates a packet's attribution to make it pass. A caller holding a stale packet must explicitly rehydrate it
+    — recompute its attribution from its own verified source spans via `packet.build_packet` against the source
+    library, then confirm nothing else changed via `verify_rehydration` below — before calling `derive_status`
+    again. Whether to rehydrate or simply decline to judge a stale packet is the caller's decision; this module
+    only refuses to guess.
+    """
+
+
+class RehydrationMismatch(RuntimeError):
+    """A rehydrated packet's evidence differs from the original it was meant to replace, beyond its attribution.
+
+    Rehydration recomputes `attribution` only; it must reproduce IDENTICAL `packet_id` and IDENTICAL `parts`
+    (every identity-bearing field, in the same order) — anything else means the rehydration silently substituted
+    different spans, added or dropped context, or reordered evidence, which `verify_rehydration` refuses rather
+    than let through unnoticed.
+    """
+
+
+# Part fields compared by `verify_rehydration` — everything that describes WHAT was (or would be) shown to the
+# model, i.e. `prompts.span_lines`'s own inputs. `attribution`/`clauses` are deliberately excluded: rehydration is
+# expected, and meant, to change those.
+_PART_IDENTITY_FIELDS = (
+    "span_id", "role", "unit_index", "unit_id", "text", "pieces", "open_left", "open_right", "join", "section",
+    "page_start", "page_end", "note", "linked_from",
+)  # fmt: skip
+
+
+def verify_rehydration(original: dict, rehydrated: dict) -> dict:
+    """Confirm a rehydrated packet is safe to substitute for `original` in judgment: same packet id, same parts
+    (every field a rendered prompt or a human reader would see, in the same order) — attribution may differ,
+    nothing else may. Raises `RehydrationMismatch` and changes nothing if they differ; returns a small report
+    when they match, for the caller's own record. Never called automatically — a caller chooses to rehydrate."""
+    if original["packet_id"] != rehydrated["packet_id"]:
+        raise RehydrationMismatch(
+            f"packet id changed on rehydration: {original['packet_id']!r} -> {rehydrated['packet_id']!r}"
+        )
+
+    def identity(parts: list[dict]) -> list[dict]:
+        return [{k: p.get(k) for k in _PART_IDENTITY_FIELDS} for p in parts]
+
+    orig_identity, rehy_identity = identity(original["parts"]), identity(rehydrated["parts"])
+    if orig_identity != rehy_identity:
+        raise RehydrationMismatch(
+            f"packet {original['packet_id']!r}: rehydrated parts differ from the original "
+            f"({len(orig_identity)} vs {len(rehy_identity)} parts, or content/order differs) — refusing to "
+            "substitute; this is a different evidence set, not the same packet with fresh attribution"
+        )
+    return {"packet_id": original["packet_id"], "parts_count": len(original["parts"]), "identical": True}
+
+
+def _check_attribution_schema(packet: dict) -> None:
+    """Every core part (`establishing`/`qualifying`/`referent` — the only roles `packet.build_packet` ever
+    computes attribution for) must carry clause-level attribution. Raises `IncompatiblePacketSchema` otherwise."""
+    attribution_full = packet.get("attribution", {})
+    for part in packet["parts"]:
+        if part["role"] not in ("establishing", "qualifying", "referent"):
+            continue
+        record = attribution_full.get(part["span_id"])
+        if record is None or "clauses" not in record:
+            raise IncompatiblePacketSchema(
+                f"packet {packet.get('packet_id')!r} span {part['span_id']!r} has no clause-level attribution "
+                "(pre-dates the clause-scoped rewrite, Task A1) — rehydrate via packet.build_packet against the "
+                "source library and verify_rehydration before calling derive_status"
+            )
+
+
 def derive_status(kind: str, slots: dict, packet: dict, *, pair_required: bool = False) -> dict:
     """Derive one unit's status from the reported slots and the packet's own facts (attribution, seams, roles).
 
@@ -284,7 +358,11 @@ def derive_status(kind: str, slots: dict, packet: dict, *, pair_required: bool =
     a span_id to its full `derive_attribution` record (read for `.clauses`, never for the aggregate `state`).
     Returns {status, missing, reasons, slot_spans, invalid_span_ids, polarity, excluded_span_ids, exclusion_reasons,
     accepted_evidence, primary_slot_evidence}.
+
+    Raises `IncompatiblePacketSchema` before evaluating anything if the packet's attribution predates the
+    clause-scoped rewrite — see that exception's docstring.
     """
+    _check_attribution_schema(packet)
     parts = {p["span_id"]: p for p in packet["parts"]}
     attribution_full = packet.get("attribution", {})
     polarity = (slots.get("polarity") or {}).get("value")
