@@ -25,6 +25,9 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
+#[path = "../../connector/preview_state.rs"]
+mod preview_state;
+
 const PROTOCOL_VERSION: u32 = 1;
 const CONNECTOR_HOST_VERSION: &str = env!("CARGO_PKG_VERSION");
 const DEV_BUILD_ENV: &str = "CALLOSUM_CONNECTOR_ALLOW_DEV_BUILD";
@@ -94,6 +97,8 @@ impl RuntimeState {
 struct ExtensionRequest {
     id: Option<String>,
     protocol_version: Option<u32>,
+    operation: Option<String>,
+    extension_version: Option<String>,
 }
 
 #[derive(Serialize, Default)]
@@ -123,6 +128,8 @@ struct PairingFile {
 #[derive(Serialize)]
 struct SessionRequest<'a> {
     pairing_secret: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    preview_generation: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -242,10 +249,10 @@ fn read_pairing_secret(pairing_file: &Path) -> Option<String> {
     parsed.pairing_secret.filter(|s| !s.trim().is_empty())
 }
 
-fn open_session(client: &reqwest::blocking::Client, base_url: &str, secret: &str) -> Option<String> {
+fn open_session(client: &reqwest::blocking::Client, base_url: &str, secret: &str, preview_generation: Option<String>) -> Option<String> {
     let response = client
         .post(format!("{base_url}/capture/session"))
-        .json(&SessionRequest { pairing_secret: secret })
+        .json(&SessionRequest { pairing_secret: secret, preview_generation })
         .send()
         .ok()?;
     if !response.status().is_success() {
@@ -341,7 +348,13 @@ fn main() {
     // side this is indistinguishable from "the host could not be reached," which is exactly the
     // already-defined `host_unavailable` state; no new UI-facing vocabulary is needed for a path
     // that Chrome's own `allowed_origins` enforcement should make unreachable in practice.
-    if !caller_is_allowed(caller_origin.as_deref(), &identity, allow_dev_build) {
+    let config: serde_json::Value = serde_json::from_str(IDENTITY_JSON).expect("embedded identity");
+    let is_preview = caller_origin.as_deref().and_then(caller_extension_id)
+        .is_some_and(|id| config["preview_extension_id"].as_str() == Some(id));
+    // Preview always uses normal identity and packaged-backend eligibility, on every response path.
+    let allow_dev_build = allow_dev_build && !is_preview;
+    let preview_root = app_data_dir().join("browser-capture-preview");
+    if !is_preview && !caller_is_allowed(caller_origin.as_deref(), &identity, allow_dev_build) {
         log_event(&format!(
             "caller_rejected origin={:?}",
             caller_origin.as_deref().unwrap_or("<none>")
@@ -368,6 +381,12 @@ fn main() {
         return;
     }
 
+    let preview_generation = if is_preview { preview_state::generation(&preview_root) } else { None };
+    if is_preview && preview_generation.is_none() {
+        write_message(&ConnectorResponse { protocol_version: PROTOCOL_VERSION,
+            connector_identity: identity.native_host_name.clone(), runtime_state: "preview_disabled", ..Default::default() });
+        return;
+    }
     let client = reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(2))
         .build()
@@ -392,7 +411,7 @@ fn main() {
             } else {
                 let port = read_port(&port_file).expect("resolve_backend already read this port successfully");
                 let base_url = format!("http://127.0.0.1:{port}");
-                let session = read_pairing_secret(&pairing_file_path()).and_then(|secret| open_session(&client, &base_url, &secret));
+                let session = read_pairing_secret(&pairing_file_path()).and_then(|secret| open_session(&client, &base_url, &secret, preview_generation.clone()));
                 match session {
                     Some(token) => {
                         response.session_token = Some(token);
@@ -411,6 +430,16 @@ fn main() {
         }
     }
 
+    if is_preview && request.operation.as_deref() == Some("verify_preview") {
+        if response.runtime_state == "available" {
+            if let Err(reason) = preview_state::complete_verification(&preview_root,
+                request.extension_version.as_deref().unwrap_or(""), config["preview_extension_version"].as_str().unwrap_or(""), preview_generation.as_deref().unwrap_or("")) {
+                response.runtime_state = reason;
+            }
+        }
+        response.session_token = None; // Verification UI never needs capture credentials.
+        response.backend_base_url = None;
+    }
     log_event(&format!("resolved runtime_state={}", response.runtime_state));
     write_message(&response);
 }

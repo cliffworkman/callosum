@@ -64,6 +64,7 @@ _PAIRING_FILE_NAME = "capture-pairing.json"
 # Active session tokens: {token: expiry_monotonic}. In-process only — never persisted, never logged.
 # A restart invalidates every session, which is correct: the host re-handshakes on demand.
 _sessions: dict[str, float] = {}
+_preview_sessions: dict[str, str] = {}
 _lock = Lock()
 
 
@@ -147,15 +148,20 @@ def rotate_pairing_secret() -> str:
     )
     with _lock:
         _sessions.clear()
+        _preview_sessions.clear()
     return secret
 
 
-def issue_session(presented_secret: str, *, now: float | None = None) -> str | None:
+def issue_session(
+    presented_secret: str, *, now: float | None = None, preview_generation: str | None = None
+) -> str | None:
     """Exchange the pairing secret for a short-lived session token, or None if it does not match.
 
     Constant-time comparison, matching ``access_control``'s convention — a timing oracle on a local
     secret is a small risk, but the cheap defense is already the house pattern.
     """
+    if preview_generation is not None and preview_generation != _preview_generation():
+        return None
     stored = read_pairing_secret()
     if not stored or not presented_secret:
         return None
@@ -168,7 +174,10 @@ def issue_session(presented_secret: str, *, now: float | None = None) -> str | N
         if len(_sessions) >= MAX_ACTIVE_SESSIONS:  # evict the soonest-to-expire rather than grow unbounded
             oldest = min(_sessions, key=lambda key: _sessions[key])
             _sessions.pop(oldest, None)
+            _preview_sessions.pop(oldest, None)
         _sessions[token] = now + SESSION_TTL_S
+        if preview_generation is not None:
+            _preview_sessions[token] = preview_generation
     return token
 
 
@@ -179,6 +188,10 @@ def session_is_valid(token: str | None, *, now: float | None = None) -> bool:
     now = time.monotonic() if now is None else now
     with _lock:
         _prune_locked(now)
+        if token in _preview_sessions and _preview_sessions[token] != _preview_generation():
+            _sessions.pop(token, None)
+            _preview_sessions.pop(token, None)
+            return False
         expiry = _sessions.get(token)
         return expiry is not None and expiry > now
 
@@ -187,8 +200,37 @@ def clear_sessions() -> None:
     """Drop every active session (tests, and the rotate path)."""
     with _lock:
         _sessions.clear()
+        _preview_sessions.clear()
 
 
 def _prune_locked(now: float) -> None:
     for token in [token for token, expiry in _sessions.items() if expiry <= now]:
         _sessions.pop(token, None)
+        _preview_sessions.pop(token, None)
+
+
+def _preview_generation() -> str | None:
+    """Read only: remote routes cannot enable preview or select a filesystem path."""
+    import json
+    import os
+
+    root = os.environ.get("CALLOSUM_APP_DATA_DIR")
+    if not root:
+        return None
+    path = Path(root) / "browser-capture-preview" / "enabled.json"
+    try:
+        if path.is_symlink() or path.parent.is_symlink() or path.stat().st_size > 8192:
+            return None
+        state = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(state, dict) or state.get("enabled") is not True:
+            return None
+        generation = state.get("generation")
+        return (
+            generation
+            if isinstance(generation, str)
+            and len(generation) == 64
+            and all(char in "0123456789abcdef" for char in generation)
+            else None
+        )
+    except (OSError, ValueError):
+        return None

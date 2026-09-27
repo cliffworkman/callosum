@@ -239,7 +239,7 @@ jobs:
           # What the installer MUST have threaded into the manifest: exactly connector/identity.json's configured
           # production ids -- an empty list while the extension is unpublished, both stores' ids once they exist.
           $identity = Get-Content "app/desktop-shell/connector/identity.json" -Raw | ConvertFrom-Json
-          $expectedOrigins = @($identity.production_extension_ids | ForEach-Object { "chrome-extension://$_/" })
+          $expectedOrigins = @(($identity.production_extension_ids + @($identity.preview_extension_id)) | ForEach-Object { "chrome-extension://$_/" })
           $manifestPaths = @()
 
           foreach ($browserKey in @("Google\Chrome", "Microsoft\Edge")) {

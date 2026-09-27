@@ -54,11 +54,25 @@ fn unconfigured_id() -> String {
         .iter()
         .filter_map(|value| value.as_str().map(str::to_string))
         .chain(std::iter::once(dev_id()))
+        .chain(identity["preview_extension_id"].as_str().map(str::to_string))
         .collect();
     ('a'..='p')
         .map(|letter| letter.to_string().repeat(32))
         .find(|candidate| !taken.contains(candidate))
         .expect("at most 17 ids are configured, so one of the 16 uniform ids is free")
+}
+
+#[test]
+fn preview_is_opt_in_even_with_development_flag() {
+    let id=identity()["preview_extension_id"].as_str().unwrap().to_string();
+    for flag in [None, Some("1")] {
+        let result=run_host(Some(&origin(&id)),flag,r#"{"id":"test","protocol_version":1}"#);
+        assert!(result.success);
+        let message:serde_json::Value=serde_json::from_slice(&result.stdout[4..]).unwrap();
+        assert_eq!(message["runtime_state"],"preview_disabled");
+        assert!(message["session_token"].is_null());
+        assert!(message["backend_base_url"].is_null());
+    }
 }
 
 fn frame(json: &str) -> Vec<u8> {

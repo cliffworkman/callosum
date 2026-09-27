@@ -1,6 +1,6 @@
 <!-- qa-coverage
 api: /settings, /settings/providers, /settings/providers/{pid}, /settings/test-key, /settings/repair-summary-cache, /settings/access-token, /access/recover, /citations/styles*, /integrations/libreoffice/*, /integrations/word/*, /word-https/*, /status, /enable, /disable, /usage/events, /usage/summary, /usage/export, /usage/clear
-fe: 35_settings.jsx, 35b_providers.jsx, 35ca_citation_style_provenance.jsx, 35cb_citation_style_editor.jsx, 35d_citation_styles.jsx, 01_recovery.jsx, 35f_usage.jsx, 35e_maintenance.jsx (LibreOfficeSettings + ServerAddressSettings + WordSettings only — GrobidSettings/LocalMaintenanceSettings in the same file are routes 85/86/91)
+fe: 35h_browser_capture.jsx, 35_settings.jsx, 35b_providers.jsx, 35ca_citation_style_provenance.jsx, 35cb_citation_style_editor.jsx, 35d_citation_styles.jsx, 01_recovery.jsx, 35f_usage.jsx, 35e_maintenance.jsx (LibreOfficeSettings + ServerAddressSettings + WordSettings only — GrobidSettings/LocalMaintenanceSettings in the same file are routes 85/86/91)
 -->
 
 # ROUTE 35 - Settings
@@ -219,6 +219,33 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
    install/download/plugin-list UI appears anywhere in the app as a result — the toggle is deliberately inert;
    nothing else in the app currently reads this flag. Reload and confirm the toggle stays on (persisted).
    Toggle it back OFF. No genai/external request from any of this.
+
+## Browser Capture manual early access (0.5.16 work)
+
+This portion requires a packaged Windows/macOS app and a disposable real browser profile;
+ordinary web/remote Settings must show explanation only, never local setup controls.
+See `research/2026-09-27_browser-capture-preview.md` for identity and release boundaries.
+
+1. Fresh profile: no implicit opt-in. Enable early access, then Prepare extension. Confirm
+   stable app-data folder, exact preview ID from `connector/identity.json`, manifest version
+   and per-file receipt hashes. Neither Prepare nor Open folder may say connected/installed.
+2. Choose Chrome and Edge instructions. Only manual Load unpacked with browser approval;
+   genuine store-install buttons remain unavailable. Load in this disposable profile.
+3. Settings Verify starts a 60-second challenge. Extension Details → Extension options →
+   Verify must traverse normal packaged native messaging and pairing. Fresh matching receipt
+   is required for a timestamped successful result. Missing host, wrong ID, disabled preview,
+   old extension version, closed/ineligible backend and expired challenge are failures.
+4. Human clicks capture on the pinned safe PDF fixture exactly once. Record upload/queue/UI
+   evidence without refresh. Preserve provisional evidence before any identity confirmation.
+   DOI review continues to obey the accepted Ioannidis regression; never promote on detection.
+5. Restart app: opt-in and folder survive, no fabricated fresh verification. Explicit Prepare
+   after an app update replaces only verified owned files at the same path; browser Reload
+   and new verification follow. Distinguish simulated version migration from real app update.
+6. Turn off: already-issued preview tokens fail, other sessions and captured papers remain.
+   Browser removal is manual. Re-enable cannot revive old tokens/verification. Modified files,
+   symlinks/junctions or extra files must be retained with an error, never executed/deleted.
+7. Restore snapshotted QA/normal state and native registrations. Record actual hardware,
+   simulations and CI checks separately; never overwrite earlier acceptance evidence.
 
 ## Pass criteria
 

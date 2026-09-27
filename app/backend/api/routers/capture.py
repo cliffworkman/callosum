@@ -132,6 +132,7 @@ class CaptureSessionRequest(BaseModel):
     model_config = {"extra": "forbid"}
 
     pairing_secret: str = Field(min_length=1, max_length=pairing.PAIRING_SECRET_MAX_LEN)
+    preview_generation: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
 
 
 class CaptureSessionResponse(BaseModel):
@@ -201,7 +202,7 @@ def open_capture_session(
     The pairing secret lives in an owner-only file only a local process can read, so a hostile webpage
     cannot reach this even knowing the port.
     """
-    token = pairing.issue_session(payload.pairing_secret)
+    token = pairing.issue_session(payload.pairing_secret, preview_generation=payload.preview_generation)
     if token is None:
         raise HTTPException(status_code=401, detail="Capture pairing failed.")
     return CaptureSessionResponse(session_token=token, expires_in_s=pairing.SESSION_TTL_S)

@@ -423,7 +423,7 @@ jobs:
           connector, manifest_path = sys.argv[1], sys.argv[2]
           identity = json.load(open("app/desktop-shell/connector/identity.json"))
           manifest = json.load(open(manifest_path))
-          expected_origins = [f"chrome-extension://{i}/" for i in identity["production_extension_ids"]]  # identity.json is the ONLY source
+          expected_origins = [f"chrome-extension://{i}/" for i in identity["production_extension_ids"] + [identity["preview_extension_id"]]]  # identity.json is the ONLY source
           assert manifest["name"] == identity["native_host_name"], manifest
           assert manifest["type"] == "stdio", manifest
           assert manifest["allowed_origins"] == expected_origins, manifest

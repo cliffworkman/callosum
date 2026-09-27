@@ -1,4 +1,8 @@
 mod backend;
+mod browser_preview;
+mod browser_preview_files;
+#[path = "../../connector/preview_state.rs"]
+mod preview_state;
 mod connector_registration;
 mod external;
 mod managed_local_ai;
@@ -312,6 +316,7 @@ pub fn run() {
         .manage(UpdateState::default())
         .manage(startup::StartupState::default())
         .invoke_handler(tauri::generate_handler![
+            browser_preview::browser_preview,
             retry_backend,
             start_word_https_companion,
             stop_word_https_companion,

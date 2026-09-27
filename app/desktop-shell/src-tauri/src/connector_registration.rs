@@ -81,6 +81,12 @@ pub fn parse_identity(raw: &str) -> Result<Identity, String> {
         }
         origins.push(format!("chrome-extension://{id}/"));
     }
+    if let Some(preview) = value.get("preview_extension_id").and_then(Value::as_str) {
+        if !valid_extension_id(preview) || Some(preview) == dev_id || seen.contains(preview) {
+            return Err("Preview identity must be distinct from dev and store identities".into());
+        }
+        origins.push(format!("chrome-extension://{preview}/"));
+    }
     Ok(Identity { native_host_name: name.to_string(), allowed_origins: origins })
 }
 
@@ -299,7 +305,10 @@ mod tests {
         let raw: Value = serde_json::from_str(IDENTITY_JSON).unwrap();
         let identity = embedded_identity().expect("the committed identity.json must parse and validate");
         assert_eq!(identity.native_host_name, raw["native_host_name"].as_str().unwrap());
-        assert_eq!(identity.allowed_origins.len(), raw["production_extension_ids"].as_array().unwrap().len());
+        let expected:Vec<String> = raw["production_extension_ids"].as_array().unwrap().iter()
+            .chain(std::iter::once(&raw["preview_extension_id"]))
+            .map(|id|format!("chrome-extension://{}/",id.as_str().unwrap())).collect();
+        assert_eq!(identity.allowed_origins, expected);
         assert!(!identity.allowed_origins.iter().any(|o| o.contains(raw["dev_extension_id"].as_str().unwrap())));
     }
 

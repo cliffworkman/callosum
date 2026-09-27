@@ -2,7 +2,7 @@
 
 One definition of "a valid browser-capture identity", shared by the NSIS generator, the extension package
 builder and the tests, so none of them carries its own copy of the rules. No I/O beyond `load_identity`, and
-nothing here decides *release policy* (whether production IDs may be empty is a separate, still-open question);
+nothing here decides *release policy* (that lives in check_capture_release.py);
 this only says whether the identity that IS configured is well-formed.
 
 The rules mirror what the browsers and the connector actually enforce:
@@ -17,6 +17,8 @@ The rules mirror what the browsers and the connector actually enforce:
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -90,4 +92,13 @@ def validate_identity(identity: dict[str, Any]) -> list[str]:
         if extension_id == dev_id:
             problems.append("the dev extension id must never appear in production_extension_ids")
 
+    preview = identity.get("preview_extension_id")
+    if preview is not None:
+        try:
+            public = base64.b64decode(identity["preview_extension_public_key_base64"], validate=True)
+            derived = "".join(chr(97 + int(c, 16)) for c in hashlib.sha256(public).hexdigest()[:32])
+            if preview != derived or preview == dev_id or preview in production:
+                problems.append("preview identity must derive from its own public key, separate from dev/store")
+        except (KeyError, ValueError, TypeError):
+            problems.append("preview public key is invalid")
     return problems

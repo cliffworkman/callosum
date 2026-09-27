@@ -11,6 +11,15 @@ application.** Temporary scripts, backups, research, audits, and plan files all 
 
 ---
 
+## Browser Capture preview work (2026-09-27)
+
+The scoped `feat/browser-capture-preview-0516` work builds on local DOI fix `f3ccab44`.
+Design/security/release ordering: [manual preview](docs/research/2026-09-27_browser-capture-preview.md).
+Normal packaged connector permits a separate, opt-in preview identity; development tooling
+remains separate. Settings file preparation uses a fixed Tauri command, not a backend HTTP
+writer. Real-browser acceptance and clean immutable-runtime release validation are separate
+gates. No production IDs, runtime publication, merge, tag or release is authorized by this work.
+
 ## Project overview
 
 **callosum** is a **local-first scholarly research environment** that keeps literature, evidence,

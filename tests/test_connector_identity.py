@@ -34,11 +34,6 @@ WORKFLOWS = ROOT / ".github" / "workflows"
 
 _EXTENSION_ID_RE = re.compile(r"^[a-p]{32}$")
 
-# Deliberate-change tripwire, NOT a release policy: the production allowlist must never be populated by a
-# refactor or with a guessed id. When the stores confirm real ids, this list is updated in the SAME reviewed change
-# that edits identity.json. (Release policy -- may a public release ship with none? -- is a separate decision.)
-PINNED_PRODUCTION_EXTENSION_IDS: list[str] = []
-
 # Synthetic ids: a-p alphabet only, distinct from the real dev id.
 CHROME_STORE_ID = "c" * 32
 EDGE_STORE_ID = "e" * 32
@@ -97,19 +92,6 @@ def test_identity_json_has_the_required_shape() -> None:
 
 def test_shipped_identity_is_well_formed() -> None:
     assert _connector_identity_module().validate_identity(_identity()) == []
-
-
-def test_production_extension_ids_match_the_deliberately_pinned_list() -> None:
-    """Guards against silently promoting a placeholder into the wire/install contract.
-
-    If this ever legitimately changes (a store confirms a real id), update PINNED_PRODUCTION_EXTENSION_IDS in the
-    same reviewed change as identity.json -- it must never be flipped by accident. See identity.json's own
-    `_production_extension_ids_comment` for the original reasoning, and the store-release runbook for later corrections.
-    (Interim by design: the settled release policy -- a `released` flag with a previous-tag ratchet -- will replace this
-    tripwire rather than coexist with it as a second authority.)
-    """
-    identity = _identity()
-    assert identity["production_extension_ids"] == PINNED_PRODUCTION_EXTENSION_IDS
 
 
 def test_dev_extension_id_matches_its_own_public_key() -> None:
@@ -211,15 +193,10 @@ def test_generator_emits_exactly_the_configured_origins_in_order(tmp_path: Path,
     assert "!define CONNECTOR_NATIVE_HOST_NAME org.example.testhost" in generated
     # EXACTLY the configured origins, in order: nothing extra, and never the dev id.
     emitted = re.findall(r"chrome-extension://([a-z]+)/", generated)
-    assert emitted == production
+    assert emitted == production + [identity["preview_extension_id"]]
     assert identity["dev_extension_id"] not in generated
-    if production:
-        assert "FileWrite $1 '[$\\r$\\n'" in generated
-        assert "FileWrite $1 '  ]$\\r$\\n'" in generated
-        assert "'[]$" not in generated
-    else:
-        assert "FileWrite $1 '[]$\\r$\\n'" in generated
-        assert "chrome-extension://" not in generated
+    assert "FileWrite $1 '[$\\r$\\n'" in generated
+    assert "'[]$" not in generated
 
 
 @pytest.mark.parametrize(
@@ -245,7 +222,7 @@ def test_generator_output_for_the_shipped_identity_is_consistent_with_identity_j
     assert result.returncode == 0, result.stderr
     identity = _identity()
     emitted = re.findall(r"chrome-extension://([a-z]+)/", out_path.read_text(encoding="utf-8"))
-    assert emitted == identity["production_extension_ids"]
+    assert emitted == identity["production_extension_ids"] + [identity["preview_extension_id"]]
 
 
 # ---- installer: one manifest, both browser keys, no second copy of the identity -------------------------------

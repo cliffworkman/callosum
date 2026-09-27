@@ -15,10 +15,10 @@
     "reviewed_increment": 603,
     "source_fingerprint": "f6022d6596cfa83651363c0b25e1730b1ba4723fc54efcab3e8ac8d551911d65",
     "note": "Reviewed cap-import and the Library map: the unverified DOI review correction changes no advertised acquisition capability or published screenshot. Candidate lookup remains explicit; packaged Mac acceptance of this local fix is pending.",
-    "declined_at": null,
-    "declined_rev": null,
-    "declined_increment": null,
-    "decline_note": null
+    "declined_at": "2026-09-27",
+    "declined_rev": "f3ccab44",
+    "declined_increment": 603,
+    "decline_note": "Manual Browser Capture preview is implemented locally but not released or hardware-accepted yet. Defer public marketing and new screenshots until acceptance and release approval; existing store availability must not be implied."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",

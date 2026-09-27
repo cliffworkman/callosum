@@ -71,6 +71,10 @@ jobs:
           node-version: "24"
       - name: Connector host tests (unit + real-binary caller admission)
         run: cargo test --manifest-path app/desktop-shell/connector-host/Cargo.toml
+      - name: Verify embedded preview and distribution policy
+        run: |
+          python app/desktop-shell/packaging/build_preview_package.py --check
+          python app/desktop-shell/packaging/check_capture_release.py
       - name: Extension pure-logic tests
         run: node --test app/desktop-shell/extension/background.test.mjs
       - name: Frontend capture notification and queue regression tests

@@ -80,6 +80,7 @@ export const RESULT_DISPLAY = {
     color: "#57606a",
     title: "Browser capture isn't available on this Callosum instance.",
   },
+  preview_disabled: { badge: "OFF", color: "#57606a", title: "Browser Capture early access is off. Enable it in Callosum Settings." },
   pairing_unavailable: {
     badge: "!",
     color: "#b35900",

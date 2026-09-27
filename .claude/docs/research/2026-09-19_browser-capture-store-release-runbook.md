@@ -266,3 +266,25 @@ disclosed single purpose, with proactive disclosure of practice changes.
 - developer.chrome.com/docs/webstore/{publish,prepare,register,images,review-process,program-policies/policies} and
   developer.chrome.com/blog/cws-policy-updates-2026
 - Non-authoritative, context only: Microsoft Q&A "keep the same extension ID on Chrome and Edge" (2023–24).
+
+## 2026-09-27 implementation reconciliation — manual preview channel
+
+The earlier D1 text above is preserved as decision history. The scoped 0.5.16 preview work
+implements `check_capture_release.py`, replacing the interim hardcoded empty-ID test. The
+tag release workflow checks all available v-tags, including other branches, with full history. `released=true`
+now explicitly denotes store distribution, with `release_channel=store` and confirmed
+`store_extension_ids.chrome` / `.edge` included in the production allowlist. Once released,
+later tags cannot revert or drop earlier IDs. Ordinary CI also validates identity and the
+embedded package without asserting that current unpublished store IDs exist.
+
+`release_channel=manual_preview`, `released=false` is the separately disclosed early-access
+channel, with its own public identity and desktop opt-in. It cannot satisfy store release.
+Normal host registration authorizes the exact preview origin as well as genuine store IDs;
+the development origin remains excluded. The store upload builder remains keyless and does
+not package preview Options or its public key. Future store migration needs approval,
+genuine assigned IDs/URLs, real store installation tests and an explicit user handoff.
+
+The release job also rejects the two known-broken pristine Intel runtime IDs. This negative
+guard is not proof that any new runtime is portable: the immutable correction must pass its
+native linkage checks, signed four-platform publication, exact-head CI and pristine Intel
+cache acceptance before release. This work does not publish or change runtime artifacts.
