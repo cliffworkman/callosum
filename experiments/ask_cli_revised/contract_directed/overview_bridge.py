@@ -129,10 +129,15 @@ def available() -> bool:
 
 
 def real_obligation_states(field_ids: tuple[str, ...]) -> list[dict]:
-    """The real, frozen ``field_id``/``note`` pairs for the given children, read verbatim from the actual prior
-    T5O run's own sealed ledger -- never invented or paraphrased. Only the two fields `overview.py`'s prompt
-    ever reads (`field_id`, `note`) are carried through; the run's own richer per-field hierarchy/state detail is
-    intentionally not.
+    """The real, frozen ``field_id``/``note``/``state`` triples for the given children, read verbatim from the
+    actual prior T5O run's own sealed ledger -- never invented or paraphrased.
+
+    Carries exactly the three fields `overview.py` actually reads across its whole pipeline: `note` for the
+    model-facing prompt (`render_part_lines`) and `state` for the post-response audit (`parts_status`'s
+    `"no_responsive_evidence" if state["state"] != "not_assessed" else "not_assessed"` branch) -- omitting
+    `state` is a real bug, not a harmless trim: `build_overview` raises `KeyError` reading it back, only after
+    the one live call already happened, since `parts_status` runs last. The run's own richer per-field hierarchy
+    detail is intentionally still not carried through.
     """
     path = freeze.AB_ROOT / "runB" / "out" / "11_verified_ledger.json"
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -140,7 +145,7 @@ def real_obligation_states(field_ids: tuple[str, ...]) -> list[dict]:
     missing = [fid for fid in field_ids if fid not in by_id]
     if missing:
         raise KeyError(f"field_id(s) not found in the real obligation_states: {missing}")
-    return [{"field_id": fid, "note": by_id[fid]["note"]} for fid in field_ids]
+    return [{"field_id": fid, "note": by_id[fid]["note"], "state": by_id[fid]["state"]} for fid in field_ids]
 
 
 def real_original_question() -> tuple[str, str]:

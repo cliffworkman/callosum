@@ -2,7 +2,9 @@
 
 import unittest
 
+from experiments.ask_cli_revised import overview as ov
 from experiments.ask_cli_revised.contract_directed import overview_bridge as bridge
+from experiments.ask_cli_revised.overview_test_support import Entail, OverviewClient, make_supervisor
 
 M10_SPAN = {
     "paper_id": 67, "chunk_id": 35019, "span_id": "p1",
@@ -133,6 +135,17 @@ class RealFrozenDataTests(unittest.TestCase):
         self.assertIn("in which cultures is there evidence", by_id["c11"])
 
     @unittest.skipUnless(bridge.available(), "the real prior T5O run's sealed ledger is not present on this machine")
+    def test_real_obligation_states_carries_state_not_just_note(self):
+        """Regression for a real bug (2026-09-27): `overview.build_overview`'s post-response `parts_status`
+        step reads `state["state"]` after the one live call already happened, so omitting it here is not a
+        harmless trim -- it is a KeyError that surfaces only after the call is spent. Every returned row must
+        carry all three fields `overview.py`'s pipeline actually reads."""
+        for s in bridge.real_obligation_states(("c9", "c11")):
+            self.assertEqual(set(s.keys()), {"field_id", "note", "state"})
+            self.assertIsInstance(s["state"], str)
+            self.assertTrue(s["state"])
+
+    @unittest.skipUnless(bridge.available(), "the real prior T5O run's sealed ledger is not present on this machine")
     def test_an_unknown_field_id_raises_rather_than_silently_omitting(self):
         with self.assertRaises(KeyError):
             bridge.real_obligation_states(("c9", "not-a-real-field-id"))
@@ -144,6 +157,51 @@ class RealFrozenDataTests(unittest.TestCase):
         question, question_hash = bridge.real_original_question()
         self.assertEqual(question_hash, freeze.QUESTION_SHA256)
         self.assertTrue(question.strip())
+
+
+class EndToEndOfflineTests(unittest.TestCase):
+    """Regression for the real 2026-09-27 incident: a live diagnostic call was made and its raw response lost
+    to an unhandled `KeyError` in `overview.build_overview`'s post-response `parts_status` step, because the
+    bridge's `real_obligation_states` output was missing a field that step needs. This exercises the FULL
+    `build_overview` pipeline end to end (through `parts_status`, not just prompt rendering) against a scripted,
+    offline client -- zero network, zero live call -- so a shape mismatch like that one fails here, before any
+    future live call, not after one."""
+
+    @unittest.skipUnless(bridge.available(), "the real prior T5O run's sealed ledger is not present on this machine")
+    def test_build_overview_completes_without_crashing_using_real_bridge_output(self):
+        rows = [
+            {
+                "child_id": "c9",
+                "unit_id": "M10",
+                "kind": "operation",
+                "status": "source_supported",
+                "accepted_spans": [
+                    {
+                        "paper_id": 67,
+                        "chunk_id": 35019,
+                        "span_id": "p1",
+                        "text": "Participants completed a Just World Beliefs Scale that measures fairness beliefs.",
+                        "attribution_state": "own_established",
+                        "slots_accepted_for": ["instrument_named", "paired_with_construct", "on_topic"],
+                    }
+                ],
+            }
+        ]
+        evidence_spans, verified_propositions = bridge.project_evidence(rows)
+        question, question_hash = bridge.real_original_question()
+        states = bridge.real_obligation_states(("c9", "c11"))
+        sealed = {
+            "request_contract": {"original_question": question, "question_hash": question_hash},
+            "obligation_states": states,
+            "evidence_spans": evidence_spans,
+            "verified_propositions": verified_propositions,
+        }
+        client = OverviewClient(s={"overview": []})
+        record, _ = ov.build_overview(
+            sealed, "test-hash", supervisor=make_supervisor(client), entail=Entail(), coverage_constraints=()
+        )
+        self.assertIn(record["state"], ov.STATES)  # completed; did not raise
+        self.assertEqual(len(record["parts"]), 2)  # one row per requested field_id, c9 and c11
 
 
 if __name__ == "__main__":
