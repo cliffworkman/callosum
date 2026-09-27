@@ -355,8 +355,12 @@ def judge_packet(env: Env, child: ChildContract, packet: dict) -> dict:
         bonus = closure.derive_pairing_bonus(
             child.unit(unit_id).kind, result_unit, child.unit(partner_id).kind, base_results[partner_id], packet
         )
-        if bonus:
+        if bonus["outcome"] == "derived":
             base_results[unit_id] = closure.apply_pairing_bonus(result_unit, bonus)
+        else:
+            # Withheld, never silent: recorded on the unit even though it changes no status — an explicit
+            # negation/exclusion marker or the absence of any connecting proposition is itself an audit fact.
+            base_results[unit_id] = {**result_unit, "pairing_bonus_withheld": bonus}
     per_unit = {}
     for unit in child.content_units:
         reported = result.answer["units"][unit.unit_id]

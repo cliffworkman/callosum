@@ -299,10 +299,34 @@ HADZA_SENTENCE = (
     "We presented 123 Hadza across ten camps pairs of morphed Hadza faces—each with one face altered to include "
     "a scar—and asked who they expected to be more moral and a better forager."
 )
+HADZA_US_EXCLUSION_SENTENCE = (
+    "We found that among the Hadza and U.S. participants who viewed the stimuli, only the U.S. participants "
+    "completed the paper-and-pencil ratings."
+)
+HADZA_SINGLE_NEGATION_SENTENCE = "We report that the Hadza participants did not complete the ratings."
+JOINT_DESIGN_SENTENCE = (
+    "We found that both the Hadza and U.S. participants completed the same forced-choice ratings task."
+)
 UNRELATED_POPULATION_PART = "European participants were also recruited for a separate control condition."
 UNRELATED_MEASURE_PART = (
     "The Interpersonal Reactivity Index,32 which measures cognitive empathy, was administered to a different sample."
 )
+
+
+def _pop_and_manner(text: str, *, section: str | None = None) -> tuple[dict, dict, dict]:
+    """One establishing span, checked for `pairing_expressed` as a population/manner pair — the exact shape
+    `derive_pairing_bonus` sees in `judge_packet`."""
+    pk = {
+        "parts": [{"span_id": "p1", "role": "establishing", "unit_index": 1, "open_left": False, "open_right": False, "text": text}],
+        "attribution": _real_attribution({"p1": text}, section=section),
+    }  # fmt: skip
+    pop = closure.derive_status(
+        "population", slots(on_topic=["p1"], population_named=["p1"], tied_to_finding=["p1"]), pk, pair_required=True
+    )
+    man = closure.derive_status(
+        "manner", slots(on_topic=["p1"], manner_described=["p1"], tied_to_subject=["p1"]), pk, pair_required=True
+    )
+    return pop, man, pk
 
 
 def _pair_child(kind_a: str, kind_b: str) -> ChildContract:
@@ -316,68 +340,59 @@ def _pair_child(kind_a: str, kind_b: str) -> ChildContract:
 
 class CrossUnitPairingTests(unittest.TestCase):
     """`pairing_expressed` may be derived — never invented — only when ONE proposition genuinely connects both
-    paired things: the same clause is the accepted evidence for both units' primary slots, or an existing verified
-    link connects the two accepted spans. A shared span id filled via two DIFFERENT clauses is not enough
-    (Cliff's correction, session 2026-09-27: the real gap was an EMPTY pairing slot, not a contaminated one)."""
+    paired things: the same clause is the accepted evidence for both units' primary slots AND that clause carries
+    no negation/exclusion marker (Cliff's affirmative-link correction, session 2026-09-27, second round), or an
+    existing verified link connects the two accepted spans. A shared span id filled via two DIFFERENT clauses is
+    not enough either. `derive_pairing_bonus` always returns an auditable `{"outcome": ...}` record — these tests
+    check `outcome`/`reason`, never a bare truthiness, so a silently-changed contract would fail loudly here."""
 
     def test_pair_partners_maps_the_two_content_units_to_each_other(self):
         child = _pair_child("population", "manner")
         self.assertEqual(closure.pair_partners(child), {"M12": "M13", "M13": "M12"})
 
     def test_the_real_hadza_sentence_establishes_the_pairing_from_one_clause(self):
-        pk = {
-            "parts": [{"span_id": "p1", "role": "establishing", "unit_index": 1, "open_left": False, "open_right": False, "text": HADZA_SENTENCE}],
-            "attribution": _real_attribution({"p1": HADZA_SENTENCE}),
-        }  # fmt: skip
-        pop = closure.derive_status(
-            "population",
-            slots(on_topic=["p1"], population_named=["p1"], tied_to_finding=["p1"]),
-            pk,
-            pair_required=True,
-        )
-        man = closure.derive_status(
-            "manner", slots(on_topic=["p1"], manner_described=["p1"], tied_to_subject=["p1"]), pk, pair_required=True
-        )
+        pop, man, pk = _pop_and_manner(HADZA_SENTENCE)
         self.assertEqual(pop["missing"], ["pairing_expressed"])  # the model itself offered no pairing_expressed
         self.assertEqual(man["missing"], ["pairing_expressed"])
         bonus = closure.derive_pairing_bonus("population", pop, "manner", man, pk)
-        self.assertIsNotNone(bonus)
+        self.assertEqual(bonus["outcome"], "derived")
         self.assertEqual(bonus["source"], "same_clause")
         pop2 = closure.apply_pairing_bonus(pop, bonus)
         self.assertEqual(pop2["status"], closure.DIRECTLY)
         self.assertEqual(pop2["reasons"][-1], f"pairing_expressed:derived_from_pair_partner:{bonus['source']}")
 
-    @unittest.expectedFailure
-    def test_a_shared_clause_that_explicitly_excludes_one_population_from_the_measurement_still_pairs_KNOWN_GAP(self):
-        """Cliff's correction (session 2026-09-27, second round): matching clause offsets are not sufficient if
-        the proposition does not connect the requested relata. A clause can name two populations while explicitly
-        stating that only ONE of them underwent the measurement — same-clause identity alone cannot see that
-        distinction. This is a REPORTED, NOT-YET-FIXED gap (marked `expectedFailure` so it stays visible in the
-        suite rather than silently passing or being dropped): fixing it would need the derivation to recognize an
-        explicit exclusion/contrast marker within the shared clause, which is a real, if narrow, change to the
-        pairing architecture — out of scope for a verification-only pass; see `GATE1_REPAIR_HANDBACK.md`'s
-        proposed options for Cliff's decision."""
-        text = (
-            "We found that among the Hadza and U.S. participants who viewed the stimuli, only the U.S. "
-            "participants completed the paper-and-pencil ratings."
-        )
-        pk = {
-            "parts": [{"span_id": "p1", "role": "establishing", "unit_index": 1, "open_left": False, "open_right": False, "text": text}],
-            "attribution": _real_attribution({"p1": text}),
-        }  # fmt: skip
-        pop = closure.derive_status(
-            "population",
-            slots(on_topic=["p1"], population_named=["p1"], tied_to_finding=["p1"]),
-            pk,
-            pair_required=True,
-        )
-        man = closure.derive_status(
-            "manner", slots(on_topic=["p1"], manner_described=["p1"], tied_to_subject=["p1"]), pk, pair_required=True
-        )
+    def test_a_shared_clause_that_explicitly_excludes_one_population_from_the_measurement_does_not_pair(self):
+        """Cliff's affirmative-link correction: matching clause offsets are not sufficient if the proposition does
+        not connect the requested relata. A clause naming two populations while explicitly stating that only ONE
+        of them underwent the measurement must not pair the excluded one — now a genuine, passing regression test
+        (previously a documented `expectedFailure`), fixed by the narrow `_PAIRING_AMBIGUITY_MARKERS` guard."""
+        pop, man, pk = _pop_and_manner(HADZA_US_EXCLUSION_SENTENCE)
         bonus = closure.derive_pairing_bonus("population", pop, "manner", man, pk)
-        self.assertIsNone(
-            bonus, "the clause explicitly excludes Hadza from the measurement; same-clause identity must not pair them"
-        )
+        self.assertEqual(bonus["outcome"], "withheld")
+        self.assertEqual(bonus["reason"], "same_clause_contains_a_negation_or_exclusion_marker")
+        self.assertEqual(bonus["blocking_marker"].lower(), "only")
+        self.assertEqual(bonus["start"], 0)  # exact offsets preserved even for a withheld attempt
+        self.assertEqual(bonus["text"], HADZA_US_EXCLUSION_SENTENCE)
+        # withheld, never invented: pairing_expressed stays missing, not silently closed
+        self.assertEqual(pop["missing"], ["pairing_expressed"])
+
+    def test_a_single_population_explicitly_negated_from_the_measurement_does_not_pair(self):
+        """A single population mention is not sufficient either — the proposition must AFFIRMATIVELY connect it to
+        the measurement. "did not complete" negates the very thing pairing_expressed asks for."""
+        pop, man, pk = _pop_and_manner(HADZA_SINGLE_NEGATION_SENTENCE)
+        bonus = closure.derive_pairing_bonus("population", pop, "manner", man, pk)
+        self.assertEqual(bonus["outcome"], "withheld")
+        self.assertEqual(bonus["reason"], "same_clause_contains_a_negation_or_exclusion_marker")
+        self.assertIn(bonus["blocking_marker"].lower(), ("not", "did not"))
+
+    def test_a_legitimate_joint_population_design_still_pairs(self):
+        """The conservative guard must not become a blanket rejection of useful evidence: a clause naming two
+        populations with NO negation/exclusion marker, jointly and affirmatively tied to the SAME measurement,
+        still derives the pairing."""
+        pop, man, pk = _pop_and_manner(JOINT_DESIGN_SENTENCE)
+        bonus = closure.derive_pairing_bonus("population", pop, "manner", man, pk)
+        self.assertEqual(bonus["outcome"], "derived")
+        self.assertEqual(bonus["source"], "same_clause")
 
     def test_an_unrelated_population_mention_and_measurement_in_different_parts_do_not_pair(self):
         """Realistic shape: the population mention and the measurement description are two DIFFERENT localized
@@ -400,7 +415,8 @@ class CrossUnitPairingTests(unittest.TestCase):
             "manner", slots(on_topic=["p2"], manner_described=["p2"], tied_to_subject=["p2"]), pk, pair_required=True
         )
         bonus = closure.derive_pairing_bonus("population", pop, "manner", man, pk)
-        self.assertIsNone(bonus)
+        self.assertEqual(bonus["outcome"], "withheld")
+        self.assertEqual(bonus["reason"], "no_connecting_proposition_found")
 
     def test_a_verified_link_can_also_connect_the_two_accepted_spans(self):
         pk = packet(
@@ -418,7 +434,7 @@ class CrossUnitPairingTests(unittest.TestCase):
             "manner", slots(on_topic=["p1"], manner_described=["p2"], tied_to_subject=["p1"]), pk, pair_required=True
         )
         bonus = closure.derive_pairing_bonus("population", pop, "manner", man, pk)
-        self.assertIsNotNone(bonus)
+        self.assertEqual(bonus["outcome"], "derived")
         self.assertEqual(bonus["source"], "verified_link")
 
     def test_the_link_path_never_reaches_a_span_id_outside_the_given_packet(self):
@@ -438,7 +454,8 @@ class CrossUnitPairingTests(unittest.TestCase):
             "primary_slot_evidence": {"span_id": "zz", "start": 99, "end": 100, "text": "nowhere"},
         }
         bonus = closure.derive_pairing_bonus("population", pop, "manner", fake_man, pk)
-        self.assertIsNone(bonus)
+        self.assertEqual(bonus["outcome"], "withheld")
+        self.assertEqual(bonus["reason"], "no_connecting_proposition_found")
 
 
 if __name__ == "__main__":

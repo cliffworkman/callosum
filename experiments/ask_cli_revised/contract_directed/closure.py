@@ -26,11 +26,37 @@ units, `pairing_expressed` may be derived — in addition to whatever the model 
 proposition genuinely connects both paired things: the SAME clause is the accepted evidence for both units' primary
 slots, or an existing VERIFIED link (`links.py`) connects the two accepted spans. A shared span id alone, filled via
 two different clauses, is never sufficient.
+
+**Affirmative-link requirement (Cliff's second correction, same session):** same-clause identity is necessary but
+not sufficient — a clause can co-occur two candidate relata while explicitly stating that only ONE of them (or
+neither) underwent the measurement. `derive_pairing_bonus` withholds the same-clause derivation, and records why,
+whenever the shared clause contains a negation or exclusion marker (`_PAIRING_AMBIGUITY_MARKERS`: "only",
+"except", "but not", "unlike", "rather than", "instead of", "not", "never", "neither/nor", "fail(ed/s) to", "no
+longer", "without") — a deliberately narrow, closed marker list, not a semantic parser. A clause naming more than
+one candidate with NO such marker (a genuine joint-subject design, e.g. "Both X and Y completed the same task")
+is not blocked by this rule alone — the guard targets the specific failure Cliff named (negation / exclusion / a
+different acting population / ambiguous agency), not every multi-population sentence. `derive_pairing_bonus`
+always returns an auditable `{"outcome": "derived" | "withheld", "reason": ...}` record, never a bare `None` —
+nothing about a withheld pairing is silent. A withheld pairing leaves `pairing_expressed` in the unit's `missing`
+list exactly as an unreported one would, so it remains reachable by the EXISTING targeted recovery trigger
+(`recovery.py`'s `widen_neighborhood` step, keyed on `partial_slot:pairing_expressed`) — no new recovery mechanism
+was needed for this.
 """
 
 from __future__ import annotations
 
+import re
+
 from experiments.ask_cli_revised.contract_directed import attribution as at
+
+# Deliberately narrow, closed marker list (Cliff's correction, session 2026-09-27): negation and exclusion cues
+# that make same-clause co-occurrence unsafe to treat as an affirmative pairing. Not a semantic parser — a clause
+# with none of these is not thereby proven to pair correctly, but one WITH one of these is conservatively withheld.
+_PAIRING_AMBIGUITY_MARKERS = re.compile(
+    r"\b(?:only|except(?:\s+for)?|but\s+not|unlike|rather\s+than|instead\s+of|"
+    r"not|never|neither|nor|fail(?:ed|s)?\s+to|no\s+longer|without)\b",
+    re.IGNORECASE,
+)
 
 DIRECTLY = "directly_establishes"
 PARTIAL = "partially_establishes"
@@ -355,24 +381,42 @@ def _linked_connection(packet: dict, id_a: str, id_b: str) -> bool:
     return any(lk.get("link_id") == link_id and lk.get("verified") for lk in packet.get("links", []))
 
 
-def derive_pairing_bonus(kind_a: str, result_a: dict, kind_b: str, result_b: dict, packet: dict) -> dict | None:
-    """A connecting proposition for `pairing_expressed`, or None if none exists.
+def derive_pairing_bonus(kind_a: str, result_a: dict, kind_b: str, result_b: dict, packet: dict) -> dict:
+    """A connecting proposition for `pairing_expressed` — ALWAYS an auditable record, never a bare success/failure:
+    `{"outcome": "derived", "source": ..., "span_id"/"span_id_a"+"span_id_b": ..., "start"/"end"/"text": ...}` or
+    `{"outcome": "withheld", "reason": ..., ...}`. Nothing about a withheld pairing is silent.
 
-    Requires either (a) the SAME clause is the accepted evidence for both units' primary slots, or (b) an existing
-    verified link connects the two accepted spans. A shared span id filled via two DIFFERENT clauses of the same
-    sentence — e.g. an unrelated population mention and an unrelated measurement description that happen to share
-    a sentence — is explicitly not enough.
+    Requires either (a) the SAME clause is the accepted evidence for both units' primary slots AND that clause
+    contains no negation/exclusion marker (`_PAIRING_AMBIGUITY_MARKERS` — Cliff's affirmative-link correction: a
+    clause can co-occur two candidate relata while stating that only one of them, or neither, underwent the
+    measurement; matching offsets alone never overrides that), or (b) an existing verified link connects the two
+    accepted spans. A shared span id filled via two DIFFERENT clauses of the same sentence — e.g. an unrelated
+    population mention and an unrelated measurement description that happen to share a sentence — is not enough
+    either way.
     """
     ev_a, ev_b = result_a.get("primary_slot_evidence"), result_b.get("primary_slot_evidence")
     if not ev_a or not ev_b:
-        return None
-    if (
+        return {"outcome": "withheld", "reason": "no_primary_evidence_for_one_or_both_paired_units"}
+    same_clause = (
         ev_a["span_id"] == ev_b["span_id"]
         and ev_a["start"] is not None
         and ev_a["start"] == ev_b["start"]
         and ev_a["end"] == ev_b["end"]
-    ):
+    )
+    if same_clause:
+        marker = _PAIRING_AMBIGUITY_MARKERS.search(ev_a["text"])
+        if marker:
+            return {
+                "outcome": "withheld",
+                "reason": "same_clause_contains_a_negation_or_exclusion_marker",
+                "blocking_marker": marker.group(0),
+                "span_id": ev_a["span_id"],
+                "start": ev_a["start"],
+                "end": ev_a["end"],
+                "text": ev_a["text"],
+            }
         return {
+            "outcome": "derived",
             "source": "same_clause",
             "span_id": ev_a["span_id"],
             "start": ev_a["start"],
@@ -380,12 +424,20 @@ def derive_pairing_bonus(kind_a: str, result_a: dict, kind_b: str, result_b: dic
             "text": ev_a["text"],
         }
     if _linked_connection(packet, ev_a["span_id"], ev_b["span_id"]):
-        return {"source": "verified_link", "span_id_a": ev_a["span_id"], "span_id_b": ev_b["span_id"]}
-    return None
+        return {
+            "outcome": "derived",
+            "source": "verified_link",
+            "span_id_a": ev_a["span_id"],
+            "span_id_b": ev_b["span_id"],
+        }
+    return {"outcome": "withheld", "reason": "no_connecting_proposition_found"}
 
 
 def apply_pairing_bonus(result: dict, bonus: dict) -> dict:
-    """Fold a `derive_pairing_bonus` result into a unit's `derive_status` output, recomputing `status`."""
+    """Fold a DERIVED `derive_pairing_bonus` record into a unit's `derive_status` output, recomputing `status`.
+    Never call this with a `"withheld"` record — check `bonus["outcome"] == "derived"` first; the caller is
+    expected to record a withheld attempt itself (see `model_stages.judge_packet`), since there is nothing here
+    to fold in."""
     if PAIRING_SLOT not in result["missing"]:
         return result
     missing = [s for s in result["missing"] if s != PAIRING_SLOT]
