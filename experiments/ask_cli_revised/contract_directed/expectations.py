@@ -131,21 +131,28 @@ _OWN_OUTCOME = (
 
 
 def _synthetic_packet(texts: list[str], roles: list[str]) -> dict:
-    parts, attribution = [], {}
+    parts, flat, full = [], {}, {}
     for n, (text, role) in enumerate(zip(texts, roles, strict=True), start=1):
+        sid = f"p{n}"
         parts.append(
-            {"span_id": f"p{n}", "role": role, "unit_index": n, "open_left": False, "open_right": False, "text": text}
+            {"span_id": sid, "role": role, "unit_index": n, "open_left": False, "open_right": False, "text": text}
         )
         if role != "linked_definition":
-            attribution[f"p{n}"] = at.derive_attribution([text])["state"]
-    return {"parts": parts, "part_attribution": attribution}
+            record = at.derive_attribution([text])  # the REAL, now clause-aware derivation — one source of truth
+            flat[sid] = record["state"]
+            full[sid] = record
+    return {"parts": parts, "part_attribution": flat, "attribution": full}
 
 
 def offline_controls() -> list[dict]:
     """Negative controls on the real closure code, using the real speculative sentence U5. Not a live result."""
     out: list[dict] = []
     spec = _synthetic_packet([_U5], ["establishing"])
-    slots = {"finding_of_type": {"span_ids": ["p1"]}, "outcome_reported": {"span_ids": ["p1"]}}
+    slots = {
+        "finding_of_type": {"span_ids": ["p1"]},
+        "outcome_reported": {"span_ids": ["p1"]},
+        "on_topic": {"span_ids": ["p1"]},
+    }
     status = closure.derive_status("existence", slots, spec)
     out.append(
         _result(
@@ -184,6 +191,7 @@ def offline_controls() -> list[dict]:
         "relation_stated": {"span_ids": ["p1"]},
         "polarity": {"span_ids": ["p1"], "value": "association"},
         "direction": {"span_ids": ["p5"]},
+        "on_topic": {"span_ids": ["p1"]},
     }
     far_status = closure.derive_status("relationship", far_slots, far)
     out.append(
@@ -205,9 +213,14 @@ def offline_controls() -> list[dict]:
         "relation_stated": {"span_ids": ["p2"]},
         "polarity": {"span_ids": ["p2"], "value": "association"},
         "direction": {"span_ids": ["p1"]},
+        "on_topic": {"span_ids": ["p1"]},
     }
     bad = closure.derive_status("relationship", bad_slots, linked)
-    ok_slots = {"instrument_named": {"span_ids": ["p2"]}, "paired_with_construct": {"span_ids": ["p1"]}}
+    ok_slots = {
+        "instrument_named": {"span_ids": ["p2"]},
+        "paired_with_construct": {"span_ids": ["p1"]},
+        "on_topic": {"span_ids": ["p1"]},
+    }
     ok = closure.derive_status("operation", ok_slots, linked)
     out.append(
         _result(

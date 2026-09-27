@@ -176,7 +176,7 @@ class RealPacketTests(unittest.TestCase):
         self.assertEqual([j["state"] for j in target.seam["joins"]], ["established", "established"])
         self.assertTrue(all(pc["verbatim_ok"] for pc in p["parts"][0]["pieces"]))
         self.assertFalse(p["attachment"]["is_primary"])
-        prompt, _ = answer.render_packet_prompt("q", [p])
+        prompt, _, _ = answer.render_packet_prompt("q", [p])
         self.assertIn("attachment 78 (alternate attachment, role unset)", prompt)
 
     def test_the_abstract_result_sentence_is_own_established_via_the_authors_abstract(self):

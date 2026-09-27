@@ -66,7 +66,7 @@ class PipelineSequencingTests(unittest.TestCase):
             neighborhoods=6,
             recovery_neighborhoods=2,
             bridge_neighborhoods=1,
-            eligibility_packets=6,
+            eligibility_calls=30,
         )
         cls.tmp = tempfile.TemporaryDirectory()
         cls.run_dir = Path(cls.tmp.name)
@@ -122,19 +122,22 @@ class PipelineSequencingTests(unittest.TestCase):
         worst = budget.worst_case(len(self.children), self.caps)["worst_case_total_calls"]
         self.assertLessEqual(self.ledger.calls, worst)
         self.assertLessEqual(self.ledger.stages["triage"]["calls"], len(self.children) * self.caps.triage_papers)
-        self.assertLessEqual(
-            self.ledger.stages["eligibility"]["calls"], self.caps.eligibility_packets * len(self.children)
-        )
+        self.assertLessEqual(self.ledger.stages["eligibility"]["calls"], self.caps.eligibility_calls)
 
-    def test_every_packet_is_judged_against_every_child_regardless_of_route(self):
+    def test_every_packet_found_under_a_child_is_judged_for_that_child(self):
+        """Own-route packets are always judged for their own child (Task D's Tier 1 guarantee) — cross-child
+        judging happens too, but is no longer exhaustive against every other child (that uniform scheme is exactly
+        what Cliff's correction replaced)."""
         judged = self.lines("08_eligibility.jsonl")
+        packets = {p["packet_id"]: p for p in self.lines("07_packets.jsonl")}
         by_packet: dict[str, set] = {}
         for rec in judged:
-            if rec.get("child_id"):
+            if rec.get("child_id") and rec.get("state") == "usable":
                 by_packet.setdefault(rec["packet_id"], set()).add(rec["child_id"])
-        self.assertTrue(by_packet, "the fake model should have produced at least one packet")
+        self.assertTrue(by_packet, "the fake model should have produced at least one judged packet")
         for packet_id, kids in by_packet.items():
-            self.assertEqual(kids, set(self.children), packet_id)
+            found_under = set(packets.get(packet_id, {}).get("found_under", []))
+            self.assertTrue(found_under & set(self.children) <= kids, (packet_id, found_under, kids))
         self.assertTrue(any(r.get("route_relation") == "cross_child" for r in judged) or len(self.children) == 1)
 
     def test_no_prompt_ever_contains_the_parent_question_or_a_siblings_wording(self):

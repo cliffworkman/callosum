@@ -18,10 +18,14 @@ from experiments.ask_cli_revised.contract_directed import (
     anchors,
     bridge,
     budget,
+    closure,
     coverage,
     diagnostics,
     nominate,
     recovery,
+)
+from experiments.ask_cli_revised.contract_directed import (
+    eligibility_routing as routing,
 )
 from experiments.ask_cli_revised.contract_directed import (
     model_stages as ms,
@@ -143,46 +147,140 @@ def localize_all(run: Run, child: ChildContract, neighborhoods: list[dict]) -> d
     return {"packets": packets, "records": records, "not_run": not_run}
 
 
-def eligibility_priority(packet: dict) -> tuple:
-    """Fixed order for spending the eligibility budget: found under more children, higher neighborhood score, then ids."""
-    return (-len(packet["found_under"]), -packet.get("nbhd_score", 0.0), packet["paper_id"], packet["packet_id"])
+def _child_resolved(child: ChildContract, records: list[dict]) -> bool:
+    rows = coverage.coverage_rows(child, records, search={})
+    return not coverage.unresolved_content_rows(rows)
 
 
-def judge_pairs(run: Run, children: list[ChildContract], packets: list[dict], *, spent_packets: set[str]) -> dict:
-    """Cross-child eligibility: every packet against every child (route irrelevant), within the unique-packet cap."""
+def _closing_packet_ids(records: list[dict]) -> list[str]:
+    return [
+        r["packet_id"]
+        for r in records
+        if r.get("state") == "usable" and any(u["status"] == closure.DIRECTLY for u in r.get("per_unit", {}).values())
+    ]
+
+
+def schedule_and_judge(
+    run: Run,
+    children: list[ChildContract],
+    packets: list[dict],
+    *,
+    ceiling: int,
+    records: dict[str, list[dict]] | None = None,
+    judged: dict[str, set[str]] | None = None,
+    prequeued: list[tuple[ChildContract, dict]] | None = None,
+) -> dict:
+    """Fair, call-metered eligibility scheduling (Cliff's #2, corrected v2): every child's own-route packets first,
+    round-robin, never one child's whole queue before another's; then cross-route packets for children with an
+    unresolved unit, round-robin, soft-ordered by lexical overlap only (never excluded on that basis); then, only
+    with budget left over, remaining SUBSTANTIVELY DISTINCT candidates for children that already reached minimum
+    evidence — deprioritized, never abandoned. `ceiling` is the number of `judge_packet` MODEL CALLS remaining, not
+    a packet count. `records`/`judged` may be passed in (and are extended, not replaced) to continue a prior pass
+    after recovery; `prequeued` (child, packet) pairs — e.g. a recovery-reconsidered deferred candidate — are judged
+    before Tier 1, so recovery's own budget accounting stays exact.
+    """
     merged = packet_mod.merge_duplicates(packets)
-    ordered = sorted((p for p in merged if p["packet_id"] not in spent_packets), key=eligibility_priority)
-    room = max(0, run.caps.eligibility_packets - len(spent_packets))
-    chosen, over = ordered[:room], ordered[room:]
-    records: dict[str, list[dict]] = {c.child_id: [] for c in children}
-    not_run: list[dict] = []
-    for packet in chosen:
-        spent_packets.add(packet["packet_id"])
+    by_id = {p["packet_id"]: p for p in merged}
+    records = records if records is not None else {c.child_id: [] for c in children}
+    judged = judged if judged is not None else {c.child_id: set() for c in children}
+    calls_spent = 0
+    ceiling_hit = False
+
+    def judge_one(child: ChildContract, packet: dict) -> bool:
+        nonlocal calls_spent, ceiling_hit
+        if ceiling_hit or calls_spent >= ceiling:
+            ceiling_hit = True
+            return False
+        try:
+            record = ms.judge_packet(run.env, child, packet)
+        except ms.BudgetExceeded:
+            ceiling_hit = True
+            return False
+        records[child.child_id].append(record)
+        judged[child.child_id].add(packet["packet_id"])
+        calls_spent += 1
+        run.append_jsonl("08_eligibility.jsonl", record)
+        return True
+
+    for child, packet in prequeued or []:
+        judge_one(child, packet)
+
+    def round_robin(queues: dict[str, list[dict]]) -> None:
+        while not ceiling_hit and any(queues.values()):
+            acted = False
+            for child in children:
+                q = queues[child.child_id]
+                if not q:
+                    continue
+                acted = True
+                if not judge_one(child, q.pop(0)):
+                    return
+            if not acted:
+                return
+
+    own_queues = {
+        c.child_id: [p for p in routing.own_route_packets(c, merged) if p["packet_id"] not in judged[c.child_id]]
+        for c in children
+    }
+    round_robin(own_queues)
+
+    cross_queues = {
+        c.child_id: [p for p in routing.cross_route_packets(c, merged) if p["packet_id"] not in judged[c.child_id]]
+        for c in children
+    }
+    while not ceiling_hit:
+        acted = False
         for child in children:
-            try:
-                record = ms.judge_packet(run.env, child, packet)
-            except ms.BudgetExceeded as exc:
-                not_run.append(
+            if _child_resolved(child, records[child.child_id]):
+                continue
+            q = cross_queues[child.child_id]
+            if not q:
+                continue
+            acted = True
+            if not judge_one(child, q.pop(0)):
+                break
+        if not acted:
+            break
+
+    disposition: list[dict] = []
+    for child in children:
+        remaining = [
+            p
+            for p in own_queues[child.child_id] + cross_queues[child.child_id]
+            if p["packet_id"] not in judged[child.child_id]
+        ]
+        if not remaining:
+            continue
+        if not _child_resolved(child, records[child.child_id]):
+            for packet in remaining:
+                disposition.append(
+                    {"packet_id": packet["packet_id"], "child_id": child.child_id, "state": "not_run_budget"}
+                )
+            continue
+        closing = [by_id[pid] for pid in _closing_packet_ids(records[child.child_id]) if pid in by_id]
+        for packet in remaining:
+            if not routing.is_distinct_from(packet, closing):
+                disposition.append(
+                    {
+                        "packet_id": packet["packet_id"],
+                        "child_id": child.child_id,
+                        "state": "deferred_after_minimum_evidence",
+                        "reason": "not_distinct_from_what_already_closed_the_unit",
+                    }
+                )
+                continue
+            if ceiling_hit or not judge_one(child, packet):
+                disposition.append(
                     {
                         "packet_id": packet["packet_id"],
                         "child_id": child.child_id,
                         "state": "not_run_budget",
-                        "outcome": str(exc),
+                        "reason": "budget_reached_after_minimum_evidence",
                     }
                 )
-                continue
-            records[child.child_id].append(record)
-            run.append_jsonl("08_eligibility.jsonl", record)
-    for packet in over:
-        row = {
-            "packet_id": packet["packet_id"],
-            "state": "not_checked_budget",
-            "reason": "unique-packet cap for eligibility reached",
-            "found_under": packet["found_under"],
-        }
-        not_run.append(row)
+    for row in disposition:
         run.append_jsonl("08_eligibility.jsonl", row)
-    return {"records": records, "not_run": not_run, "packets": {p["packet_id"]: p for p in merged}}
+    return {"records": records, "judged": judged, "not_run": disposition, "packets": by_id, "calls_spent": calls_spent}
 
 
 def search_summary(
@@ -195,7 +293,11 @@ def search_summary(
     *,
     recovery_run: bool,
 ) -> dict:
+    """Per-CHILD receipt: `not_run_budget`/`deferred_after_minimum_evidence` count only rows this specific child's
+    own scheduling actually produced (Cliff's correction — the old global-unjudged count reported identically for
+    every child is gone; each child's row here is its own)."""
     mech = sum(1 for r in loc_records if r.get("state") == "no_answer")
+    own_rows = [r for r in elig_not_run if r.get("child_id") == child_id]
     return {
         "papers_nominated": len(nom["nominations"]),
         "papers_capped_out_of_nomination": len(nom["capped_out"]),
@@ -204,8 +306,12 @@ def search_summary(
         "not_inspectable_no_chunks": len(plan["order"]["not_inspectable_no_chunks"]),
         "neighborhoods_read": len(plan["read"]),
         "none_established": sum(1 for r in loc_records if r.get("state") == "none_established"),
+        "usable_deterministic": sum(1 for r in loc_records if r.get("state") == "usable_deterministic"),
         "budget_capped": len(plan["budget_capped"]) if not recovery_run else 0,
-        "not_run_budget": len(loc_not_run) + sum(1 for r in elig_not_run if r.get("child_id") in (None, child_id)),
+        "not_run_budget": len(loc_not_run) + sum(1 for r in own_rows if r.get("state") == "not_run_budget"),
+        "deferred_after_minimum_evidence": sum(
+            1 for r in own_rows if r.get("state") == "deferred_after_minimum_evidence"
+        ),
         "no_answer_calls": mech,
         "recovery_run": recovery_run,
     }
@@ -229,11 +335,11 @@ def run_children(run: Run, child_ids: list[str]) -> dict:
             plans[child.child_id] = inspect_and_neighborhoods(run, child, noms[child.child_id], triage)
             loc_by_child[child.child_id] = localize_all(run, child, plans[child.child_id]["read"])
             all_packets += loc_by_child[child.child_id]["packets"]
-        spent: set[str] = set()
-        judged = judge_pairs(run, children, all_packets, spent_packets=spent)
-        packets_by_id = dict(judged["packets"])
-        elig = judged["records"]
-        elig_not_run = judged["not_run"]
+        result1 = schedule_and_judge(run, children, all_packets, ceiling=run.caps.eligibility_calls)
+        packets_by_id = dict(result1["packets"])
+        elig = result1["records"]
+        judged_ids = result1["judged"]
+        elig_not_run = result1["not_run"]
 
         rows_by_child: dict[str, list[dict]] = {}
         recovery_log: list[dict] = []
@@ -250,8 +356,10 @@ def run_children(run: Run, child_ids: list[str]) -> dict:
             rows_by_child[child.child_id] = coverage.coverage_rows(child, elig[child.child_id], search=summary)
         # S8: one bounded recovery pass per child with an unresolved unit
         recovered_packets: list[dict] = []
+        prequeued: list[tuple] = []
         for child in children:
             plan = plans[child.child_id]
+            own_deferred = [r for r in elig_not_run if r.get("child_id") == child.child_id]
             actions = recovery.plan_recovery(
                 child,
                 rows_by_child[child.child_id],
@@ -263,6 +371,10 @@ def run_children(run: Run, child_ids: list[str]) -> dict:
                 library=run.library,
                 retriever=run.retriever,
                 cap=run.caps.recovery_neighborhoods,
+                eligibility_records=elig[child.child_id],
+            )
+            reconsider = recovery.reconsider_deferred_candidates(
+                child, rows_by_child[child.child_id], own_deferred, packets_by_id, cap=run.caps.recovery_neighborhoods
             )
             for action in actions:
                 run.append_jsonl(
@@ -274,17 +386,27 @@ def run_children(run: Run, child_ids: list[str]) -> dict:
                         "attachment": action["nbhd"].get("attachment"),
                     },
                 )
-            recovery_log += actions
+            for action in reconsider:
+                run.append_jsonl("10_recovery.jsonl", action)
+                prequeued.append((child, packets_by_id[action["packet_id"]]))
+            recovery_log += actions + reconsider
             got = localize_all(run, child, [a["nbhd"] for a in actions])
             recovered_packets += got["packets"]
             loc_by_child[child.child_id]["records"] += got["records"]
             loc_by_child[child.child_id]["not_run"] += got["not_run"]
-        if recovered_packets:
-            second = judge_pairs(run, children, recovered_packets, spent_packets=spent)
-            packets_by_id.update(second["packets"])
-            for child in children:
-                elig[child.child_id] += second["records"][child.child_id]
-            elig_not_run += second["not_run"]
+        if recovered_packets or prequeued:
+            remaining_ceiling = max(0, run.caps.eligibility_calls - result1["calls_spent"])
+            result2 = schedule_and_judge(
+                run,
+                children,
+                recovered_packets,
+                ceiling=remaining_ceiling,
+                records=elig,
+                judged=judged_ids,
+                prequeued=prequeued,
+            )
+            packets_by_id.update(result2["packets"])
+            elig_not_run += result2["not_run"]
             for child in children:
                 summary = search_summary(
                     noms[child.child_id],
@@ -331,12 +453,10 @@ def run_children(run: Run, child_ids: list[str]) -> dict:
             given = coverage.child_evidence(child, packets_by_id, elig[child.child_id])
             record = ms.answer_child(run.env, child, given)
             (answers_dir / f"{child.child_id}_raw_answer.txt").write_text(record["raw_answer"], encoding="utf-8")
-            packet_texts = {
-                shown: " ".join(p["text"] for p in packets_by_id[pid]["parts"])
-                for shown, pid in record["id_map"].items()
-            }
+            packets_by_shown_id = {shown: packets_by_id[pid] for shown, pid in record["id_map"].items()}
             diag = diagnostics.answer_diagnostics(
-                record["raw_answer"], prompt=record["prompt"], id_map=record["id_map"], packet_texts=packet_texts,
+                record["raw_answer"], prompt=record["prompt"], id_map=record["id_map"],
+                letter_map=record["letter_map"], packets_by_shown_id=packets_by_shown_id,
                 parent_question=run.substrate.contract["original_question"],
                 other_wordings=[c.wording for c in run.substrate.children if c.child_id != child.child_id],
                 carried_scope=child.scope_carrier_wording,

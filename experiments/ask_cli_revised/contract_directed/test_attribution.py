@@ -151,5 +151,87 @@ class RealAbstractTests(unittest.TestCase):
         self.assertNotEqual(bg["state"], at.OWN_ESTABLISHED)
 
 
+# ---- Cliff's corrections, session 2026-09-27: clause-scoped attribution and METHODS_OWN --------------------------
+
+# The real c11 packet d37854a6ea62's p1 — the exact sentence whose whole-span "speculation" label was the bug.
+C11_HEDGE_SENTENCE = (
+    "However, evidence for the anomalous-is- bad stereotype comes from studies of European and North American "
+    "populations; the byproduct hypothesis would predict universality of the stereotype."
+)
+# The real c9 packet 2c0006d1edba's p2/p3 — "The X assessed Y" with no first-person cue.
+PAPER61_IRI = (
+    "The IRI assessed empathic concern (assessing feelings of sympathy and concern for others who are less "
+    "fortunate) and perspective-taking (assessing tendency to adopt the psychological point of view of others)."
+)
+PAPER61_JWBS = (
+    'The JWBS assessed "procedural" and "distributive" just world beliefs about others using a 1-7 Likert scale.'
+)
+# The real paper 67 localization neighborhood's s20 — the sentence Qwen failed to select in Gate 1 (F2).
+PAPER67_S20 = (
+    "Participants completed a Just World Beliefs Scale,31 which measures beliefs about interpersonal fairness "
+    "toward oneself and others; the Interpersonal Reactivity Index,32 which mea- sures cognitive (perspective "
+    "taking) and affective (empathic concern) empathy; and a subscale from the Three-Domain Disgust scale33 that "
+    "measures sensitivity to pathogen-related disgust."
+)
+
+
+class ClauseScopedAttributionTests(unittest.TestCase):
+    def test_the_hedge_in_one_clause_does_not_contaminate_a_different_factual_clause(self):
+        clauses = at.split_clauses(C11_HEDGE_SENTENCE)
+        self.assertEqual(len(clauses), 2)
+        for start, end, text in clauses:
+            self.assertEqual(C11_HEDGE_SENTENCE[start:end], text)  # exact offsets, never re-typed
+        result = at.derive_attribution([C11_HEDGE_SENTENCE])
+        states = [c["state"] for c in result["clauses"]]
+        self.assertEqual(states[1], at.SPECULATION)  # "the byproduct hypothesis would predict..."
+        self.assertNotEqual(states[0], at.SPECULATION)  # the factual framing clause is not itself speculative
+
+    def test_a_semicolon_inside_a_parenthetical_citation_is_not_a_clause_boundary(self):
+        # "(β = -1.002, SE = 0.464, z = -2.158, P = 0.031; see Table S6)" — the real reported-statistics shape.
+        text = "There was a significant interaction (β = -1.002, SE = 0.464, z = -2.158, P = 0.031; see Table S6)."
+        self.assertEqual(len(at.split_clauses(text)), 1)
+        self.assertEqual(at.derive_attribution([text])["state"], at.OWN_ESTABLISHED)
+
+    def test_a_methods_instrument_description_with_no_first_person_cue_is_methods_own_not_own_established(self):
+        """The closed-class pattern matches a FULL instrument name ("...Index", "...Scale", ...) as subject; the
+        real paper-61 wording (`PAPER61_IRI`/`PAPER61_JWBS`, a bare acronym as subject) is the documented gap
+        covered separately below — this test uses the full-name form the pattern is actually built for."""
+        for text in (
+            "The Interpersonal Reactivity Index assessed empathic concern and perspective-taking.",
+            'The Just World Beliefs Scale assessed "procedural" and "distributive" just world beliefs about others.',
+        ):
+            result = at.derive_attribution([text], section="methods")
+            self.assertEqual(result["state"], at.METHODS_OWN, text)
+            self.assertIn("methods_instrument_description", result["bases"])
+
+    def test_a_prior_cue_blocks_methods_own(self):
+        text = "As in prior work, the Interpersonal Reactivity Index assessed empathic concern and perspective-taking."
+        result = at.derive_attribution([text], section="methods")
+        self.assertNotEqual(result["state"], at.METHODS_OWN)
+
+    def test_methods_own_requires_the_methods_section(self):
+        text = "The Interpersonal Reactivity Index assessed empathic concern and perspective-taking."
+        result = at.derive_attribution([text], section="results")
+        self.assertNotEqual(result["state"], at.METHODS_OWN)
+
+    def test_the_real_paper_67_sentence_gets_own_or_methods_own_for_every_clause(self):
+        """The exact sentence Gate 1's c9 lost to a wrong model pick (F2) — proving attribution was never the
+        problem for this sentence; only localization SELECTING it was (see test_deterministic_candidates.py)."""
+        result = at.derive_attribution([PAPER67_S20], section="methods")
+        self.assertEqual(len(result["clauses"]), 3)
+        for clause in result["clauses"]:
+            self.assertIn(clause["state"], (at.OWN_ESTABLISHED, at.METHODS_OWN), clause["text"])
+
+    def test_a_bare_acronym_subject_is_not_recognized_documented_gap(self):
+        """`INSTRUMENT_DESCRIBES` only matches a full instrument-shaped name ("...Scale", "...Index", ...), not a
+        bare acronym used anaphorically ("The IRI assessed X") once the full name has already been given elsewhere
+        in the same packet. Extending it to bare acronyms was considered and declined in this iteration: it would
+        need either a speculative acronym heuristic or access to the packet's own verified links, which this
+        module's pure-text scope does not have — recorded as an open point, not silently papered over."""
+        for text in (PAPER61_IRI, PAPER61_JWBS):  # the real paper-61 wording, verbatim
+            result = at.derive_attribution([text], section="methods")
+            self.assertNotEqual(result["state"], at.METHODS_OWN, text)
+
+
 if __name__ == "__main__":
     unittest.main()

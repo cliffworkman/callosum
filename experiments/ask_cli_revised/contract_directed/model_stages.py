@@ -23,6 +23,7 @@ from experiments.ask_cli_revised.contract_directed import (
     abstracts,
     answer,
     closure,
+    deterministic_candidates,
     prompts,
     schemas,
 )
@@ -240,6 +241,20 @@ def triage_paper(env: Env, child: ChildContract, paper: dict) -> dict:
 # ---- S4 localization ------------------------------------------------------------------------------------------------------
 
 
+def _build_and_split(nbhd: dict, unit_list, by_id, propositions: list[dict], *, library, child_id: str):
+    packets, unresolved = [], []
+    for proposition in propositions:
+        built = packet_mod.build_packet(nbhd, unit_list, by_id, proposition, library=library, child_id=child_id)
+        if built["state"] == "built":
+            built["nbhd_score"] = nbhd.get(
+                "best_score", 0.0
+            )  # provenance for the deterministic eligibility priority rule
+            built["anchor_routes"] = list(nbhd.get("routes", []))
+            built["from_recovery"] = bool(nbhd.get("recovery"))
+        (packets if built["state"] == "built" else unresolved).append(built)
+    return packets, unresolved
+
+
 def localize_neighborhood(env: Env, child: ChildContract, nbhd: dict, library) -> dict:
     paper = library.paper(nbhd["paper_id"]) or {}
     unit_list, by_id = packet_mod.neighborhood_units(nbhd, library)
@@ -259,31 +274,49 @@ def localize_neighborhood(env: Env, child: ChildContract, nbhd: dict, library) -
             "packets": [],
             "reason": "no_units",
         }
+    deterministic = deterministic_candidates.find_instrument_pairing_candidates(unit_list, child)
+    if deterministic and deterministic_candidates.only_instrument_manner_targeted(nbhd, child):
+        # A clean, closed-class match, and nothing else about this neighborhood needed a model's attention: skip
+        # the localization call. Eligibility (relata, on_topic, pairing) is entirely unaffected and still runs.
+        packets, unresolved = _build_and_split(
+            nbhd, unit_list, by_id, deterministic, library=library, child_id=child.child_id
+        )
+        env.ledger.record_semantic(LOCALIZE, "usable_deterministic")
+        return {
+            **base,
+            "state": "usable_deterministic",
+            "propositions": deterministic,
+            "invalid": [],
+            "packets": packets,
+            "unresolved_preserved": unresolved,
+            "call": None,
+        }
     prompt = prompts.render_localization(child, paper.get("title") or "", unit_list, by_id)
     result = call_json(
         env, LOCALIZE, prompt, schemas.localization_schema(unit_ids), input_text=f"nbhd {nbhd['nbhd_id']}"
     )
     if result.answer is None:
-        return {**base, **_no_answer(result.record), "packets": []}
+        # A deterministic candidate found in a mixed-kind neighborhood is never discarded just because the model
+        # call itself failed mechanically — it is still built and returned alongside the NO ANSWER record.
+        packets, unresolved = _build_and_split(
+            nbhd, unit_list, by_id, deterministic, library=library, child_id=child.child_id
+        )
+        return {**base, **_no_answer(result.record), "packets": packets, "unresolved_preserved": unresolved}
     checked = schemas.validate_localization(result.answer, unit_ids)
-    packets, unresolved = [], []
-    for proposition in checked["propositions"]:
-        built = packet_mod.build_packet(nbhd, unit_list, by_id, proposition, library=library, child_id=child.child_id)
-        if built["state"] == "built":
-            built["nbhd_score"] = nbhd.get(
-                "best_score", 0.0
-            )  # provenance for the deterministic eligibility priority rule
-            built["anchor_routes"] = list(nbhd.get("routes", []))
-            built["from_recovery"] = bool(nbhd.get("recovery"))
-        (packets if built["state"] == "built" else unresolved).append(built)
+    all_propositions = checked["propositions"] + deterministic
+    packets, unresolved = _build_and_split(
+        nbhd, unit_list, by_id, all_propositions, library=library, child_id=child.child_id
+    )
     state = checked["state"]
-    if state == "usable" and not packets:
+    if packets:
+        state = "usable"
+    elif state == "usable":
         state = "unresolved_preserved"
     env.ledger.record_semantic(LOCALIZE, state)
     return {
         **base,
         "state": state,
-        "propositions": checked["propositions"],
+        "propositions": all_propositions,
         "invalid": checked["invalid"],
         "packets": packets,
         "unresolved_preserved": unresolved,
@@ -306,13 +339,29 @@ def judge_packet(env: Env, child: ChildContract, packet: dict) -> dict:
     )
     if result.answer is None:
         return {**base, **_no_answer(result.record)}
-    per_unit = {}
     pair = bool(child.pair_requirement_ids)
+    # Pass 1: every content unit's base status, independently (never combining spans across units).
+    base_results: dict[str, dict] = {}
     for unit in child.content_units:
         reported = result.answer["units"][unit.unit_id]
-        derived = closure.derive_status(unit.kind, reported["slots"], packet, pair_required=pair)
+        base_results[unit.unit_id] = closure.derive_status(unit.kind, reported["slots"], packet, pair_required=pair)
+    # Pass 2: for a #pair child's two paired units, a `pairing_expressed` the model left empty may still be derived —
+    # never invented — from one connecting proposition (see closure.derive_pairing_bonus's exact requirements).
+    partners = closure.pair_partners(child) if pair else {}
+    for unit_id, partner_id in partners.items():
+        result_unit = base_results[unit_id]
+        if closure.PAIRING_SLOT not in result_unit["missing"]:
+            continue
+        bonus = closure.derive_pairing_bonus(
+            child.unit(unit_id).kind, result_unit, child.unit(partner_id).kind, base_results[partner_id], packet
+        )
+        if bonus:
+            base_results[unit_id] = closure.apply_pairing_bonus(result_unit, bonus)
+    per_unit = {}
+    for unit in child.content_units:
+        reported = result.answer["units"][unit.unit_id]
         per_unit[unit.unit_id] = {
-            **derived,
+            **base_results[unit.unit_id],
             "unit_kind": unit.kind,
             "reason": (reported.get("reason") or "").strip(),
             "slots_reported": reported["slots"],
@@ -328,7 +377,7 @@ def answer_child(env: Env, child: ChildContract, packets: list[dict]) -> dict:
     kept, omitted = answer.select_within_context(
         child.contract_text, packets, num_ctx=env.options["num_ctx"], allowance=env.options["num_predict"]
     )
-    prompt, id_map = answer.render_packet_prompt(child.contract_text, kept)
+    prompt, id_map, letter_map = answer.render_packet_prompt(child.contract_text, kept)
     env.ledger.before(ANSWER)
     call = env.client.chat_free(
         env.model, prompt, options=env.options, think=False, keep_alive=env.keep_alive, wall_timeout=env.wall_timeout
@@ -357,7 +406,7 @@ def answer_child(env: Env, child: ChildContract, packets: list[dict]) -> dict:
         )  # fmt: skip
     return {
         "child_id": child.child_id, "contract_sha256": child.contract_sha256, "prompt": prompt, "prompt_sha256": record["prompt_sha256"],
-        "id_map": id_map, "packet_ids_given": [p["packet_id"] for p in kept], "omitted_for_context": omitted,
+        "id_map": id_map, "letter_map": letter_map, "packet_ids_given": [p["packet_id"] for p in kept], "omitted_for_context": omitted,
         "no_eligible_evidence": not kept, "raw_answer": call.get("content") or "", "call": record,
         "answer_state": outcome,
     }  # fmt: skip

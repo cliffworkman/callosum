@@ -14,7 +14,7 @@ recorded is edited (append-only). The pass is capped at `cap` neighborhoods in t
 from __future__ import annotations
 
 from experiments.ask_cli_revised.contract_directed import anchors as anchors_mod
-from experiments.ask_cli_revised.contract_directed import coverage, neighborhood, sections
+from experiments.ask_cli_revised.contract_directed import closure, coverage, neighborhood, sections
 from experiments.ask_cli_revised.contract_directed.freeze import ChildContract
 
 RECOVERY_CAP = 6
@@ -68,7 +68,13 @@ def plan_recovery(
     library,
     retriever,
     cap: int = RECOVERY_CAP,
+    eligibility_records: list[dict] | None = None,
 ) -> list[dict]:
+    """`eligibility_records`: this child's own `judge_packet` records (from `pipeline.schedule_and_judge`), used only
+    to find packets that are `not_addressed` SOLELY because `on_topic` was missing — a specifically-named
+    deficiency, distinct from a generic partial slot. An abstract-level decline is never treated as proof no
+    connection exists elsewhere in the paper (Cliff's correction, session 2026-09-27): this widens toward more of
+    the same paper, it never concludes the paper lacks the connection."""
     unresolved = coverage.unresolved_content_rows(rows)
     if not unresolved:
         return []
@@ -137,6 +143,30 @@ def plan_recovery(
                     nb,
                 )
 
+    # 2b. on_topic-uncertain: a packet that is `not_addressed` SOLELY because `on_topic` was missing — never treated
+    # as proof the paper lacks the connection; widen toward more of the same paper (the same mechanism as 2, tagged
+    # with its own trigger so the receipt names the real deficiency rather than a generic "partial slot").
+    for row in unresolved:
+        for record in eligibility_records or []:
+            entry = record.get("per_unit", {}).get(row["unit_id"])
+            if not entry or entry["status"] != closure.NOT_ADDRESSED or entry["missing"] != [closure.TOPIC_SLOT]:
+                continue
+            packet = packets_by_id.get(record["packet_id"])
+            origin = by_nbhd.get(packet["nbhd_id"]) if packet else None
+            if origin is None or not origin["anchor_chunk_ids"]:
+                continue
+            nb = _nbhd_at(
+                library, origin["attachment"], origin["anchor_chunk_ids"][0],
+                routes=["recovery:on_topic_uncertain"], wide=True, unit_scores=origin.get("unit_scores"),
+            )  # fmt: skip
+            if nb is not None and len(nb["chunk_ids"]) > len(origin["chunk_ids"]):
+                add(
+                    row, "on_topic_uncertain", "widen_neighborhood",
+                    {"nbhd_id": origin["nbhd_id"], "packet_id": record["packet_id"], "paper_id": origin["paper_id"],
+                     "why": "on_topic was not shown; widening toward more of the same paper, not a negative finding"},
+                    nb,
+                )  # fmt: skip
+
     # 3. another section family of an inspected paper, and 4. another attachment of an inspected paper
     for row in unresolved:
         unit = child.unit(row["unit_id"])
@@ -180,4 +210,34 @@ def plan_recovery(
                 {"paper_id": paper_id, "why": "nominated but not inspected in the first pass"},
                 best,
             )
+    return actions
+
+
+def reconsider_deferred_candidates(
+    child: ChildContract, rows: list[dict], deferred_rows: list[dict], packets_by_id: dict[str, dict], *, cap: int
+) -> list[dict]:
+    """Recovery's route back in for a cross-child candidate that a bounded budget deferred — never rejected —
+    when this child's obligation remains open (Cliff's correction, session 2026-09-27: no hard exclusion exists, so
+    a deferred candidate must stay revisitable). `deferred_rows`: THIS child's own `not_run_budget`/
+    `deferred_after_minimum_evidence` disposition rows from `pipeline.schedule_and_judge` — never the global list.
+    """
+    unresolved = coverage.unresolved_content_rows(rows)
+    if not unresolved or not deferred_rows:
+        return []
+    actions: list[dict] = []
+    for row in deferred_rows[:cap]:
+        pid = row.get("packet_id")
+        if pid not in packets_by_id:
+            continue
+        actions.append(
+            {
+                "recovery_id": f"{child.child_id}:rc{len(actions) + 1}",
+                "child_id": child.child_id,
+                "unit_id": unresolved[0]["unit_id"],
+                "trigger_reason": "cross_child_deferred",
+                "action": "reconsider_deferred_cross_child_candidate",
+                "recovers": {"packet_id": pid, "original_state": row.get("state")},
+                "packet_id": pid,
+            }
+        )
     return actions

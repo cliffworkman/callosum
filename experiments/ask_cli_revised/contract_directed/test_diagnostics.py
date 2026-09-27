@@ -9,15 +9,23 @@ U6_TEXT = (
 )
 
 
+def _pk(text: str, pid: str) -> dict:
+    """A minimal single-part packet, matching the real shape `answer_diagnostics` now reads (a real packet, not
+    pre-flattened text) — a single part is never lettered, so `letter_map[shown] == {}`."""
+    return {"packet_id": pid, "parts": [{"span_id": "p1", "role": "establishing", "text": text}], "attribution": {}}
+
+
 class AnswerDiagnosticTests(unittest.TestCase):
     def run_diag(self, raw, packets, other=("how does the anomalous is bad bias manifest in brain",)):
         texts = dict(packets)
+        packets_by_shown_id = {k: _pk(text, f"pkt-{k}") for k, text in texts.items()}
         prompt = "prompt text with " + " ".join(texts.values())
         return dg.answer_diagnostics(
             raw,
             prompt=prompt,
             id_map={k: f"pkt-{k}" for k in texts},
-            packet_texts=texts,
+            letter_map={k: {} for k in texts},
+            packets_by_shown_id=packets_by_shown_id,
             parent_question="the full parent question",
             other_wordings=list(other),
         )
@@ -55,10 +63,10 @@ class AnswerDiagnosticTests(unittest.TestCase):
         self.assertTrue(self.run_diag("The passages do not establish this.", {"P1": "x"})["answer_cites_nothing"])
 
     def test_prompt_leakage_checks(self):
-        texts = {"P1": "x"}
         leaky = dg.answer_diagnostics(
             "a", prompt="prompt with the full parent question and how does the anomalous is bad bias manifest in brain",
-            id_map={"P1": "k"}, packet_texts=texts, parent_question="the full parent question",
+            id_map={"P1": "k"}, letter_map={"P1": {}}, packets_by_shown_id={"P1": _pk("x", "k")},
+            parent_question="the full parent question",
             other_wordings=["how does the anomalous is bad bias manifest in brain"],
         )  # fmt: skip
         self.assertTrue(leaky["prompt_leakage"]["contains_parent_question"])

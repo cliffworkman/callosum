@@ -179,17 +179,29 @@ class ModelStageTests(unittest.TestCase):
     # ---- eligibility: model reports slots, code derives the status --------------------------------------------------------
 
     def packet(self, attribution="own_established"):
+        text = "The amygdala response correlated with less prosociality."
+        empty_cues = {"own": [], "own_interpretation": [], "prior": [], "hedge": []}
+        clause = {
+            "start": 0,
+            "end": len(text),
+            "text": text,
+            "state": attribution,
+            "bases": [],
+            "cues": empty_cues,
+            "has_result_predicate": True,
+        }
         return {
             "packet_id": "k1", "paper_id": 67, "found_under": ["c4"],
-            "parts": [{"span_id": "p1", "role": "establishing", "unit_index": 3, "open_left": False, "open_right": False, "text": "The amygdala response correlated with less prosociality.", "section": "results", "page_start": 7, "join": "none", "note": None}],
+            "parts": [{"span_id": "p1", "role": "establishing", "unit_index": 3, "open_left": False, "open_right": False, "text": text, "section": "results", "page_start": 7, "join": "none", "note": None}],
             "part_attribution": {"p1": attribution},
+            "attribution": {"p1": {"state": attribution, "bases": [], "cues": empty_cues, "flags": [], "model_class": None, "clauses": [clause]}},
         }  # fmt: skip
 
     def slots(self, **over):
         base = {
             "relatum_a": {"span_ids": ["p1"]}, "relatum_b": {"span_ids": ["p1"]}, "relation_stated": {"span_ids": ["p1"]},
             "polarity": {"span_ids": ["p1"], "value": "association"}, "direction": {"span_ids": ["p1"]},
-            "population": {"span_ids": []}, "qualifiers": {"span_ids": []},
+            "population": {"span_ids": []}, "qualifiers": {"span_ids": []}, "on_topic": {"span_ids": ["p1"]},
         }  # fmt: skip
         return base | over
 
@@ -199,7 +211,8 @@ class ModelStageTests(unittest.TestCase):
                 "M5": {"slots": slots, "reason": "states it"},
                 "M6": {
                     "slots": {
-                        k: {"span_ids": []} for k in ("kind_named", "tied_to_relation", "population", "qualifiers")
+                        k: {"span_ids": []}
+                        for k in ("kind_named", "tied_to_relation", "population", "qualifiers", "on_topic")
                     },
                     "reason": "no kinds",
                 },

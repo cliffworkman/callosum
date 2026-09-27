@@ -13,9 +13,13 @@ import hashlib
 
 from app.backend.pdf_processing.extraction import canonical_text_contains
 from experiments.ask_cli_revised.contract_directed import abstracts, attribution, links, sections, units
+from experiments.ask_cli_revised.contract_directed import anchors as anchors_mod
 from experiments.ask_cli_revised.contract_directed.store import Library
 
 ROLES = ("establishing", "qualifying", "referent")
+# Roles excluded from a packet's identity and evidence-form: a linked definition and an attached study-context span
+# are auditable context, never part of the finding itself.
+CONTEXT_ROLES = ("linked_definition", "study_context")
 
 
 def neighborhood_units(nbhd: dict, library: Library) -> tuple[list[units.SentenceUnit], dict[int, dict]]:
@@ -77,7 +81,7 @@ def _part(span_id: str, role: str, unit_index: int, unit: units.SentenceUnit, by
 
 
 def evidence_form(parts: list[dict]) -> str:
-    core = [p for p in parts if p["role"] != "linked_definition"]
+    core = [p for p in parts if p["role"] not in CONTEXT_ROLES]
     if any(p["open_left"] or p["open_right"] for p in core):
         return "fragments_unresolved_seam"
     if any(p["join"] == "verified_seam" for p in core):
@@ -90,13 +94,14 @@ def packet_id_for(attachment_checksum: str | None, parts: list[dict]) -> str:
     keys = sorted(
         f"{pc['chunk_id']}:{pc['start']}:{pc['end']}"
         for p in parts
-        if p["role"] != "linked_definition"
+        if p["role"] not in CONTEXT_ROLES
         for pc in p["pieces"]
     )
     return hashlib.sha256(f"{attachment_checksum}|{'|'.join(keys)}".encode()).hexdigest()[:12]
 
 
 _PIECE_CACHE: dict[tuple[int, int], list[dict]] = {}
+_ABSTRACT_CONTEXT_CACHE: dict[tuple[int, int], dict | None] = {}
 
 
 def attachment_piece_index(library: Library, attachment_id: int) -> list[dict]:
@@ -104,6 +109,38 @@ def attachment_piece_index(library: Library, attachment_id: int) -> list[dict]:
     if key not in _PIECE_CACHE:
         _PIECE_CACHE[key] = links.attachment_pieces(library.attachment_chunks(attachment_id))
     return _PIECE_CACHE[key]
+
+
+def study_context_piece(library: Library, paper_id: int, attachment_id: int) -> dict | None:
+    """The paper's own abstract-page chunk, verbatim, as an auditable `study_context` piece — or None if this
+    attachment has no locatable abstract page. Cached per (library, attachment), like `attachment_piece_index`.
+
+    This is the ONLY source of `study_context`: a real, checkable, verbatim span from the same source, never an
+    assumption from the paper's title or general topic (Cliff's correction, session 2026-09-27).
+    """
+    key = (id(library), attachment_id)
+    if key not in _ABSTRACT_CONTEXT_CACHE:
+        chunks = library.attachment_chunks(attachment_id)
+        paper = library.paper(paper_id) or {}
+        clean = abstracts.clean_abstract(paper.get("abstract"))
+        found = anchors_mod.abstract_page_chunk(clean, chunks) if clean else None
+        if found is None:
+            _ABSTRACT_CONTEXT_CACHE[key] = None
+        else:
+            chunk = next((c for c in chunks if c["chunk_id"] == found["chunk_id"]), None)
+            _ABSTRACT_CONTEXT_CACHE[key] = (
+                None
+                if chunk is None
+                else {
+                    "chunk_id": chunk["chunk_id"],
+                    "start": 0,
+                    "end": len(chunk["text"]),
+                    "text": chunk["text"],
+                    "page_start": chunk.get("page_start"),
+                    "page_end": chunk.get("page_end"),
+                }
+            )
+    return _ABSTRACT_CONTEXT_CACHE[key]
 
 
 def build_packet(
@@ -208,6 +245,38 @@ def build_packet(
                 "page_end": chunk.get("page_end"),
                 "note": f'linked by {record["basis"]["type"].replace("_", " ")} "{record["basis"]["designator"]}"',
                 "linked_from": record["link_id"],
+            }
+        )
+
+    context = study_context_piece(library, nbhd["paper_id"], nbhd["attachment_id"])
+    if context is not None and context["chunk_id"] not in set(nbhd["chunk_ids"]):
+        n = len(parts) + 1
+        parts.append(
+            {
+                "span_id": f"p{n}",
+                "role": "study_context",
+                "unit_index": None,
+                "unit_id": None,
+                "text": context["text"],
+                "pieces": [
+                    {
+                        "chunk_id": context["chunk_id"],
+                        "start": context["start"],
+                        "end": context["end"],
+                        "text": context["text"],
+                        "verbatim_ok": True,
+                    }
+                ],
+                "join": "none",
+                "open_left": False,
+                "open_right": False,
+                "seam": None,
+                "section": "abstract",
+                "section_state": "labeled",
+                "page_start": context.get("page_start"),
+                "page_end": context.get("page_end"),
+                "note": "the paper's own abstract, shown as study context for on_topic only — never a finding",
+                "linked_from": None,
             }
         )
 

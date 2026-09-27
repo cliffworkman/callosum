@@ -109,7 +109,7 @@ Source spans (id, role, section and page):
 The question asks for the following items. For each item, fill each slot with the ids of the spans that THEMSELVES supply it; use an empty list when no span does:
 {items}
 
-Rules: a slot is filled only if a listed span itself states it. Spans that merely mention related topics do not establish a relationship. A hypothesis, proposal or another study's result is not this paper's finding. A span marked "linked definition" defines a measure or term used by the other spans and may supply only descriptive slots, never the finding itself. Do not combine spans that are not connected by what they say. For the polarity slot give the value association, none (the source reports no association), mixed, or not_stated (the source does not say whether they are related). Also give one short reason per item."""
+Rules: a slot is filled only if a listed span itself states it. Spans that merely mention related topics do not establish a relationship. A hypothesis, proposal or another study's result is not this paper's finding. A span marked "linked definition" defines a measure or term used by the other spans and may supply only descriptive slots, never the finding itself. A span marked "study context" is the paper's own abstract, shown only to help you judge the on_topic item; it may fill on_topic when it shows the finding belongs to this study and this question, but it never fills any other item. Do not combine spans that are not connected by what they say. For the polarity slot give the value association, none (the source reports no association), mixed, or not_stated (the source does not say whether they are related). Also give one short reason per item."""
 
 
 def span_lines(packet: dict) -> str:

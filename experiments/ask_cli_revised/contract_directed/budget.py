@@ -28,15 +28,19 @@ class Caps:
     bridge_neighborhoods: int = 3  # B: only if the conditional bridge triggers
     propositions_per_neighborhood: int = 3
     neighborhood_chars: int = 9000
-    eligibility_packets: int = 40  # P_max unique packets checked against every child in the run
+    # A direct count of `judge_packet` MODEL CALLS (not packets — Cliff's correction, session 2026-09-27: the old
+    # `eligibility_packets` name only ever meant "packets x all children" under the pre-D2 uniform-checking scheme,
+    # which the fair, tiered scheduler in `eligibility_routing.py`/`pipeline.schedule_and_judge` no longer does).
+    # Same numeric totals as before (40x5=200 pilot, 60x11=660 full) — this renames the unit, it does not raise it.
+    eligibility_calls: int = 200
 
     def as_dict(self) -> dict:
         return asdict(self)
 
 
 PILOT_CHILDREN = ("c5", "c6", "c9", "c10", "c11")
-PILOT_CAPS = Caps(eligibility_packets=40)
-FULL_CAPS = Caps(eligibility_packets=60)
+PILOT_CAPS = Caps(eligibility_calls=200)
+FULL_CAPS = Caps(eligibility_calls=660)
 PILOT_CEILINGS = {"max_calls": 500, "wall_seconds": 120 * 60}
 FULL_CEILINGS = {"max_calls": 1300, "wall_seconds": 300 * 60}
 
@@ -47,7 +51,7 @@ def worst_case(children: int, caps: Caps, *, include_conditional: bool = True) -
     localization = children * (
         caps.neighborhoods + caps.recovery_neighborhoods + (caps.bridge_neighborhoods if include_conditional else 0)
     )
-    eligibility = caps.eligibility_packets * children
+    eligibility = caps.eligibility_calls
     answers = children
     total = triage + localization + eligibility + answers
     return {
@@ -62,7 +66,7 @@ def worst_case(children: int, caps: Caps, *, include_conditional: bool = True) -
         )
         * caps.neighborhood_chars,
         "packets_possible_before_cap": localization * caps.propositions_per_neighborhood,
-        "note": "packets beyond eligibility_packets are recorded not_checked_budget in a fixed priority order, never dropped silently",
+        "note": "eligibility calls beyond eligibility_calls are recorded not_run_budget per child, never dropped silently",
     }
 
 

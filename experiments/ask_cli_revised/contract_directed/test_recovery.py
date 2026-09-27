@@ -261,5 +261,86 @@ class RecoveryTests(unittest.TestCase):
             self.assertTrue(action["nbhd"].get("recovery"))
 
 
+# ---- Cliff's correction, session 2026-09-27: an abstract-level decline is never a definitive negative ------------
+
+
+def eligibility_record(packet_id, unit_id, *, missing):
+    status = coverage.closure.NOT_ADDRESSED if missing else coverage.closure.DIRECTLY
+    return {"packet_id": packet_id, "state": "usable", "per_unit": {unit_id: {"status": status, "missing": missing}}}
+
+
+class OnTopicUncertainRecoveryTests(unittest.TestCase):
+    def setUp(self):
+        self.lib = FakeLibrary()
+        self.retr = FakeRetriever({c["chunk_id"]: c["text"] for chunks in self.lib.att.values() for c in chunks})
+        self.child = child()
+
+    def test_a_packet_not_addressed_solely_for_on_topic_is_widened_not_declared_a_negative(self):
+        read = [nbhd("a", 1, 10, [1], 1, ("results",))]
+        packets = {"pkt1": {"packet_id": "pkt1", "nbhd_id": "a", "paper_id": 1}}
+        records = [eligibility_record("pkt1", "M10", missing=[coverage.closure.TOPIC_SLOT])]
+        actions = recovery.plan_recovery(
+            self.child,
+            [row("M10", coverage.UNRESOLVED_SEARCHED), row("W21", coverage.ATTACHED)],
+            read=read, capped=[], inspected=[1], deferred=[], packets_by_id=packets,
+            library=self.lib, retriever=self.retr, cap=6, eligibility_records=records,
+        )  # fmt: skip
+        [on_topic_action] = [a for a in actions if a["trigger_reason"] == "on_topic_uncertain"]
+        self.assertEqual(on_topic_action["action"], "widen_neighborhood")
+        self.assertIn("not a negative finding", on_topic_action["recovers"]["why"])
+
+    def test_a_packet_missing_something_other_than_on_topic_does_not_trigger_this_specific_action(self):
+        read = [nbhd("a", 1, 10, [1], 1, ("results",))]
+        packets = {"pkt1": {"packet_id": "pkt1", "nbhd_id": "a", "paper_id": 1}}
+        records = [eligibility_record("pkt1", "M10", missing=["instrument_named"])]
+        actions = recovery.plan_recovery(
+            self.child,
+            [row("M10", coverage.UNRESOLVED_SEARCHED), row("W21", coverage.ATTACHED)],
+            read=read, capped=[], inspected=[1], deferred=[], packets_by_id=packets,
+            library=self.lib, retriever=self.retr, cap=6, eligibility_records=records,
+        )  # fmt: skip
+        self.assertFalse([a for a in actions if a["trigger_reason"] == "on_topic_uncertain"])
+
+
+class ReconsiderDeferredCandidateTests(unittest.TestCase):
+    def setUp(self):
+        self.child = child()
+
+    def test_a_deferred_candidate_is_offered_back_for_a_child_with_an_open_obligation(self):
+        deferred_rows = [
+            {"packet_id": "pkt1", "state": "not_run_budget"},
+            {"packet_id": "pkt2", "state": "deferred_after_minimum_evidence"},
+        ]
+        packets_by_id = {"pkt1": {}, "pkt2": {}}
+        rows = [row("M10", coverage.UNRESOLVED_SEARCHED), row("W21", coverage.ATTACHED)]
+        actions = recovery.reconsider_deferred_candidates(self.child, rows, deferred_rows, packets_by_id, cap=6)
+        self.assertEqual({a["packet_id"] for a in actions}, {"pkt1", "pkt2"})
+        for a in actions:
+            self.assertEqual(a["action"], "reconsider_deferred_cross_child_candidate")
+            self.assertEqual(a["trigger_reason"], "cross_child_deferred")
+            self.assertTrue(a["recovers"]["original_state"])
+
+    def test_nothing_is_offered_when_every_obligation_is_already_attached(self):
+        rows = [row("M10", coverage.ATTACHED), row("W21", coverage.ATTACHED)]
+        actions = recovery.reconsider_deferred_candidates(
+            self.child, rows, [{"packet_id": "pkt1", "state": "not_run_budget"}], {"pkt1": {}}, cap=6
+        )
+        self.assertEqual(actions, [])
+
+    def test_a_deferred_row_pointing_at_an_unknown_packet_is_skipped_not_invented(self):
+        rows = [row("M10", coverage.UNRESOLVED_SEARCHED)]
+        actions = recovery.reconsider_deferred_candidates(
+            self.child, rows, [{"packet_id": "ghost", "state": "not_run_budget"}], {}, cap=6
+        )
+        self.assertEqual(actions, [])
+
+    def test_bounded_by_the_cap(self):
+        rows = [row("M10", coverage.UNRESOLVED_SEARCHED)]
+        deferred_rows = [{"packet_id": f"pkt{i}", "state": "not_run_budget"} for i in range(10)]
+        packets_by_id = {f"pkt{i}": {} for i in range(10)}
+        actions = recovery.reconsider_deferred_candidates(self.child, rows, deferred_rows, packets_by_id, cap=3)
+        self.assertEqual(len(actions), 3)
+
+
 if __name__ == "__main__":
     unittest.main()

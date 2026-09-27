@@ -1,11 +1,31 @@
 """Closure rules: when may ONE source-grounded finding close a frozen obligation unit?
 
 The eligibility model reports which exact spans fill which slot; this module DERIVES the status. A unit closes
-(`directly_establishes`) only if every required slot has valid span ids inside one finding bundle (a core proposition plus its
-verified links), the core spans carry `own_established` attribution, no needed span is an unresolved-seam fragment, and the
-relata of a relationship are tied to its relation stated in the same unit or a declared adjacent referent. Otherwise it is
-`partially_establishes` (missing slots listed) or `not_addressed`. Two findings are NEVER summed; a linked span (Methods
-definition of a measure) may supply only descriptive slots, never the finding-bearing ones. Pure.
+(`directly_establishes`) only if every required slot has a valid, ACCEPTED span inside one finding bundle (a core
+proposition plus its verified links/context), no needed span is an unresolved-seam fragment, and the relata of a
+relationship are tied to its relation stated in the same unit or a declared adjacent referent. Otherwise it is
+`partially_establishes` (missing slots listed) or `not_addressed`. Two findings are NEVER summed; a linked span
+(Methods definition of a measure) may supply only descriptive slots, never the finding itself.
+
+**Clause-scoped acceptance (Cliff's correction, session 2026-09-27):** a listed span id is accepted for a slot only
+via one of its OWN clauses (`attribution.derive_attribution`'s per-clause records — never the span's aggregate
+`state`, which can blur a factual clause and a speculative one together). A descriptive slot (naming something)
+accepts any clause that is `own_established`, or `methods_own` where `(kind, slot)` is in `METHODS_ELIGIBLE`. A
+RELATION-BEARING slot (`relation_stated`/`polarity` for `relationship`, `outcome_reported`/`finding_of_type` for
+`existence`) additionally requires that SAME clause to state a result/relation itself — a clean clause that never
+asserts a result cannot validate a relationship stated only in a different, speculative clause of the same span.
+Every acceptance decision records exactly which clause (offsets + text) did the work; every exclusion records why.
+
+**`on_topic` (Cliff's correction, session 2026-09-26/27):** a universal, required slot, gated separately from
+attribution — its job is topical relevance, not epistemic status, so any valid span (a core proposition part or an
+attached `study_context` part; never a `linked_definition`) satisfies it once the model affirmatively lists it.
+Missing `on_topic` caps a unit at `not_addressed` regardless of what else is filled.
+
+**Cross-unit `pairing_expressed` (Cliff's correction, session 2026-09-27):** for a `#pair` child's two paired
+units, `pairing_expressed` may be derived — in addition to whatever the model itself reports — only when ONE
+proposition genuinely connects both paired things: the SAME clause is the accepted evidence for both units' primary
+slots, or an existing VERIFIED link (`links.py`) connects the two accepted spans. A shared span id alone, filled via
+two different clauses, is never sufficient.
 """
 
 from __future__ import annotations
@@ -18,7 +38,11 @@ NOT_ADDRESSED = "not_addressed"
 POLARITY_VALUES = ("association", "none", "mixed", "not_stated")
 MAX_RELATUM_DISTANCE = 2  # units between a relatum and the relation unit when they are not the same unit
 
-# Required slots per frozen unit kind (direction is added when polarity is association/mixed; pairing when the child has #pair).
+TOPIC_SLOT = "on_topic"
+PAIRING_SLOT = "pairing_expressed"
+
+# Required slots per frozen unit kind (direction is added when polarity is association/mixed; on_topic and pairing
+# are appended universally/conditionally by `slots_for`, never listed here to keep exactly one place that does it).
 REQUIRED_SLOTS: dict[str, tuple[str, ...]] = {
     "relationship": ("relatum_a", "relatum_b", "relation_stated", "polarity"),
     "requested_item": ("item_named", "tied_to_subject"),
@@ -33,9 +57,43 @@ OPTIONAL_SLOTS = (
     "population",
     "qualifiers",
 )  # preserved when the source states them; recorded, not required
-PAIRING_SLOT = "pairing_expressed"
-# Slots a verified LINK (a definition elsewhere in the same study) may supply. Everything else must come from the core proposition.
+
+# Slots a verified LINK (a definition elsewhere in the same study) may supply. Everything else must come from the
+# core proposition. `on_topic` is deliberately never linkable — see TOPIC_SLOT handling in `_slot_state`.
 LINKABLE_SLOTS = frozenset({"instrument_named", "manner_described", "population_named"})
+
+# A Methods description ("The IRI assessed empathic concern") is legitimate first-hand evidence of what a study
+# measured, but it must never become a finding or an outcome. Exactly these (kind, slot) pairs accept `methods_own`.
+METHODS_ELIGIBLE: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("operation", "instrument_named"),
+        ("operation", "paired_with_construct"),
+        ("manner", "manner_described"),
+        ("manner", "tied_to_subject"),
+        ("requested_item", "item_named"),
+        ("requested_item", "tied_to_subject"),
+    }
+)
+
+# A relationship or outcome may only be validated by the clause that actually states it — never a clean clause
+# that says nothing about a result, co-listed alongside a speculative one that does.
+RELATION_BEARING_SLOTS: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("relationship", "relation_stated"),
+        ("relationship", "polarity"),
+        ("existence", "outcome_reported"),
+        ("existence", "finding_of_type"),
+    }
+)
+
+# The slot that carries "the thing itself" for a kind — used only to locate the evidence a #pair derivation may
+# connect; never used to relax what that slot itself requires.
+PRIMARY_SLOT: dict[str, str] = {
+    "population": "population_named",
+    "manner": "manner_described",
+    "operation": "instrument_named",
+    "requested_item": "item_named",
+}
 
 SLOT_DEFINITIONS = {
     "relatum_a": "the first thing the relation is about (for example a brain area), named in the span",
@@ -57,11 +115,17 @@ SLOT_DEFINITIONS = {
     "finding_of_type": "a reported finding of the asked type (a result the source itself reports)",
     "outcome_reported": "a reported outcome or result (an intended, proposed or hypothesized one does not count)",
     PAIRING_SLOT: "the span pairs the two required members explicitly (for example a culture with the measure used there)",
+    TOPIC_SLOT: (
+        "the span(s) that show this finding is actually about what THIS item asks for and the question's own "
+        "stated subject or context — not a same-shaped or same-topic finding about something else the question "
+        "does not ask about. A span from the paper's own abstract, shown separately as study context, may also be "
+        "used here if it establishes the connection; a paper's title or general topic alone does not."
+    ),
 }
 
 
 def slots_for(kind: str, *, pair_required: bool) -> tuple[str, ...]:
-    slots = REQUIRED_SLOTS.get(kind, ())
+    slots = REQUIRED_SLOTS.get(kind, ()) + (TOPIC_SLOT,)
     return slots + (PAIRING_SLOT,) if pair_required else slots
 
 
@@ -78,18 +142,81 @@ def _valid_ids(entry: dict | None, parts: dict) -> tuple[list[str], list[str]]:
     return [i for i in ids if i in parts], [i for i in ids if i not in parts]
 
 
-def _slot_state(slot: str, ids: list[str], parts: dict, attribution: dict) -> tuple[bool, str | None]:
-    """(usable, reason). A slot is usable only if its spans respect the linked-vs-core, attribution and seam rules."""
+def _accepted_clause(part: dict, *, kind: str, slot: str, attribution_full: dict) -> dict | None:
+    """The FIRST clause of `part`'s own attribution that legitimately supports `(kind, slot)`, or None.
+
+    Never the span's aggregate state — a clean, unrelated clause cannot rescue a slot whose actual content sits in
+    a different clause of the same span.
+    """
+    clauses = attribution_full.get(part["span_id"], {}).get("clauses", [])
+    relation_bearing = (kind, slot) in RELATION_BEARING_SLOTS
+    for clause in clauses:
+        acceptable = clause["state"] == at.OWN_ESTABLISHED or (
+            clause["state"] == at.METHODS_OWN and (kind, slot) in METHODS_ELIGIBLE
+        )
+        if not acceptable:
+            continue
+        if relation_bearing and not clause["has_result_predicate"]:
+            continue
+        return clause
+    return None
+
+
+def _slot_state(
+    slot: str, ids: list[str], parts: dict, attribution_full: dict, *, kind: str
+) -> tuple[bool, str | None, dict | None, list[str], list[str]]:
+    """(usable, reason, accepted{span_id,start,end,text,state}, excluded_span_ids, exclusion_reasons)."""
+    if slot == TOPIC_SLOT:
+        eligible = [i for i in ids if parts[i]["role"] in ("establishing", "qualifying", "referent", "study_context")]
+        if not eligible:
+            return False, f"{slot}:no_on_topic_span_offered", None, [], []
+        usable = [i for i in eligible if not (parts[i].get("open_left") or parts[i].get("open_right"))]
+        if not usable:
+            return False, f"{slot}:seam_unresolved", None, eligible, [f"{i}:seam_unresolved" for i in eligible]
+        chosen = usable[0]
+        return True, None, {"span_id": chosen, "start": None, "end": None, "text": None, "state": None}, [], []
+
     core = [i for i in ids if parts[i]["role"] != "linked_definition"]
     if slot not in LINKABLE_SLOTS and not core:
-        return False, f"{slot}:only_linked_spans_supplied"
-    bad = next((i for i in core if attribution.get(i) != at.OWN_ESTABLISHED), None)
-    if bad is not None:
-        return False, f"{slot}:attribution_{attribution.get(bad, 'unknown')}"
+        return False, f"{slot}:only_linked_spans_supplied", None, [], []
     used = ids if slot in LINKABLE_SLOTS else core
-    if any(parts[i].get("open_left") or parts[i].get("open_right") for i in used):
-        return False, f"{slot}:seam_unresolved"
-    return True, None
+    excluded: list[str] = []
+    reasons: list[str] = []
+    for i in used:
+        if parts[i].get("open_left") or parts[i].get("open_right"):
+            excluded.append(i)
+            reasons.append(f"{slot}:seam_unresolved")
+            continue
+        if parts[i]["role"] == "linked_definition":
+            # A verified link (packet.py attaches only VERIFIED ones) is trustworthy by construction; it needs no
+            # attribution of its own — only core spans carry that requirement (unchanged from the original design).
+            return (
+                True,
+                None,
+                {"span_id": i, "start": None, "end": None, "text": parts[i]["text"], "state": None},
+                excluded,
+                reasons,
+            )
+        clause = _accepted_clause(parts[i], kind=kind, slot=slot, attribution_full=attribution_full)
+        if clause is None:
+            excluded.append(i)
+            worst = attribution_full.get(i, {}).get("state", "unresolved")
+            tag = (
+                "no_relation_bearing_accepted_clause"
+                if (kind, slot) in RELATION_BEARING_SLOTS
+                else f"attribution_{worst}"
+            )
+            reasons.append(f"{slot}:{tag}")
+            continue
+        accepted = {
+            "span_id": i,
+            "start": clause["start"],
+            "end": clause["end"],
+            "text": clause["text"],
+            "state": clause["state"],
+        }
+        return True, None, accepted, excluded, reasons
+    return False, (reasons[-1] if reasons else f"{slot}:no_usable_span"), None, excluded, reasons
 
 
 def _relata_tied_to_relation(slot_spans: dict, parts: dict) -> list[str]:
@@ -114,14 +241,26 @@ def _relata_tied_to_relation(slot_spans: dict, parts: dict) -> list[str]:
     return untied
 
 
+def _finalize(missing: list[str], any_present: bool) -> str:
+    if TOPIC_SLOT in missing:
+        return NOT_ADDRESSED
+    if not missing:
+        return DIRECTLY
+    if any_present:
+        return PARTIAL
+    return NOT_ADDRESSED
+
+
 def derive_status(kind: str, slots: dict, packet: dict, *, pair_required: bool = False) -> dict:
     """Derive one unit's status from the reported slots and the packet's own facts (attribution, seams, roles).
 
-    `packet["parts"]` carry `span_id`, `role`, `unit_index`, `open_left`, `open_right`; `packet["part_attribution"]` maps a
-    span_id to an attribution state. Returns {status, missing, reasons, slot_spans, invalid_span_ids, polarity}.
+    `packet["parts"]` carry `span_id`, `role`, `unit_index`, `open_left`, `open_right`; `packet["attribution"]` maps
+    a span_id to its full `derive_attribution` record (read for `.clauses`, never for the aggregate `state`).
+    Returns {status, missing, reasons, slot_spans, invalid_span_ids, polarity, excluded_span_ids, exclusion_reasons,
+    accepted_evidence, primary_slot_evidence}.
     """
     parts = {p["span_id"]: p for p in packet["parts"]}
-    attribution = packet.get("part_attribution", {})
+    attribution_full = packet.get("attribution", {})
     polarity = (slots.get("polarity") or {}).get("value")
     required = list(slots_for(kind, pair_required=pair_required))
     if kind == "relationship" and polarity in ("association", "mixed"):
@@ -131,6 +270,9 @@ def derive_status(kind: str, slots: dict, packet: dict, *, pair_required: bool =
     reasons: list[str] = []
     invalid: list[str] = []
     slot_spans: dict[str, list[str]] = {}
+    accepted_evidence: dict[str, dict] = {}
+    excluded_by_slot: dict[str, list[str]] = {}
+    exclusion_reasons_by_slot: dict[str, list[str]] = {}
     any_present = False
     for slot in required:
         ids, bad = _valid_ids(slots.get(slot), parts)
@@ -140,10 +282,15 @@ def derive_status(kind: str, slots: dict, packet: dict, *, pair_required: bool =
             missing.append(slot)
             continue
         any_present = True
-        usable, reason = _slot_state(slot, ids, parts, attribution)
+        usable, reason, accepted, excluded, ex_reasons = _slot_state(slot, ids, parts, attribution_full, kind=kind)
+        excluded_by_slot[slot] = excluded
+        exclusion_reasons_by_slot[slot] = ex_reasons
         if not usable:
             missing.append(slot)
-            reasons.append(reason)
+            if reason:
+                reasons.append(reason)
+        else:
+            accepted_evidence[slot] = accepted
 
     if kind == "relationship":
         if polarity not in ("association", "none", "mixed"):
@@ -156,17 +303,102 @@ def derive_status(kind: str, slots: dict, packet: dict, *, pair_required: bool =
                     missing.append(slot)
                 reasons.append(f"{slot}:not_tied_to_the_stated_relation")
 
-    if not missing:
-        status = DIRECTLY
-    elif any_present:
-        status = PARTIAL
-    else:
-        status = NOT_ADDRESSED
+    primary_slot = PRIMARY_SLOT.get(kind)
+    primary_slot_evidence = accepted_evidence.get(primary_slot) if primary_slot else None
+
     return {
-        "status": status,
+        "status": _finalize(missing, any_present),
         "missing": missing,
         "reasons": reasons,
         "slot_spans": slot_spans,
         "invalid_span_ids": sorted(set(invalid)),
         "polarity": polarity,
+        "excluded_span_ids": excluded_by_slot,
+        "exclusion_reasons": exclusion_reasons_by_slot,
+        "accepted_evidence": accepted_evidence,
+        "primary_slot_evidence": primary_slot_evidence,
+    }
+
+
+# ---- cross-unit `pairing_expressed` derivation for #pair children (Cliff's correction, 2026-09-27) ------------------
+
+
+def pair_partners(child) -> dict[str, str]:
+    """{unit_id: partner_unit_id} for a #pair child whose exactly two content units are each other's pair partner.
+
+    Empty for a non-#pair child, or one whose content-unit count isn't exactly two — no pairing is assumed rather
+    than guessed.
+    """
+    if not child.pair_requirement_ids:
+        return {}
+    units = child.content_units
+    if len(units) != 2:
+        return {}
+    a, b = units
+    return {a.unit_id: b.unit_id, b.unit_id: a.unit_id}
+
+
+def _linked_connection(packet: dict, id_a: str, id_b: str) -> bool:
+    """Whether id_a/id_b are connected via an EXISTING verified link (links.py) between a core proposition and a
+    linked definition elsewhere in the same study. Bare co-occurrence in the same packet is never sufficient."""
+    parts = {p["span_id"]: p for p in packet["parts"]}
+    part_a, part_b = parts.get(id_a), parts.get(id_b)
+    if part_a is None or part_b is None:
+        return False
+    if part_a["role"] == "linked_definition" and part_b["role"] != "linked_definition":
+        linked = part_a
+    elif part_b["role"] == "linked_definition" and part_a["role"] != "linked_definition":
+        linked = part_b
+    else:
+        return False
+    link_id = linked.get("linked_from")
+    return any(lk.get("link_id") == link_id and lk.get("verified") for lk in packet.get("links", []))
+
+
+def derive_pairing_bonus(kind_a: str, result_a: dict, kind_b: str, result_b: dict, packet: dict) -> dict | None:
+    """A connecting proposition for `pairing_expressed`, or None if none exists.
+
+    Requires either (a) the SAME clause is the accepted evidence for both units' primary slots, or (b) an existing
+    verified link connects the two accepted spans. A shared span id filled via two DIFFERENT clauses of the same
+    sentence — e.g. an unrelated population mention and an unrelated measurement description that happen to share
+    a sentence — is explicitly not enough.
+    """
+    ev_a, ev_b = result_a.get("primary_slot_evidence"), result_b.get("primary_slot_evidence")
+    if not ev_a or not ev_b:
+        return None
+    if (
+        ev_a["span_id"] == ev_b["span_id"]
+        and ev_a["start"] is not None
+        and ev_a["start"] == ev_b["start"]
+        and ev_a["end"] == ev_b["end"]
+    ):
+        return {
+            "source": "same_clause",
+            "span_id": ev_a["span_id"],
+            "start": ev_a["start"],
+            "end": ev_a["end"],
+            "text": ev_a["text"],
+        }
+    if _linked_connection(packet, ev_a["span_id"], ev_b["span_id"]):
+        return {"source": "verified_link", "span_id_a": ev_a["span_id"], "span_id_b": ev_b["span_id"]}
+    return None
+
+
+def apply_pairing_bonus(result: dict, bonus: dict) -> dict:
+    """Fold a `derive_pairing_bonus` result into a unit's `derive_status` output, recomputing `status`."""
+    if PAIRING_SLOT not in result["missing"]:
+        return result
+    missing = [s for s in result["missing"] if s != PAIRING_SLOT]
+    slot_spans = dict(result["slot_spans"])
+    ids = [bonus["span_id"]] if "span_id" in bonus else [bonus["span_id_a"], bonus["span_id_b"]]
+    slot_spans[PAIRING_SLOT] = sorted(set(slot_spans.get(PAIRING_SLOT, [])) | set(ids))
+    accepted_evidence = dict(result["accepted_evidence"])
+    accepted_evidence[PAIRING_SLOT] = {**bonus, "derived": True}
+    return {
+        **result,
+        "status": _finalize(missing, any_present=True),
+        "missing": missing,
+        "slot_spans": slot_spans,
+        "accepted_evidence": accepted_evidence,
+        "reasons": result["reasons"] + [f"{PAIRING_SLOT}:derived_from_pair_partner:{bonus['source']}"],
     }

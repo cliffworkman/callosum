@@ -74,8 +74,12 @@ def _attachment_label(packet: dict) -> str:
     return f"attachment {att['id']} ({role})"
 
 
-def packet_block(packet_number: int, packet: dict) -> str:
-    """One packet as the answerer sees it. Every part keeps its own exact text; nothing is merged into a quotation."""
+def packet_block(packet_number: int, packet: dict) -> tuple[str, dict[str, dict]]:
+    """One packet as the answerer sees it, and the letter_map this rendering assigns (`{}` for a single-part
+    packet, which is never lettered). Every part keeps its own exact text; nothing is merged into a quotation. This
+    is the ONE place a part is assigned a letter — `diagnostics.py` reads this map rather than re-deriving the
+    indexing itself (Cliff's correction, session 2026-09-27: a `linked_definition` part IS lettered, exactly like
+    any other, e.g. a real citation `[P3(f)]` legitimately points at a linked Methods definition)."""
     pid = f"P{packet_number}"
     head_bits = [f"paper {packet['paper_id']}"]
     attachment = _attachment_label(packet)
@@ -87,25 +91,32 @@ def packet_block(packet_number: int, packet: dict) -> str:
         label = _label(part)
         if label:
             head_bits.append(label)
-        return f'[{pid}] {" · ".join(head_bits)}\nPassage: "{part["text"]}"'
+        return f'[{pid}] {" · ".join(head_bits)}\nPassage: "{part["text"]}"', {}
     lines = [f"[{pid}] {' · '.join(head_bits)}"]
+    letters: dict[str, dict] = {}
     for index, part in enumerate(parts):
-        tag = f"({chr(ord('a') + index)})"
+        letter = chr(ord("a") + index)
+        letters[letter] = part
+        tag = f"({letter})"
         label = _label(part)
         note = part.get("note")
         prefix = " ".join(bit for bit in (tag, label + " —" if label else "—", f"{note} —" if note else "") if bit)
         lines.append(f'  {prefix} "{part["text"]}"')
-    return "\n".join(lines)
+    return "\n".join(lines), letters
 
 
-def render_packet_prompt(contract_text: str, packets: list[dict]) -> tuple[str, dict[str, str]]:
-    """Return (prompt, id_map): id_map maps each shown id ("P1", ...) to its packet_id."""
-    blocks, id_map = [], {}
+def render_packet_prompt(contract_text: str, packets: list[dict]) -> tuple[str, dict[str, str], dict[str, dict]]:
+    """Return (prompt, id_map, letter_map): `id_map` maps each shown id ("P1", ...) to its packet_id; `letter_map`
+    maps each shown id to `{letter: part}` for the packets that were lettered (empty dict for a single-part one)."""
+    blocks, id_map, letter_map = [], {}, {}
     for number, packet in enumerate(packets, start=1):
-        blocks.append(packet_block(number, packet))
-        id_map[f"P{number}"] = packet["packet_id"]
+        block, letters = packet_block(number, packet)
+        blocks.append(block)
+        shown = f"P{number}"
+        id_map[shown] = packet["packet_id"]
+        letter_map[shown] = letters
     passages = "\n\n".join(blocks) if blocks else NO_EVIDENCE_BLOCK
-    return PROMPT_TEMPLATE.format(contract=contract_text, passages=passages), id_map
+    return PROMPT_TEMPLATE.format(contract=contract_text, passages=passages), id_map, letter_map
 
 
 def select_within_context(
@@ -119,7 +130,7 @@ def select_within_context(
     omitted: list[str] = []
     for packet in packets:
         candidate = kept + [packet]
-        prompt, _ = render_packet_prompt(contract_text, candidate)
+        prompt, _, _ = render_packet_prompt(contract_text, candidate)
         if len(prompt) / CHARS_PER_TOKEN + allowance > num_ctx:
             omitted.append(packet["packet_id"])
         else:
