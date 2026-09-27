@@ -467,5 +467,108 @@ class CoverageConstraintsTests(unittest.TestCase):
             self.assertEqual(u["not_sent_reason"], "omitted_by_prompt_cap")
 
 
+class CrashRecoveryHooksTests(unittest.TestCase):
+    """`on_prompt_ready`/`on_raw_response` (2026-09-27, the Gate 2 incident fix): optional, additive hooks at the
+    two boundaries a caller needs to persist data before any downstream failure can lose it. Omitting either
+    must reproduce today's exact behavior."""
+
+    def test_omitting_both_hooks_reproduces_todays_exact_record(self):
+        sealed = sealed_ledger([("claim", GIVING, [S1])])
+        client = OverviewClient(s={"overview": []})
+        without_hooks, _ = ov.build_overview(sealed, "hash", supervisor=make_supervisor(client), entail=Entail())
+        with_none, _ = ov.build_overview(
+            sealed,
+            "hash",
+            supervisor=make_supervisor(client),
+            entail=Entail(),
+            on_prompt_ready=None,
+            on_raw_response=None,
+        )
+        self.assertEqual(without_hooks, with_none)
+
+    def test_on_prompt_ready_fires_before_any_call_with_the_prompt_and_a_manifest(self):
+        sealed = sealed_ledger([("claim", GIVING, [S1])])
+        client = OverviewClient(s={"overview": []})
+        seen = []
+        ov.build_overview(
+            sealed,
+            "hash",
+            supervisor=make_supervisor(client),
+            entail=Entail(),
+            on_prompt_ready=lambda prompt, manifest: seen.append((prompt, manifest)),
+        )
+        self.assertEqual(len(seen), 1)
+        prompt, manifest = seen[0]
+        self.assertIn("Original request", prompt)
+        self.assertEqual(manifest["sealed_ledger_hash"], "hash")
+        self.assertIn(uid(sealed, GIVING), manifest["sent_unit_ids"])
+
+    def test_on_prompt_ready_fires_even_when_nothing_is_eligible_to_send(self):
+        """ "Before inference" must mean before inference is attempted at all, including when no call happens."""
+        sealed = sealed_ledger([])  # no propositions at all -> no units -> nothing sent
+        client = OverviewClient(s={"overview": []})
+        seen = []
+        record, _ = ov.build_overview(
+            sealed,
+            "hash",
+            supervisor=make_supervisor(client),
+            entail=Entail(),
+            on_prompt_ready=lambda prompt, manifest: seen.append(manifest),
+        )
+        self.assertEqual(record["call"], None)  # no call was made
+        self.assertEqual(len(seen), 1)
+        self.assertEqual(seen[0]["sent_unit_ids"], [])
+
+    def test_on_raw_response_fires_exactly_once_with_the_real_stage_result(self):
+        sealed = sealed_ledger([("claim", GIVING, [S1])])
+        client = OverviewClient(s={"overview": []})
+        seen = []
+        ov.build_overview(
+            sealed,
+            "hash",
+            supervisor=make_supervisor(client),
+            entail=Entail(),
+            on_raw_response=lambda result: seen.append(result),
+        )
+        self.assertEqual(len(seen), 1)
+        result = seen[0]
+        self.assertTrue(hasattr(result, "answer"))
+        self.assertTrue(hasattr(result, "raw_text"))
+        self.assertTrue(hasattr(result, "record"))
+
+    def test_on_raw_response_fires_before_any_screening_or_parts_status(self):
+        """Proves the ordering, not just that the hook is called: if the hook itself raises, NOTHING downstream
+        of the model call (screening, parts_status) may have already run -- the exception must reach the caller
+        unweakened, with `entail` never invoked."""
+        sealed = sealed_ledger([("claim", GIVING, [S1])])
+        client = OverviewClient(
+            s={"overview": [{"text": "a grounded statement here", "unit_ids": [uid(sealed, GIVING)], "bears_on": []}]}
+        )
+        entail = Entail()
+
+        def boom(result):
+            raise RuntimeError("simulated crash exactly at the raw-response boundary")
+
+        with self.assertRaisesRegex(RuntimeError, "simulated crash"):
+            ov.build_overview(sealed, "hash", supervisor=make_supervisor(client), entail=entail, on_raw_response=boom)
+        self.assertEqual(entail.calls, [])  # screening (and therefore its NLI call) never ran
+
+    def test_on_raw_response_receives_the_answer_even_when_it_is_none(self):
+        """A mechanical NO ANSWER is still real data worth capturing at this boundary -- not just a successful
+        parse."""
+        sealed = sealed_ledger([("claim", GIVING, [S1])])
+        client = OverviewClient(s=None)  # every call caps -> result.answer is None
+        seen = []
+        record, _ = ov.build_overview(
+            sealed,
+            "hash",
+            supervisor=make_supervisor(client),
+            entail=Entail(),
+            on_raw_response=lambda result: seen.append(result.answer),
+        )
+        self.assertEqual(record["state"], "model_no_answer")
+        self.assertEqual(seen, [None])
+
+
 if __name__ == "__main__":
     unittest.main()

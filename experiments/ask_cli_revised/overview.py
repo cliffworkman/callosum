@@ -325,17 +325,50 @@ def _call_record(result, prompt: str, reasoning: str) -> dict:
 
 
 def build_overview(
-    sealed: dict, sealed_hash: str, *, supervisor, entail, coverage_constraints: tuple[str, ...] = ()
+    sealed: dict,
+    sealed_hash: str,
+    *,
+    supervisor,
+    entail,
+    coverage_constraints: tuple[str, ...] = (),
+    on_prompt_ready=None,
+    on_raw_response=None,
 ) -> tuple[dict, str]:
     """``(overview_record, reasoning_text)``. One model call and one NLI batch at most; the sealed ledger is only read.
 
     ``coverage_constraints`` is optional and additive (see `render_prompt`'s docstring) -- every existing caller
-    that omits it gets today's exact prompt and behavior, unchanged."""
+    that omits it gets today's exact prompt and behavior, unchanged.
+
+    ``on_prompt_ready`` and ``on_raw_response`` are optional, additive crash-recovery hooks (2026-09-27); omitting
+    either reproduces today's exact behavior, since neither is ever called when absent. A caller that supplies
+    one is expected to persist data durably and synchronously inside it -- this function makes no retry and no
+    behavior change based on what a hook does, and does not catch an exception a hook raises.
+
+    ``on_prompt_ready(prompt: str, manifest: dict)`` fires once, unconditionally, before any model call is made
+    (even when nothing will be sent) -- the "before inference" boundary.
+
+    ``on_raw_response(result)`` fires once, immediately after the model call returns, before this function does
+    anything else with the answer -- no parsing beyond what ``supervisor.call`` itself already returned, no
+    screening, no ``parts_status``. ``result`` is the raw ``StageResult`` (``.answer``, ``.record``, ``.raw_text``,
+    ``.thinking``) -- the earliest point at which the actual model response exists in this process at all.
+    """
     question = sealed["request_contract"]["original_question"]
     states = sealed["obligation_states"]
     part_ids = [s["field_id"] for s in states]
     units, claims = oe.build_units(sealed)
     sent, prompt = select_for_prompt(units, claims, question, states, coverage_constraints=coverage_constraints)
+    if on_prompt_ready is not None:
+        on_prompt_ready(
+            prompt,
+            {
+                "sealed_ledger_hash": sealed_hash,
+                "question_hash": sealed["request_contract"]["question_hash"],
+                "sent_unit_ids": sent,
+                "eligible_unit_ids": [u["unit_id"] for u in units if u["eligibility"]["eligible"]],
+                "part_ids": part_ids,
+                "coverage_constraints": list(coverage_constraints),
+            },
+        )
     by_id = {u["unit_id"]: u for u in units}
     options = dict(getattr(supervisor, "base_options", {}))
     binding = getattr(supervisor, "binding", None)
@@ -365,6 +398,8 @@ def build_overview(
     proposals: list[dict] = []
     if sent:
         result = supervisor.call(STAGE, prompt, schema_overview(sent, part_ids), input_text=question)
+        if on_raw_response is not None:
+            on_raw_response(result)  # earliest boundary: before this function parses/screens anything itself
         reasoning = getattr(result, "thinking", "") or ""
         record["call"] = _call_record(result, prompt, reasoning)
         if result.answer is None:
