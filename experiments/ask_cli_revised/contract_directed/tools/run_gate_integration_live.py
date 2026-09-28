@@ -210,7 +210,9 @@ def main(argv: list[str] | None = None) -> int:
     rt = ask_runtime.build_runtime(DB, want_gemini=False, want_verifier=True, want_qwen=False)
     try:
         entail = rt.verifier.support_scorer.support_and_contradiction_many
-        run_dir.mkdir(parents=True)
+        # DiagnosticTrace.__init__ creates run_dir itself (mkdir(parents=True, exist_ok=False)) -- a second,
+        # redundant mkdir here raced against it and raised FileExistsError before any network call was ever
+        # attempted (2026-09-28, first live-driver invocation: caught before any retry).
         trace = gate2_trace.DiagnosticTrace(run_dir)
         trace.manifest_ready(manifest_rows)
 
