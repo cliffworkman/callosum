@@ -170,6 +170,7 @@ PROTECTED_RUN_DIRS = frozenset(
         "nli-boundary-diagnostic-001",
         "nli-boundary-diagnostic-002",
         "nli-prospective-corpus-eval-001",
+        "nli-prospective-pilot-001",
         "nli-repair-demo-001",
         "pilot-001",
         "pilot-prep-003",
