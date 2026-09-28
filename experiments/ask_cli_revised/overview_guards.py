@@ -101,8 +101,14 @@ def screen(proposal: dict, *, units: dict[str, dict], part_ids: set[str]) -> lis
     cited = [units[i] for i in ids]
     joined = " ".join(u["passage"] for u in cited)
 
-    # numbers and acronyms may not appear from nowhere
-    for number in dict.fromkeys(n.rstrip(".,") for n in re.findall(r"\d[\d.,%]*", text)):
+    # numbers and acronyms may not appear from nowhere. A structurally validated, redundant unit-citation
+    # marker (e.g. " (U1)") is not scientific claim content -- checking it here would read the marker's own
+    # digit as an invented number even after the citation boundary already separated it from the NLI
+    # hypothesis. Reuse that SAME validated transformation, never a second, looser stripper:
+    # `marker["nli_hypothesis_text"]` equals `text` unchanged whenever nothing was cleanly stripped (no
+    # marker, or a conflicting one) -- a conflicting marker stays fully subject to this check, since its own
+    # `conflict_reason` above already withholds it and an extra number flag on unverified text is harmless.
+    for number in dict.fromkeys(n.rstrip(".,") for n in re.findall(r"\d[\d.,%]*", marker["nli_hypothesis_text"])):
         if number not in joined:
             reasons.append(f"number_not_in_passage:{number}")
     for acronym in dict.fromkeys(re.findall(r"\b[A-Z]{2,}\b", text)):

@@ -390,13 +390,12 @@ class ScreenProposalsMarkerBoundaryTests(unittest.TestCase):
     # deliberately generous stub NLI score, not inferred from a string-transformation test alone.
 
     # A digit ("1") legitimately present in the passage itself, distinct from PATTERN_FAITHFUL/GIVING/NULL
-    # (none of which contain any digit) -- avoids an unrelated, pre-existing quirk: `screen()`'s
-    # `number_not_in_passage` check treats the bare digit inside "(U1)" itself as a "number" the text
-    # introduced, and would otherwise spuriously flag even a CORRECTLY stripped, perfectly legitimate marker
-    # whenever the cited passage happens not to contain that digit anywhere else. This is a real, separate,
-    # pre-existing gap in the unrelated numeric-invention check (not a marker-conflict defect, and not
-    # something a mismatched marker could exploit to get GROUNDED) -- named here, not fixed, per this
-    # audit's explicit scope boundary.
+    # (none of which contain any digit). At the time this test was written, this fixture was a deliberate
+    # WORKAROUND for a real, separate bug this same audit found (screen()'s number check reading the bare
+    # digit inside "(U1)" itself as an invented number) -- named then, not fixed, per that pass's explicit
+    # scope boundary. That bug is now FIXED (2026-09-28, see test_a_legitimate_marker_does_not_spuriously_
+    # trigger_number_not_in_passage below, which reproduces it directly on a digit-free passage); this
+    # fixture is kept as-is since it remains a valid, harmless positive control either way.
     _DIGIT_PASSAGE = (
         11,
         999,
@@ -459,6 +458,73 @@ class ScreenProposalsMarkerBoundaryTests(unittest.TestCase):
         self.assertNotEqual(record["status"], "grounded")
         self.assertTrue(any(r.startswith("unit_marker_conflicts_with_unit_ids") for r in record["reasons"]))
         self.assertEqual(record["marker_outcome"], "conflicts_with_unit_ids")
+
+    # ---- 2026-09-28: a legitimate marker's OWN digit must never register as an invented number -------------
+    # PATTERN (digit-free) reproduces the bug directly, without the _DIGIT_PASSAGE workaround above.
+
+    def test_a_legitimate_marker_does_not_spuriously_trigger_number_not_in_passage(self):
+        """Reproduction: before the fix, a scientifically faithful candidate ending in a VALID `(U1)` marker
+        (unit_ids=["U1"], digit-free passage) was incorrectly withheld -- screen()'s number check read the
+        bare "1" inside "(U1)" as an invented number, even though the citation boundary had already correctly
+        identified this exact marker as redundant, structurally-validated metadata, not claim content."""
+        sealed = sealed_ledger([("c", PATTERN, [S1])])
+        by_id = self._units_and_ids(sealed)
+        u1 = next(iter(by_id))
+        text = PATTERN_FAITHFUL[:-1] + f" ({u1})."
+        entail = Entail(score=(0.99, 0.0))
+        records = ov.screen_proposals([stmt(text, [u1], [S1])], by_id, {S1}, entail)
+        record = records[0]
+        self.assertFalse(
+            any(r.startswith("number_not_in_passage") for r in record["reasons"]),
+            f"the marker's own digit must never be read as an invented number: {record['reasons']}",
+        )
+        self.assertEqual(record["status"], "grounded")
+        self.assertEqual(record["marker_outcome"], "stripped_matches_unit_ids")
+        self.assertEqual(record["text"], text, "raw text preserved byte-for-byte")
+        self.assertEqual(record["nli_hypothesis_text"], PATTERN_FAITHFUL)
+
+    def test_a_genuinely_invented_number_is_still_caught_alongside_a_valid_marker(self):
+        """Negative control: the fix must not create a loophole -- a real invented number in the SCIENTIFIC
+        CLAIM (not the marker) stays caught, even though a valid, correctly-stripped marker is also present."""
+        sealed = sealed_ledger([("c", PATTERN, [S1])])
+        by_id = self._units_and_ids(sealed)
+        u1 = next(iter(by_id))
+        invented = PATTERN_FAITHFUL[:-1] + f" among 50 participants ({u1})."  # "50" is nowhere in PATTERN
+        entail = Entail(score=(0.99, 0.0))
+        records = ov.screen_proposals([stmt(invented, [u1], [S1])], by_id, {S1}, entail)
+        record = records[0]
+        self.assertIn("number_not_in_passage:50", record["reasons"])
+        self.assertNotEqual(record["status"], "grounded")
+        self.assertEqual(
+            record["marker_outcome"], "stripped_matches_unit_ids", "the marker itself still strips cleanly"
+        )
+
+    def test_duplicate_marker_still_withheld_for_conflict_after_the_numeric_fix(self):
+        """The numeric-guard fix must not weaken the independent marker-conflict guard: (U1, U1) stays withheld
+        for its conflict, under a high stub score, exactly as commit aa818feb already proved."""
+        sealed = sealed_ledger([("c", PATTERN, [S1])])
+        by_id = self._units_and_ids(sealed)
+        u1 = next(iter(by_id))
+        text = PATTERN_FAITHFUL[:-1] + f" ({u1}, {u1})."
+        entail = Entail(score=(0.99, 0.0))
+        records = ov.screen_proposals([stmt(text, [u1], [S1])], by_id, {S1}, entail)
+        record = records[0]
+        self.assertNotEqual(record["status"], "grounded")
+        self.assertTrue(any(r.startswith("unit_marker_conflicts_with_unit_ids") for r in record["reasons"]))
+
+    def test_a_meaningful_scientific_parenthetical_with_an_invented_number_is_still_validated(self):
+        """A parenthetical that does NOT purport to be a unit citation (fails the strict marker shape) must
+        remain fully subject to ordinary numerical validation -- the fix narrows scope to structurally
+        validated marker text only, never to parentheticals in general."""
+        sealed = sealed_ledger([("c", PATTERN, [S1])])
+        by_id = self._units_and_ids(sealed)
+        u1 = next(iter(by_id))
+        text = PATTERN_FAITHFUL[:-1] + " (n = 50)."  # an ordinary parenthetical, not a unit-citation marker
+        entail = Entail(score=(0.99, 0.0))
+        records = ov.screen_proposals([stmt(text, [u1], [S1])], by_id, {S1}, entail)
+        record = records[0]
+        self.assertIn("number_not_in_passage:50", record["reasons"])
+        self.assertEqual(record["marker_outcome"], "none")
 
 
 if __name__ == "__main__":
