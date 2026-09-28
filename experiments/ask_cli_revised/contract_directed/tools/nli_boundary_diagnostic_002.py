@@ -51,6 +51,7 @@ PROTECTED_RUN_DIRS = frozenset(
         "gate2-diagnostic-002",
         "nli-boundary-diagnostic-001",
         "nli-candidate-reliability-study-001",
+        "nli-candidate-reliability-review-prep-001",
         "pilot-001",
         "pilot-prep-003",
         "replay-eligibility-001",
