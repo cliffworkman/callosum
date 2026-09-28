@@ -3,6 +3,7 @@ in this file -- every fixture below is a hand-built manifest row / saved-record 
 
 import unittest
 
+from experiments.ask_cli_revised.contract_directed import evidence_identity as ident
 from experiments.ask_cli_revised.contract_directed import partial_answer_renderer as par
 from experiments.ask_cli_revised.ledger_renderer import _literal
 
@@ -34,8 +35,13 @@ M13_ROW = {"child_id": "c11", "unit_id": "M13", "kind": "manner", "status": "sou
 ALL_ROWS = [M10_ROW, W21_ROW, M12_ROW, M13_ROW]
 
 
-def unit(unit_id, paper_id, chunk_id, span_id):
-    return {"unit_id": unit_id, "paper_id": paper_id, "locators": [{"chunk_id": chunk_id, "span_id": span_id}]}
+def unit(unit_id, paper_id, chunk_id, span_id, passage):
+    return {
+        "unit_id": unit_id,
+        "paper_id": paper_id,
+        "locators": [{"chunk_id": chunk_id, "span_id": span_id}],
+        "passage": passage,
+    }
 
 
 def saved_record(proposals, units):
@@ -51,9 +57,9 @@ GATE2_RECORD = saved_record(
          "text": "In a study with 123 Hadza, those with greater exposure expected the scarred face to be less moral."},
     ],
     units=[
-        unit("U1", 67, 35019, "p1"),
-        unit("U2", 68, 43327, "p2"),
-        unit("U3", 68, 43327, "p4"),
+        unit("U1", 67, 35019, "p1", M10_SPAN["text"]),
+        unit("U2", 68, 43327, "p2", P2_SPAN["text"]),
+        unit("U3", 68, 43327, "p4", P4_SPAN["text"]),
     ],
 )  # fmt: skip
 
@@ -69,10 +75,21 @@ class MatchUnitsByLocatorTests(unittest.TestCase):
         matches = par.match_units_by_locator(ALL_ROWS, GATE2_RECORD["units"])
         self.assertEqual(matches[("c9", "W21")], [])
 
-    def test_matching_is_by_locator_not_by_passage_text(self):
-        """A saved unit whose passage text has drifted (e.g. the model's own paraphrase leaking into a copy)
-        must not break matching -- only paper_id/chunk_id/span_id are load-bearing."""
+    def test_matching_is_by_locator_first_then_cross_checked_against_saved_text(self):
+        """A locator match is not trusted alone: if the saved unit's own passage text differs from the
+        manifest span's text, that is exactly the kind of packet-local-key collision `evidence_identity.py`
+        exists to catch -- it must raise, not silently proceed with a mismatched pair."""
+        units = [unit("U1", 67, 35019, "p1", "a completely different sentence than M10's own span")]
+        with self.assertRaises(ident.SavedRecordTextMismatch):
+            par.match_units_by_locator([M10_ROW], units)
+
+    def test_a_saved_unit_missing_its_own_passage_field_is_refused_not_silently_trusted(self):
         units = [{"unit_id": "U1", "paper_id": 67, "locators": [{"chunk_id": 35019, "span_id": "p1"}]}]
+        with self.assertRaises(ident.SavedRecordTextMismatch):
+            par.match_units_by_locator([M10_ROW], units)
+
+    def test_a_matching_locator_with_matching_text_succeeds(self):
+        units = [unit("U1", 67, 35019, "p1", M10_SPAN["text"])]
         matches = par.match_units_by_locator([M10_ROW], units)
         self.assertEqual(matches[("c9", "M10")], ["U1"])
 

@@ -29,12 +29,16 @@ nothing about evidence) and nothing else from that file.
   about a *later* stage, never evidence that the earlier, source-supported finding doesn't exist.
 
 Matching a manifest row's `accepted_spans` to the saved record's overview units is by exact
-``(paper_id, chunk_id, span_id)`` locator -- never by passage text (which the model may echo with cosmetic
-changes) and never by unit_id alone (a `Un` id is an artifact of one specific run's own numbering).
+``(paper_id, chunk_id, span_id)`` locator, guarded by `evidence_identity.py`'s explicit collision checks --
+never by passage text alone (which the model may echo with cosmetic changes) and never by trusting a `Un` id
+to mean the same thing across two different runs (a `Un` id is an artifact of one specific run's own
+numbering). `span_id` (`"p1"`, `"p2"`, ...) is itself a *packet-local* label, not a global identity -- see
+`evidence_identity.py`'s own docstring for why that matters and what this module does about it.
 """
 
 from __future__ import annotations
 
+from experiments.ask_cli_revised.contract_directed import evidence_identity as ident
 from experiments.ask_cli_revised.contract_directed import freeze
 from experiments.ask_cli_revised.ledger_renderer import _literal
 
@@ -74,24 +78,35 @@ _HEADER = (
 )
 
 
-def _locator(span: dict) -> tuple[int, int, str]:
-    return (span["paper_id"], span["chunk_id"], span["span_id"])
-
-
 def match_units_by_locator(manifest_rows: list[dict], saved_units: list[dict]) -> dict[tuple[str, str], list[str]]:
-    """``{(child_id, unit_id): [matched Un ids]}`` for every manifest row with `accepted_spans` -- exact-locator
-    matched against the saved run's own `units[].locators`, never by passage text or by trusting a `Un` number
-    to mean the same thing across two different runs."""
-    locator_to_un: dict[tuple[int, int, str], str] = {}
-    for unit in saved_units:
-        for locator in unit["locators"]:
-            key = (unit["paper_id"], locator["chunk_id"], locator["span_id"])
-            locator_to_un[key] = unit["unit_id"]
+    """``{(child_id, unit_id): [matched Un ids]}`` for every manifest row with `accepted_spans`.
+
+    Three checks run before or during matching, each raising a specific, named error rather than silently
+    guessing (see `evidence_identity.py` for why each is needed):
+
+    1. `evidence_identity.assert_no_coarse_key_collision` on every span across all rows -- the manifest's own
+       evidence must not have two different spans aliased under the same packet-local `(paper_id, chunk_id,
+       span_id)` key.
+    2. `evidence_identity.build_locator_index` on the saved record's own `units[]` -- that record must not
+       itself have two different `Un` ids claiming the same locator.
+    3. `evidence_identity.match_span_to_saved_unit` per span -- a locator match is cross-checked against the
+       saved unit's own passage text; a match with mismatched text raises rather than being trusted.
+
+    Never matches by passage text alone (a model may echo it with cosmetic changes) and never by trusting a
+    `Un` number to mean the same thing across two different runs -- `Un` ids are local to the one saved run
+    that produced them and are read here only as the value side of the locator index, never compared across
+    runs.
+    """
+    all_spans = [span for row in manifest_rows for span in row.get("accepted_spans", [])]
+    ident.assert_no_coarse_key_collision(all_spans)
+    locator_index = ident.build_locator_index(saved_units)
+    saved_units_by_id = {u["unit_id"]: u for u in saved_units}
+
     out: dict[tuple[str, str], list[str]] = {}
     for row in manifest_rows:
         matched = []
         for span in row.get("accepted_spans", []):
-            un = locator_to_un.get(_locator(span))
+            un = ident.match_span_to_saved_unit(span, locator_index, saved_units_by_id)
             if un is not None and un not in matched:
                 matched.append(un)
         out[(row["child_id"], row["unit_id"])] = matched
@@ -105,7 +120,9 @@ def _proposals_touching(unit_ids: list[str], proposals: list[dict]) -> list[dict
 
 def classify_row(row: dict, matched_units: list[str], proposals: list[dict]) -> dict:
     """One manifest row's full classification -- everything a renderer or a test needs, nothing inferred beyond
-    what the manifest and the saved record already state."""
+    what the manifest and the saved record already state. Carries `packet_id`/`provenance` through unchanged --
+    e.g. c11's rows must keep stating their closure came from the offline rehydration audit, never a fresh live
+    judgment (see `gate1_evidence_fixture.py`'s own docstring)."""
     base = {
         "child_id": row["child_id"],
         "unit_id": row["unit_id"],
@@ -114,6 +131,8 @@ def classify_row(row: dict, matched_units: list[str], proposals: list[dict]) -> 
         "matched_overview_unit_ids": matched_units,
         "evidence_spans": list(row.get("accepted_spans", [])),
         "constraint_text": row.get("constraint_text"),
+        "packet_id": row.get("packet_id"),
+        "provenance": row.get("provenance"),
     }
     if row["status"] in NON_CLAIMABLE_STATUSES:
         return {**base, "outcome": UNRESOLVED, "displayed_statement": None, "withheld_candidates": []}
@@ -163,10 +182,17 @@ def render_partial_slice(manifest_rows: list[dict], gate2_record: dict) -> tuple
     for child_id in sorted(by_child, key=_child_sort_key):
         lines.append(f"## {child_id}\n")
         for c in by_child[child_id]:
+            provenance = c.get("provenance") or {}
+            provenance_note = provenance.get("note")
             if c["outcome"] == DISPLAYED:
                 stmt = c["displayed_statement"]
                 lines.append(f"### {c['unit_id']} -- {c['kind']} (source-supported; overview statement displayed)\n")
                 lines += _evidence_block(c["evidence_spans"])
+                if provenance_note:
+                    lines.append(
+                        f"Closure provenance ({provenance.get('closure_source')}): {_literal(provenance_note)}"
+                    )
+                    lines.append("")
                 lines.append("Displayed overview statement (screened, grounded):")
                 lines.append("> " + _literal(stmt["text"]))
                 lines.append(f"Cites: {stmt['unit_ids']}; bears_on: {stmt['bears_on']}.\n")
@@ -175,6 +201,11 @@ def render_partial_slice(manifest_rows: list[dict], gate2_record: dict) -> tuple
                     f"### {c['unit_id']} -- {c['kind']} (source-supported; overview candidate WITHHELD by screening)\n"
                 )
                 lines += _evidence_block(c["evidence_spans"])
+                if provenance_note:
+                    lines.append(
+                        f"Closure provenance ({provenance.get('closure_source')}): {_literal(provenance_note)}"
+                    )
+                    lines.append("")
                 for w in c["withheld_candidates"]:
                     lines.append("Raw overview candidate (WITHHELD -- NOT approved or displayed output):")
                     lines.append("> " + _literal(w["text"]))
@@ -187,6 +218,11 @@ def render_partial_slice(manifest_rows: list[dict], gate2_record: dict) -> tuple
                     f"### {c['unit_id']} -- {c['kind']} (UNRESOLVED -- not established by the admitted evidence)\n"
                 )
                 lines.append("> " + _literal(c["constraint_text"] or ""))
+                if provenance.get("constraint_text_provenance"):
+                    lines.append(
+                        f"This constraint text is {provenance['constraint_text_provenance']} -- a researcher's "
+                        "own description of the coverage limit, not a machine-derived receipt."
+                    )
                 lines.append(_UNRESOLVED_NOTE + "\n")
     markdown = "\n".join(lines).rstrip() + "\n"
 

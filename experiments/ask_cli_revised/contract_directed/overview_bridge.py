@@ -63,6 +63,12 @@ def project_evidence(rows: list[dict]) -> tuple[list[dict], list[dict]]:
     paraphrase. `verification` never asserts NLI entailment, since contract-directed's own `derive_status` never
     computes one; it records only what was actually established (verbatim match, clause-level attribution state,
     which slots accepted the span).
+
+    ``evidence_spans`` carries `start`/`end` (the packet's own character-offset piece coordinates,
+    `packet.py::_part`'s stable identity -- see `evidence_identity.py`) when a span supplies them, additively:
+    `None`/`None` for a span built without them, never a hard requirement. `span_id` (e.g. `"p1"`) is a
+    *packet-local* label, not a global identity -- every packet restarts its own numbering from `p1` -- so
+    `start`/`end` is what a caller doing its own identity/collision checking should key on, not `span_id` alone.
     """
     evidence_spans: list[dict] = []
     verified_propositions: list[dict] = []
@@ -80,6 +86,8 @@ def project_evidence(rows: list[dict]) -> tuple[list[dict], list[dict]]:
                         "paper_id": span["paper_id"],
                         "chunk_id": span["chunk_id"],
                         "span_id": span["span_id"],
+                        "start": span.get("start"),
+                        "end": span.get("end"),
                         "text": span["text"],
                     }
                 )
