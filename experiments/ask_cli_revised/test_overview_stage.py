@@ -383,6 +383,83 @@ class ScreenProposalsMarkerBoundaryTests(unittest.TestCase):
         self.assertIn("nli_low_support:0.10", record["reasons"])
         self.assertEqual(record["marker_outcome"], "stripped_matches_unit_ids", "stripping still happened")
 
+    # ---- end-to-end final-disposition coverage (2026-09-28 audit) -----------------------------------------
+    # The tests above check either the text transformation alone, or a single (foreign-id) mismatch shape's
+    # disposition. These four close the gap the audit named: every recognizable mismatch shape -- and the
+    # legitimate positive case -- checked all the way through screen_proposals's FINAL status under a
+    # deliberately generous stub NLI score, not inferred from a string-transformation test alone.
+
+    # A digit ("1") legitimately present in the passage itself, distinct from PATTERN_FAITHFUL/GIVING/NULL
+    # (none of which contain any digit) -- avoids an unrelated, pre-existing quirk: `screen()`'s
+    # `number_not_in_passage` check treats the bare digit inside "(U1)" itself as a "number" the text
+    # introduced, and would otherwise spuriously flag even a CORRECTLY stripped, perfectly legitimate marker
+    # whenever the cited passage happens not to contain that digit anywhere else. This is a real, separate,
+    # pre-existing gap in the unrelated numeric-invention check (not a marker-conflict defect, and not
+    # something a mismatched marker could exploit to get GROUNDED) -- named here, not fixed, per this
+    # audit's explicit scope boundary.
+    _DIGIT_PASSAGE = (
+        11,
+        999,
+        "e1",
+        "The authors described 1 behavioral pattern of avoidance linked to visible scarring.",
+    )
+
+    def test_positive_control_a_legitimate_exact_marker_still_grounds_under_a_high_score(self):
+        sealed = sealed_ledger([("c", self._DIGIT_PASSAGE, [S1])])
+        by_id = self._units_and_ids(sealed)
+        u1 = next(iter(by_id))
+        text = self._DIGIT_PASSAGE[3][:-1] + f" ({u1})."
+        entail = Entail(score=(0.99, 0.0))
+        records = ov.screen_proposals([stmt(text, [u1], [S1])], by_id, {S1}, entail)
+        record = records[0]
+        self.assertEqual(record["status"], "grounded")
+        self.assertEqual(record["marker_outcome"], "stripped_matches_unit_ids")
+        self.assertEqual(record["reasons"], [])
+
+    def test_negative_control_a_duplicated_marker_cannot_ground_under_a_high_score(self):
+        """The exact case this audit was asked to check: `(U1, U1)` against `unit_ids=["U1"]` with a
+        deliberately generous stub score. Confirmed already correct before this test existed -- added to close
+        the coverage gap, not because a production change was needed."""
+        sealed = sealed_ledger([("c", self._DIGIT_PASSAGE, [S1])])
+        by_id = self._units_and_ids(sealed)
+        u1 = next(iter(by_id))
+        text = self._DIGIT_PASSAGE[3][:-1] + f" ({u1}, {u1})."
+        entail = Entail(score=(0.99, 0.0))
+        records = ov.screen_proposals([stmt(text, [u1], [S1])], by_id, {S1}, entail)
+        record = records[0]
+        self.assertNotEqual(record["status"], "grounded")
+        self.assertEqual(record["status"], "withheld")
+        self.assertTrue(any(r.startswith("unit_marker_conflicts_with_unit_ids") for r in record["reasons"]))
+        self.assertEqual(record["marker_outcome"], "conflicts_with_unit_ids")
+
+    def test_negative_control_a_subset_marker_cannot_ground_under_a_high_score(self):
+        """unit_ids cites two units; the marker names only one -- a missing-id mismatch, not previously
+        checked at the final-disposition level (only the foreign-id shape was)."""
+        sealed = sealed_ledger([("a", self._DIGIT_PASSAGE, [S1]), ("b", GIVING, [S1])])
+        by_id = self._units_and_ids(sealed)
+        u1, u2 = sorted(by_id)
+        text = self._DIGIT_PASSAGE[3][:-1] + f" ({u1})."  # cites only u1; unit_ids below cites both
+        entail = Entail(score=(0.99, 0.0))
+        records = ov.screen_proposals([stmt(text, [u1, u2], [S1])], by_id, {S1}, entail)
+        record = records[0]
+        self.assertNotEqual(record["status"], "grounded")
+        self.assertTrue(any(r.startswith("unit_marker_conflicts_with_unit_ids") for r in record["reasons"]))
+        self.assertEqual(record["marker_outcome"], "conflicts_with_unit_ids")
+
+    def test_negative_control_a_superset_marker_cannot_ground_under_a_high_score(self):
+        """unit_ids cites one unit; the marker names two -- an added-id mismatch, not previously checked at
+        the final-disposition level."""
+        sealed = sealed_ledger([("a", self._DIGIT_PASSAGE, [S1]), ("b", GIVING, [S1])])
+        by_id = self._units_and_ids(sealed)
+        u1, u2 = sorted(by_id)
+        text = self._DIGIT_PASSAGE[3][:-1] + f" ({u1}, {u2})."  # cites both; unit_ids below cites only u1
+        entail = Entail(score=(0.99, 0.0))
+        records = ov.screen_proposals([stmt(text, [u1], [S1])], by_id, {S1}, entail)
+        record = records[0]
+        self.assertNotEqual(record["status"], "grounded")
+        self.assertTrue(any(r.startswith("unit_marker_conflicts_with_unit_ids") for r in record["reasons"]))
+        self.assertEqual(record["marker_outcome"], "conflicts_with_unit_ids")
+
 
 if __name__ == "__main__":
     unittest.main()
