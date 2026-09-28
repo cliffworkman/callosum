@@ -31,6 +31,15 @@ RECIPIENT_PREPS = frozenset({"toward", "towards", "against", "to", "for"})
 LOCUS_PREPS = frozenset({"in", "among", "by", "from", "on", "within"})
 _ABSENCE_EXTRA = re.compile(r"\b(?:no|little|limited|insufficient)\s+(?:evidence|research|data|studies)\b", re.I)
 
+# A trailing parenthetical containing ONLY comma-separated "U<digits>" tokens, immediately before at most one
+# closing punctuation mark, at the very end of the text. Deliberately narrow (NLI_REPAIR_DESIGN.md Section 2):
+# does not match a parenthetical containing prose (e.g. " (see above)"), one not at the end of the text (no
+# real model output has ever placed one mid-sentence), or one mixing a unit token with other content
+# (e.g. " (U1, p. 4)") -- those simply don't "purport to be a unit citation" by this narrow shape and are left
+# alone, unflagged. A marker that DOES match this shape but disagrees with the proposal's own unit_ids is a
+# different case (see `strip_redundant_unit_markers`): recognizable, but a known attribution mismatch.
+_TRAILING_UNIT_MARKER = re.compile(r"\s*\((U\d+(?:,\s*U\d+)*)\)([.!?]?)\s*$")
+
 
 def _content_stems(text: str) -> set[str]:
     return {oe.stem(w) for w in oe.words(text) if len(w) >= 4 and w not in oe._GLUE}
@@ -82,6 +91,13 @@ def screen(proposal: dict, *, units: dict[str, dict], part_ids: set[str]) -> lis
     unknown = [i for i in ids if i not in units]
     if unknown:
         return reasons + [f"unknown_unit_id:{','.join(map(str, unknown))}"]
+
+    # a recognizable trailing unit-citation marker that disagrees with the proposal's own structured unit_ids
+    # is a known attribution mismatch -- never left eligible merely because it also wasn't stripped for NLI
+    marker = strip_redundant_unit_markers(text, ids)
+    if marker["conflict_reason"]:
+        reasons.append(marker["conflict_reason"])
+
     cited = [units[i] for i in ids]
     joined = " ".join(u["passage"] for u in cited)
 
@@ -138,9 +154,63 @@ def screen(proposal: dict, *, units: dict[str, dict], part_ids: set[str]) -> lis
     return reasons
 
 
-def nli_pair(proposal: dict, units: dict[str, dict]) -> tuple[str, str]:
-    """``(premise, hypothesis)`` in the order ``support_and_contradiction_many`` takes: passage first."""
-    return " ".join(units[i]["passage"] for i in proposal["unit_ids"]), proposal["text"]
+def strip_redundant_unit_markers(text: str, unit_ids: list[str]) -> dict:
+    """Separates a redundant inline unit-citation marker (e.g. " (U1)", " (U2, U3)") from the text an NLI
+    scorer should be given, WITHOUT ever modifying ``text`` itself. Strips a marker ONLY when its token set
+    exactly equals ``unit_ids`` (no duplicate, missing, or foreign id) -- every other shape is left completely
+    untouched. A marker that IS recognizable (matches the strict citation shape) but disagrees with
+    ``unit_ids`` sets ``conflict_reason`` to a screen()-style reason code rather than guessing; a marker that
+    was never recognizable in the first place (no parens, non-citation prose, not at the end of the text)
+    leaves ``conflict_reason`` ``None`` -- it was never treated as purporting to be a citation at all.
+
+    Motivating minimal pair (nli-boundary-diagnostic-001, pairs A/B): the SAME source-faithful c9 statement
+    scored support=0.81 without a trailing " (U1)." and support=0.24 with it appended -- the exact substring
+    this function separates from the scored hypothesis. See NLI_REPAIR_DESIGN.md Section 2.
+
+    Returns a dict: ``nli_hypothesis_text`` (what a scorer should be given -- == ``text`` unless cleanly
+    stripped), ``raw_text`` (always the untouched input), ``stripped_marker`` (the exact removed substring, or
+    None), ``marker_outcome`` (``"none"`` / ``"stripped_matches_unit_ids"`` / ``"conflicts_with_unit_ids"``),
+    ``conflict_reason`` (a ready-to-use reason string, or None).
+    """
+    match = _TRAILING_UNIT_MARKER.search(text)
+    if match is None:
+        return {
+            "nli_hypothesis_text": text,
+            "raw_text": text,
+            "stripped_marker": None,
+            "marker_outcome": "none",
+            "conflict_reason": None,
+        }
+    marker_ids = [tok.strip() for tok in match.group(1).split(",")]
+    if len(marker_ids) != len(set(marker_ids)) or set(marker_ids) != set(unit_ids):
+        return {
+            "nli_hypothesis_text": text,
+            "raw_text": text,
+            "stripped_marker": None,
+            "marker_outcome": "conflicts_with_unit_ids",
+            "conflict_reason": f"unit_marker_conflicts_with_unit_ids:{','.join(marker_ids)}!={','.join(unit_ids)}",
+        }
+    trailing_punct = match.group(2) or ""
+    stripped_span = match.group(0)
+    removed = stripped_span[: len(stripped_span) - len(trailing_punct)] if trailing_punct else stripped_span
+    return {
+        "nli_hypothesis_text": text[: match.start()] + trailing_punct,
+        "raw_text": text,
+        "stripped_marker": removed,
+        "marker_outcome": "stripped_matches_unit_ids",
+        "conflict_reason": None,
+    }
+
+
+def nli_pair(proposal: dict, units: dict[str, dict], *, hypothesis_text: str | None = None) -> tuple[str, str]:
+    """``(premise, hypothesis)`` in the order ``support_and_contradiction_many`` takes: passage first.
+
+    ``hypothesis_text``, when given, overrides ``proposal["text"]`` as the hypothesis -- used to submit a
+    citation-marker-stripped hypothesis while ``proposal["text"]`` itself is never touched. Omitting it (every
+    existing caller) reproduces today's exact behavior."""
+    premise = " ".join(units[i]["passage"] for i in proposal["unit_ids"])
+    hypothesis = proposal["text"] if hypothesis_text is None else hypothesis_text
+    return premise, hypothesis
 
 
 def nli_reasons(support: float | None, contradiction: float | None, config=None) -> list[str]:

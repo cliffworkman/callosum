@@ -184,15 +184,15 @@ class ReliabilityDispositionTests(unittest.TestCase):
 
 
 class ExistingRendererGapTests(unittest.TestCase):
-    """A REAL finding about the CURRENT, unmodified `partial_answer_renderer.classify_row`: a proposal status
-    it doesn't recognize is silently dropped from `withheld_candidates` rather than raising or otherwise
-    surfacing. This is not a bug today (only "grounded"/"withheld" exist), but it means wiring in a third
-    status value MUST also update `classify_row`, or an indeterminate candidate would silently vanish from the
-    audit -- exactly the "audit must remain able to reconstruct what happened" requirement this design exists
-    to satisfy. This test is expected to need updating (not deleting) once the real repair ships and
-    `classify_row` is taught about the third status."""
+    """UPDATED 2026-09-28 (implementation pass): the gap this class originally documented -- `classify_row`
+    silently dropping a proposal status it doesn't recognize -- is now FIXED (`UnknownProposalStatus`,
+    `partial_answer_renderer.py`). This test now asserts the fixed behavior, per NLI_REPAIR_DESIGN.md Section
+    3.5's own instruction that adding a real third status still requires teaching `classify_row` about it
+    explicitly. The dedicated, more complete regression coverage for this now lives in
+    `test_partial_answer_renderer.py::ClassifyRowTests` (the module this fix actually lives in); this test is
+    kept as the direct before/after proof of the specific gap this design pass found."""
 
-    def test_an_unrecognized_proposal_status_silently_disappears_from_withheld_candidates_today(self):
+    def test_an_unrecognized_proposal_status_now_raises_explicitly_instead_of_silently_disappearing(self):
         from experiments.ask_cli_revised.contract_directed import partial_answer_renderer as renderer
 
         row = {
@@ -208,17 +208,11 @@ class ExistingRendererGapTests(unittest.TestCase):
             "index": 0,
             "text": "some candidate text",
             "unit_ids": ["U1"],
-            "status": "indeterminate",  # not "grounded", not "withheld" -- today's code doesn't know this value
+            "status": "indeterminate",  # not "grounded", not "withheld" -- still not a real production status
             "reasons": ["nli_unreliable_premise:self_support=0.01"],
         }
-        classified = renderer.classify_row(row, matched_units=["U1"], proposals=[hypothetically_indeterminate_proposal])
-        self.assertEqual(classified["outcome"], renderer.WITHHELD, "today's code falls through to WITHHELD-shaped")
-        self.assertEqual(
-            classified["withheld_candidates"],
-            [],
-            "CONFIRMED GAP: an unrecognized status is silently absent from withheld_candidates -- "
-            "classify_row must be updated, not just overview_guards.py, when this repair is implemented",
-        )
+        with self.assertRaises(renderer.UnknownProposalStatus):
+            renderer.classify_row(row, matched_units=["U1"], proposals=[hypothetically_indeterminate_proposal])
 
 
 if __name__ == "__main__":

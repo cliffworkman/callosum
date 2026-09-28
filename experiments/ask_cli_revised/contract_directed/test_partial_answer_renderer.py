@@ -120,6 +120,29 @@ class ClassifyRowTests(unittest.TestCase):
         self.assertEqual(c["outcome"], par.WITHHELD)
         self.assertEqual(c["withheld_candidates"], [])
 
+    def test_an_unrecognized_proposal_status_raises_explicitly_rather_than_being_silently_dropped(self):
+        """NLI_REPAIR_DESIGN.md Section 3.5: a proposal status this renderer doesn't recognize (e.g. a future
+        "indeterminate") must never silently vanish from withheld_candidates -- it must be impossible to emit
+        a partial answer without the renderer being explicitly taught about the new status first."""
+        unknown_proposal = {
+            "index": 0, "text": "some candidate text", "unit_ids": ["U1"],
+            "status": "indeterminate", "reasons": ["nli_unreliable_premise:self_support=0.01"],
+        }  # fmt: skip
+        with self.assertRaises(par.UnknownProposalStatus):
+            par.classify_row(M10_ROW, ["U1"], [unknown_proposal])
+
+    def test_the_unknown_status_error_names_the_row_and_the_bad_status(self):
+        unknown_proposal = {"index": 0, "text": "t", "unit_ids": ["U1"], "status": "mystery", "reasons": []}
+        with self.assertRaisesRegex(par.UnknownProposalStatus, r"c9/M10.*mystery"):
+            par.classify_row(M10_ROW, ["U1"], [unknown_proposal])
+
+    def test_a_non_touching_unknown_status_proposal_does_not_raise(self):
+        """The check only applies to proposals that actually TOUCH this row's matched units -- an unrelated
+        proposal elsewhere in the same run must not block rendering rows it has nothing to do with."""
+        unknown_elsewhere = {"index": 0, "text": "t", "unit_ids": ["U777"], "status": "mystery", "reasons": []}
+        c = par.classify_row(M10_ROW, ["U1"], [unknown_elsewhere])  # matched_units=["U1"], proposal cites U777
+        self.assertEqual(c["outcome"], par.WITHHELD)
+
 
 class RenderPartialSliceTests(unittest.TestCase):
     def setUp(self):

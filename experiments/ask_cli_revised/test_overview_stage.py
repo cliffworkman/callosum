@@ -304,5 +304,85 @@ class SeparateArtifactTests(unittest.TestCase):
         self.assertEqual(record["call"]["thinking_chars"], len(loop))
 
 
+PATTERN_FAITHFUL = "The authors described a behavioral pattern of avoidance linked to visible scarring."
+
+
+class ScreenProposalsMarkerBoundaryTests(unittest.TestCase):
+    """Direct tests of `overview.screen_proposals`'s citation-marker wiring (NLI_REPAIR_DESIGN.md Section 2/3),
+    independent of the full `build_overview` prompt/model-call machinery. Every scorer here is the `Entail`
+    fake -- no model/NLI/network call anywhere in this class."""
+
+    def _units_and_ids(self, sealed):
+        units, _ = oe.build_units(sealed)
+        return {u["unit_id"]: u for u in units}
+
+    def test_sends_the_stripped_hypothesis_to_entail_not_the_raw_text(self):
+        sealed = sealed_ledger([("c", PATTERN, [S1])])
+        by_id = self._units_and_ids(sealed)
+        u1 = next(iter(by_id))
+        marked_text = PATTERN_FAITHFUL[:-1] + f" ({u1})."
+        entail = Entail(score=(0.9, 0.05))
+        records = ov.screen_proposals([stmt(marked_text, [u1], [S1])], by_id, {S1}, entail)
+        self.assertEqual(len(entail.calls), 1)
+        ((premise, hypothesis),) = entail.calls[0]
+        self.assertEqual(hypothesis, PATTERN_FAITHFUL, "NLI must see the marker-stripped text, not the raw one")
+        self.assertEqual(premise, PATTERN[3])
+        self.assertEqual(records[0]["text"], marked_text, "the raw model text must be preserved, unmodified")
+
+    def test_records_marker_audit_fields(self):
+        sealed = sealed_ledger([("c", PATTERN, [S1])])
+        by_id = self._units_and_ids(sealed)
+        u1 = next(iter(by_id))
+        marked_text = PATTERN_FAITHFUL[:-1] + f" ({u1})."
+        records = ov.screen_proposals([stmt(marked_text, [u1], [S1])], by_id, {S1}, Entail())
+        record = records[0]
+        self.assertEqual(record["nli_hypothesis_text"], PATTERN_FAITHFUL)
+        self.assertEqual(record["marker_outcome"], "stripped_matches_unit_ids")
+        self.assertEqual(record["stripped_marker"], f" ({u1})")
+
+    def test_no_marker_present_behaves_exactly_as_before(self):
+        """Backward compatibility: an ordinary unmarked proposal's NLI input is unchanged."""
+        sealed = sealed_ledger([("c", PATTERN, [S1])])
+        by_id = self._units_and_ids(sealed)
+        u1 = next(iter(by_id))
+        entail = Entail(score=(0.9, 0.05))
+        records = ov.screen_proposals([stmt(PATTERN_FAITHFUL, [u1], [S1])], by_id, {S1}, entail)
+        ((premise, hypothesis),) = entail.calls[0]
+        self.assertEqual(hypothesis, PATTERN_FAITHFUL)
+        self.assertEqual(records[0]["marker_outcome"], "none")
+        self.assertIsNone(records[0]["stripped_marker"])
+        self.assertEqual(records[0]["status"], "grounded")
+
+    def test_a_conflicting_marker_withholds_even_with_a_high_nli_score(self):
+        """Negative control: a genuinely high NLI score must NOT rescue a proposal whose citation marker
+        disagrees with its own structured unit_ids -- an attribution mismatch stays ineligible regardless."""
+        sealed = sealed_ledger([("c", PATTERN, [S1])])
+        by_id = self._units_and_ids(sealed)
+        u1 = next(iter(by_id))
+        conflicting_text = PATTERN_FAITHFUL[:-1] + " (U99)."  # a unit id that isn't even u1
+        entail = Entail(score=(0.99, 0.0))  # a deliberately high stub score
+        records = ov.screen_proposals([stmt(conflicting_text, [u1], [S1])], by_id, {S1}, entail)
+        record = records[0]
+        self.assertEqual(record["status"], "withheld")
+        self.assertTrue(any(r.startswith("unit_marker_conflicts_with_unit_ids") for r in record["reasons"]))
+        self.assertEqual(record["text"], conflicting_text, "raw text is still preserved even when withheld")
+
+    def test_removing_a_marker_does_not_rescue_a_genuinely_unsupported_candidate(self):
+        """Negative control: stripping the marker only changes what NLI sees, never the score itself -- a
+        candidate that would fail on its stripped text fails exactly the same as it would have on the raw
+        text (this fake scorer ignores content, but the point is the STATUS logic doesn't special-case a
+        stripped proposal into passing)."""
+        sealed = sealed_ledger([("c", PATTERN, [S1])])
+        by_id = self._units_and_ids(sealed)
+        u1 = next(iter(by_id))
+        marked_text = PATTERN_FAITHFUL[:-1] + f" ({u1})."
+        entail = Entail(score=(0.1, 0.05))  # below threshold regardless of stripping
+        records = ov.screen_proposals([stmt(marked_text, [u1], [S1])], by_id, {S1}, entail)
+        record = records[0]
+        self.assertEqual(record["status"], "withheld")
+        self.assertIn("nli_low_support:0.10", record["reasons"])
+        self.assertEqual(record["marker_outcome"], "stripped_matches_unit_ids", "stripping still happened")
+
+
 if __name__ == "__main__":
     unittest.main()

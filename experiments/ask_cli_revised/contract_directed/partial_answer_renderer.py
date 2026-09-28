@@ -59,6 +59,19 @@ DISPLAYED = "source_supported_and_displayed"
 WITHHELD = "source_supported_overview_withheld"
 UNRESOLVED = "unresolved"
 
+# The complete, currently-supported overview proposal status vocabulary (matches `overview.py::screen_proposals`
+# exactly: "grounded" if `reasons` is empty, else "withheld"). Extending this vocabulary -- e.g. a future
+# "indeterminate" disposition (NLI_REPAIR_DESIGN.md Section 3, deliberately NOT implemented here) -- requires
+# adding it here explicitly, with its own outcome/note text and tests, not merely being accepted by accident.
+KNOWN_PROPOSAL_STATUSES = frozenset({"grounded", "withheld"})
+
+
+class UnknownProposalStatus(ValueError):
+    """A proposal touching this row's matched units has a status `classify_row` does not recognize. Raised
+    before any classification or rendering happens, rather than silently dropping the proposal from
+    `withheld_candidates` (the confirmed gap NLI_REPAIR_DESIGN.md Section 3.5 found in the prior behavior)."""
+
+
 _UNRESOLVED_NOTE = (
     "This is a coverage limit on the admitted evidence, not a null finding: it does not claim the relationship "
     "does not exist, and it says nothing about whether the wider library holds evidence for it."
@@ -138,6 +151,13 @@ def classify_row(row: dict, matched_units: list[str], proposals: list[dict]) -> 
         return {**base, "outcome": UNRESOLVED, "displayed_statement": None, "withheld_candidates": []}
 
     touching = _proposals_touching(matched_units, proposals) if matched_units else []
+    unrecognized = [p for p in touching if p["status"] not in KNOWN_PROPOSAL_STATUSES]
+    if unrecognized:
+        bad = sorted({p["status"] for p in unrecognized})
+        raise UnknownProposalStatus(
+            f"{row['child_id']}/{row['unit_id']}: proposal status(es) {bad} are not in KNOWN_PROPOSAL_STATUSES "
+            f"{sorted(KNOWN_PROPOSAL_STATUSES)} -- classify_row must be updated before this status can be rendered"
+        )
     grounded = [p for p in touching if p["status"] == "grounded"]
     withheld = [p for p in touching if p["status"] == "withheld"]
     if grounded:

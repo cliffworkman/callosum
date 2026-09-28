@@ -187,6 +187,164 @@ class NliTests(unittest.TestCase):
         self.assertEqual(premise, GIVING[3] + " " + NULL[3])
         self.assertEqual(hypothesis, "some statement here")
 
+    def test_pairs_accept_an_explicit_hypothesis_text_override(self):
+        """The citation-marker-stripped hypothesis is substituted without touching proposal["text"] or the
+        premise-joining logic -- omitting the argument reproduces today's exact behavior (the test above)."""
+        sealed = sealed_ledger([("a", GIVING, [S1])])
+        units, _ = oe.build_units(sealed)
+        by_id = {u["unit_id"]: u for u in units}
+        proposal = stmt("raw text with a marker (U1).", ["U1"])
+        premise, hypothesis = g.nli_pair(proposal, by_id, hypothesis_text="raw text with a marker.")
+        self.assertEqual(premise, GIVING[3])
+        self.assertEqual(hypothesis, "raw text with a marker.")
+        self.assertEqual(proposal["text"], "raw text with a marker (U1).", "the override must not mutate proposal")
+
+
+class StripRedundantUnitMarkersTests(unittest.TestCase):
+    """The citation-metadata boundary (NLI_REPAIR_DESIGN.md Section 2). Every case is pure text logic --
+    zero model/NLI/network calls anywhere in this class."""
+
+    def test_no_marker_present_is_a_no_op(self):
+        r = g.strip_redundant_unit_markers("The scale measures fairness beliefs.", ["U1"])
+        self.assertEqual(r["nli_hypothesis_text"], "The scale measures fairness beliefs.")
+        self.assertEqual(r["raw_text"], "The scale measures fairness beliefs.")
+        self.assertIsNone(r["stripped_marker"])
+        self.assertEqual(r["marker_outcome"], "none")
+        self.assertIsNone(r["conflict_reason"])
+
+    def test_exact_match_marker_is_stripped(self):
+        r = g.strip_redundant_unit_markers("The scale measures fairness beliefs (U1).", ["U1"])
+        self.assertEqual(r["nli_hypothesis_text"], "The scale measures fairness beliefs.")
+        self.assertEqual(r["raw_text"], "The scale measures fairness beliefs (U1).")
+        self.assertEqual(r["stripped_marker"], " (U1)")
+        self.assertEqual(r["marker_outcome"], "stripped_matches_unit_ids")
+        self.assertIsNone(r["conflict_reason"])
+
+    def test_exact_multi_unit_match_marker_is_stripped(self):
+        r = g.strip_redundant_unit_markers("The finding held across conditions (U2, U3).", ["U2", "U3"])
+        self.assertEqual(r["nli_hypothesis_text"], "The finding held across conditions.")
+        self.assertEqual(r["marker_outcome"], "stripped_matches_unit_ids")
+
+    def test_marker_order_does_not_matter_for_exact_match(self):
+        r = g.strip_redundant_unit_markers("The finding held (U3, U2).", ["U2", "U3"])
+        self.assertEqual(r["nli_hypothesis_text"], "The finding held.")
+        self.assertEqual(r["marker_outcome"], "stripped_matches_unit_ids")
+
+    def test_generic_non_citation_parenthetical_is_never_touched(self):
+        text = "The scale measures fairness beliefs (see above)."
+        r = g.strip_redundant_unit_markers(text, ["U1"])
+        self.assertEqual(r["nli_hypothesis_text"], text)
+        self.assertEqual(r["marker_outcome"], "none")
+        self.assertIsNone(r["conflict_reason"])
+
+    def test_superset_marker_conflicts_and_is_not_stripped(self):
+        text = "The scale measures fairness beliefs (U1, U2)."
+        r = g.strip_redundant_unit_markers(text, ["U1"])  # only U1 is structurally cited
+        self.assertEqual(r["nli_hypothesis_text"], text, "must not strip an inconsistent marker")
+        self.assertEqual(r["marker_outcome"], "conflicts_with_unit_ids")
+        self.assertIsNotNone(r["conflict_reason"])
+        self.assertIn("U1,U2", r["conflict_reason"].replace(" ", ""))
+
+    def test_subset_marker_conflicts_and_is_not_stripped(self):
+        text = "The finding held across conditions (U2)."
+        r = g.strip_redundant_unit_markers(text, ["U2", "U3"])  # marker is missing U3
+        self.assertEqual(r["nli_hypothesis_text"], text)
+        self.assertEqual(r["marker_outcome"], "conflicts_with_unit_ids")
+        self.assertIsNotNone(r["conflict_reason"])
+
+    def test_foreign_unit_id_in_marker_conflicts(self):
+        text = "The scale measures fairness beliefs (U9)."
+        r = g.strip_redundant_unit_markers(text, ["U1"])
+        self.assertEqual(r["nli_hypothesis_text"], text)
+        self.assertEqual(r["marker_outcome"], "conflicts_with_unit_ids")
+        self.assertIsNotNone(r["conflict_reason"])
+
+    def test_duplicate_id_inside_marker_conflicts_rather_than_silently_passing(self):
+        text = "The scale measures fairness beliefs (U1, U1)."
+        r = g.strip_redundant_unit_markers(text, ["U1"])
+        self.assertEqual(r["nli_hypothesis_text"], text, "a malformed marker must never be stripped")
+        self.assertEqual(r["marker_outcome"], "conflicts_with_unit_ids")
+        self.assertIsNotNone(r["conflict_reason"], "a recognizable-but-malformed marker must fail with a reason")
+
+    def test_marker_mixed_with_non_unit_prose_is_left_untouched_and_unflagged(self):
+        """ "(U1, p. 4)" does not match the strict citation-marker shape at all -- distinguishing an ordinary
+        parenthetical from something that purports to be a unit citation, per the design doc."""
+        text = "The scale measures fairness beliefs (U1, p. 4)."
+        r = g.strip_redundant_unit_markers(text, ["U1"])
+        self.assertEqual(r["nli_hypothesis_text"], text)
+        self.assertEqual(r["marker_outcome"], "none")
+        self.assertIsNone(r["conflict_reason"])
+
+    def test_marker_embedded_mid_sentence_is_out_of_scope_and_left_untouched(self):
+        """Only a TRAILING marker is recognized in this pass -- a disclosed, deliberate scope boundary (no
+        real model output has ever placed one mid-sentence); see NLI_REPAIR_DESIGN.md Section 8."""
+        text = "As shown (U1), the scale measures fairness beliefs in participants."
+        r = g.strip_redundant_unit_markers(text, ["U1"])
+        self.assertEqual(r["nli_hypothesis_text"], text)
+        self.assertEqual(r["marker_outcome"], "none")
+
+    def test_acceptance_fixture_the_real_saved_c9_minimal_pair_strips_byte_for_byte(self):
+        """The actual saved diagnostic candidates -- not retyped. Zero inference; pure text comparison only."""
+        raw_b = (
+            "Participants completed a Just World Beliefs Scale, which measures beliefs about interpersonal "
+            "fairness toward oneself and others; the Interpersonal Reactivity Index, which measures cognitive "
+            "(perspective taking) and affective (empathic concern) empathy; and a subscale from the "
+            "Three-Domain Disgust scale that measures sensitivity to pathogen-related disgust (U1)."
+        )
+        expected_a = (
+            "Participants completed a Just World Beliefs Scale, which measures beliefs about interpersonal "
+            "fairness toward oneself and others; the Interpersonal Reactivity Index, which measures cognitive "
+            "(perspective taking) and affective (empathic concern) empathy; and a subscale from the "
+            "Three-Domain Disgust scale that measures sensitivity to pathogen-related disgust."
+        )
+        r = g.strip_redundant_unit_markers(raw_b, ["U1"])
+        self.assertEqual(r["nli_hypothesis_text"], expected_a)
+        self.assertEqual(r["raw_text"], raw_b, "raw text must be preserved byte-for-byte, unmodified")
+        self.assertEqual(r["marker_outcome"], "stripped_matches_unit_ids")
+
+    def test_the_real_saved_c11_marker_also_strips_correctly(self):
+        raw_d = (
+            "We presented 123 Hadza across ten camps pairs of morphed Hadza faces—each with one face "
+            "altered to include a scar—and asked who they expected to be more moral and a better "
+            "forager, noting that Hadza with greater exposure to other cultures expected the scarred face to "
+            "be less moral (U2, U3)."
+        )
+        r = g.strip_redundant_unit_markers(raw_d, ["U2", "U3"])
+        self.assertTrue(r["nli_hypothesis_text"].endswith("less moral."))
+        self.assertNotIn("(U2, U3)", r["nli_hypothesis_text"])
+        self.assertEqual(r["raw_text"], raw_d)
+        self.assertEqual(r["marker_outcome"], "stripped_matches_unit_ids")
+
+
+class ScreenFlagsUnitMarkerConflictsTests(unittest.TestCase):
+    """The additional fail-closed requirement: `screen()` itself must withhold a proposal whose trailing marker
+    conflicts with its structured unit_ids -- an inconsistency must never merely go un-stripped, it must also
+    become ineligible."""
+
+    def test_screen_withholds_a_proposal_whose_marker_conflicts_with_unit_ids(self):
+        sealed = sealed_ledger([("c", PATTERN, [S1])])
+        units, _ = oe.build_units(sealed)
+        by_id = {u["unit_id"]: u for u in units}
+        text = "The authors described a behavioral pattern of avoidance linked to visible scarring (U9)."
+        reasons = g.screen(stmt(text, ["U1"], []), units=by_id, part_ids=PARTS)
+        self.assertTrue(any(r.startswith("unit_marker_conflicts_with_unit_ids") for r in reasons), reasons)
+
+    def test_screen_does_not_flag_a_marker_that_exactly_matches_unit_ids(self):
+        sealed = sealed_ledger([("c", PATTERN, [S1])])
+        units, _ = oe.build_units(sealed)
+        by_id = {u["unit_id"]: u for u in units}
+        text = "The authors described a behavioral pattern of avoidance linked to visible scarring (U1)."
+        reasons = g.screen(stmt(text, ["U1"], []), units=by_id, part_ids=PARTS)
+        self.assertFalse(any(r.startswith("unit_marker_conflicts_with_unit_ids") for r in reasons), reasons)
+
+    def test_screen_does_not_flag_ordinary_text_with_no_marker(self):
+        sealed = sealed_ledger([("c", PATTERN, [S1])])
+        units, _ = oe.build_units(sealed)
+        by_id = {u["unit_id"]: u for u in units}
+        text = "The authors described a behavioral pattern of avoidance linked to visible scarring."
+        reasons = g.screen(stmt(text, ["U1"], []), units=by_id, part_ids=PARTS)
+        self.assertFalse(any(r.startswith("unit_marker_conflicts_with_unit_ids") for r in reasons), reasons)
+
 
 if __name__ == "__main__":
     unittest.main()

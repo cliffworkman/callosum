@@ -238,12 +238,23 @@ def screen_proposals(proposals: list[dict], units: dict[str, dict], part_ids: se
     pairs, positions = [], []
     for index, proposal in enumerate(proposals):
         reasons = guards.screen(proposal, units=units, part_ids=part_ids)
+        text, unit_ids = proposal.get("text"), proposal.get("unit_ids")
+        # NLI_REPAIR_DESIGN.md Section 2: a redundant inline citation marker (e.g. " (U1)") is separated from
+        # the text NLI scores here -- proposal["text"] itself, saved below, is never touched by this.
+        marker = (
+            guards.strip_redundant_unit_markers(text, unit_ids)
+            if isinstance(text, str) and isinstance(unit_ids, list)
+            else None
+        )
         record = {
             "index": index,
-            "text": proposal.get("text"),
-            "unit_ids": proposal.get("unit_ids"),
+            "text": text,
+            "unit_ids": unit_ids,
             "bears_on": proposal.get("bears_on"),
             "screen_reasons": reasons,
+            "nli_hypothesis_text": marker["nli_hypothesis_text"] if marker else text,
+            "marker_outcome": marker["marker_outcome"] if marker else None,
+            "stripped_marker": marker["stripped_marker"] if marker else None,
             "nli": None,
             "nli_reasons": [],
         }
@@ -254,7 +265,8 @@ def screen_proposals(proposals: list[dict], units: dict[str, dict], part_ids: se
             and all(i in units for i in proposal["unit_ids"])
             and proposal["unit_ids"]
         ):
-            pairs.append(guards.nli_pair(proposal, units))
+            hypothesis = marker["nli_hypothesis_text"] if marker else text
+            pairs.append(guards.nli_pair(proposal, units, hypothesis_text=hypothesis))
             positions.append(index)
     scores: list = []
     if pairs:
