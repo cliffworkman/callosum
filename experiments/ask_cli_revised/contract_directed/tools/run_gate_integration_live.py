@@ -53,6 +53,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+import psutil
+
 os.environ.setdefault("HF_HUB_OFFLINE", "1")
 os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
 
@@ -73,8 +75,33 @@ from experiments.ask_cli_revised.contract_directed import overview_bridge as bri
 
 REPO = Path(r"C:\Users\cliff\callosum-worktrees\ask-contract-directed")
 DB = freeze.SLICE_ROOT / "library.sqlite"
+RUNS_ROOT = freeze.SLICE_ROOT / "runs"
 # Named for provenance/comparison only. This path is NEVER opened anywhere in this script.
-COMPARISON_ONLY_PRIOR_RECORD = str(freeze.SLICE_ROOT / "runs" / "gate2-diagnostic-002" / "04_final_record.json")
+COMPARISON_ONLY_PRIOR_RECORD = str(RUNS_ROOT / "gate2-diagnostic-002" / "04_final_record.json")
+# The local process loads the embedding + NLI models (runtime.build_runtime); the isolated Ollama server
+# (same machine, a separate process) needs its own headroom to load Qwen3.5:9b if not already resident. A
+# prior background run on this machine was killed by the harness for system-wide memory pressure -- this
+# floor exists so a live call is never attempted into that same condition. It does not know the isolated
+# Ollama process's own footprint or residency state; that is checked separately, only after this passes,
+# via a real /api/ps call inside main().
+MIN_AVAILABLE_MEMORY_BYTES = 4 * 1024**3  # 4 GiB
+
+
+def _check_available_memory() -> dict:
+    vm = psutil.virtual_memory()
+    info = {
+        "total_gib": round(vm.total / 1024**3, 2),
+        "available_gib": round(vm.available / 1024**3, 2),
+        "percent_used": vm.percent,
+        "min_required_gib": round(MIN_AVAILABLE_MEMORY_BYTES / 1024**3, 2),
+    }
+    if vm.available < MIN_AVAILABLE_MEMORY_BYTES:
+        raise SystemExit(
+            f"preflight failed: only {info['available_gib']} GiB available (of {info['total_gib']} GiB total, "
+            f"{info['percent_used']:.1f}% used) -- below the {info['min_required_gib']} GiB floor. Free up "
+            "memory (close other applications) before attempting the live call."
+        )
+    return info
 
 
 def _git(*args: str) -> str:
@@ -181,6 +208,8 @@ def offline_preflight() -> dict:
     if dirty:
         raise SystemExit(f"preflight failed: refusing a live call from a dirty tree: {dirty[:5]}")
 
+    memory = _check_available_memory()
+
     return {
         "manifest_rows": manifest_rows,
         "commit_sha": commit_sha,
@@ -189,6 +218,7 @@ def offline_preflight() -> dict:
         "sent_unit_ids": sent_unit_ids,
         "prompt_char_len": len(prompt),
         "comparison_reference_never_read": COMPARISON_ONLY_PRIOR_RECORD,
+        "memory": memory,
     }
 
 
@@ -197,7 +227,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--run-id", default="gate-integration-live-001")
     args = parser.parse_args(argv)
 
-    run_dir = freeze.SLICE_ROOT / "runs" / args.run_id
+    run_dir = RUNS_ROOT / args.run_id
     if run_dir.exists():
         raise SystemExit(f"{run_dir} exists; live run ids are never reused")
 
