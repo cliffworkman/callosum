@@ -85,6 +85,13 @@ COMPARISON_ONLY_PRIOR_RECORD = str(RUNS_ROOT / "gate2-diagnostic-002" / "04_fina
 # Ollama process's own footprint or residency state; that is checked separately, only after this passes,
 # via a real /api/ps call inside main().
 MIN_AVAILABLE_MEMORY_BYTES = 4 * 1024**3  # 4 GiB
+# An explicit, off-by-default escape hatch for a human who has already seen a real preflight failure and
+# instructs this exact run to proceed anyway (2026-09-28: Cliff, having freed what memory was available and
+# still short of the floor, said "it's not going to get better than this, please continue"). This does NOT
+# lower MIN_AVAILABLE_MEMORY_BYTES -- every future run keeps the real 4 GiB floor as its default -- it only
+# lets ONE explicitly-flagged invocation proceed, with the actual reading and the override itself recorded
+# in this run's own preflight output and integration receipt rather than silently bypassed.
+MEMORY_FLOOR_OVERRIDE_ENV = "CALLOSUM_ASK_LIVE_MEMORY_FLOOR_OVERRIDE"
 
 
 def _check_available_memory() -> dict:
@@ -94,8 +101,17 @@ def _check_available_memory() -> dict:
         "available_gib": round(vm.available / 1024**3, 2),
         "percent_used": vm.percent,
         "min_required_gib": round(MIN_AVAILABLE_MEMORY_BYTES / 1024**3, 2),
+        "floor_overridden_by_explicit_instruction": False,
     }
     if vm.available < MIN_AVAILABLE_MEMORY_BYTES:
+        if os.environ.get(MEMORY_FLOOR_OVERRIDE_ENV) == "1":
+            info["floor_overridden_by_explicit_instruction"] = True
+            print(
+                f"MEMORY FLOOR OVERRIDDEN by explicit instruction ({MEMORY_FLOOR_OVERRIDE_ENV}=1): only "
+                f"{info['available_gib']} GiB available, below the {info['min_required_gib']} GiB floor. "
+                "Proceeding anyway; this fact is recorded in the run's own output."
+            )
+            return info
         raise SystemExit(
             f"preflight failed: only {info['available_gib']} GiB available (of {info['total_gib']} GiB total, "
             f"{info['percent_used']:.1f}% used) -- below the {info['min_required_gib']} GiB floor. Free up "
@@ -245,6 +261,10 @@ def main(argv: list[str] | None = None) -> int:
         # attempted (2026-09-28, first live-driver invocation: caught before any retry).
         trace = gate2_trace.DiagnosticTrace(run_dir)
         trace.manifest_ready(manifest_rows)
+        (run_dir / "preflight_report.json").write_text(
+            json.dumps({k: v for k, v in preflight.items() if k != "manifest_rows"}, indent=2, default=str),
+            encoding="utf-8",
+        )
 
         with endpoint_guard.isolated_only():
             client = ms.FreeChatClient(topo.ENDPOINTS["isolated"])

@@ -97,6 +97,7 @@ class MainEntryPointOfflineTests(unittest.TestCase):
             "03_raw_response.json",
             "04_final_record.json",
             "pre_call_ollama_state.json",
+            "preflight_report.json",
             "00_integration_receipt.json",
             "01_derived_manifest.json",
             "02_partial_answer.md",
@@ -140,6 +141,53 @@ class MainEntryPointOfflineTests(unittest.TestCase):
         self.assertFalse((run_dir / "00_integration_receipt.json").exists())
         self.assertEqual(client.calls, [])  # no chat() call was ever made
         self.assertTrue(rt.closed)  # cleanup still ran despite the raise
+
+
+def _fake_vm(available_gib: float, total_gib: float = 16.0, percent: float = 80.0):
+    return SimpleNamespace(total=int(total_gib * 1024**3), available=int(available_gib * 1024**3), percent=percent)
+
+
+class MemoryFloorTests(unittest.TestCase):
+    """`_check_available_memory()` in isolation: the default floor blocks low memory; the explicit,
+    off-by-default env-var override (2026-09-28, Cliff's real-time instruction after confirming memory would
+    not improve further) lets one invocation proceed while recording that it did so."""
+
+    def setUp(self):
+        self.addCleanup(lambda: None)
+
+    def test_sufficient_memory_passes_without_any_override(self):
+        with patch.object(live.psutil, "virtual_memory", lambda: _fake_vm(available_gib=8.0)):
+            info = live._check_available_memory()
+        self.assertFalse(info["floor_overridden_by_explicit_instruction"])
+        self.assertEqual(info["available_gib"], 8.0)
+
+    def test_insufficient_memory_refuses_by_default(self):
+        with (
+            patch.object(live.psutil, "virtual_memory", lambda: _fake_vm(available_gib=2.0)),
+            patch.dict(live.os.environ, {}, clear=False),
+        ):
+            live.os.environ.pop(live.MEMORY_FLOOR_OVERRIDE_ENV, None)
+            with self.assertRaises(SystemExit) as ctx:
+                live._check_available_memory()
+        self.assertIn("below the", str(ctx.exception))
+
+    def test_insufficient_memory_with_the_explicit_override_proceeds_and_records_the_fact(self):
+        with (
+            patch.object(live.psutil, "virtual_memory", lambda: _fake_vm(available_gib=3.82)),
+            patch.dict(live.os.environ, {live.MEMORY_FLOOR_OVERRIDE_ENV: "1"}),
+        ):
+            info = live._check_available_memory()
+        self.assertTrue(info["floor_overridden_by_explicit_instruction"])
+        self.assertEqual(info["available_gib"], 3.82)
+        self.assertLess(info["available_gib"], info["min_required_gib"])  # genuinely below the floor, on record
+
+    def test_an_unrecognized_override_value_does_not_bypass_the_floor(self):
+        with (
+            patch.object(live.psutil, "virtual_memory", lambda: _fake_vm(available_gib=2.0)),
+            patch.dict(live.os.environ, {live.MEMORY_FLOOR_OVERRIDE_ENV: "true"}),  # only the literal "1" counts
+        ):
+            with self.assertRaises(SystemExit):
+                live._check_available_memory()
 
 
 if __name__ == "__main__":
