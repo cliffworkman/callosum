@@ -1,0 +1,181 @@
+{
+  "_purpose": "Phase 2 integration manifest (Callosum 0.6.0 Ask consolidation, Section 12). Machine-readable record of what was integrated into this worktree, its validation status, and what remains open. Distinguishes implemented-and-validated / implemented-but-not-live-E2E-validated / preserved-experimental-tooling / unresolved / planned-not-implemented, per the authorization's explicit instruction that 'present somewhere in the repository' never counts as 'integrated.'",
+
+  "worktree": {
+    "identifier": "ask-060-hier11-recpm3-citefix-20260929T212442Z",
+    "absolute_path": "C:\\Users\\cliff\\Dropbox\\Dropbox\\01_Work\\callosum\\.claude\\worktrees\\ask-060-hier11-recpm3-citefix-20260929T212442Z",
+    "branch": "experiment/ask-060-hier11-recpm3-citefix-20260929T212442Z",
+    "created_utc": "2026-09-29T21:24:42Z",
+    "source_base": {
+      "branch": "experiment/ask-contract-directed",
+      "commit": "13540524096940c347aa34ffc517b6731cbb1fc1"
+    },
+    "commits_added": [
+      "fe2fbea0 - Phase 2 Section 4: preserve design-time hierarchy-construction tooling",
+      "11586209 - Phase 2 Sections 5-6: recovery-only deterministic +/-3 neighborhood; characterize (don't fix) the single-span evidence-anchor limit"
+    ]
+  },
+
+  "frozen_hierarchy_artifact": {
+    "path": "experiments/ask_cli_revised/hierarchy_contract.frozen.json",
+    "sha256": "1e1b1630291dcb6e81a73640ae44c07bec6eec7f92cf906c27f5e87637729e8d",
+    "question_sha256": "6e037bab4baad2c0b4427a1c73c6e1720296292b3be36189cd9cf02436e57030",
+    "confirmed_byte_identical_to_source_ask_e2e_working_tree": true,
+    "child_count": 11,
+    "child_ids": ["c1", "c2", "c3", "c4", "c5", "c6", "c8", "c9", "c10", "c11", "c12"],
+    "note": "c7 was folded into c8 during v2-v8 development; 11 is the correct, final, approved count.",
+    "verified_live_via": "hierarchy_contract.load_contract_for_preflight() + hierarchy_subquestions(), a real function call against the real frozen artifact and its .local/ provenance inputs (restored into this worktree's gitignored .local/ from the Section-2 snapshot -- see local_runtime_data_restored below), not by inspection alone.",
+    "status": "implemented_and_validated"
+  },
+
+  "c6_provenance_resolution": {
+    "status": "resolved_not_a_stop_condition",
+    "finding": "c6's CLOSURE_APPROVALS.json entry has approved_by='Cliff', recorded='2026-09-25', and an authorization_quote confirming Cliff's explicit acceptance -- but lacks the approval_ref field (e.g. 'CD-4') that c4/c5/c9/c11/c12's entries carry. hierarchy_contract's own preflight_report() and the loaded contract's per-child approval dict both display this as 'approval=-' / 'provenance=(none recorded)' for c6 specifically, purely because that generator keys off approval_ref -- not because the underlying approval is absent.",
+    "evidence": [
+      "raw CLOSURE_APPROVALS.json: c6 entry has approved_by/recorded/authorization_quote, wording_sha256 matching the freeze-review sheet exactly",
+      "hierarchy_contract.load_contract_for_preflight(question).hierarchy_subquestions()[c6]['hierarchy']['approval'] == {'child_id': 'c6', 'approved_by': 'Cliff', 'recorded': '2026-09-25'} -- confirmed via a real loader call in this worktree",
+      "hierarchy_contract.preflight_report() shows 'c6 ... provenance=(none recorded) approval=-' -- confirmed this is the SAME display gap, reproduced live"
+    ],
+    "conclusion": "This is a display/generator gap (the approval_ref field is missing from one JSON record), not absent researcher provenance. Section 15's stop condition ('c6 appears genuinely unapproved') does not fire."
+  },
+
+  "section_4_reconciliation": {
+    "status": "implemented_and_validated",
+    "files_reviewed": ["e2e.py", "stages.py", "__main__.py", "ledger_renderer.py", "request_contract.py", "e2e_checks.py"],
+    "finding": "All six files' dirty ask-e2e content (diffed against their own common ancestor 40a9da5e, with CRLF/LF normalization applied where the working-tree copy had CRLF endings) is either already byte-identical to what is committed in this worktree's base, or (e2e_checks.py) a strict subset of it -- the committed lineage's own later Overview work (commit 2b340ff1) added more (overview_audit checks) than the dirty tree ever had. Nothing required hand-porting.",
+    "decompose_design_time_tooling": {
+      "status": "preserved_experimental_tooling",
+      "files_preserved": 31,
+      "location": "experiments/ask_cli_revised/decompose/ (in place, alongside the 10 already-committed runtime primitives)",
+      "confirmed_non_runtime": "exhaustive grep across the whole repository: hierarchy_contract.py is the only caller of decompose/ outside itself, and it imports only execution and tree (both already committed)",
+      "confirmed_coherent": "pytest --collect-only: 294 preserved tests import cleanly; the full experiments/ask_cli_revised/ tree still collects with zero errors",
+      "readme": "experiments/ask_cli_revised/decompose/DESIGN_TIME_TOOLING.md"
+    }
+  },
+
+  "section_5_recovery_neighborhood": {
+    "status": "implemented_and_validated",
+    "mechanism": "retrieval.recovery_neighborhood_context(conn, *, hit, subquestion_text) -- ports contract_directed/neighborhood.py's build_neighborhood() (deterministic, MAX_SIDE=3, section/reference/sentence-continuity-aware) into the flat pipeline, called ONLY from _recover's two _process_hits call sites (DEEPEN/LEGACY existing-papers branch, NOMINATE new-papers branch), via a new optional context_fn parameter on _process_hits that defaults to None (= unchanged grow_context behavior).",
+    "model_based_nomination_vs_deterministic_construction": {
+      "model_based_nomination": "unchanged upstream mechanisms: run_recovery_plan's own DEEPEN/NOMINATE/LEGACY decision (Qwen), and qwen.recovery_query()'s search-query reformulation",
+      "deterministic_neighborhood_construction": "the new recovery_neighborhood_context call, purely structural -- asserted by a test that it takes no `gate` parameter at all"
+    },
+    "first_pass_unchanged": {
+      "claim": "e2e.py's _initial_pass never passes context_fn to cli._process_hits, so its default (None -> grow_context) is untouched.",
+      "verified_by": "test_rounds_mechanics.py::RecoveryPassesDeterministicNeighborhoodContextTests::test_initial_pass_never_passes_context_fn_so_grow_context_stays_the_default (inspects the real function signature's default)"
+    },
+    "contract_directed_left_intact": {
+      "claim": "zero files under experiments/ask_cli_revised/contract_directed/ were modified.",
+      "verified_by": "git status showed no changes there; its own 619-test suite still passes"
+    },
+    "tests_added": [
+      "test_recovery_neighborhood_context.py (4 tests: window reaches +/-3, stops at References, incomplete-clause fallback, no gate parameter exists)",
+      "test_rounds_mechanics.py::RecoveryPassesDeterministicNeighborhoodContextTests (3 tests: every recovery _process_hits call carries context_fn; the callable really is recovery_neighborhood_context, not inert; the initial pass's default stays None)"
+    ]
+  },
+
+  "section_6_evidence_handoff": {
+    "status": "unresolved_by_design_stop_and_report",
+    "finding": "propositions.marshal_and_verify's schema is structurally single-span: evidence_anchor_chunk_id, evidence_span_id, and quote are all singular fields on a persisted proposition record. This PREDATES Section 5's work -- it already held for grow_context's own +/-2 packets -- and is not something the new +/-3 neighborhood introduces, though recovery specifically targets cases needing wider context, making the limitation more likely to actually matter there.",
+    "what_does_work": [
+      "recovered multi-chunk context DOES reach proposition formation: qwen.form_claim's context_text is built from every chunk in the packet, not just the one selected span's chunk",
+      "a claim CAN synthesize facts across chunks (the model sees the full context)",
+      "source coordinates ARE accurate for whatever IS persisted -- verification (canonical_text_contains) always re-checks the actual single anchor chunk's real text"
+    ],
+    "what_does_not_work": [
+      "a claim that synthesizes facts from chunk N and chunk N+1 can only ever persist ONE of those chunks as its evidence_anchor_chunk_id/quote -- the other chunk's contribution has no persisted anchor of its own",
+      "provenance.context_read (a list of all chunk_ids read) is diagnostic-only and is never used for verification"
+    ],
+    "regression_test": "test_rounds_mechanics.py::MultiChunkEvidenceCollapsesToASingleAnchorTests::test_a_three_chunk_packet_gives_form_claim_full_context_but_persists_only_one_chunks_span -- a real 3-chunk packet whose claim asserts two separately-sourced numeric facts; proves the model saw both, the claim states both, but only one chunk's quote is persisted and only that one chunk is what verification actually checks.",
+    "connection_to_wider_project": "app's own H1b spec (.claude/docs/specs/2026-09-05-evidence-unit-contract.md) already states as a load-bearing rule that canonical_text_contains must never be relaxed to accept an assembled multi-span string -- so leaving this single-span and reporting it, rather than silently redesigning it, is consistent with an existing project-wide invariant, not merely cautious.",
+    "smallest_viable_alternatives": [
+      {
+        "option": "A: leave as-is (do nothing)",
+        "consequence": "a recovery-widened claim that genuinely needs two chunks keeps exactly today's guarantee -- its one persisted quote is always verbatim-verified against its one real chunk -- but a reader inspecting only the evidence_anchor_chunk_id will not see the second chunk's contribution to the claim, even though provenance.context_read names it."
+      },
+      {
+        "option": "B: add a plural evidence-anchor list (evidence_anchor_chunk_ids/evidence_span_ids/quotes, each independently verified) alongside the existing singular fields",
+        "consequence": "a real schema/scientific-contract change: the coordinate-honesty contract (Callosum invariant #2: exact/region/null) would need a defined meaning for MULTIPLE simultaneous exact locations on one claim; the renderer, the verifier's per-span confidence semantics, and every downstream consumer of evidence_anchor_chunk_id (singular) would need updating or an explicit migration; NLI/support-confidence would need a defined combination rule across spans rather than one score per claim."
+      },
+      {
+        "option": "C: split a genuinely multi-chunk-dependent claim into two separately-verified propositions at claim-formation time",
+        "consequence": "avoids a schema change, but changes qwen.form_claim's own task (one span -> one claim would become an explicit multi-claim decomposition step) and could fragment a claim a reader would expect to read as one sentence; unclear whether the two propositions' relationship (that they jointly support one comparison) would itself need a new field to record."
+      }
+    ],
+    "decision_owner": "Cliff -- this is a substantive scientific-contract decision per Section 6's explicit instruction, not something to choose silently here."
+  },
+
+  "section_7_nli_repair": {
+    "status": "implemented_and_validated_unchanged",
+    "finding": "overview_guards.strip_redundant_unit_markers() is called from two places, both correctly ordered before any NLI/invented-number decision: (1) inside guards.screen() itself (line 97), before its own invented-number check (line 111, which reads marker['nli_hypothesis_text'] specifically so a stripped citation marker's own digit is never misread as an invented number); (2) in overview.py's screen_proposals() (line 245), producing nli_hypothesis_text before the batched entail() call. proposal['text'] (researcher-facing) is never mutated by either call -- confirmed by direct code read of strip_redundant_unit_markers's own contract.",
+    "polarity_mixing_status": "UNRESOLVED. GitHub issue #20 remains open. This integration phase preserves the evidence about it (the diagnostic candidate inventory, the reconciliation with fresh-context review) and makes no NLI encoder, threshold, polarity-handling, clause-splitting, or verifier-semantic change.",
+    "tests_confirmed_passing": "test_overview_guards.py + test_overview_stage.py: 72/72 passed"
+  },
+
+  "section_8_child_execution_and_synthesis": {
+    "child_execution_path": {
+      "status": "implemented_and_validated",
+      "finding": "hierarchy_contract.hierarchy_subquestions(contract) produces one flat list of 11 subquestions (one per approved child, subquestion_id == child_id), which e2e.execute() feeds into the SAME _initial_pass / _recover / run_responsiveness / det_coverage-or-run_coverage_audit / run_recovery_plan / seal functions an ordinary flat run uses -- there is no separate per-child pipeline invocation; 'per-subquestion' already means 'per-child' in the hierarchical arm, so all existing artifact-preservation machinery (discovery, candidate evidence, retrieval/context growth, recovery-if-triggered, propositions, evidence anchors, verification outcomes) applies per-child without new code.",
+      "verified_live": "hierarchy_contract.load_contract_for_preflight(question) + hierarchy_subquestions(contract) against the real frozen artifact returned exactly 11 subquestions with ids c1,c2,c3,c4,c5,c6,c8,c9,c10,c11,c12 -- a real function call in this worktree, not an assumption."
+    },
+    "child_answer_synthesis_model": {
+      "status": "unresolved_by_design_stop_and_report",
+      "finding": "No 'child-answer synthesis, Qwen3.5:9B thinking-OFF' stage exists anywhere in the codebase. Exhaustive grep for child_answer/per-child-synthesis patterns across experiments/ask_cli_revised/*.py returned zero matches. The only Qwen3.5:9B-thinking-OFF binding that exists is the W (worker/discovery) role's own per-evidence-item claim-formation calls (qwen.form_claim etc, inside _process_hits) -- a per-evidence-item mechanism, not a per-child answer-synthesis step. The only whole-answer PROSE synthesis that exists at all is the S/Overview stage (topology.OVERVIEW_PROFILES['T5O'], S=Qwen3.5:9B think=True), which is FLAT (one narrative over the whole sealed ledger) and thinking-ON, not per-child and not thinking-OFF. The actual 'child-focused researcher-facing Ask-answer' that DOES exist today is produced deterministically (no model call) by ledger_renderer.render_responsive_ledger's per-item grouping (_item_heading/_contract_block), already confirmed present and correct in Section 4.",
+      "conclusion": "This is Section 15's stop condition #7 ('child-focused thinking-off Ask-answer generation requires new synthesis design rather than config/wiring'), not a config/wiring gap to fix silently. No such synthesis stage exists to reconcile the config of."
+    }
+  },
+
+  "section_9_parent_contract_preserved": {
+    "status": "implemented_and_validated",
+    "finding": "hierarchy_contract.rollup(contract, states) is called from stages.seal() whenever contract['version'] == 'hierarchical-request-v1', producing sealed['hierarchy'] with the full obligation-to-owner-item traceability. ledger_renderer._reconciliation_section renders this as '## Parent reconciliation (structural; no verdict)' -- an obligation/owner-item/state table, explicitly disclaiming 'Individual obligation fulfilment: NOT assessed' and 'Parent answer completeness: NOT certified.' The future parent-level meta-synthesis (11 child-answers -> Qwen3.5:9B thinking-ON -> reconciliation) is NOT built -- confirmed absent by the same grep as section_8's child_answer_synthesis_model finding -- and this integration phase did not build it, per the explicit instruction not to."
+  },
+
+  "section_10_recovery_diagnostics_preserved": {
+    "status": "implemented_and_validated",
+    "finding": "e2e.execute() already writes 13_recovery_plan.json (the plan, plus unresolved_items) and 13_gap_recovery.json (recovery_log, one entry per gap with its field_id, action, recovery_query, existing/new hit and verified counts, and reason_code) -- both keyed by field_id, which equals child_id for every hierarchical obligation. No redesign was needed: because each child IS an obligation/subquestion in this architecture (section_8), the existing per-obligation recovery diagnostics are already per-child."
+  },
+
+  "section_11_deterministic_validation": {
+    "status": "implemented_and_validated",
+    "commands_run": [
+      "pytest experiments/ask_cli_revised/ -q  ->  1631 passed, 147 skipped (0 failed)",
+      "pytest experiments/ask_cli_revised/contract_directed/ -q  ->  619 passed (0 failed) -- run separately to confirm zero drift on the untouched standalone pipeline",
+      "pytest experiments/ask_cli_revised/decompose/ --collect-only -q  ->  294 collected, 0 import errors (the preserved design-time tooling's own dependency closure)",
+      "python -c '... hierarchy_contract.load_contract_for_preflight/hierarchy_subquestions ...'  ->  a real, live call against the real frozen artifact (11 children, correct ids, correct approval provenance) -- static-runtime-path inspection per the authorization's own permitted method, not a live E2E"
+    ],
+    "checklist_from_section_11": {
+      "frozen_hierarchy_unchanged": "confirmed (sha256 match)",
+      "all_11_children_reachable": "confirmed (real loader call)",
+      "child_parent_mappings_preserved": "confirmed (hierarchy.parent field present per child, verified in preflight_report output)",
+      "hierarchy_executes_child_research_paths_not_just_metadata": "confirmed (execute()'s call graph is identical for flat and hierarchical subquestions; no branch skips discovery/retrieval)",
+      "qwen35_9b_thinking_off_child_synthesis_config_reachable": "NOT CONFIRMED -- no such stage exists (see section_8)",
+      "selective_recovery_triggers_reach_recovery_nomination_path": "confirmed (unchanged run_recovery_plan -> _recover call graph)",
+      "pm3_neighborhood_expansion_is_recovery_only_in_e2e_path": "confirmed (test_initial_pass_never_passes_context_fn...)",
+      "indiscriminate_first_pass_expansion_not_introduced": "confirmed (same test; _initial_pass's call site untouched)",
+      "recovered_context_reaches_proposition_construction": "confirmed (MultiChunkEvidenceCollapsesToASingleAnchorTests)",
+      "evidence_coordinates_remain_traceable": "confirmed for the single persisted anchor; NOT for a second chunk a claim also relies on (section_6)",
+      "citation_boundary_repair_reaches_actual_nli_scoring": "confirmed (section_7)",
+      "later_overview_verification_functionality_intact": "confirmed (72/72 overview tests pass; contract_directed 619/619 pass)",
+      "original_worktrees_unchanged": "confirmed (see original_worktrees_status below)"
+    }
+  },
+
+  "original_worktrees_status": {
+    "ask-cli-staged-synthesis": {"touched": false, "note": "not opened this phase beyond the Phase 1 read-only survey"},
+    "ask-e2e": {"touched": false, "note": "dirty working tree independently snapshotted (Section 2) before any read; git status/HEAD not mutated; only read from, plus one local (gitignored, non-git) copy of .local/decompose-runs/aib-dev/ made INTO the new worktree, not out of ask-e2e's git state"},
+    "ask-e2e-overview": {"touched": false},
+    "ask-contract-directed": {"touched": false, "note": "this worktree's base commit 13540524; confirmed still matches at the time this manifest was written"}
+  },
+
+  "local_runtime_data_restored": {
+    "what": ".local/decompose-runs/aib-dev/ (development-history + provenance files hierarchy_contract.load_contract cross-verifies against: ASSEMBLED_HIERARCHY.json, CLOSURE_APPROVALS.json, closure/researcher-decision JSON files, etc.)",
+    "why": ".local/ is gitignored (never committed) but hierarchy_contract.load_contract() requires these exact files to load the frozen artifact at all -- without them the new worktree could not even run hierarchy_contract.load_contract_for_preflight(), let alone the eventual live E2E.",
+    "source": "the Section-2 independent snapshot of ask-e2e's dirty tree (C:\\Users\\cliff\\AppData\\Local\\Temp\\callosum-ask-e2e-dirty-snapshot-20260929T212030Z\\.local\\decompose-runs\\aib-dev\\)",
+    "git_impact": "none -- .local/ is gitignored; this is local-machine data restoration only, verified via `git status --short` showing no new tracked paths"
+  },
+
+  "e2e_command_not_executed": {
+    "status": "planned_not_implemented",
+    "note": "See the Phase 2 handback's item 19 for the exact proposed command. Per the authorization: 'Do NOT execute that E2E.'"
+  }
+}
