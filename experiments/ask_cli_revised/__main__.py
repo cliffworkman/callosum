@@ -77,11 +77,19 @@ def _process_hits(
     propositions: list[dict],
     verifications: list[dict],
     map_claims: bool = True,
+    context_fn=None,
 ) -> int:
+    """`context_fn`: how each hit becomes a context packet. Defaults to `retrieval.grow_context` (the model-gated
+    +/-2 growth every existing caller relies on, unchanged). Recovery passes `retrieval.recovery_neighborhood_context`
+    instead (Phase 2 Section 5) -- the initial pass never does, so first-pass behavior is provably untouched by that
+    call-site change alone."""
     sid = subquestion["subquestion_id"]
     sq_text = subquestion["text"]
     obligations = subquestion.get("obligations", [])
     verified_before = sum(1 for record in all_records if record["verification"]["status"] == "verified")
+    build_context = context_fn or (
+        lambda hit: retrieval.grow_context(conn, hit=hit, gate=qwen.context_gate, subquestion_text=sq_text)
+    )
 
     for hit in hits:
         chunk_hits.append(
@@ -96,12 +104,7 @@ def _process_hits(
                 "evidence_role": hit.evidence_role,
             }
         )
-        packet = retrieval.grow_context(
-            conn,
-            hit=hit,
-            gate=qwen.context_gate,
-            subquestion_text=sq_text,
-        )
+        packet = build_context(hit)
         context_growth.append(
             {
                 "origin": origin,
@@ -555,6 +558,9 @@ def _recover(
                 propositions=propositions,
                 verifications=verifications,
                 map_claims=map_claims,
+                context_fn=lambda hit: retrieval.recovery_neighborhood_context(
+                    conn, hit=hit, subquestion_text=query
+                ),
             )
             # Recovery-only: a record identical (by paper+chunk+exact claim text) to evidence already
             # verified before this call does not count as progress -- it's marked in place (visible in
@@ -601,6 +607,9 @@ def _recover(
                 propositions=propositions,
                 verifications=verifications,
                 map_claims=map_claims,
+                context_fn=lambda hit: retrieval.recovery_neighborhood_context(
+                    conn, hit=hit, subquestion_text=query
+                ),
             )
             new_added = _new_unique_verified(all_records, new_before)
 

@@ -384,6 +384,63 @@ def grow_context(
     return packet
 
 
+def recovery_neighborhood_context(conn: Connection, *, hit: RetrievalHit, subquestion_text: str) -> ContextPacket:
+    """Recovery-only: a bounded, deterministic neighborhood around the anchor (contract_directed's own
+    `neighborhood.build_neighborhood`, MAX_SIDE=3, section/reference/sentence-continuity aware), used instead of
+    `grow_context`'s narrower model-gated +/-2 growth. `subquestion_text` is accepted only so this function is
+    swappable with `grow_context` at the `_process_hits` call site (see its `context_fn` parameter); the
+    neighborhood's own boundary rules are purely structural and do not read it.
+
+    This is Phase 2 Section 5's "deterministic neighborhood construction around a nominated anchor" -- a distinct
+    step from "model-based evidence nomination" (the recovery plan's own DEEPEN/NOMINATE decision and the
+    recovery-query reformulation that chooses WHICH anchor to retrieve, both unchanged upstream of this call).
+    Called only from the recovery round (`_recover`); the initial pass keeps `grow_context` exactly as before.
+    """
+    from experiments.ask_cli_revised.contract_directed import neighborhood as nbhd
+
+    anchor = hit.chunk
+    ordered_raw = _attachment_chunks_ordered(conn, anchor.attachment_id)
+    ordered = [{**row, "attachment_id": anchor.attachment_id, "paper_id": anchor.paper_id} for row in ordered_raw]
+    index = next((i for i, c in enumerate(ordered) if c["chunk_id"] == anchor.chunk_id), None)
+    anchor_dict = {
+        "chunk_id": anchor.chunk_id,
+        "text": anchor.text,
+        "section": hit.section,
+        "chunk_type": hit.chunk_type,
+        "evidence_role": hit.evidence_role,
+    }
+    packet = ContextPacket(
+        retrieval_anchor_chunk_id=anchor.chunk_id,
+        subquestion_id=hit.subquestion_id,
+        paper_id=anchor.paper_id,
+        chunks=[anchor_dict],
+        retrieval_score=hit.score,
+    )
+    if index is None:
+        # Same fail-closed rule grow_context uses when there is no positional index to grow from.
+        if _ends_mid_clause(anchor.text):
+            packet.discarded = True
+            packet.discard_reason = "incomplete_clause"
+        return packet
+
+    result = nbhd.build_neighborhood(ordered, index)
+    by_id = {c["chunk_id"]: c for c in ordered}
+    packet.chunks = [_packet_chunk(by_id[chunk_id]) for chunk_id in result["chunk_ids"]]
+    packet.grown = [chunk_id for chunk_id in result["chunk_ids"] if chunk_id != anchor.chunk_id]
+    packet.decisions = [
+        {
+            "mechanism": "deterministic_neighborhood",
+            "nbhd_id": result["nbhd_id"],
+            "boundary": result["boundary"],
+            "rule_trace": result["rule_trace"],
+        }
+    ]
+    if _ends_mid_clause("\n\n".join(c["text"] for c in packet.chunks)):
+        packet.discarded = True
+        packet.discard_reason = "incomplete_clause"
+    return packet
+
+
 def _packet_chunk(candidate: dict) -> dict:
     return {
         "chunk_id": candidate["chunk_id"],
