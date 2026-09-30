@@ -49,6 +49,27 @@ def evidence_selection_schema(span_ids: list[str], max_spans: int = 4) -> dict:
     }
 
 
+def nomination_prompt(*, category_description: str, candidates: list[dict]) -> str:
+    """Pure prompt builder, separated from `QwenTasks.nominate_sufficiency_role` so its
+    leakage-safety (no provenance token, no hidden benchmark vocabulary, no requirement/child id)
+    is directly testable without any model or network call. The ONLY sufficiency-layer string
+    this ever interpolates from the contract is `category_description` (see
+    `sufficiency_authoring.py`'s own D10 compliance note); `candidates` are already-verified
+    excerpt text a caller supplies -- genuine evidence-originated terms there are not a leak
+    (see `test_sufficiency_leakage.py`'s explicit scope note)."""
+    excerpt_text = "\n\n".join(f"[{c['proposition_id']}] {c['passage']}" for c in candidates)
+    return (
+        f"Does any excerpt below name a SPECIFIC instance of {category_description}, as "
+        f"opposed to a generic/unspecified reference to {category_description}?\n\n"
+        "For each excerpt that names one, return its id and the exact supporting substring "
+        "copied verbatim from that excerpt. An excerpt may name more than one distinct "
+        "instance -- return each separately. Do not paraphrase. Do not invent an excerpt id. "
+        "If none qualify, return an empty list.\n\n"
+        'Return only JSON: {"nominations":[{"proposition_id":"...","exact_text":"..."}]}\n\n'
+        f"Excerpts:\n{excerpt_text}"
+    )
+
+
 def nomination_schema(proposition_ids: list[str], max_items: int = _NOMINATION_MAX_ITEMS) -> dict:
     """Closed-enum proposition_id (never a unit_id and never an index-based translation -- a
     hallucinated or mistranslated id is schema-impossible). exact_text stays free text; grounding
@@ -567,17 +588,7 @@ class QwenTasks:
         if not candidates:
             return []
         proposition_ids = [c["proposition_id"] for c in candidates]
-        excerpt_text = "\n\n".join(f"[{c['proposition_id']}] {c['passage']}" for c in candidates)
-        prompt = (
-            f"Does any excerpt below name a SPECIFIC instance of {category_description}, as "
-            f"opposed to a generic/unspecified reference to {category_description}?\n\n"
-            "For each excerpt that names one, return its id and the exact supporting substring "
-            "copied verbatim from that excerpt. An excerpt may name more than one distinct "
-            "instance -- return each separately. Do not paraphrase. Do not invent an excerpt id. "
-            "If none qualify, return an empty list.\n\n"
-            'Return only JSON: {"nominations":[{"proposition_id":"...","exact_text":"..."}]}\n\n'
-            f"Excerpts:\n{excerpt_text}"
-        )
+        prompt = nomination_prompt(category_description=category_description, candidates=candidates)
         call = self._call(
             prompt=prompt,
             output_cap=_NOMINATION_OUTPUT_TOKENS,

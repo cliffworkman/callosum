@@ -134,13 +134,13 @@ def author_supersession(requirement: dict, *, authorized_by: str, date: str, rat
 # ---------------------------------------------------------------------------------------------
 # q_aib's own frozen instance (Layer C) -- hand-authored, the calibration/gold-standard case.
 #
-# D10 compliance note: role `category_description` text is the ONLY sufficiency-layer string a
-# future model-assisted nomination pass would ever put in front of a model
-# (`sufficiency_mapping.MODEL_NOMINATION_PROMPT_TEMPLATE`). hierarchy_contract.py's own D10
-# record keeps "networks" optional-by-amendment and NEVER model-facing; a brain-region role's
-# description therefore says "brain area" (the original request's own model-facing wording),
-# never "region or network" -- caught by test_sufficiency_leakage.py's `mentions_networks` check
-# before this shipped, not discovered live.
+# D10 compliance note: role `category_description` text is the ONLY sufficiency-layer string the
+# model-assisted nomination pass puts in front of a model (`qwen.QwenTasks.nominate_
+# sufficiency_role`'s own prompt construction -- the only call site, never a second copy).
+# hierarchy_contract.py's own D10 record keeps "networks" optional-by-amendment and NEVER
+# model-facing; a brain-region role's description therefore says "brain area" (the original
+# request's own model-facing wording), never "region or network" -- caught by
+# test_sufficiency_leakage.py's `mentions_networks` check before this shipped, not discovered live.
 # ---------------------------------------------------------------------------------------------
 
 _ACHIEVED = list(sm.ACHIEVED_OUTCOME_DEFAULT_GUARDS)

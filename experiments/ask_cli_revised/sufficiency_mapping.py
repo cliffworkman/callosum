@@ -147,12 +147,6 @@ def _deterministic_text_for_role(role_spec: dict, passage: str) -> str | None:
 # returns can become a role binding -- see `_bind_role_candidates`, its only caller.
 # ---------------------------------------------------------------------------------------------
 
-MODEL_NOMINATION_PROMPT_TEMPLATE = (
-    "Does this passage name a specific instance of {category_description}, as opposed to a "
-    "generic/unspecified reference to {category_description}? If yes, return the exact "
-    "supporting substring and the passage id. If no, say so plainly."
-)
-
 
 def _unit_for_proposition(units: list[dict], proposition_id: str) -> dict | None:
     for unit in units:

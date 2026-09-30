@@ -370,13 +370,6 @@ class _FakeModelClient:
         return out
 
 
-class ModelNominationScaffoldTests(unittest.TestCase):
-    def test_prompt_template_uses_category_description_only(self):
-        rendered = sm.MODEL_NOMINATION_PROMPT_TEMPLATE.format(category_description="a named brain region")
-        self.assertIn("a named brain region", rendered)
-        self.assertNotIn("{", rendered)
-
-
 class NominateWithModelTests(unittest.TestCase):
     def _role_spec(self, **kwargs):
         return se.new_role_spec(

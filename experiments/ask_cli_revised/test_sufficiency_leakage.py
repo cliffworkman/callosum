@@ -17,7 +17,6 @@ from pathlib import Path
 
 from experiments.ask_cli_revised import hierarchy_contract as hc
 from experiments.ask_cli_revised import sufficiency_authoring as sa
-from experiments.ask_cli_revised import sufficiency_engine as se
 from experiments.ask_cli_revised import sufficiency_mapping as sm
 
 
@@ -161,6 +160,59 @@ class HiddenQualificationIsolationTests(unittest.TestCase):
         hidden_tokens = {t.strip(".,;") for t in hidden_text.lower().split() if len(t.strip(".,;")) >= 5}
         overlap = hint_tokens & hidden_tokens
         self.assertEqual(overlap, set(), f"recovery hint leaked hidden-constraint tokens: {overlap}")
+
+
+class NominationPromptLeakageTests(unittest.TestCase):
+    """Scope (Cliff's correction #9): these tests assert that PROMPT/SCHEMA CONSTRUCTION never
+    injects hidden benchmark vocabulary or provenance tokens from the CONTRACT side --
+    `category_description` text, exactly as every other leakage test in this file already checks
+    for `recovery_hint`/role descriptions. They do NOT scan `candidates` (already-retrieved
+    evidence passages) for the same terms: a benchmark term that independently occurs in
+    genuinely retrieved, verified evidence text is legitimate runtime evidence, not a leak, and
+    must never be rejected merely because it happens to match a hidden benchmark term -- that
+    would reject real scientific evidence on a coincidence of vocabulary. Only the
+    `category_description`-derived QUESTION portion of the prompt is asserted clean; the
+    `candidates` fixture below deliberately contains a hidden-benchmark-shaped word inside
+    evidence text to prove it is NOT what this test checks."""
+
+    @needs_real_contract
+    def test_every_role_category_description_is_leakage_clean_when_rendered_into_the_nomination_prompt(self):
+        from experiments.ask_cli_revised import qwen as qwen_module
+
+        children = _load_children_by_id()
+        contract = sa.build_qaib_contract(children)
+        # Evidence text may legitimately contain a hidden-benchmark-shaped word -- included here to
+        # prove the assertions below are about the QUESTION construction, never this text.
+        candidates = [
+            {"proposition_id": "p1", "passage": "The IAT was administered to participants in Hadza villages."}
+        ]
+        for child_contract in contract.values():
+            for req in child_contract["requirements"]:
+                for spec in req["role_specs"].values():
+                    if spec["mapping_strategy"] != "model_nomination_only":
+                        continue
+                    prompt = qwen_module.nomination_prompt(
+                        category_description=spec["category_description"], candidates=candidates
+                    )
+                    question_only = prompt.split("Excerpts:\n", 1)[0]
+                    self.assertEqual(hc.provenance_tokens(question_only), [])
+                    self.assertFalse(hc.mentions_networks(question_only))
+                    for term in _HIDDEN_BENCHMARK_TERMS:
+                        self.assertFalse(
+                            _mentions_whole_word(term, question_only),
+                            f"nomination question leaked {term!r} via category_description",
+                        )
+                    # And the full prompt DOES carry the evidence text verbatim (the model needs
+                    # it to do its job) -- confirming this test isn't accidentally vacuous.
+                    self.assertIn("Hadza", prompt)
+
+    def test_nomination_prompt_never_embeds_a_requirement_or_child_id(self):
+        from experiments.ask_cli_revised import qwen as qwen_module
+
+        prompt = qwen_module.nomination_prompt(
+            category_description="a specific named brain area", candidates=[{"proposition_id": "p1", "passage": "x"}]
+        )
+        self.assertEqual(hc.provenance_tokens(prompt), [])
 
 
 class BenchmarkIsolationScopeTests(unittest.TestCase):
