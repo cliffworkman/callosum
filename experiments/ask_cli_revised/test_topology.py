@@ -156,5 +156,34 @@ class ValidationTests(unittest.TestCase):
             topo.validate(self.profile(P=topo.Binding("ollama", "gemma3:12b", endpoint="elsewhere")))
 
 
+class ChildOverviewProfileTests(unittest.TestCase):
+    """Stage B (child Overview, 2026-09-29 authorization): T5C is a distinct, additional profile;
+    T5O stays exactly as it was."""
+
+    def test_t5c_has_thinking_off_t5o_has_thinking_on_unchanged(self):
+        self.assertFalse(topo.CHILD_OVERVIEW_PROFILES["T5C"].S.think)
+        self.assertTrue(topo.OVERVIEW_PROFILES["T5O"].S.think)
+
+    def test_t5c_and_t5o_share_the_same_w_r_c_p_as_t5(self):
+        for role in ("W", "R", "C", "P"):
+            self.assertEqual(getattr(topo.CHILD_OVERVIEW_PROFILES["T5C"], role), getattr(topo.WAVE1["T5"], role))
+            self.assertEqual(getattr(topo.OVERVIEW_PROFILES["T5O"], role), getattr(topo.WAVE1["T5"], role))
+
+    def test_t5c_uses_the_same_model_as_t5o_only_thinking_differs(self):
+        self.assertEqual(topo.CHILD_OVERVIEW_PROFILES["T5C"].S.model, topo.OVERVIEW_PROFILES["T5O"].S.model)
+        self.assertEqual(topo.CHILD_OVERVIEW_PROFILES["T5C"].S.endpoint, topo.OVERVIEW_PROFILES["T5O"].S.endpoint)
+
+    def test_child_overview_options_reuse_the_tested_thinking_off_supervisory_options_not_the_thinking_on_ones(self):
+        """CHILD_OVERVIEW_S_OPTIONS must NOT be OVERVIEW_S_OPTIONS -- that set's large num_predict and
+        thinking-mode sampling are specifically justified for thinking-ON calls only (see topology.py's
+        own comment); reusing them for thinking-off would carry an unexamined assumption forward."""
+        self.assertEqual(topo.CHILD_OVERVIEW_S_OPTIONS, topo.SUPERVISOR_BASE_OPTIONS)
+        self.assertNotEqual(topo.CHILD_OVERVIEW_S_OPTIONS["num_predict"], topo.OVERVIEW_S_OPTIONS["num_predict"])
+        self.assertNotEqual(topo.CHILD_OVERVIEW_S_OPTIONS["temperature"], topo.OVERVIEW_S_OPTIONS["temperature"])
+
+    def test_t5c_passes_validation(self):
+        topo.validate(topo.CHILD_OVERVIEW_PROFILES["T5C"])
+
+
 if __name__ == "__main__":
     unittest.main()

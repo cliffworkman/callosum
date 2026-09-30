@@ -957,6 +957,59 @@ HUMAN_REVIEW_STATEMENT = (
 )
 SUPERSEDED_NOTE = "brain networks: an optional, researcher-selected future scope expansion (D10); not asked by this run"
 ITEM_DISCLAIMER = "A judged-responsive claim addresses this item as a whole; fulfilment of the individual obligations it owns is not assessed by this run."
+def build_child_sealed_ledger(sealed: dict, child_id: str) -> dict:
+    """Stage B (child Overview, 2026-09-29 authorization): a per-child sealed ledger, filtered from a
+    hierarchical run's own full sealed ledger, ready for exactly one `overview.build_overview()` call.
+
+    INCLUSIVE, not exclusive: a proposition genuinely responsive to more than one child (
+    `responsive_obligation_ids` can already name several) is included for every child it is actually
+    responsive to -- 'strict isolation' means excluding evidence with NO relevance to this child at
+    all, never arbitrarily assigning shared evidence to only one child (Cliff's explicit correction).
+
+    `original_question` is the child's own approved wording (`state["note"]`, set from
+    `hierarchy_subquestions`'s own `obligation["note"] = child["wording"]`) -- never the parent's
+    literal request text. `question_hash` is a genuine hash of THAT text (never the parent's hash
+    reused for different text, which would make `question_hash` lie about what it hashes);
+    `parent_question_hash` and `child_id` preserve the parent-obligation provenance link explicitly,
+    alongside it rather than in place of it.
+
+    Evidence-span filtering keys off each proposition's own `anchors` when present (Stage A: every
+    real chunk a continuation-joined quote spans, not just the primary), falling back to the
+    singular `evidence_anchor_chunk_id`/`evidence_span_id` otherwise -- exactly the shape
+    `stages.py::_evidence_span_rows` already persists into `evidence_spans` for both cases.
+    """
+    state = next((s for s in sealed["obligation_states"] if s["field_id"] == child_id), None)
+    if state is None:
+        raise ValueError(f"no obligation state for child_id={child_id!r} in this sealed ledger")
+    question = state["note"]
+    propositions = [
+        row for row in sealed["verified_propositions"] if child_id in row.get("responsive_obligation_ids", [])
+    ]
+    wanted_spans = {
+        (row["paper_id"], anchor["chunk_id"], anchor["span_id"])
+        for row in propositions
+        for anchor in (
+            row["anchors"]
+            if row.get("anchors")
+            else [{"chunk_id": row["evidence_anchor_chunk_id"], "span_id": row["evidence_span_id"]}]
+        )
+    }
+    evidence_spans = [
+        s for s in sealed.get("evidence_spans", []) if (s["paper_id"], s["chunk_id"], s["span_id"]) in wanted_spans
+    ]
+    return {
+        "request_contract": {
+            "original_question": question,
+            "question_hash": sha256_text(question),
+            "parent_question_hash": sealed["request_contract"]["question_hash"],
+            "child_id": child_id,
+        },
+        "obligation_states": [state],
+        "verified_propositions": propositions,
+        "evidence_spans": evidence_spans,
+    }
+
+
 ROLLUP_NOTE = (
     "Structural roll-up only. It lists each obligation with the child item that owns it and that item's state, copied unchanged. "
     "It states no fulfilment for any obligation and no completeness for any parent."

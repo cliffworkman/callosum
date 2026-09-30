@@ -162,6 +162,29 @@ OVERVIEW_PROFILES = {"T5O": replace(WAVE1["T5"], name="T5*+O", S=_ollama(_QWEN35
 for _profile in OVERVIEW_PROFILES.values():
     validate(_profile)
 
+# ---- child-overview profile (Stage B, 2026-09-29 authorization): NOT Wave 1, NOT OVERVIEW_PROFILES ------------------------
+# T5O (above) stays exactly as it is -- its own live run (gate-integration-live-002) remains the only currently-
+# EVALUATED Overview configuration. T5C is a SEPARATE, ADDITIONAL profile for Stage B's per-child Overview calls:
+# same W/R/C/P as T5 (derived, so they cannot drift, same as T5O), S = Qwen3.5 with thinking OFF.
+#
+# Generation options: CHILD_OVERVIEW_S_OPTIONS reuses SUPERVISOR_BASE_OPTIONS unchanged -- the SAME options every
+# other thinking-off Qwen3.5 role binding in this topology already uses (T2-T5's own W role), not a bespoke,
+# untested options set invented for this one call. This is deliberate, not merely convenient: OVERVIEW_S_OPTIONS's
+# large num_predict (16,384) and thinking-mode sampling (temperature 1.0, presence_penalty 1.5, ...) are
+# specifically justified above by RECORDED THINKING-ON call behavior ("thinking + answer share the allowance");
+# none of that applies with thinking off, and reusing it here would carry an unexamined assumption into a
+# genuinely different regime. SUPERVISOR_BASE_OPTIONS's num_predict (4,096) is still generous for the SAME
+# schema_overview JSON answer thinking-on calls needed only ~85-190 tokens for (per OVERVIEW_S_OPTIONS's own
+# comment) -- a thinking-off call spends nothing on reasoning, so there is no analogous budget pressure to
+# provision for.
+#
+# T5C has NOT been run live. Its evidence status is `Testing`, never `Evaluated`, until it has -- the existing
+# thinking-on T5O run and its artifacts are unaffected and remain the only live evidence this arm currently has.
+CHILD_OVERVIEW_S_OPTIONS = dict(SUPERVISOR_BASE_OPTIONS)
+CHILD_OVERVIEW_PROFILES = {"T5C": replace(WAVE1["T5"], name="T5*+C", S=_ollama(_QWEN35, think=False))}
+for _profile in CHILD_OVERVIEW_PROFILES.values():
+    validate(_profile)
+
 
 def profile_names() -> list[str]:
     return [*WAVE1, *OVERVIEW_PROFILES]

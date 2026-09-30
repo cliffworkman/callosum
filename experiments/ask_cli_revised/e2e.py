@@ -422,14 +422,64 @@ def execute(
     sealed = stages.seal(contract, subquestions, sink.all_records, sink.evidence_packets, coverage_final)
     sealed_hash = hashlib.sha256(json.dumps(sealed, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
     overview_record, reasoning = None, ""
+    child_overview_manifest: dict[str, dict] | None = None
     if "S" in bound.supervisors:
-        # After the last coverage stage, over the SEALED ledger, which this never modifies: the overview is a separate,
-        # separately hashed artifact that references the ledger hash.
-        with stage("S1", "S") as entry:
-            overview_record, reasoning = overview.build_overview(
-                sealed, sealed_hash, supervisor=bound.supervisors["S"], entail=entail
-            )
-            entry["detail"] = overview.stage_detail(overview_record)
+        if contract.get("version") == hierarchy_contract.HIER_VERSION:
+            # Stage B (2026-09-29 authorization): one screened Overview per approved child, from a
+            # strictly-filtered (per hierarchy_contract.build_child_sealed_ledger) child-scoped sealed
+            # ledger -- never one flat call over the whole 11-child ledger, which would be exactly the
+            # parent-level meta-synthesis this architecture does not yet authorize. The top-level
+            # 14_final_answer.md (built below via render_answer(sealed), unchanged) stays the
+            # deterministic, hierarchy-aware rendering; these are additional, separately-named,
+            # per-child artifacts alongside it -- overview.build_overview/overview_render/overview_audit
+            # are reused completely unmodified, generic over whatever sealed ledger they're handed.
+            child_overview_manifest = {}
+            for sq in subquestions:  # subquestion_id == child_id in the hierarchical arm
+                child_id = sq["subquestion_id"]
+                child_sealed = hierarchy_contract.build_child_sealed_ledger(sealed, child_id)
+                child_hash = hashlib.sha256(
+                    json.dumps(child_sealed, sort_keys=True, ensure_ascii=False).encode("utf-8")
+                ).hexdigest()
+                with stage(f"S1:{child_id}", "S") as entry:
+                    child_record, child_reasoning = overview.build_overview(
+                        child_sealed, child_hash, supervisor=bound.supervisors["S"], entail=entail
+                    )
+                    entry["detail"] = overview.stage_detail(child_record)
+                answer_text, _ = overview_render.researcher_answer(child_sealed, child_record)
+                record_file = f"14a_overview.{child_id}.json"
+                answer_file = f"14_final_answer.{child_id}.md"
+                detail_file = f"14b_detailed_inspection.{child_id}.md"
+                trace.write_json(record_file, child_record)
+                if child_reasoning:
+                    trace.write_report(f"14c_overview_reasoning.{child_id}.txt", [child_reasoning])
+                answer_path = trace.write_report(answer_file, [answer_text.rstrip("\n")])
+                detail_path = trace.write_report(
+                    detail_file, [overview_render.detailed_inspection(child_sealed, child_record).rstrip("\n")]
+                )
+                child_audit = overview_audit.audit_overview(
+                    child_sealed,
+                    child_hash,
+                    child_record,
+                    answer_path.read_text(encoding="utf-8"),
+                    detail_path.read_text(encoding="utf-8"),
+                )
+                child_overview_manifest[child_id] = {
+                    "sealed_ledger_hash": child_hash,
+                    "state": child_record["state"],
+                    "record_file": record_file,
+                    "answer_file": answer_file,
+                    "detail_file": detail_file,
+                    "overview_audit": child_audit,
+                }
+            trace.write_json("14_child_overview_manifest.json", child_overview_manifest)
+        else:
+            # After the last coverage stage, over the SEALED ledger, which this never modifies: the overview is a
+            # separate, separately hashed artifact that references the ledger hash.
+            with stage("S1", "S") as entry:
+                overview_record, reasoning = overview.build_overview(
+                    sealed, sealed_hash, supervisor=bound.supervisors["S"], entail=entail
+                )
+                entry["detail"] = overview.stage_detail(overview_record)
     text, render_manifest = render_answer(sealed)
 
     trace.write_json("02_direct_papers.json", sink.direct_papers)
@@ -485,6 +535,7 @@ def execute(
         "final_audit": final_audit,
         "render_manifest": render_manifest,
         "overview": overview_record,
+        "child_overview_manifest": child_overview_manifest,  # Stage B: None for a non-hierarchical run
         "supervisor_records": {role: sup.records for role, sup in bound.supervisors.items()},
         "records_total": len(sink.all_records),
     }

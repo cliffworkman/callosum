@@ -80,7 +80,11 @@ class HierHarness(Harness):
         super().__init__(profile, **kwargs)
         self.contract = contract
 
-    def run(self, smoke_limits=None, seed_pass=None):
+    def run(self, smoke_limits=None, seed_pass=None, entail=None):
+        # entail=None matches execute()'s own default -- every existing caller that never passed it
+        # (no S role bound in its profile) is unaffected; a caller binding an Overview-enabled profile
+        # (e.g. CHILD_OVERVIEW_PROFILES["T5C"]) now has a way to supply one, the same as OverviewHarness
+        # already does for the flat case.
         bound = e2e.bind(
             self.profile,
             rt=self.rt,
@@ -101,6 +105,7 @@ class HierHarness(Harness):
                 bound=bound,
                 smoke_limits=smoke_limits,
                 seed_pass=seed_pass,
+                entail=entail,
             )
 
 
