@@ -16,10 +16,10 @@ from app.backend.llm.managed_local import ManagedProviderRuntime
 from app.backend.llm.providers import ProviderError, complete
 from experiments.ask_cli_revised import execution_policy
 from experiments.ask_cli_revised.backends import NativeWorker
+from experiments.ask_cli_revised.calibration.structured_output import RESPONSE_FORMAT, schema_config
 from experiments.ask_cli_revised.request_contract import obligation_display
 from experiments.ask_cli_revised.retrieval import GATE_NO_ANSWER
 from experiments.ask_cli_revised.trace import TraceWriter
-from experiments.ask_cli_revised.calibration.structured_output import schema_config, RESPONSE_FORMAT
 
 _DECOMPOSE_OUTPUT_TOKENS = 512
 _OBLIGATION_OUTPUT_TOKENS = 256
@@ -28,6 +28,9 @@ _EVIDENCE_SELECT_OUTPUT_TOKENS = 96
 _CLAIM_OUTPUT_TOKENS = 512
 _OBLIGATION_MAP_OUTPUT_TOKENS = 96
 _RECOVERY_OUTPUT_TOKENS = 64
+_NOMINATION_OUTPUT_TOKENS = 256
+_NOMINATION_EXACT_TEXT_MAX_LEN = 300
+_NOMINATION_MAX_ITEMS = 8
 
 
 def evidence_selection_schema(span_ids: list[str], max_spans: int = 4) -> dict:
@@ -36,11 +39,60 @@ def evidence_selection_schema(span_ids: list[str], max_spans: int = 4) -> dict:
         "type": "object",
         "required": ["span_ids"],
         "additionalProperties": False,
-        "properties": {"span_ids": {
-            "type": "array", "maxItems": max_spans,
-            "items": {"type": "string", "enum": span_ids},
-        }},
+        "properties": {
+            "span_ids": {
+                "type": "array",
+                "maxItems": max_spans,
+                "items": {"type": "string", "enum": span_ids},
+            }
+        },
     }
+
+
+def nomination_schema(proposition_ids: list[str], max_items: int = _NOMINATION_MAX_ITEMS) -> dict:
+    """Closed-enum proposition_id (never a unit_id and never an index-based translation -- a
+    hallucinated or mistranslated id is schema-impossible). exact_text stays free text; grounding
+    is re-verified deterministically by the caller (`sufficiency_mapping.nominate_with_model`),
+    never trusted from the schema alone."""
+    return {
+        "type": "object",
+        "required": ["nominations"],
+        "additionalProperties": False,
+        "properties": {
+            "nominations": {
+                "type": "array",
+                "maxItems": max_items,
+                "items": {
+                    "type": "object",
+                    "required": ["proposition_id", "exact_text"],
+                    "additionalProperties": False,
+                    "properties": {
+                        "proposition_id": {"type": "string", "enum": proposition_ids},
+                        "exact_text": {"type": "string", "maxLength": _NOMINATION_EXACT_TEXT_MAX_LEN},
+                    },
+                },
+            }
+        },
+    }
+
+
+def _validate_nominations(payload: Any, *, allowed_proposition_ids: set[str], limit: int) -> tuple[list[dict], bool]:
+    if not isinstance(payload, dict) or not isinstance(payload.get("nominations"), list):
+        return [], False
+    out: list[dict] = []
+    for item in payload["nominations"][:limit]:
+        if not isinstance(item, dict):
+            continue
+        proposition_id = item.get("proposition_id")
+        exact_text = item.get("exact_text")
+        if not isinstance(proposition_id, str) or proposition_id not in allowed_proposition_ids:
+            continue
+        if not isinstance(exact_text, str) or not exact_text.strip():
+            continue
+        out.append(
+            {"proposition_id": proposition_id, "exact_text": exact_text.strip()[:_NOMINATION_EXACT_TEXT_MAX_LEN]}
+        )
+    return out, True
 
 
 # Same grammar-constrained mechanism as evidence_selection_schema, applied to the demonstrated
@@ -158,7 +210,8 @@ class QwenTasks:
         try:
             config = (
                 schema_config(self.config, output_cap=output_cap, json_schema=json_schema, mode=RESPONSE_FORMAT)
-                if json_schema is not None else _with_output_cap(self.config, output_cap)
+                if json_schema is not None
+                else _with_output_cap(self.config, output_cap)
             )
             result = complete(config, prompt)
         except ProviderError as exc:
@@ -294,10 +347,7 @@ class QwenTasks:
         used_fallback = not (call.provider_ok and valid)
         if used_fallback:
             requested = [subquestion.strip()]
-        obligations = [
-            {"field_id": f"{sid}-o{index}", "note": item}
-            for index, item in enumerate(requested, start=1)
-        ]
+        obligations = [{"field_id": f"{sid}-o{index}", "note": item} for index, item in enumerate(requested, start=1)]
         self._record(
             stage="01_interpret",
             task="extract_requested_information",
@@ -377,7 +427,8 @@ class QwenTasks:
             f"Candidate excerpts:\n{span_text}"
         )
         call = self._call(
-            prompt=prompt, output_cap=_EVIDENCE_SELECT_OUTPUT_TOKENS,
+            prompt=prompt,
+            output_cap=_EVIDENCE_SELECT_OUTPUT_TOKENS,
             json_schema=evidence_selection_schema([s["span_id"] for s in spans], max_spans),
         )
         parsed = _extract_json(call.raw_text) if call.provider_ok else None
@@ -499,6 +550,59 @@ class QwenTasks:
         )
         return None if no_answer else query[:200]
 
+    # ---- Sufficiency Layer B/C: model-assisted role nomination ------------------------------------
+
+    def nominate_sufficiency_role(self, *, category_description: str, candidates: list[dict]) -> list[dict]:
+        """Narrow evidence-grounded nomination: given ONLY already-verified candidate excerpts
+        (one row per proposition_id, never a unit_id or a hidden requirement/child id) and one
+        role's category_description, ask which excerpts name a SPECIFIC instance of that
+        category, and return their exact supporting substrings. Never a verdict -- the caller
+        (`sufficiency_mapping.nominate_with_model`) independently re-verifies literal grounding
+        and admissibility before anything can become a `filled` role binding.
+
+        `candidates`: `[{"proposition_id": str, "passage": str}, ...]`. Returns validated
+        `[{"proposition_id": str, "exact_text": str}, ...]` -- may be empty, and may contain more
+        than one entry when several excerpts (or several distinct mentions within them) qualify.
+        """
+        if not candidates:
+            return []
+        proposition_ids = [c["proposition_id"] for c in candidates]
+        excerpt_text = "\n\n".join(f"[{c['proposition_id']}] {c['passage']}" for c in candidates)
+        prompt = (
+            f"Does any excerpt below name a SPECIFIC instance of {category_description}, as "
+            f"opposed to a generic/unspecified reference to {category_description}?\n\n"
+            "For each excerpt that names one, return its id and the exact supporting substring "
+            "copied verbatim from that excerpt. An excerpt may name more than one distinct "
+            "instance -- return each separately. Do not paraphrase. Do not invent an excerpt id. "
+            "If none qualify, return an empty list.\n\n"
+            'Return only JSON: {"nominations":[{"proposition_id":"...","exact_text":"..."}]}\n\n'
+            f"Excerpts:\n{excerpt_text}"
+        )
+        call = self._call(
+            prompt=prompt,
+            output_cap=_NOMINATION_OUTPUT_TOKENS,
+            json_schema=nomination_schema(proposition_ids),
+        )
+        parsed = _extract_json(call.raw_text) if call.provider_ok else None
+        nominations, valid = _validate_nominations(
+            parsed, allowed_proposition_ids=set(proposition_ids), limit=_NOMINATION_MAX_ITEMS
+        )
+        used_fallback = not (call.provider_ok and valid)
+        if used_fallback:
+            nominations = []
+        self._record(
+            stage="17_sufficiency_nomination",
+            task="nominate_sufficiency_role",
+            prompt=prompt,
+            input_text=f"[category] {category_description}\n[proposition_ids] {proposition_ids}",
+            call=call,
+            parsed=parsed,
+            valid=valid,
+            fallback_used=used_fallback,
+            consequence=f"{len(nominations)} raw nominations",
+        )
+        return nominations
+
 
 # ---- strict validators + deterministic fallbacks -------------------------------------------------
 
@@ -581,4 +685,3 @@ def _validate_query(payload: Any) -> tuple[str, bool]:
         return "", False
     query = payload["query"].strip()
     return (query, bool(query))
-
