@@ -40,6 +40,9 @@ from experiments.ask_cli_revised import (
     retrieval,
     stages,
 )
+from experiments.ask_cli_revised import sufficiency_diagnostic
+from experiments.ask_cli_revised import sufficiency_engine
+from experiments.ask_cli_revised import sufficiency_mapping
 from experiments.ask_cli_revised import topology as topo
 from experiments.ask_cli_revised.ledger_renderer import audit_final, render_answer
 from experiments.ask_cli_revised.qwen import QwenTasks
@@ -283,6 +286,9 @@ def execute(
     smoke_limits: dict | None = None,
     seed_pass=None,
     entail=None,
+    sufficiency_contract: dict | None = None,
+    sufficiency_parent_of: dict | None = None,
+    sufficiency_recovery_gate_enabled: bool = False,
 ) -> dict:
     if "S" in bound.supervisors and entail is None:
         # Fail closed before any stage, trace file or model call: an overview is never shown unscreened.
@@ -357,9 +363,56 @@ def execute(
         responsiveness("R1")
         coverage_initial = coverage("C1")
 
+        # Diagnostic semantic answer-sufficiency (§ "Production activation / gating strategy",
+        # item (A)): always computed, deterministic-only, whenever a frozen SufficiencyContract
+        # is supplied -- independent of whether any model-assisted nomination role is ever bound.
+        # Inert for every profile/run that does not pass `sufficiency_contract` (every existing
+        # call site): `sufficiency_map_initial` stays None and nothing below this block executes.
+        sufficiency_map_initial = None
+        if sufficiency_contract is not None and contract.get("version") == hierarchy_contract.HIER_VERSION:
+            started = time.monotonic()
+            early_sealed = stages.seal(
+                contract, subquestions, sink.all_records, sink.evidence_packets, coverage_initial
+            )
+            sufficiency_map_initial = sufficiency_diagnostic.compute_diagnostic_sufficiency_map(
+                early_sealed, sufficiency_contract, sufficiency_parent_of or {}
+            )
+            sufficiency_diagnostic.compute_direction_and_effectiveness(early_sealed, sufficiency_map_initial)
+            stage_log.append(
+                {
+                    "stage": "U1",
+                    "role": "U",
+                    "binding": {"kind": "deterministic_sufficiency_mapping", "model": None},
+                    "swap_seconds": 0.0,
+                    "wall_seconds": round(time.monotonic() - started, 3),
+                }
+            )
+
         gaps = [row for row in coverage_initial["obligations"] if row["state"] != stages.JUDGED_RESPONSIVE]
         if smoke.get("max_recovery_gaps"):
             gaps = gaps[: smoke["max_recovery_gaps"]]
+        # Sufficiency-driven recovery gating (item (B)): OFF by default, and a wholly separate
+        # opt-in from the diagnostic pass above -- a `judged_responsive`-but-incomplete child
+        # additionally becomes a gap only when the caller has explicitly turned this on AND
+        # supplied a sufficiency contract. Each requirement's own recovery routing
+        # (`sufficiency_engine.compute_recovery_needed`) is evaluated against a fresh,
+        # budget-not-yet-exhausted SearchStatus here -- this run's own recovery round is the
+        # attempt that status describes; multi-round budget bookkeeping across repeated calls is
+        # left to a future increment, disclosed as a scope boundary, not built or claimed here.
+        if sufficiency_recovery_gate_enabled and sufficiency_map_initial is not None:
+            already_gapped = {row["field_id"] for row in gaps}
+            for row in coverage_initial["obligations"]:
+                if row["field_id"] in already_gapped:
+                    continue
+                child_contract = sufficiency_map_initial.get(row["field_id"])
+                if child_contract is None:
+                    continue
+                needs_recovery = any(
+                    sufficiency_engine.compute_recovery_needed(req, sufficiency_engine.new_search_status(req["id"]))
+                    for req in child_contract["requirements"]
+                )
+                if needs_recovery:
+                    gaps.append(row)
         if not coverage_initial["assessed"]:
             plan_record = {
                 "source": profile.P.kind,
@@ -421,6 +474,35 @@ def execute(
 
     sealed = stages.seal(contract, subquestions, sink.all_records, sink.evidence_packets, coverage_final)
     sealed_hash = hashlib.sha256(json.dumps(sealed, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
+
+    sufficiency_map_final = sufficiency_map_initial
+    if (
+        sufficiency_contract is not None
+        and contract.get("version") == hierarchy_contract.HIER_VERSION
+        and planned_search
+    ):
+        # Only re-run when the recovery round actually added anything (mirrors the existing
+        # R2/C2 gate exactly, e2e.py's own `if len(...) > before:` check above) -- otherwise the
+        # initial map is already the final one and re-running would be wasted, identical work.
+        started = time.monotonic()
+        sufficiency_map_final = sufficiency_diagnostic.compute_diagnostic_sufficiency_map(
+            sealed, sufficiency_contract, sufficiency_parent_of or {}
+        )
+        sufficiency_diagnostic.compute_direction_and_effectiveness(sealed, sufficiency_map_final)
+        stage_log.append(
+            {
+                "stage": "U2",
+                "role": "U",
+                "binding": {"kind": "deterministic_sufficiency_mapping", "model": None},
+                "swap_seconds": 0.0,
+                "wall_seconds": round(time.monotonic() - started, 3),
+            }
+        )
+    recovery_candidates = (
+        sufficiency_diagnostic.compute_recovery_candidates(sufficiency_map_final)
+        if sufficiency_map_final is not None
+        else {}
+    )
     overview_record, reasoning = None, ""
     child_overview_manifest: dict[str, dict] | None = None
     if "S" in bound.supervisors:
@@ -499,6 +581,10 @@ def execute(
     trace.write_jsonl("10_verification.jsonl", sink.verifications)
     trace.write_json("12_coverage_audit.initial.json", coverage_initial)
     trace.write_json("12_coverage_audit.json", coverage_final)
+    if sufficiency_map_initial is not None:
+        trace.write_json("17_sufficiency_map.initial.json", sufficiency_map_initial)
+    if sufficiency_map_final is not None:
+        trace.write_json("17_sufficiency_map.json", sufficiency_map_final)
     trace.write_json("13_recovery_plan.json", {**plan_record, "unresolved_items": [g["field_id"] for g in gaps]})
     trace.write_json("13_gap_recovery.json", recovery_log)
     trace.write_json("11_verified_ledger.json", {**sealed, "sealed_hash": sealed_hash})
@@ -543,6 +629,9 @@ def execute(
         "render_manifest": render_manifest,
         "overview": overview_record,
         "child_overview_manifest": child_overview_manifest,  # Stage B: None for a non-hierarchical run
+        "sufficiency_map_initial": sufficiency_map_initial,  # None unless a sufficiency_contract was supplied
+        "sufficiency_map_final": sufficiency_map_final,
+        "sufficiency_recovery_candidates": recovery_candidates,  # what WOULD trigger recovery if the gate were on
         "supervisor_records": {role: sup.records for role, sup in bound.supervisors.items()},
         "records_total": len(sink.all_records),
     }
