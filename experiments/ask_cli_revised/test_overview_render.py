@@ -394,6 +394,58 @@ class AuditTests(unittest.TestCase):
         self.assertIn("derived_fields_consistent", self.failed(self.run_audit(rehash(record))))
 
 
+class HierarchicalAuditFilenameTests(unittest.TestCase):
+    """Bug 2 (found in the 2026-09-30 live q_aib hierarchical E2E): audit_overview()'s own internal
+    re-render must use the SAME detail_file/record_file the real per-child write path used, or
+    researcher_answer_matches_render fails for every hierarchical child regardless of content --
+    confirmed live, 100% reproducible, footer-only. The flat path's existing default-argument
+    behavior (no kwargs passed) must stay byte-identical."""
+
+    def setUp(self):
+        self.sealed, self.record, _, _ = make()
+        self.detail_file = "14b_detailed_inspection.c1.md"
+        self.record_file = "14a_overview.c1.json"
+        # The real write-side render, exactly as e2e.py's per-child loop produces it.
+        self.hier_answer, _ = rnd.researcher_answer(
+            self.sealed, self.record, detail_file=self.detail_file, record_file=self.record_file
+        )
+        self.detail = rnd.detailed_inspection(self.sealed, self.record)
+        self.h = audit.sealed_hash_of(self.sealed)
+
+    def test_the_real_per_child_footer_names_the_real_per_child_files(self):
+        self.assertIn(self.detail_file, self.hier_answer)
+        self.assertIn(self.record_file, self.hier_answer)
+        self.assertNotIn(rnd.DETAIL_FILE, self.hier_answer)
+        self.assertNotIn(rnd.RECORD_FILE, self.hier_answer)
+
+    def test_the_audit_passes_when_the_same_filenames_are_forwarded(self):
+        result = audit.audit_overview(
+            self.sealed, self.h, self.record, self.hier_answer, self.detail,
+            detail_file=self.detail_file, record_file=self.record_file,
+        )  # fmt: skip
+        self.assertTrue(result["ok"], result)
+        self.assertTrue(result["checks"]["researcher_answer_matches_render"])
+
+    def test_the_audit_still_fails_if_the_wrong_filenames_are_forwarded(self):
+        """Proves the check is genuinely discriminating, not merely made to always pass."""
+        result = audit.audit_overview(
+            self.sealed, self.h, self.record, self.hier_answer, self.detail,
+            detail_file="14b_detailed_inspection.WRONG.md", record_file="14a_overview.WRONG.json",
+        )  # fmt: skip
+        self.assertFalse(result["checks"]["researcher_answer_matches_render"])
+
+    def test_omitting_the_kwargs_keeps_the_flat_paths_exact_existing_defaults(self):
+        """Regression: a caller that never learned about per-child filenames (the flat, non-hierarchical
+        path) must see byte-identical behavior to before this fix -- default detail_file/record_file,
+        both in the render and in the audit's own internal re-render."""
+        flat_answer, _ = rnd.researcher_answer(self.sealed, self.record)
+        self.assertIn(rnd.DETAIL_FILE, flat_answer)
+        self.assertIn(rnd.RECORD_FILE, flat_answer)
+        result = audit.audit_overview(self.sealed, self.h, self.record, flat_answer, self.detail)
+        self.assertTrue(result["ok"], result)
+        self.assertTrue(result["checks"]["researcher_answer_matches_render"])
+
+
 class CoverageConstraintsTests(unittest.TestCase):
     """`coverage_constraints` is optional and additive (2026-09-27, Gate 2 diagnostic): every existing caller that
     omits it must see today's exact prompt and behavior, unchanged."""

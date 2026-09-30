@@ -19,7 +19,7 @@ from experiments.ask_cli_revised import overview as ov
 from experiments.ask_cli_revised import overview_evidence as oe
 from experiments.ask_cli_revised import overview_guards as guards
 from experiments.ask_cli_revised.ledger_renderer import _literal
-from experiments.ask_cli_revised.overview_render import detailed_inspection, researcher_answer
+from experiments.ask_cli_revised.overview_render import DETAIL_FILE, RECORD_FILE, detailed_inspection, researcher_answer
 
 
 def sealed_hash_of(sealed: dict) -> str:
@@ -30,7 +30,22 @@ def _norm(value):
     return json.loads(json.dumps(value))
 
 
-def audit_overview(sealed: dict, sealed_hash: str, overview: dict, answer_md: str, detail_md: str) -> dict:
+def audit_overview(
+    sealed: dict,
+    sealed_hash: str,
+    overview: dict,
+    answer_md: str,
+    detail_md: str,
+    *,
+    detail_file: str = DETAIL_FILE,
+    record_file: str = RECORD_FILE,
+) -> dict:
+    """``detail_file``/``record_file`` must be the SAME values the real write path used to produce
+    ``answer_md`` (researcher_answer's own footer-naming kwargs) -- found live 2026-09-30: the
+    hierarchical per-child loop writes with real per-child filenames but this function's own internal
+    re-render defaulted back to the generic flat-run names, so researcher_answer_matches_render failed
+    for every hierarchical child, 100% reproducibly, on the footer line alone. Every existing (flat)
+    caller that omits these kwargs sees today's exact default behavior, unchanged."""
     checks: dict[str, bool] = {}
     problems: list[str] = []
 
@@ -94,7 +109,11 @@ def audit_overview(sealed: dict, sealed_hash: str, overview: dict, answer_md: st
         "displayed_statements_cite_sent_passages",
         lambda: all(u in sent for i in overview["displayed"] for u in overview["proposals"][i]["unit_ids"]),
     )
-    _check("researcher_answer_matches_render", lambda: answer_md == researcher_answer(sealed, overview)[0])
+    _check(
+        "researcher_answer_matches_render",
+        lambda: answer_md
+        == researcher_answer(sealed, overview, detail_file=detail_file, record_file=record_file)[0],
+    )
     _check("detailed_inspection_matches_render", lambda: detail_md == detailed_inspection(sealed, overview))
 
     def no_withheld_in_answer() -> bool:

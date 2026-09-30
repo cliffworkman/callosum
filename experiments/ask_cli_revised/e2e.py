@@ -467,6 +467,8 @@ def execute(
                     child_record,
                     answer_path.read_text(encoding="utf-8"),
                     detail_path.read_text(encoding="utf-8"),
+                    detail_file=detail_file,
+                    record_file=record_file,
                 )
                 child_overview_manifest[child_id] = {
                     "sealed_ledger_hash": child_hash,
