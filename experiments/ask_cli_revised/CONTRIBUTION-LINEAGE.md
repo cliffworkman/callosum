@@ -25,3 +25,22 @@ generalization controls.
 **Planning / implementation (Claude).** Performed code-grounded planning and implemented the
 accepted architecture, including deterministic mapping, replay/testing infrastructure, and the
 model-assisted nomination diagnostic seam.
+
+---
+
+## Phase 2 — the live diagnostic replay (appended 2026-09-30; does not alter the rows above)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-09-30 | Phase 2 experimental authorization | Cliff Workman |
+| 2026-09-30 | Phase 2 live-client wiring, execution, manual adjudication, and analysis | Claude |
+
+**Phase 2 experimental authorization (Cliff Workman).** Authorized exactly one live
+model-assisted nomination replay over the preserved q_aib evidence, its hard scope boundaries, and
+the manual-adjudication/readiness-evaluation protocol.
+
+**Phase 2 live-client wiring, execution, manual adjudication, and analysis (Claude).** Wired the
+deferred live-client construction, ran the one authorized replay, manually adjudicated every
+accepted binding against its verified proposition, and reported the comparison and two
+architectural findings in `MODEL_NOMINATION_DIAGNOSTIC_RESULTS.md`. No external scholarly method
+or tool is implemented by this experiment, unchanged from the Phase 1 assessment above.
