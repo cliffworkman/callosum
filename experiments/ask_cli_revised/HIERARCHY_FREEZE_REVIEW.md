@@ -14,23 +14,23 @@ The same code generated and verifies the pins, so its checks prove only that the
 | `q_aib.v8.closure_decisions.json` (closure_sha256) | `ce97bd04b369b9df96a2e82ad4242f5fce86e7a4943869319ca3e3307b2ce8bb` |
 | `decompose/execution.py` (code input) | `51dde69836f3df1451144dededa2e8edca07adeb8b49f1cb69cd8a1f3a1fb62f` |
 | `decompose/tree.py` (code input) | `c7f25ead41888f89a83edf97b1b3042c5fcb71980d71f759661d0542816571bc` |
-| `hierarchy_contract.py` (code input) | `fb9fb135da663cb7d8d230b5b648df95cc9ec790792df64d958833e2d31d91bf` |
+| `hierarchy_contract.py` (code input) | `8cb887b8294ed39d0672192e2b0abc850ba9f55b47b128804536a34b0f462f89` |
 
 Recompute each yourself (PowerShell) and compare:
 
 ```powershell
-Get-FileHash -Algorithm SHA256 "C:\Users\cliff\Dropbox\Dropbox\01_Work\callosum\.claude\worktrees\ask-e2e\.local\decompose-runs\aib-dev\closure_v8\ASSEMBLED_HIERARCHY.json"
-Get-FileHash -Algorithm SHA256 "C:\Users\cliff\Dropbox\Dropbox\01_Work\callosum\.claude\worktrees\ask-e2e\.local\decompose-runs\aib-dev\closure_v8\CLOSURE_APPROVALS.json"
-Get-FileHash -Algorithm SHA256 "C:\Users\cliff\Dropbox\Dropbox\01_Work\callosum\.claude\worktrees\ask-e2e\.local\decompose-runs\aib-dev\clarifications\q_aib.v6.researcher_decisions.json"
-Get-FileHash -Algorithm SHA256 "C:\Users\cliff\Dropbox\Dropbox\01_Work\callosum\.claude\worktrees\ask-e2e\.local\decompose-runs\aib-dev\clarifications\q_aib.v8.closure_decisions.json"
-Get-FileHash -Algorithm SHA256 "C:\Users\cliff\Dropbox\Dropbox\01_Work\callosum\.claude\worktrees\ask-e2e\experiments\ask_cli_revised\decompose\execution.py"
-Get-FileHash -Algorithm SHA256 "C:\Users\cliff\Dropbox\Dropbox\01_Work\callosum\.claude\worktrees\ask-e2e\experiments\ask_cli_revised\decompose\tree.py"
-Get-FileHash -Algorithm SHA256 "C:\Users\cliff\Dropbox\Dropbox\01_Work\callosum\.claude\worktrees\ask-e2e\experiments\ask_cli_revised\hierarchy_contract.py"
-Get-FileHash -Algorithm SHA256 "C:\Users\cliff\Dropbox\Dropbox\01_Work\callosum\.claude\worktrees\ask-e2e\experiments\ask_cli_revised\hierarchy_contract.frozen.json"   # must equal the pins sha256 below
+Get-FileHash -Algorithm SHA256 "C:\Users\cliff\Dropbox\Dropbox\01_Work\callosum\.claude\worktrees\ask-060-hier11-recpm3-citefix-20260929T212442Z\.local\decompose-runs\aib-dev\closure_v8\ASSEMBLED_HIERARCHY.json"
+Get-FileHash -Algorithm SHA256 "C:\Users\cliff\Dropbox\Dropbox\01_Work\callosum\.claude\worktrees\ask-060-hier11-recpm3-citefix-20260929T212442Z\.local\decompose-runs\aib-dev\closure_v8\CLOSURE_APPROVALS.json"
+Get-FileHash -Algorithm SHA256 "C:\Users\cliff\Dropbox\Dropbox\01_Work\callosum\.claude\worktrees\ask-060-hier11-recpm3-citefix-20260929T212442Z\.local\decompose-runs\aib-dev\clarifications\q_aib.v6.researcher_decisions.json"
+Get-FileHash -Algorithm SHA256 "C:\Users\cliff\Dropbox\Dropbox\01_Work\callosum\.claude\worktrees\ask-060-hier11-recpm3-citefix-20260929T212442Z\.local\decompose-runs\aib-dev\clarifications\q_aib.v8.closure_decisions.json"
+Get-FileHash -Algorithm SHA256 "C:\Users\cliff\Dropbox\Dropbox\01_Work\callosum\.claude\worktrees\ask-060-hier11-recpm3-citefix-20260929T212442Z\experiments\ask_cli_revised\decompose\execution.py"
+Get-FileHash -Algorithm SHA256 "C:\Users\cliff\Dropbox\Dropbox\01_Work\callosum\.claude\worktrees\ask-060-hier11-recpm3-citefix-20260929T212442Z\experiments\ask_cli_revised\decompose\tree.py"
+Get-FileHash -Algorithm SHA256 "C:\Users\cliff\Dropbox\Dropbox\01_Work\callosum\.claude\worktrees\ask-060-hier11-recpm3-citefix-20260929T212442Z\experiments\ask_cli_revised\hierarchy_contract.py"
+Get-FileHash -Algorithm SHA256 "C:\Users\cliff\Dropbox\Dropbox\01_Work\callosum\.claude\worktrees\ask-060-hier11-recpm3-citefix-20260929T212442Z\experiments\ask_cli_revised\hierarchy_contract.frozen.json"   # must equal the pins sha256 below
 ```
 
 - original question sha256 `6e037bab4baad2c0b4427a1c73c6e1720296292b3be36189cd9cf02436e57030`; the value already frozen before this work in `e2e_contracts.frozen.json` is `6e037bab4baad2c0b4427a1c73c6e1720296292b3be36189cd9cf02436e57030` (equal).
-- pins file sha256 `1e1b1630291dcb6e81a73640ae44c07bec6eec7f92cf906c27f5e87637729e8d`; model-facing sha256 `c1f3be3b35e7b74c0044ef1f2e6c21072ee0e90bd47fba9a01d7149b88fd41cb`.
+- pins file sha256 `3e86cb8f0d7816bbc9aeac7d717e9ea4a709981a1e98406c577b8623aab1d0f2`; model-facing sha256 `c1f3be3b35e7b74c0044ef1f2e6c21072ee0e90bd47fba9a01d7149b88fd41cb`.
 
 ## 2. The 11 children
 
@@ -265,7 +265,7 @@ Save as `hierarchy_contract.review.json` next to the pins, filling the fields yo
 {
   "reviewed_by": "<your name>",
   "reviewed_at": "<date>",
-  "pins_sha256": "1e1b1630291dcb6e81a73640ae44c07bec6eec7f92cf906c27f5e87637729e8d",
+  "pins_sha256": "3e86cb8f0d7816bbc9aeac7d717e9ea4a709981a1e98406c577b8623aab1d0f2",
   "inputs_sha256": {
     "assembled_sha256": "bd1a4fa1776bf3844130d09b6b9f7a7023705000a5fb0daf96524fcabc1c6dcc",
     "approvals_sha256": "04552bd3ba45dbfa7923dcde3bbdf8522ae247b88f074e345540ddca2a682844",
