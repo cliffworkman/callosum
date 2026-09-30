@@ -104,6 +104,24 @@ the frozen library copy whose fingerprint matches; the isolated Ollama endpoint 
 * Offline tests prove carriage and structure. Whether R/C honor a constraint or the scope is only observable in a live run and by
   the researcher's adjudication.
 
+## Live-run-found defects (fixed 2026-09-30)
+
+The first genuine live hierarchical q_aib E2E (2026-09-30, T5C, real frozen library) surfaced two real pipeline bugs neither
+offline tests nor prior scripted-client E2E tests caught -- both now fixed, with regression coverage built directly from the
+live-run fixture shapes:
+
+* **`build_child_sealed_ledger`'s evidence-span filter dropped the legacy primary span** (`paper_id, evidence_anchor_chunk_id,
+  evidence_span_id`) for any continuation-anchored proposition, keeping only the per-anchor spans. `overview_evidence.
+  build_units()` still resolves the singular fields against the catalog regardless of anchors, so a continuation-joined child's
+  verified, responsive evidence produced `catalog_mismatch` and never reached that child's Overview call at all -- observed
+  live for c10 (paper 68, chunks 14388/14389). Fixed: the filter now always keeps the primary span alongside every anchor span.
+* **`overview_audit.audit_overview()`'s internal self-check re-render never received the real per-child `detail_file`/
+  `record_file`** the write path used, so `researcher_answer_matches_render` failed for every hierarchical child, 100%
+  reproducibly, on the footer's filenames alone -- a false-negative in the audit, not a content defect. Fixed: the audit now
+  accepts and forwards the same two kwargs; the flat path's defaults are unchanged.
+
+Neither bug affected the flat (non-hierarchical) path. See the live run's own preserved diagnostic handback for the full trace.
+
 ## Lineage
 
 The scientific request, the scope decisions (D1-D10), the clarification approvals (RC-1 to RC-10) and the closure dispositions
