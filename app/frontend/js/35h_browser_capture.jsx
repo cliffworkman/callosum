@@ -46,6 +46,7 @@ function BrowserCaptureSettings() {
             <button className="btn btn-ghost" disabled={busy || !state.prepared || state.update_available} onClick={() => act("verify")}>Verify connection</button>{" "}
             <button className="btn btn-ghost" disabled={busy} onClick={() => act("disable")}>Turn off early access</button>
           </div>
+          {state.package_error && <p role="alert" className="settings-sub">Extension verification unavailable: {state.package_error}</p>}
           {state.update_available && <p className="settings-sub">An extension update is available. Prepare it, then Reload the extension in your browser. Your installation folder stays the same.</p>}
           {state.prepared && <>
             <p className="settings-sub">Prepared version {state.prepared_version}. Folder: <code>{state.folder}</code><br />Expected ID: <code>{state.extension_id}</code></p>

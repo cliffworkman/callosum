@@ -53,6 +53,24 @@ pub fn ensure_root(root: &Path) -> Result<(), String> {
     Ok(())
 }
 
+fn finder_metadata(path: &Path) -> Result<(), String> {
+    // Finder creates this while the user selects the unpacked folder. It is not
+    // extension code and is never included in the embedded package or receipt.
+    use std::io::Read;
+    let meta = std::fs::symlink_metadata(path).map_err(|_| "Cannot inspect Finder metadata.")?;
+    if !plain(path) || !meta.is_file() || !(8..=1024 * 1024).contains(&meta.len()) {
+        return Err("Unexpected Finder metadata file; files left untouched.".into());
+    }
+    let mut header = [0; 8];
+    std::fs::File::open(path)
+        .and_then(|mut file| file.read_exact(&mut header))
+        .map_err(|_| "Cannot read Finder metadata.")?;
+    if header != *b"\0\0\0\x01Bud1" {
+        return Err("Invalid Finder metadata; files left untouched.".into());
+    }
+    Ok(())
+}
+
 fn inspect(dir: &Path, prefix: &str, found: &mut Vec<String>) -> Result<(), String> {
     if !plain(dir) {
         return Err("Preview folder contains a link. Files left untouched.".into());
@@ -73,7 +91,11 @@ fn inspect(dir: &Path, prefix: &str, found: &mut Vec<String>) -> Result<(), Stri
             }
             inspect(&path, "icons/", found)?;
         } else if path.is_file() {
-            found.push(relative);
+            if name == ".DS_Store" {
+                finder_metadata(&path)?;
+            } else {
+                found.push(relative);
+            }
         } else {
             return Err("Unexpected preview file type.".into());
         }
@@ -122,6 +144,13 @@ pub fn verified(root: &Path) -> Result<Receipt, String> {
 
 fn remove_verified_dir(dir: &Path) -> Result<(), String> {
     // Called only after exact inventory + hash verification. No recursive deletion.
+    for name in [".DS_Store", "icons/.DS_Store"] {
+        let metadata = dir.join(name);
+        if metadata.exists() {
+            finder_metadata(&metadata)?;
+            std::fs::remove_file(metadata).map_err(|_| "Could not remove Finder metadata.")?;
+        }
+    }
     for name in FILES {
         std::fs::remove_file(dir.join(name))
             .map_err(|_| "Could not remove an owned preview file.")?;
@@ -269,6 +298,50 @@ mod tests {
         assert!(cleanup(&root).is_err());
         std::fs::remove_dir_all(root).unwrap();
     }
+    #[test]
+    fn finder_metadata_survives_verification_and_allows_update_and_cleanup() {
+        let root = scratch();
+        prepare(&root).unwrap();
+        let digest = verified(&root).unwrap().sha256;
+        for name in [".DS_Store", "icons/.DS_Store"] {
+            std::fs::write(
+                root.join("extension").join(name),
+                b"\0\0\0\x01Bud1finder data",
+            )
+            .unwrap();
+        }
+        assert_eq!(verified(&root).unwrap().sha256, digest);
+        assert!(root.join("extension/.DS_Store").exists());
+        // An unrelated file must still fail closed even alongside valid metadata.
+        let foreign = root.join("extension/foreign.js");
+        std::fs::write(&foreign, b"unexpected").unwrap();
+        assert!(prepare(&root).is_err());
+        assert!(cleanup(&root).is_err());
+        assert!(foreign.exists());
+        std::fs::remove_file(foreign).unwrap();
+        prepare(&root).unwrap();
+        assert_eq!(verified(&root).unwrap().sha256, digest);
+        std::fs::write(root.join("extension/.DS_Store"), b"\0\0\0\x01Bud1").unwrap();
+        cleanup(&root).unwrap();
+        assert!(!root.join("extension").exists());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn invalid_or_oversized_finder_metadata_is_retained_and_rejected() {
+        let root = scratch();
+        prepare(&root).unwrap();
+        let metadata = root.join("extension/.DS_Store");
+        for bytes in [b"not metadata".to_vec(), vec![0; 1024 * 1024 + 1]] {
+            std::fs::write(&metadata, &bytes).unwrap();
+            assert!(verified(&root).is_err());
+            assert!(prepare(&root).is_err());
+            assert!(cleanup(&root).is_err());
+            assert_eq!(std::fs::read(&metadata).unwrap(), bytes);
+        }
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
     #[cfg(unix)]
     #[test]
     fn symlinked_files_and_roots_fail_closed() {
@@ -276,6 +349,11 @@ mod tests {
         prepare(&root).unwrap();
         let outside = scratch();
         std::fs::write(&outside, b"private").unwrap();
+        let metadata = root.join("extension/.DS_Store");
+        std::os::unix::fs::symlink(&outside, &metadata).unwrap();
+        assert!(verified(&root).is_err());
+        assert!(cleanup(&root).is_err());
+        std::fs::remove_file(metadata).unwrap();
         std::fs::remove_file(root.join("extension/background.js")).unwrap();
         std::os::unix::fs::symlink(&outside, root.join("extension/background.js")).unwrap();
         assert!(prepare(&root).is_err());

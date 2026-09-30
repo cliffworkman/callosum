@@ -17,7 +17,7 @@ from app.backend.api.frontend import _transpile_jsx  # noqa: E402
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def document(mock=True):
+def document(mock=True, initial_state=""):
     react = (ROOT / "node_modules/react/umd/react.development.js").read_text(encoding="utf-8")
     dom = (ROOT / "node_modules/react-dom/umd/react-dom.development.js").read_text(encoding="utf-8")
     component = (ROOT / "app/frontend/js/35h_browser_capture.jsx").read_text(encoding="utf-8")
@@ -42,7 +42,7 @@ def document(mock=True):
         if mock
         else ""
     )
-    return f'<div id="root"></div><script>{react}</script><script>{dom}</script><script>{mock_ipc}</script><script>{script}</script>'
+    return f'<div id="root"></div><script>{react}</script><script>{dom}</script><script>{mock_ipc}{initial_state}</script><script>{script}</script>'
 
 
 def test_explicit_setup_truthful_connection_errors_and_opt_out():
@@ -79,4 +79,23 @@ def test_explicit_setup_truthful_connection_errors_and_opt_out():
         page.set_content(document(mock=False))
         expect(page.get_by_text("Remote access cannot install", exact=False)).to_be_visible()
         expect(page.get_by_role("button")).to_have_count(0)
+        browser.close()
+
+
+def test_restart_package_failure_explains_disabled_verification():
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.set_content(
+            document(
+                initial_state="""
+                Object.assign(window.preview,{enabled:true,prepared:false,
+                  package_error:'Unexpected or missing preview files. Files left untouched.'});
+                """
+            )
+        )
+        expect(page.get_by_role("button", name="Verify connection", exact=True)).to_be_disabled()
+        expect(page.get_by_role("alert")).to_contain_text("Unexpected or missing preview files")
+        expect(page.get_by_role("button", name="Turn off early access", exact=True)).to_be_enabled()
+        expect(page.get_by_text("Connection verified at", exact=False)).to_have_count(0)
         browser.close()
