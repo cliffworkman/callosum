@@ -1,0 +1,7 @@
+{
+  "reviewed_by": "Cliff",
+  "reviewed_at": "2026-09-30T16:38:30-04:00",
+  "question_key": "aib_hier_v8",
+  "combined_hash": "9de276b19d2e5afee5f532d64c6a678de6e59a9f41f37198fa00409c5f3094ac",
+  "scope": "Reviews and approves the frozen q_aib SufficiencyContract (sufficiency_contract.aib_hier_v8.frozen.json) naming this exact combined_hash, as the basis for the model-assisted nomination diagnostic (experiment q_aib_sufficiency_model_nomination_diagnostic_v1). Sufficiency assessment only -- does not amend hierarchy_contract.py's own D1_RECORD, pin, or hash."
+}

@@ -83,6 +83,9 @@ class AuthorizationGateTests(unittest.TestCase):
             "brief_confirmed": True,
             "question_sha256s": ["deadbeef"],
             "frozen_contract_hash": "cafef00d",
+            "model": diag.EXPECTED_MODEL,
+            "thinking": diag.EXPECTED_THINKING,
+            "authorized_executions": 1,
         }
         payload.update(overrides)
         path = tmp / "auth.json"
@@ -121,6 +124,24 @@ class AuthorizationGateTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 diag._load_authorization(path, question_sha256="deadbeef", frozen_combined_hash="cafef00d")
 
+    def test_wrong_model_refuses(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self._write(Path(tmp), model="some-other-model:1b")
+            with self.assertRaises(ValueError):
+                diag._load_authorization(path, question_sha256="deadbeef", frozen_combined_hash="cafef00d")
+
+    def test_thinking_on_refuses(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self._write(Path(tmp), thinking=True)
+            with self.assertRaises(ValueError):
+                diag._load_authorization(path, question_sha256="deadbeef", frozen_combined_hash="cafef00d")
+
+    def test_authorized_executions_other_than_one_refuses(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self._write(Path(tmp), authorized_executions=2)
+            with self.assertRaises(ValueError):
+                diag._load_authorization(path, question_sha256="deadbeef", frozen_combined_hash="cafef00d")
+
     def test_correctly_shaped_authorization_is_accepted(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = self._write(Path(tmp))
@@ -132,6 +153,32 @@ class AuthorizationGateTests(unittest.TestCase):
     def test_main_without_authorization_refuses_before_any_client_construction(self):
         with self.assertRaises(SystemExit):
             diag.main(["--run-dir", str(_RUN_DIR)])  # no --dry-run, no --experiment-authorization
+
+
+class CheckEndpointReachableTests(unittest.TestCase):
+    """No real network call -- a hand-written fake client."""
+
+    class _FakeReachable:
+        def tags(self):
+            return [{"model": "qwen3.5:9b"}, {"model": "other:1b"}]
+
+    class _FakeUnreachable:
+        def tags(self):
+            raise ConnectionError("refused")
+
+    def test_model_present_is_reachable(self):
+        ok, reason = diag.check_endpoint_reachable(self._FakeReachable(), "qwen3.5:9b")
+        self.assertTrue(ok)
+
+    def test_model_absent_is_not_reachable(self):
+        ok, reason = diag.check_endpoint_reachable(self._FakeReachable(), "qwen3.5:99b")
+        self.assertFalse(ok)
+        self.assertIn("not installed", reason)
+
+    def test_transport_failure_is_not_reachable_never_raises(self):
+        ok, reason = diag.check_endpoint_reachable(self._FakeUnreachable(), "qwen3.5:9b")
+        self.assertFalse(ok)
+        self.assertIn("unreachable", reason)
 
 
 if __name__ == "__main__":

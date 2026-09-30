@@ -22,6 +22,8 @@ from experiments.ask_cli_revised import sufficiency_engine as se
 from experiments.ask_cli_revised import sufficiency_freeze as sf
 
 EXPERIMENT_ID = "q_aib_sufficiency_model_nomination_diagnostic_v1"
+EXPECTED_MODEL = "qwen3.5:9b"
+EXPECTED_THINKING = False
 
 _DEFAULT_RUN_DIR = (
     Path(__file__).resolve().parents[2] / ".local" / "e2e-runs" / "q-aib-hierarchical-t5c-live-20260930" / "run"
@@ -35,6 +37,35 @@ class _NullModelClient:
 
     def nominate_sufficiency_role(self, *, category_description: str, candidates: list[dict]) -> list[dict]:
         return []
+
+
+class _LiveQwenModelClient:
+    """Thin adapter binding a real `qwen.QwenTasks` to the `model_client` protocol
+    `sufficiency_mapping._bind_role_candidates` expects: a `.model_name` attribute (read via
+    `getattr`, never assumed) plus `.nominate_sufficiency_role(category_description=,
+    candidates=)`. Delegates unchanged to the already-tested, already-schema-constrained
+    `QwenTasks` method -- this class adds no new model-facing behavior of its own."""
+
+    def __init__(self, tasks, model_name: str) -> None:
+        self._tasks = tasks
+        self.model_name = model_name
+
+    def nominate_sufficiency_role(self, *, category_description: str, candidates: list[dict]) -> list[dict]:
+        return self._tasks.nominate_sufficiency_role(category_description=category_description, candidates=candidates)
+
+
+def check_endpoint_reachable(client, model: str) -> tuple[bool, str]:
+    """A non-generative, read-only readiness check (HTTP GET only -- no chat/generation call,
+    never a research/nomination attempt of any kind): confirms the Ollama endpoint answers and
+    the exact authorized model tag is installed there. A failure here is a mechanical
+    infrastructure fact, never a scientific result -- reported and refused, not retried silently."""
+    try:
+        installed = {m.get("model") or m.get("name") for m in client.tags()}
+    except Exception as exc:  # noqa: BLE001 -- any transport failure is reported, never masked
+        return False, f"endpoint unreachable: {type(exc).__name__}: {exc}"
+    if model not in installed:
+        return False, f"{model!r} is not installed on this endpoint (installed: {sorted(installed)})"
+    return True, "ok"
 
 
 def load_frozen_contract(path: Path | None = None) -> dict:
@@ -76,6 +107,14 @@ def _load_authorization(path: Path, *, question_sha256: str, frozen_combined_has
         raise ValueError(
             "the frozen artifact on disk does not match the hash this authorization was granted "
             f"for ({data.get('frozen_contract_hash')!r} != {frozen_combined_hash!r}) -- refusing"
+        )
+    if data.get("model") != EXPECTED_MODEL:
+        raise ValueError(f"authorization names model {data.get('model')!r}, expected {EXPECTED_MODEL!r}")
+    if data.get("thinking") is not EXPECTED_THINKING:
+        raise ValueError(f"authorization names thinking={data.get('thinking')!r}, expected {EXPECTED_THINKING!r}")
+    if data.get("authorized_executions") != 1:
+        raise ValueError(
+            f"authorization names authorized_executions={data.get('authorized_executions')!r}, expected exactly 1"
         )
     return data
 
@@ -120,25 +159,53 @@ def main(argv: list[str] | None = None) -> int:
         "question_hash"
     ]
 
+    live_client = None  # closed at the end, in a finally, whichever branch runs
     if args.dry_run:
         model_client, model_name = _NullModelClient(), _NullModelClient.model_name
     else:
         if not args.experiment_authorization:
             raise SystemExit("refusing: --experiment-authorization FILE is required for a live run")
-        _load_authorization(
+        authorization = _load_authorization(
             args.experiment_authorization,
             question_sha256=question_sha256,
             frozen_combined_hash=frozen["combined_hash"],
         )
-        # NOTE (Phase 2 implementer): construct the real Ollama-backed QwenTasks exactly as the
-        # live q_aib E2E driver already does for its own W-role calls (see e2e.py's own
-        # construction site) -- not written here, since Phase 1 must not wire a reachable live
-        # client at all.
-        raise SystemExit("live model path is intentionally not wired in Phase 1 -- see the handback notes")
 
-    result = run(
-        run_dir=args.run_dir, contract_by_child=contract_by_child, model_client=model_client, model_name=model_name
-    )
+        # Real construction, mirroring e2e.py's own W-role binding exactly (topo.ENDPOINTS
+        # ["isolated"], topo.SUPERVISOR_BASE_OPTIONS, think=False) -- no bespoke options invented
+        # for this one call.
+        from experiments.ask_cli_revised import topology as topo
+        from experiments.ask_cli_revised.backends import NativeWorker
+        from experiments.ask_cli_revised.qwen import QwenTasks
+        from experiments.ask_cli_revised.supervisor_eval.ollama_client import OllamaClient
+        from experiments.ask_cli_revised.trace import TraceWriter
+
+        live_client = OllamaClient(topo.ENDPOINTS["isolated"])
+        reachable, reason = check_endpoint_reachable(live_client, EXPECTED_MODEL)
+        if not reachable:
+            live_client.close()
+            raise SystemExit(
+                f"refusing: mechanical infrastructure failure before any live call was attempted -- {reason}"
+            )
+
+        trace_dir = args.out.parent if args.out else Path(".local") / "sufficiency-nomination-diagnostic-20260930"
+        trace = TraceWriter(trace_dir)
+        worker = NativeWorker(
+            client=live_client, model=EXPECTED_MODEL, base_options=topo.SUPERVISOR_BASE_OPTIONS, think=False
+        )
+        tasks = QwenTasks(config=worker, trace=trace)
+        model_client = _LiveQwenModelClient(tasks, EXPECTED_MODEL)
+        model_name = EXPECTED_MODEL
+        print(f"authorized live run: {authorization['experiment_id']} (authorized_at {authorization['authorized_at']})")
+        print(f"trace directory: {trace_dir}")
+
+    try:
+        result = run(
+            run_dir=args.run_dir, contract_by_child=contract_by_child, model_client=model_client, model_name=model_name
+        )
+    finally:
+        if live_client is not None:
+            live_client.close()
     if args.out:
         args.out.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"deterministic_only children: {len(result['deterministic_only'])}")

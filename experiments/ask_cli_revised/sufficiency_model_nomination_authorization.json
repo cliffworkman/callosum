@@ -1,0 +1,12 @@
+{
+  "experiment_id": "q_aib_sufficiency_model_nomination_diagnostic_v1",
+  "authorized_by": "Cliff",
+  "authorized_at": "2026-09-30T16:38:30-04:00",
+  "brief_confirmed": true,
+  "question_sha256s": ["6e037bab4baad2c0b4427a1c73c6e1720296292b3be36189cd9cf02436e57030"],
+  "frozen_contract_hash": "9de276b19d2e5afee5f532d64c6a678de6e59a9f41f37198fa00409c5f3094ac",
+  "model": "qwen3.5:9b",
+  "thinking": false,
+  "authorized_executions": 1,
+  "scope": "Exactly ONE model-assisted semantic-sufficiency nomination replay over the PRESERVED q_aib hierarchical evidence, comparing deterministic-only sufficiency vs. deterministic + model-assisted role nomination with the underlying research evidence held fixed. Does NOT authorize: retrieval, a W research round, a C coverage rerun, sufficiency-driven recovery gating, child-Overview regeneration, parent synthesis, a new hierarchical E2E run, or prompt/option tuning after observing the result. A retry is permitted only for a mechanical execution failure producing no valid experimental result, explicitly documented as such -- never a retry of a scientifically valid but disappointing result."
+}
