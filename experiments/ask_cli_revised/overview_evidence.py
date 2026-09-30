@@ -264,9 +264,17 @@ def build_units(sealed: dict) -> tuple[list[dict], list[dict]]:
                 "_catalog_ok": True,
             }
             by_key[key] = unit
-        locator = {"chunk_id": loc[1], "span_id": loc[2]}
-        if locator not in unit["locators"]:
-            unit["locators"].append(locator)
+        # Stage A (plural evidence anchors): a continuation-joined row's locators include every real
+        # anchor it spans, not just the primary -- a downstream citation can then name every real
+        # chunk location, not just the one evidence_anchor_chunk_id happens to point at.
+        anchor_locators = (
+            [{"chunk_id": a["chunk_id"], "span_id": a["span_id"]} for a in row["anchors"]]
+            if row.get("anchors")
+            else [{"chunk_id": loc[1], "span_id": loc[2]}]
+        )
+        for locator in anchor_locators:
+            if locator not in unit["locators"]:
+                unit["locators"].append(locator)
         unit["proposition_ids"].append(row["proposition_id"])
         unit["attached_children"] = sorted(
             set(unit["attached_children"]) | set(row.get("responsive_obligation_ids", []))

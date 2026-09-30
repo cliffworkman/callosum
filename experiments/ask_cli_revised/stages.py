@@ -299,6 +299,20 @@ def run_recovery_plan(
 # ---- sealing ------------------------------------------------------------------------------------------------------
 
 
+def _evidence_span_rows(paper_id: int, span: dict) -> list[dict]:
+    """One row for the span itself (the existing shape -- for a Stage A continuation-joined span, its
+    `chunk_id` is the PRIMARY anchor and its `text` is the full reconstructed quote, exactly what the
+    legacy singular evidence_anchor_chunk_id/quote fields need to keep resolving against
+    `evidence_spans`), PLUS one additional row per entry in `span.get("anchors")` -- each anchor's own
+    (chunk_id, span_id, text), which is what ledger_renderer.validate_ledger's plural-anchor check and
+    e2e.py's seed_pass_from rehydration both need to find a real source-span match for each real
+    chunk a continuation join actually spans."""
+    rows = [{"paper_id": paper_id, "chunk_id": span["chunk_id"], "span_id": span["span_id"], "text": span["text"]}]
+    for anchor in span.get("anchors") or ():
+        rows.append({"paper_id": paper_id, "chunk_id": anchor["chunk_id"], "span_id": anchor["span_id"], "text": anchor["text"]})  # fmt: skip
+    return rows
+
+
 def seal(
     contract: dict, subquestions: list[dict], records: list[dict], evidence_packets: list[dict], coverage: dict
 ) -> dict:
@@ -316,14 +330,10 @@ def seal(
         "subquestions": subquestions,
         "verified_propositions": verified,
         "evidence_spans": [
-            {
-                "paper_id": packet["paper_id"],
-                "chunk_id": span["chunk_id"],
-                "span_id": span["span_id"],
-                "text": span["text"],
-            }
+            row
             for packet in evidence_packets
             for span in packet["candidate_spans"]
+            for row in _evidence_span_rows(packet["paper_id"], span)
         ],
         "coverage_authority": coverage["authority"],
         "coverage_assessed": coverage["assessed"],

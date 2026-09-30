@@ -38,7 +38,25 @@ def validate_ledger(ledger: dict) -> list[dict]:
             raise ValueError("missing exact source quote")
         if not re.fullmatch(r"e[1-9][0-9]*", row["evidence_span_id"]):
             raise ValueError("invalid packet-local span ID")
-        if (row["paper_id"], row["evidence_anchor_chunk_id"], row["evidence_span_id"], row["quote"]) not in source_spans:
+        anchors = row.get("anchors")
+        if anchors:
+            # Stage A (plural evidence anchors): the whole `quote` spans >1 real chunk by
+            # construction, so it can never itself match any single evidence_spans entry's own
+            # `text` -- checking it that way is exactly the assumption this authorization asked to
+            # find and correct. Instead: every anchor's own (paper_id, chunk_id, span_id, text) must
+            # resolve in the catalog, AND `quote` must equal the anchors' own texts joined in order --
+            # re-validated here independently, not merely trusted from propositions.py upstream.
+            if len(anchors) < 2:
+                raise ValueError("anchors must have at least two entries when present")
+            reconstructed = " ".join(a["text"] for a in anchors)
+            if row["quote"] != reconstructed:
+                raise ValueError("quote does not match its own anchors' reconstructed text")
+            for anchor in anchors:
+                if (row["paper_id"], anchor["chunk_id"], anchor["span_id"], anchor["text"]) not in source_spans:
+                    raise ValueError("continuation anchor does not resolve in the source-span catalog")
+            if anchors[0]["chunk_id"] != row["evidence_anchor_chunk_id"]:
+                raise ValueError("evidence_anchor_chunk_id must be the primary (first) anchor's chunk")
+        elif (row["paper_id"], row["evidence_anchor_chunk_id"], row["evidence_span_id"], row["quote"]) not in source_spans:  # fmt: skip
             raise ValueError("proposition span does not resolve in the source-span catalog")
     return rows
 
@@ -53,9 +71,7 @@ def render_ledger(ledger: dict) -> tuple[str, dict]:
     claims = []
     for row in rows:
         pid = row["proposition_id"]
-        lines += ["> " + _literal(row["proposition_text"]), "", f"[{pid}]", "",
-                  f"Evidence: paper {row['paper_id']}, chunk {row['evidence_anchor_chunk_id']}, "
-                  + _literal(str(row["evidence_span_id"])) + ".", ""]
+        lines += ["> " + _literal(row["proposition_text"]), "", f"[{pid}]", "", _evidence_locator_line(row), ""]
         claims.append({"proposition_ids": [pid], "text": row["proposition_text"],
                        "aggregation": "none", "paper_id": row["paper_id"],
                        "chunk_id": row["evidence_anchor_chunk_id"], "span_id": row["evidence_span_id"],
@@ -96,15 +112,28 @@ _TAIL = (
 )
 
 
+def _evidence_locator_line(row: dict) -> str:
+    """Stage A: a continuation-joined proposition names every real chunk its quote spans, not just
+    the primary anchor -- the singular evidence_anchor_chunk_id alone would understate where the
+    verbatim text actually lives."""
+    anchors = row.get("anchors")
+    if anchors:
+        chunks = ", ".join(f"chunk {a['chunk_id']}" for a in anchors)
+        return f"Source-verified evidence (continuous passage spanning {len(anchors)} chunks): paper {row['paper_id']}, {chunks}."  # fmt: skip
+    return (
+        f"Source-verified evidence: paper {row['paper_id']}, chunk {row['evidence_anchor_chunk_id']}, "
+        + _literal(str(row["evidence_span_id"]))
+        + "."
+    )
+
+
 def _claim_block(row: dict) -> list[str]:
     return [
         "> " + _literal(row["proposition_text"]),
         "",
         f"[{row['proposition_id']}]",
         "",
-        f"Source-verified evidence: paper {row['paper_id']}, chunk {row['evidence_anchor_chunk_id']}, "
-        + _literal(str(row["evidence_span_id"]))
-        + ".",
+        _evidence_locator_line(row),
         "",
     ]
 

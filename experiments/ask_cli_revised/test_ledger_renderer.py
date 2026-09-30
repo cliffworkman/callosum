@@ -72,5 +72,70 @@ class LedgerRendererTests(unittest.TestCase):
         self.assertIn("Original request referent unavailable", text)
 
 
+def joined_ledger_fixture():
+    """Stage A (plural evidence anchors): a continuation-joined proposition, backward-compatible
+    singular fields set from the primary (first) anchor, both anchors' own rows present in
+    evidence_spans (what validate_ledger's plural-anchor check resolves against)."""
+    return {
+        "verified_propositions": [
+            {
+                "proposition_id": "p1",
+                "proposition_text": "The stereotype is culturally shared, evidence against a universal hypothesis.",
+                "verification": {"status": "verified"}, "paper_id": 27,
+                "evidence_anchor_chunk_id": 14388, "evidence_span_id": "e1",
+                "quote": "results suggest the anomalous-is-bad stereotype is culturally shared, providing evidence against a universal pathogen avoidance byproduct hypothesis.",  # fmt: skip
+                "obligation_ids": ["s1-o1"],
+                "anchors": [
+                    {"kind": "continuation", "chunk_id": 14388, "span_id": "e1a",
+                     "text": "results suggest the anomalous-is-bad stereotype is culturally shared, providing evidence against a"},  # fmt: skip
+                    {"kind": "continuation", "chunk_id": 14389, "span_id": "e1b",
+                     "text": "universal pathogen avoidance byproduct hypothesis."},
+                ],
+            }
+        ],
+        "evidence_spans": [
+            {"paper_id": 27, "chunk_id": 14388, "span_id": "e1", "text": "results suggest the anomalous-is-bad stereotype is culturally shared, providing evidence against a universal pathogen avoidance byproduct hypothesis."},  # fmt: skip
+            {"paper_id": 27, "chunk_id": 14388, "span_id": "e1a", "text": "results suggest the anomalous-is-bad stereotype is culturally shared, providing evidence against a"},  # fmt: skip
+            {"paper_id": 27, "chunk_id": 14389, "span_id": "e1b", "text": "universal pathogen avoidance byproduct hypothesis."},  # fmt: skip
+        ],
+    }
+
+
+class PluralAnchorLedgerTests(unittest.TestCase):
+    def test_a_continuation_joined_proposition_renders_both_chunks(self):
+        ledger = joined_ledger_fixture()
+        text, manifest = render_ledger(ledger)
+        self.assertIn("chunk 14388", text)
+        self.assertIn("chunk 14389", text)
+        self.assertIn("continuous passage spanning 2 chunks", text)
+        self.assertEqual(audit_final(ledger, text)["unsupported_scientific_assertions"], 0)
+
+    def test_a_reconstruction_mismatch_fails_closed(self):
+        ledger = joined_ledger_fixture()
+        ledger["verified_propositions"][0]["quote"] = "something that does not match its own anchors"
+        with self.assertRaises(ValueError):
+            render_ledger(ledger)
+
+    def test_an_anchor_missing_from_the_source_span_catalog_fails_closed(self):
+        ledger = joined_ledger_fixture()
+        ledger["evidence_spans"].pop()  # drop chunk 14389's own row
+        with self.assertRaises(ValueError):
+            render_ledger(ledger)
+
+    def test_evidence_anchor_chunk_id_must_be_the_primary_anchors_chunk(self):
+        ledger = joined_ledger_fixture()
+        ledger["verified_propositions"][0]["evidence_anchor_chunk_id"] = 14389  # not anchors[0]'s chunk
+        with self.assertRaises(ValueError):
+            render_ledger(ledger)
+
+    def test_a_single_entry_anchors_list_is_rejected(self):
+        """A continuation join always has >=2 anchors by construction; a stray one-entry list is a
+        defect to fail closed on, not a degenerate single-anchor case to silently accept."""
+        ledger = joined_ledger_fixture()
+        ledger["verified_propositions"][0]["anchors"] = ledger["verified_propositions"][0]["anchors"][:1]
+        with self.assertRaises(ValueError):
+            render_ledger(ledger)
+
+
 if __name__ == "__main__":
     unittest.main()

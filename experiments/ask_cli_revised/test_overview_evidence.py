@@ -4,8 +4,10 @@ import copy
 import unittest
 
 from experiments.ask_cli_revised import overview_evidence as oe
+from experiments.ask_cli_revised import stages
 from experiments.ask_cli_revised.overview_test_support import (
     ABSENT,
+    CONTRACT,
     FRAGMENT,
     GIVING,
     HEDGE,
@@ -15,6 +17,7 @@ from experiments.ask_cli_revised.overview_test_support import (
     S1,
     S2,
     STUDY,
+    SUBQUESTIONS,
     sealed_ledger,
 )
 
@@ -50,6 +53,39 @@ class DeduplicationTests(unittest.TestCase):
         before = copy.deepcopy(sealed)
         oe.build_units(sealed)
         self.assertEqual(sealed, before)
+
+
+class PluralAnchorLocatorTests(unittest.TestCase):
+    """Stage A (plural evidence anchors): build_units names every real chunk a continuation-joined
+    proposition spans, not just the primary anchor."""
+
+    def _joined_sealed(self):
+        joined_text = "results suggest the aversion is culturally shared, providing evidence against a universal hypothesis."  # fmt: skip
+        record_row = {
+            "subquestion_id": "s1", "proposition_text": "claim", "quote": joined_text, "paper_id": 13,
+            "evidence_anchor_chunk_id": 301, "evidence_span_id": "e1", "obligation_ids": [S1],
+            "mapping_state": "mapped", "verification": {"status": "verified", "page_start": 3},
+            "provenance": {"origin": "initial"},
+            "anchors": [
+                {"kind": "continuation", "chunk_id": 301, "span_id": "e1a",
+                 "text": "results suggest the aversion is culturally shared, providing evidence against a"},
+                {"kind": "continuation", "chunk_id": 302, "span_id": "e1b", "text": "universal hypothesis."},
+            ],
+        }
+        packet = {
+            "paper_id": 13,
+            "candidate_spans": [
+                {"chunk_id": 301, "span_id": "e1", "text": joined_text, "anchors": record_row["anchors"]}
+            ],
+        }
+        coverage = stages.det_coverage(SUBQUESTIONS, [record_row], authority={"kind": "det", "role": "R"})
+        return stages.seal(CONTRACT, SUBQUESTIONS, [record_row], [packet], coverage)
+
+    def test_locators_include_every_anchor_not_just_the_primary(self):
+        sealed = self._joined_sealed()
+        (unit,), _ = oe.build_units(sealed)
+        self.assertEqual([loc["chunk_id"] for loc in unit["locators"]], [301, 302])
+        self.assertEqual([loc["span_id"] for loc in unit["locators"]], ["e1a", "e1b"])
 
 
 class FlagTests(unittest.TestCase):

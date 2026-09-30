@@ -131,8 +131,25 @@ def within_paper_retrieve(
 
 
 def _attachment_chunks_ordered(conn: Connection, attachment_id: int) -> list[dict]:
+    """Every column here beyond the original five (chunk_id/char_start/text/section/chunk_type+
+    evidence_role) exists for Stage A's continuation.detect_continuation -- char_end, page_start/end,
+    bbox_json, extraction_tool/version, source_attachment_checksum, and attachment_id are exactly
+    what contract_directed/seams.py::verify_seam needs (see its own docstring)."""
     rows = conn.execute(
-        select(chunks.c.id, chunks.c.char_start, chunks.c.text, chunks.c.section)
+        select(
+            chunks.c.id,
+            chunks.c.attachment_id,
+            chunks.c.char_start,
+            chunks.c.char_end,
+            chunks.c.text,
+            chunks.c.section,
+            chunks.c.page_start,
+            chunks.c.page_end,
+            chunks.c.bbox_json,
+            chunks.c.extraction_tool,
+            chunks.c.extraction_version,
+            chunks.c.source_attachment_checksum,
+        )
         .where(chunks.c.attachment_id == attachment_id)
         .order_by(chunks.c.char_start, chunks.c.id)
     ).all()
@@ -145,14 +162,28 @@ def _attachment_chunks_ordered(conn: Connection, attachment_id: int) -> list[dic
         out.append(
             {
                 "chunk_id": chunk_id,
+                "attachment_id": int(row.attachment_id),
                 "char_start": row.char_start,
+                "char_end": row.char_end,
                 "text": str(row.text),
                 "section": row.section,
+                "page_start": row.page_start,
+                "page_end": row.page_end,
+                "bbox_json": row.bbox_json,
+                "extraction_tool": row.extraction_tool,
+                "extraction_version": row.extraction_version,
+                "source_attachment_checksum": row.source_attachment_checksum,
                 "chunk_type": chunk_type,
                 "evidence_role": evidence_role,
             }
         )
     return out
+
+
+def _attachment_checksum(conn: Connection, attachment_id: int) -> str | None:
+    """Stage A: the one non-per-chunk field `verify_seam` needs (`attachment_checksum`)."""
+    row = conn.execute(select(attachments.c.checksum).where(attachments.c.id == attachment_id)).first()
+    return row.checksum if row is not None else None
 
 
 # A small, closed, fixed class of English function words that cannot themselves end a
@@ -283,13 +314,12 @@ def grow_context(
     anchor = hit.chunk
     ordered = _attachment_chunks_ordered(conn, anchor.attachment_id)
     index = next((i for i, c in enumerate(ordered) if c["chunk_id"] == anchor.chunk_id), None)
-    anchor_dict = {
-        "chunk_id": anchor.chunk_id,
-        "text": anchor.text,
-        "section": hit.section,
-        "chunk_type": hit.chunk_type,
-        "evidence_role": hit.evidence_role,
-    }
+    # hit.section/.chunk_type/.evidence_role come from the retrieval hit's own classification (may be
+    # fresher than what's in `ordered`); every other field -- needed only for Stage A continuation
+    # detection -- comes from `ordered[index]` when available, `_packet_chunk`'s own None defaults
+    # otherwise (index is None: no positional match, growth is unavailable, handled just below).
+    base = ordered[index] if index is not None else {"chunk_id": anchor.chunk_id, "text": anchor.text}
+    anchor_dict = _packet_chunk({**base, "section": hit.section, "chunk_type": hit.chunk_type, "evidence_role": hit.evidence_role})  # fmt: skip
     packet = ContextPacket(
         retrieval_anchor_chunk_id=anchor.chunk_id,
         subquestion_id=hit.subquestion_id,
@@ -402,13 +432,8 @@ def recovery_neighborhood_context(conn: Connection, *, hit: RetrievalHit, subque
     ordered_raw = _attachment_chunks_ordered(conn, anchor.attachment_id)
     ordered = [{**row, "attachment_id": anchor.attachment_id, "paper_id": anchor.paper_id} for row in ordered_raw]
     index = next((i for i, c in enumerate(ordered) if c["chunk_id"] == anchor.chunk_id), None)
-    anchor_dict = {
-        "chunk_id": anchor.chunk_id,
-        "text": anchor.text,
-        "section": hit.section,
-        "chunk_type": hit.chunk_type,
-        "evidence_role": hit.evidence_role,
-    }
+    base = ordered[index] if index is not None else {"chunk_id": anchor.chunk_id, "text": anchor.text}
+    anchor_dict = _packet_chunk({**base, "section": hit.section, "chunk_type": hit.chunk_type, "evidence_role": hit.evidence_role})  # fmt: skip
     packet = ContextPacket(
         retrieval_anchor_chunk_id=anchor.chunk_id,
         subquestion_id=hit.subquestion_id,
@@ -442,12 +467,27 @@ def recovery_neighborhood_context(conn: Connection, *, hit: RetrievalHit, subque
 
 
 def _packet_chunk(candidate: dict) -> dict:
+    """Every extra key beyond the original five exists for Stage A's continuation detection
+    (`continuation.detect_continuation`), which needs `contract_directed/seams.py::verify_seam`'s full
+    input shape on each `packet.chunks` entry. All are `.get()` with a `None` default: a caller that
+    only ever provided the original five keys (any existing test's own hand-built candidate dict)
+    still produces a valid packet chunk, just one continuation detection cannot evaluate -- it fails
+    closed on missing data rather than erroring."""
     return {
         "chunk_id": candidate["chunk_id"],
         "text": candidate["text"],
         "section": candidate.get("section"),
         "chunk_type": candidate.get("chunk_type"),
         "evidence_role": candidate.get("evidence_role"),
+        "attachment_id": candidate.get("attachment_id"),
+        "char_start": candidate.get("char_start"),
+        "char_end": candidate.get("char_end"),
+        "page_start": candidate.get("page_start"),
+        "page_end": candidate.get("page_end"),
+        "bbox_json": candidate.get("bbox_json"),
+        "extraction_tool": candidate.get("extraction_tool"),
+        "extraction_version": candidate.get("extraction_version"),
+        "source_attachment_checksum": candidate.get("source_attachment_checksum"),
     }
 
 

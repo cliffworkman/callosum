@@ -90,8 +90,14 @@ class GrowContextIncompleteProposableTests(unittest.TestCase):
                 conn=None, hit=_hit(1, rows[0]["text"]), gate=gate, subquestion_text="Which association?",
             )
         self.assertFalse(packet.discarded)
-        self.assertEqual(packet.chunks, [{"chunk_id": 1, "text": rows[0]["text"], "section": None,
-                                           "chunk_type": None, "evidence_role": None}])
+        self.assertEqual(len(packet.chunks), 1)  # not grown
+        # Subset check, not exact-dict equality: Stage A (plural evidence anchors) added extra,
+        # None-valued keys to every packet chunk (attachment_id/char_end/page_start/... -- see
+        # retrieval._packet_chunk's own docstring); this test's concern is the original five.
+        self.assertEqual(
+            {k: packet.chunks[0][k] for k in ("chunk_id", "text", "section", "chunk_type", "evidence_role")},
+            {"chunk_id": 1, "text": rows[0]["text"], "section": None, "chunk_type": None, "evidence_role": None},
+        )
         self.assertEqual(len(calls), 1)  # never re-consulted; no forced growth attempted
 
     def test_discard_decision_is_unaffected(self):

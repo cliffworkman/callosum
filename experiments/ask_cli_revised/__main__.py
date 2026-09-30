@@ -117,7 +117,12 @@ def _process_hits(
                 "packet_chunks": [chunk["chunk_id"] for chunk in packet.chunks],
             }
         )
-        candidate_spans = [] if packet.discarded else _candidate_spans(packet, trace)
+        # Stage A (plural evidence anchors): conn enables continuation-join detection across adjacent
+        # packet chunks. Applied uniformly to both the initial pass and recovery -- the underlying
+        # failure (a multi-chunk packet losing a sentence split across a chunk boundary) is not
+        # recovery-specific, unlike Phase 2 Section 5's deliberately recovery-only +/-3 neighborhood
+        # expansion, which this does not change.
+        candidate_spans = [] if packet.discarded else _candidate_spans(packet, trace, conn=conn)
         evidence_packets.append(
             {
                 "origin": origin,
