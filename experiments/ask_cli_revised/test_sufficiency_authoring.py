@@ -189,6 +189,58 @@ class GoldenOutputContractTests(unittest.TestCase):
                         self.assertIsNone(re.search(rf"\b{term}\b", text, re.IGNORECASE))
 
 
+class SemanticExclusionTests(unittest.TestCase):
+    """Synthetic, benchmark-neutral proof for Finding C's two tightened category descriptions
+    (v9). No live model call exists in this increment -- these tests verify the PROMPT correctly
+    carries the exclusion instruction alongside a confusable synthetic excerpt (never a q_aib
+    instrument/answer term), which is the bounded claim this increment can make; they are not
+    evidence that a model actually complies (that needs a separately-authorized live rerun)."""
+
+    def test_neural_measure_description_explicitly_excludes_region_and_finding(self):
+        text = sa._NEURAL_MEASURE_OR_MODALITY_DESCRIPTION
+        self.assertIn("method or modality", text)
+        self.assertIn("not the anatomical region", text)
+        self.assertIn("not the observed neural response or finding", text)
+
+    def test_behavior_measure_description_explicitly_excludes_self_report_attitude(self):
+        text = sa._BEHAVIOR_OR_BEHAVIORAL_MEASURE_DESCRIPTION
+        self.assertIn("behavior", text)
+        self.assertIn("not a self-report attitude, belief, or prejudice questionnaire", text)
+
+    def test_neither_description_names_a_benchmark_specific_modality_or_instrument(self):
+        """Never tuned against named q_aib instruments -- both descriptions stay fully generic."""
+        forbidden = ("fmri", "eeg", "meg", "mri", "pet", "dictator game", "questionnaire name")
+        for text in (sa._NEURAL_MEASURE_OR_MODALITY_DESCRIPTION, sa._BEHAVIOR_OR_BEHAVIORAL_MEASURE_DESCRIPTION):
+            lowered = text.lower()
+            for term in forbidden:
+                self.assertNotIn(term, lowered, f"{term!r} unexpectedly present in {text!r}")
+
+    def test_neural_measure_prompt_carries_the_exclusion_beside_a_confusable_synthetic_finding(self):
+        """Synthetic, benchmark-neutral confusable case: a specific anatomical
+        response/finding that a pre-v9 model incorrectly accepted as a 'modality' (c1's real
+        error, restated generically -- no amygdala, no q_aib wording)."""
+        from experiments.ask_cli_revised import qwen as qwen_module
+
+        candidates = [{"proposition_id": "p1", "passage": "The hippocampus showed reduced activation during the task."}]
+        prompt = qwen_module.nomination_prompt(
+            category_description=sa._NEURAL_MEASURE_OR_MODALITY_DESCRIPTION, candidates=candidates
+        )
+        self.assertIn("not the anatomical region itself, and not the observed neural response or finding", prompt)
+        self.assertIn("hippocampus showed reduced activation", prompt)
+
+    def test_behavior_measure_prompt_carries_the_exclusion_beside_a_confusable_synthetic_finding(self):
+        """Synthetic, benchmark-neutral confusable case: a self-report questionnaire score --
+        c5's real ambiguity, restated generically (no EBQ, no q_aib wording)."""
+        from experiments.ask_cli_revised import qwen as qwen_module
+
+        candidates = [{"proposition_id": "p1", "passage": "Participants completed a self-report prejudice scale."}]
+        prompt = qwen_module.nomination_prompt(
+            category_description=sa._BEHAVIOR_OR_BEHAVIORAL_MEASURE_DESCRIPTION, candidates=candidates
+        )
+        self.assertIn("not a self-report attitude, belief, or prejudice questionnaire", prompt)
+        self.assertIn("self-report prejudice scale", prompt)
+
+
 @needs_real_contract
 class FreezeTests(unittest.TestCase):
     def test_freeze_is_a_pure_dict_never_written_to_disk_here(self):
