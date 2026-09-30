@@ -12,7 +12,7 @@ from experiments.ask_cli_revised import sufficiency_engine as se
 from experiments.ask_cli_revised import sufficiency_mapping as sm
 
 
-def _unit(unit_id, paper_id, passage, proposition_ids=None):
+def _unit(unit_id, paper_id, passage, proposition_ids=None, proposition_anchor=None):
     flags = oe.passage_flags(passage)
     return {
         "unit_id": unit_id,
@@ -21,6 +21,11 @@ def _unit(unit_id, paper_id, passage, proposition_ids=None):
         "proposition_ids": proposition_ids or [f"{unit_id}-p"],
         "flags": flags,
         "attached_children": [],
+        # {proposition_id: (paper_id, chunk_id, span_id)} -- omitted (None) by default, matching
+        # every pre-Finding-2 test fixture exactly (no anchor info -> nominate_with_model never
+        # collapses anything, see its own docstring). Tests exercising Finding 2's anchor-based
+        # dedup pass this explicitly.
+        "proposition_anchor": proposition_anchor or {},
     }
 
 
@@ -471,10 +476,180 @@ class ForkingMappingTests(unittest.TestCase):
         specs = {"trait": se.new_role_spec("trait", "a named trait", "model_nomination_only")}
         completion = se.new_role_completion(required_roles=["trait"])
         req = se.new_requirement("c8#req", "atomic", specs, completion, "open_list", multi_instance=True)
-        units = [_unit("u1", 1, "Neuroticism was measured.")]
+        units = [_unit("u1", 1, "Participants showed elevated neuroticism.")]
         result = sm.map_requirement(req, units)  # model_client omitted
         self.assertEqual(len(result["instances"]), 1)
         self.assertEqual(result["instances"][0]["role_bindings"]["trait"]["state"], "missing")
+
+
+class _TwoRoleForkingClient:
+    """Deterministic, hand-scripted -- returns 2 distinct, non-overlapping texts per role,
+    dispatched by category_description. Never a real model/network call."""
+
+    model_name = "fake"
+
+    def nominate_sufficiency_role(self, *, category_description, candidates):
+        pid = candidates[0]["proposition_id"]
+        if category_description == "role a":
+            return [{"proposition_id": pid, "exact_text": "alpha"}, {"proposition_id": pid, "exact_text": "beta"}]
+        return [{"proposition_id": pid, "exact_text": "gamma"}, {"proposition_id": pid, "exact_text": "delta"}]
+
+
+class InstanceKeyCollisionTests(unittest.TestCase):
+    """Adversarial proof for the Phase 2 diagnostic's Finding 1: two roles in one requirement that
+    EACH independently fork (multiple grounded values apiece) must never produce colliding
+    instance keys, and identical inputs must replay to identical keys."""
+
+    def _requirement_and_units(self):
+        specs = {
+            "role_a": se.new_role_spec("role_a", "role a", "model_nomination_only"),
+            "role_b": se.new_role_spec("role_b", "role b", "model_nomination_only"),
+        }
+        completion = se.new_role_completion(required_roles=["role_a", "role_b"])
+        req = se.new_requirement("adv#req", "atomic", specs, completion, "exists")
+        units = [_unit("u1", 1, "A passage naming several distinct things: alpha, beta, gamma, delta.")]
+        return req, units
+
+    def test_two_independently_forking_roles_produce_four_uniquely_keyed_instances(self):
+        req, units = self._requirement_and_units()
+        result = sm.map_requirement(req, units, model_client=_TwoRoleForkingClient())
+        self.assertEqual(len(result["instances"]), 4)
+        keys = [inst["instance_key"] for inst in result["instances"]]
+        self.assertEqual(len(set(keys)), 4, f"instance_key collision: {keys}")
+        # every one of the 4 role_a x role_b combinations is present, each exactly once
+        combos = {
+            (inst["role_bindings"]["role_a"]["exact_text"], inst["role_bindings"]["role_b"]["exact_text"])
+            for inst in result["instances"]
+        }
+        self.assertEqual(combos, {("alpha", "gamma"), ("alpha", "delta"), ("beta", "gamma"), ("beta", "delta")})
+
+    def test_replay_of_identical_inputs_produces_identical_keys(self):
+        req, units = self._requirement_and_units()
+        client = _TwoRoleForkingClient()
+        keys_first = {inst["instance_key"] for inst in sm.map_requirement(req, units, model_client=client)["instances"]}
+        keys_second = {
+            inst["instance_key"] for inst in sm.map_requirement(req, units, model_client=client)["instances"]
+        }
+        self.assertEqual(keys_first, keys_second)
+
+    def test_a_single_forking_role_never_changes_the_original_key(self):
+        """When exactly one fork results (the overwhelmingly common case -- including every
+        deterministic-only call, since model_client=None never forks), the original instance_key
+        (unit_id, or None for a single-instance requirement) is left completely untouched."""
+        specs = {"role_a": se.new_role_spec("role_a", "role a", "achieved_outcome_predicate")}
+        completion = se.new_role_completion(required_roles=["role_a"])
+        req = se.new_requirement("single#req", "atomic", specs, completion, "exists")
+        units = [_unit("u1", 1, "This produced a clear result.")]
+        result = sm.map_requirement(req, units)
+        self.assertEqual(len(result["instances"]), 1)
+        self.assertIsNone(result["instances"][0]["instance_key"])
+
+
+class AnchorDedupTests(unittest.TestCase):
+    """Adversarial proof for the Phase 2 diagnostic's Finding 2: proposition_ids sharing one
+    physical evidence anchor must collapse to one semantic candidate for instance-count purposes,
+    while every supporting proposition_id is preserved in provenance and genuinely distinct
+    anchors/values are never merged."""
+
+    def _role_spec(self):
+        return se.new_role_spec("trait", "a named trait", "model_nomination_only")
+
+    def test_duplicate_proposition_ids_over_one_anchor_do_not_multiply_instances(self):
+        anchor = (1, 999, "e1")
+        units = [
+            _unit(
+                "u1",
+                1,
+                "Participants showed elevated neuroticism.",
+                proposition_ids=["p1", "p2"],
+                proposition_anchor={"p1": anchor, "p2": anchor},
+            )
+        ]
+        client = _FakeModelClient({"p1": "neuroticism", "p2": "neuroticism"})
+        result = sm.nominate_with_model(self._role_spec(), units, client)
+        self.assertEqual(len(result), 1)
+
+    def test_provenance_retains_every_supporting_proposition_id(self):
+        anchor = (1, 999, "e1")
+        units = [
+            _unit(
+                "u1",
+                1,
+                "Participants showed elevated neuroticism.",
+                proposition_ids=["p1", "p2", "p3"],
+                proposition_anchor={"p1": anchor, "p2": anchor, "p3": anchor},
+            )
+        ]
+        client = _FakeModelClient({"p1": "neuroticism", "p2": "neuroticism", "p3": "neuroticism"})
+        result = sm.nominate_with_model(self._role_spec(), units, client)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["supporting_proposition_ids"], ["p1", "p2", "p3"])
+        self.assertEqual(result[0]["proposition_id"], "p1")  # deterministic primary: lowest sorted
+
+    def test_distinct_semantic_values_within_one_anchor_still_fork(self):
+        anchor = (1, 999, "e1")
+        units = [
+            _unit(
+                "u1",
+                1,
+                "Both neuroticism and openness were measured.",
+                proposition_ids=["p1", "p2"],
+                proposition_anchor={"p1": anchor, "p2": anchor},
+            )
+        ]
+        # BOTH propositions (same anchor) independently offer BOTH distinct traits -- realistic
+        # shape, since they share identical passage text.
+        client = _FakeModelClient({"p1": ["neuroticism", "openness"], "p2": ["neuroticism", "openness"]})
+        result = sm.nominate_with_model(self._role_spec(), units, client)
+        texts = {r["exact_text"] for r in result}
+        self.assertEqual(texts, {"neuroticism", "openness"})
+        self.assertEqual(len(result), 2)  # 2 distinct values, each collapsed across its own anchor duplicate
+        for r in result:
+            self.assertEqual(r["supporting_proposition_ids"], ["p1", "p2"])
+
+    def test_genuinely_distinct_anchors_are_not_accidentally_collapsed(self):
+        units = [
+            _unit(
+                "u1",
+                1,
+                "Participants showed elevated neuroticism.",
+                proposition_ids=["p1", "p2"],
+                proposition_anchor={"p1": (1, 100, "e1"), "p2": (1, 200, "e1")},  # different chunk_id
+            )
+        ]
+        client = _FakeModelClient({"p1": "neuroticism", "p2": "neuroticism"})
+        result = sm.nominate_with_model(self._role_spec(), units, client)
+        self.assertEqual(len(result), 2)  # never merged -- different physical anchors
+        proposition_ids = {r["proposition_id"] for r in result}
+        self.assertEqual(proposition_ids, {"p1", "p2"})
+
+    def test_propositions_with_no_known_anchor_are_never_collapsed_with_each_other(self):
+        """Conservative default: lacking anchor information is never treated as proof of a SHARED
+        anchor -- matches the pre-Finding-2 per-proposition dedup behavior exactly."""
+        units = [
+            _unit("u1", 1, "Participants showed elevated neuroticism.", proposition_ids=["p1", "p2"])
+        ]  # no proposition_anchor
+        client = _FakeModelClient({"p1": "neuroticism", "p2": "neuroticism"})
+        result = sm.nominate_with_model(self._role_spec(), units, client)
+        self.assertEqual(len(result), 2)
+
+    def test_proposition_level_grounding_remains_intact_after_dedup(self):
+        anchor = (1, 999, "e1")
+        units = [
+            _unit(
+                "u1",
+                1,
+                "Participants showed elevated neuroticism.",
+                proposition_ids=["p1", "p2"],
+                proposition_anchor={"p1": anchor, "p2": anchor},
+            )
+        ]
+        # p2's own nomination is NOT literally in the passage -- grounding still rejects it even
+        # though p1's own nomination (same anchor) is valid; the survivor is p1 alone.
+        client = _FakeModelClient({"p1": "neuroticism", "p2": "the hippocampus"})
+        result = sm.nominate_with_model(self._role_spec(), units, client)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["supporting_proposition_ids"], ["p1"])
 
 
 if __name__ == "__main__":

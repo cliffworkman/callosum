@@ -170,7 +170,22 @@ def nominate_with_model(role_spec: dict, candidate_units: list[dict], model_clie
     (`_bind_role_candidates`) forks an instance for each one. Every returned nomination has
     already passed `canonical_text_contains` against that specific proposition's own verified
     passage and `is_admissible` against this role's own guards -- the engine, not the model,
-    decided it is literally grounded and admissible."""
+    decided it is literally grounded and admissible.
+
+    Grounded nominations that share BOTH the same normalized `exact_text` AND the same physical
+    evidence anchor (`unit["proposition_anchor"][proposition_id]` -- paper/chunk/span, read
+    verbatim from `sufficiency_diagnostic.units_by_child`, never a parallel notion invented here)
+    collapse into ONE returned nomination -- multiple proposition_ids over one physical passage
+    are the SAME finding cited several ways, not several findings (Phase 2 diagnostic Finding 2).
+    The collapsed nomination keeps a single deterministic `proposition_id` (the lexicographically
+    lowest of the group -- arbitrary but stable across replay) plus `supporting_proposition_ids`
+    (every proposition_id in the group, sorted, never discarded). A proposition whose anchor is
+    unknown (no `proposition_anchor` entry -- e.g. a hand-built test fixture) is NEVER collapsed
+    with anything: this function only ever merges nominations it can POSITIVELY prove share one
+    physical anchor, never ones it simply lacks anchor information for. Distinct exact_text values
+    from the SAME anchor are never collapsed with each other, and nominations from genuinely
+    different anchors are never collapsed even when their exact_text happens to match (no fuzzy
+    cross-anchor entity resolution)."""
     admissible_units = [u for u in candidate_units if is_admissible(role_spec, u.get("flags", {}))]
     unit_by_proposition: dict[str, dict] = {}
     candidates: list[dict] = []
@@ -185,21 +200,44 @@ def nominate_with_model(role_spec: dict, candidate_units: list[dict], model_clie
     raw = model_client.nominate_sufficiency_role(
         category_description=role_spec["category_description"], candidates=candidates
     )
-    accepted: list[dict] = []
-    seen: set[tuple[str, str]] = set()
+    grouped: dict[tuple, list[tuple[str, str]]] = {}
+    order: list[tuple] = []
     for item in raw:
-        unit = unit_by_proposition.get(item["proposition_id"])
+        proposition_id = item["proposition_id"]
+        unit = unit_by_proposition.get(proposition_id)
         if unit is None:
             continue  # not in the closed eligible set this call actually offered -- dropped, never raised
         exact_text = item["exact_text"]
         if not canonical_text_contains(needle=exact_text, haystack=unit["passage"]):
             continue  # not a literal substring of that proposition's own verified passage
-        key = (item["proposition_id"], exact_text.strip().lower())
-        if key in seen:
-            continue
-        seen.add(key)
+        anchor = (unit.get("proposition_anchor") or {}).get(proposition_id)
+        normalized_text = exact_text.strip().lower()
+        # An unknown anchor is scoped to its OWN proposition_id (never shared across propositions)
+        # so it can never be silently merged across anchors -- only an exact (proposition_id,
+        # normalized exact_text) repeat collapses, matching this function's pre-Finding-2 dedup
+        # semantics exactly. A KNOWN, shared anchor is what additionally allows collapsing ACROSS
+        # different proposition_ids -- see the docstring above.
+        dedup_key = (
+            (anchor, normalized_text) if anchor is not None else (("_no_anchor", proposition_id), normalized_text)
+        )
+        if dedup_key not in grouped:
+            grouped[dedup_key] = []
+            order.append(dedup_key)
+        grouped[dedup_key].append((proposition_id, exact_text))
+
+    accepted: list[dict] = []
+    for dedup_key in order:
+        members = grouped[dedup_key]
+        supporting_proposition_ids = sorted({pid for pid, _ in members})
+        primary_proposition_id = supporting_proposition_ids[0]
+        exact_text = members[0][1]
         accepted.append(
-            {"proposition_id": item["proposition_id"], "exact_text": exact_text, "proposed_role": role_spec["role"]}
+            {
+                "proposition_id": primary_proposition_id,
+                "supporting_proposition_ids": supporting_proposition_ids,
+                "exact_text": exact_text,
+                "proposed_role": role_spec["role"],
+            }
         )
     return accepted
 
@@ -263,6 +301,7 @@ def _bind_role_candidates(role_spec: dict, units: list[dict], *, model_client=No
                         "candidate_source": "model_mapping",
                         "detail": "model_nomination_only",
                         "model": model_name,
+                        "supporting_proposition_ids": nomination["supporting_proposition_ids"],
                     },
                     guard=(src_unit or {}).get("flags", {}),
                 )
@@ -305,10 +344,15 @@ def _fork_instances_over_role(
     binding for `role`. When `_bind_role_candidates` returns MORE THAN ONE grounded candidate for
     a fork (only possible for a `model_nomination_only` role when `model_client` is supplied -- a
     deterministic strategy always yields 0 or 1, so `model_client=None` never forks anything), that
-    one fork is replaced by N copies, `instance_key` suffixed `#1`, `#2`, ... so each carries a
-    distinct grounded instance rather than silently keeping only the first. Own evidence is always
-    tried before falling back to `parent_context_bindings` (context, not proof -- unchanged from
-    before this function existed)."""
+    one fork is replaced by N copies so each carries a distinct grounded instance rather than
+    silently keeping only the first. `instance_key` is intentionally left UNCHANGED here (each
+    copy still carries its parent's key) -- a positional/index-based suffix scheme here is exactly
+    what caused the Phase 2 diagnostic's Finding 1 collision (two roles independently forking from
+    a shared ancestor can reach the same local index with different content). The caller
+    (`map_requirement`/`map_paired_requirement`) re-derives a content-based key, once, only after
+    ALL roles have been processed for an original instance -- see `sufficiency_engine.
+    derive_instance_key`. Own evidence is always tried before falling back to
+    `parent_context_bindings` (context, not proof -- unchanged from before this function existed)."""
     next_forks: list[dict] = []
     for forked in forks:
         candidates = _bind_role_candidates(spec, units_here, model_client=model_client)
@@ -321,12 +365,23 @@ def _fork_instances_over_role(
             missing = se.new_role_binding(role, state="missing", reason="not_found")
             next_forks.append({**forked, "role_bindings": {**forked["role_bindings"], role: missing}})
             continue
-        for index, candidate in enumerate(candidates):
-            key = forked["instance_key"] if index == 0 else f"{forked['instance_key']}#{index}"
-            next_forks.append(
-                {**forked, "instance_key": key, "role_bindings": {**forked["role_bindings"], role: candidate}}
-            )
+        for candidate in candidates:
+            next_forks.append({**forked, "role_bindings": {**forked["role_bindings"], role: candidate}})
     return next_forks
+
+
+def _rederive_keys_if_forked(forks: list[dict], root_key: str | None) -> list[dict]:
+    """Applied once, after a full per-role fork pass for one original instance: when forking
+    actually produced more than one instance, each gets a deterministic, content-derived key
+    (never colliding -- see `sufficiency_engine.derive_instance_key`). When it produced exactly
+    one (the overwhelmingly common case, and ALWAYS true when `model_client` is omitted, since a
+    deterministic-only role can never fork), the original key is left completely untouched -- this
+    is what keeps every existing deterministic-only caller and test byte-identical."""
+    if len(forks) <= 1:
+        return forks
+    return [
+        {**fork, "instance_key": se.derive_instance_key(fork["role_bindings"], root_key=root_key)} for fork in forks
+    ]
 
 
 def map_requirement(
@@ -361,11 +416,12 @@ def map_requirement(
 
     all_instances: list[dict] = []
     for instance in instances:
-        units_here = units_by_instance.get(instance["instance_key"], candidate_units)
+        root_key = instance["instance_key"]
+        units_here = units_by_instance.get(root_key, candidate_units)
         forks = [instance]
         for role, spec in role_specs.items():
             forks = _fork_instances_over_role(forks, role, spec, units_here, parent_context_bindings, model_client)
-        all_instances.extend(forks)
+        all_instances.extend(_rederive_keys_if_forked(forks, root_key))
 
     new_requirement = {**requirement, "instances": all_instances}
     return se.recompute_requirement(new_requirement)
@@ -420,7 +476,8 @@ def map_paired_requirement(
         parent_binding = parent_instance["role_bindings"].get(parent_role)
         if not parent_binding or parent_binding.get("state") != "filled":
             continue  # nothing to pair against yet -- not yet discovered by the parent
-        instance = se.new_instance(parent_instance["instance_key"])
+        root_key = parent_instance["instance_key"]
+        instance = se.new_instance(root_key)
         # Re-stamped, never passed through verbatim: from THIS requirement's own perspective the
         # role is parent-context, regardless of how the parent itself originally established it
         # (deterministically, or via model nomination) -- this is what exempts it from the
@@ -440,7 +497,7 @@ def map_paired_requirement(
             forks = _fork_instances_over_role(
                 forks, role, requirement["role_specs"][role], candidate_units, {}, model_client
             )
-        instances.extend(forks)
+        instances.extend(_rederive_keys_if_forked(forks, root_key))
     new_requirement = {**requirement, "instances": instances}
     return se.recompute_requirement(new_requirement)
 

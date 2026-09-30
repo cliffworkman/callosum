@@ -279,6 +279,43 @@ def contract_hash(contract: dict) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+def derive_instance_key(role_bindings: dict, *, root_key: str | None = None) -> str:
+    """Deterministic, content-derived instance identity. Two instances with different bound
+    content always get different keys; identical content always gets the same key across a
+    deterministic replay (same canonical-hash discipline as `contract_hash` above).
+
+    Exists specifically because a positional/index-based fork-suffix scheme (e.g.
+    ``f"{parent_key}#{index}"``) can collide: when two roles in one requirement independently
+    fork from a shared ancestor instance, two DIFFERENT final instances can end up computing the
+    same local index at the same nesting depth even though their actual bound content differs
+    (found live in the Phase 2 diagnostic's own replay -- see `MODEL_NOMINATION_DIAGNOSTIC_
+    RESULTS.md` Finding 1). Deriving the key from the instance's own final content instead of its
+    fork lineage/position makes two differently-bound instances structurally unable to collide.
+
+    `root_key`: the instance's pre-fork identity (a multi-instance base's `unit_id`, or `None` for
+    a single-instance requirement) -- kept as a human-legible prefix only; it is NEVER itself the
+    uniqueness guarantee (two instances forked from the SAME root_key with different content must
+    still diverge, which the content hash below provides).
+
+    Deliberately NOT the same notion as a physical evidence anchor (paper/chunk/span) -- that is
+    proposition/evidence identity, a separate axis from semantic-instance identity. Collapsing
+    instances that share an anchor is `nominate_with_model`'s own dedup step, upstream of this
+    function; this function only ever makes ALREADY-DECIDED distinct instances non-collidingly
+    identifiable, never decides which instances should exist.
+    """
+    canonical = {
+        role: {
+            "state": binding.get("state"),
+            "proposition_id": binding.get("proposition_id"),
+            "exact_text": binding.get("exact_text"),
+        }
+        for role, binding in sorted(role_bindings.items())
+    }
+    digest = hashlib.sha256(json.dumps(canonical, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()[:16]
+    prefix = root_key if root_key is not None else "i"
+    return f"{prefix}::{digest}"
+
+
 def new_search_status(
     requirement_id: str,
     *,

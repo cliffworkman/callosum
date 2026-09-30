@@ -34,21 +34,43 @@ def units_by_child(sealed: dict) -> dict[str, list[dict]]:
     proposition actually tagged responsive to THAT child is cited first (the underlying text is
     identical either way, so this only affects which proposition_id is on record, not what
     evidence is used).
+
+    Each returned unit additionally carries `proposition_anchor`: `{proposition_id: (paper_id,
+    chunk_id, span_id)}` for every proposition folded into that unit, read directly from `sealed`'s
+    own `verified_propositions` rows -- the same physical-locator fields `overview_evidence.
+    build_units` itself reads to compute a unit's own `locators`. This is the established
+    coordinate identity (never an invented parallel one); it exists so a model-nomination-path
+    consumer (`sufficiency_mapping.nominate_with_model`) can tell whether two DIFFERENT
+    proposition_ids sharing one unit's (deduped-by-TEXT) passage are also the SAME physical anchor
+    -- they are not always: a unit can pool propositions from more than one chunk/span whose text
+    happens to be identical (confirmed live in the Phase 2 diagnostic's own Finding 2). A
+    proposition missing from `sealed` is simply absent from this map, never guessed.
     """
     units, _claims = oe.build_units(sealed)
     tagged_for_child: dict[str, set[str]] = {}
+    anchor_by_proposition: dict[str, tuple] = {}
     for row in sealed["verified_propositions"]:
         for child_id in row.get("responsive_obligation_ids", []):
             tagged_for_child.setdefault(child_id, set()).add(row["proposition_id"])
+        anchor_by_proposition[row["proposition_id"]] = (
+            row["paper_id"],
+            row["evidence_anchor_chunk_id"],
+            row["evidence_span_id"],
+        )
 
     by_child: dict[str, list[dict]] = {}
     for unit in units:
+        proposition_anchor = {
+            pid: anchor_by_proposition[pid] for pid in unit["proposition_ids"] if pid in anchor_by_proposition
+        }
         for child_id in unit["attached_children"]:
             own_ids = tagged_for_child.get(child_id, set())
             ordered = [pid for pid in unit["proposition_ids"] if pid in own_ids] + [
                 pid for pid in unit["proposition_ids"] if pid not in own_ids
             ]
-            by_child.setdefault(child_id, []).append({**unit, "proposition_ids": ordered})
+            by_child.setdefault(child_id, []).append(
+                {**unit, "proposition_ids": ordered, "proposition_anchor": proposition_anchor}
+            )
     return by_child
 
 
