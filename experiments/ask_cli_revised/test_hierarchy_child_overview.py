@@ -98,10 +98,16 @@ class BuildChildSealedLedgerTests(unittest.TestCase):
         self.assertEqual(child["request_contract"]["parent_question_hash"], "parent-hash-abc")
         self.assertEqual(child["request_contract"]["child_id"], "c1")
 
-    def test_plural_anchor_evidence_spans_are_fully_included_not_just_the_primary(self):
-        """Stage A interop: a continuation-joined proposition's evidence_spans include every anchor's
-        own row (per Stage A's stages.py::_evidence_span_rows); the child filter must keep all of them,
-        not just the primary anchor's."""
+    def test_plural_anchor_evidence_spans_include_the_legacy_primary_and_every_anchor(self):
+        """Stage A interop, corrected 2026-09-30 after the live q_aib hierarchical E2E (release-gate
+        diagnostic run, chunks 14388/14389): a continuation-joined proposition's evidence_spans must
+        retain BOTH the legacy primary span (paper_id, evidence_anchor_chunk_id, evidence_span_id) --
+        what overview_evidence.build_units()'s catalog_ok check still resolves against -- AND every
+        real per-anchor span (Stage A). The live run proved dropping the primary produces
+        catalog_mismatch and silently excludes verified, responsive evidence from child Overview
+        entirely, even though `stages.py::_evidence_span_rows` always persists the primary row into
+        the FULL sealed ledger's evidence_spans. This test previously asserted the buggy behavior
+        (only e1a/e1b survive) as correct; it did not."""
         anchors = [
             {"kind": "continuation", "chunk_id": 10, "span_id": "e1a", "text": "part one"},
             {"kind": "continuation", "chunk_id": 11, "span_id": "e1b", "text": "part two"},
@@ -122,8 +128,55 @@ class BuildChildSealedLedgerTests(unittest.TestCase):
             [_span(1, 10, "e1", "part one part two"), _span(1, 10, "e1a", "part one"), _span(1, 11, "e1b", "part two")],
         )
         child = hc.build_child_sealed_ledger(sealed, "c1")
-        self.assertEqual({s["span_id"] for s in child["evidence_spans"]}, {"e1a", "e1b"})
+        self.assertEqual({s["span_id"] for s in child["evidence_spans"]}, {"e1", "e1a", "e1b"})
         self.assertEqual({s["chunk_id"] for s in child["evidence_spans"]}, {10, 11})
+        primary = next(s for s in child["evidence_spans"] if s["span_id"] == "e1")
+        self.assertEqual(primary["text"], "part one part two")
+
+    def test_the_c10_live_run_shape_becomes_overview_eligible(self):
+        """Regression fixture built directly from the 2026-09-30 live q_aib hierarchical E2E (paper 68,
+        chunks 14388/14389, proposition p21) -- the exact real shape that produced catalog_mismatch and
+        silently excluded verified, responsive evidence from c10's child Overview. Proves end to end,
+        through the real overview_evidence.build_units(), that the fixed child ledger is eligible."""
+        from experiments.ask_cli_revised import overview_evidence
+
+        quote = (
+            "results suggest the anomalous-is-bad stereotype is culturally shared, providing evidence "
+            "against a universal pathogen avoidance byproduct hypothesis."
+        )
+        anchors = [
+            {
+                "kind": "continuation",
+                "chunk_id": 14388,
+                "span_id": "e1a",
+                "text": "results suggest the anomalous-is-bad stereotype is culturally shared, providing evidence against a",
+            },
+            {
+                "kind": "continuation",
+                "chunk_id": 14389,
+                "span_id": "e1b",
+                "text": "universal pathogen avoidance byproduct hypothesis.",
+            },
+        ]
+        sealed = _sealed(
+            [_state("c10", "is there any cross-cultural evidence for the anomalous is bad bias?")],
+            [
+                _prop(
+                    "p21", paper_id=68, chunk_id=14388, span_id="e1", quote=quote,
+                    responsive_to=["c10"], anchors=anchors,
+                )
+            ],  # fmt: skip
+            [
+                _span(68, 14388, "e1", quote),
+                _span(68, 14388, "e1a", anchors[0]["text"]),
+                _span(68, 14389, "e1b", anchors[1]["text"]),
+            ],
+        )
+        child = hc.build_child_sealed_ledger(sealed, "c10")
+        units, _claims = overview_evidence.build_units(child)
+        self.assertEqual(len(units), 1)
+        self.assertEqual(units[0]["eligibility"], {"eligible": True, "reasons": []})
+        self.assertEqual(units[0]["attached_children"], ["c10"])
 
     def test_unknown_child_id_raises(self):
         sealed = _sealed([_state("c1", "q1")], [], [])

@@ -973,10 +973,17 @@ def build_child_sealed_ledger(sealed: dict, child_id: str) -> dict:
     `parent_question_hash` and `child_id` preserve the parent-obligation provenance link explicitly,
     alongside it rather than in place of it.
 
-    Evidence-span filtering keys off each proposition's own `anchors` when present (Stage A: every
-    real chunk a continuation-joined quote spans, not just the primary), falling back to the
-    singular `evidence_anchor_chunk_id`/`evidence_span_id` otherwise -- exactly the shape
-    `stages.py::_evidence_span_rows` already persists into `evidence_spans` for both cases.
+    Evidence-span filtering keeps BOTH the legacy primary span (paper_id, evidence_anchor_chunk_id,
+    evidence_span_id) -- what a proposition's singular ancestry fields still name, and what
+    `overview_evidence.build_units()`'s `catalog_ok` check resolves against regardless of whether
+    `anchors` is present -- AND every real per-anchor span (Stage A: every chunk a continuation-joined
+    quote spans). `stages.py::_evidence_span_rows` always persists the primary row into the full sealed
+    ledger's `evidence_spans` first, anchor rows after; both must survive this filter, or downstream
+    catalog lookups against the singular fields silently fail (`catalog_mismatch`) even though the
+    proposition is verified and responsive -- confirmed live (2026-09-30 q_aib hierarchical E2E, paper
+    68 chunks 14388/14389): dropping the primary excluded c10's own verified, responsive evidence from
+    ever reaching child Overview. Ordinary single-anchor propositions are unaffected: with no `anchors`,
+    the primary key is the only key either way.
     """
     state = next((s for s in sealed["obligation_states"] if s["field_id"] == child_id), None)
     if state is None:
@@ -985,15 +992,11 @@ def build_child_sealed_ledger(sealed: dict, child_id: str) -> dict:
     propositions = [
         row for row in sealed["verified_propositions"] if child_id in row.get("responsive_obligation_ids", [])
     ]
-    wanted_spans = {
-        (row["paper_id"], anchor["chunk_id"], anchor["span_id"])
-        for row in propositions
-        for anchor in (
-            row["anchors"]
-            if row.get("anchors")
-            else [{"chunk_id": row["evidence_anchor_chunk_id"], "span_id": row["evidence_span_id"]}]
-        )
-    }
+    wanted_spans: set[tuple] = set()
+    for row in propositions:
+        wanted_spans.add((row["paper_id"], row["evidence_anchor_chunk_id"], row["evidence_span_id"]))
+        for anchor in row.get("anchors") or ():
+            wanted_spans.add((row["paper_id"], anchor["chunk_id"], anchor["span_id"]))
     evidence_spans = [
         s for s in sealed.get("evidence_spans", []) if (s["paper_id"], s["chunk_id"], s["span_id"]) in wanted_spans
     ]
