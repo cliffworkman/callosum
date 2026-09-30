@@ -1243,6 +1243,13 @@ the full per-increment narrative for all other increments now lives in the reloc
   local app-data dir — signature (the *existing* Tauri updater key) → archive sha256 → canonical digest
   of the extracted tree → smoke test → atomic activation, preserving any previous known-good runtime.
   An upgrade from a bundled install reuses the on-disk runtime instead of downloading, on all platforms.
+  **Intel macOS cryptography (#106):** the frozen lock selects 48.0.1 only on Intel macOS; other
+  platforms retain 50.0.0. The macOS recipe requires a cryptography binary wheel, checks the Rust
+  binding and `pip check`, and records all Mach-O load commands in `native-dependencies.json` before
+  packaging/signing. Absolute non-system dylib loads fail the build. Library IDs and unused search
+  hints are recorded separately; this guard does not establish an older macOS compatibility floor.
+  Shared dependency-input changes regenerate every platform's immutable ID. Publish those artifacts
+  before advancing an app branch that references them; never overwrite an existing runtime release.
   Two standing constraints that are invisible in the code and **will** be re-broken otherwise:
   **(a) both Linux lanes must build at the glibc floor** — `ubuntu-latest` is Ubuntu 24.04/glibc 2.39,
   and Rust std's `pidfd_spawnp`/`pidfd_getpid` then make the binary refuse to start on Debian 12 (2.36).
