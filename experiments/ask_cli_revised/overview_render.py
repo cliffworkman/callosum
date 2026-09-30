@@ -142,8 +142,16 @@ def _state_message(overview: dict) -> str:
     return _STATE_MESSAGE[state].format(n=len(overview["proposals"]))
 
 
-def researcher_answer(sealed: dict, overview: dict) -> tuple[str, dict]:
-    """The primary artifact: Overview, concise Supporting findings, Unresolved parts. Everything else is in the inspection."""
+def researcher_answer(
+    sealed: dict, overview: dict, *, detail_file: str = DETAIL_FILE, record_file: str = RECORD_FILE
+) -> tuple[str, dict]:
+    """The primary artifact: Overview, concise Supporting findings, Unresolved parts. Everything else is in the inspection.
+
+    ``detail_file``/``record_file`` name the footer's own "Full inspection" pointer -- purely
+    referential, no evidentiary or rendering-semantic effect. Every existing (flat) caller that
+    omits them gets today's exact `DETAIL_FILE`/`RECORD_FILE` text, unchanged; Stage B's per-child
+    loop (e2e.py) passes the real per-child filenames so the footer names the file that actually
+    exists on disk for that child, not the generic flat-run name."""
     units = _unit_by_id(overview)
     items, state = overview["items"], overview["state"]
     nums = _cite_numbers(overview)
@@ -198,7 +206,7 @@ def researcher_answer(sealed: dict, overview: dict) -> tuple[str, dict]:
     lines += _unresolved(overview)
     lines += [
         "---",
-        f"Full inspection: `{DETAIL_FILE}` (every claim, exclusion, withheld statement, contract and receipt) and `{RECORD_FILE}`.",
+        f"Full inspection: `{detail_file}` (every claim, exclusion, withheld statement, contract and receipt) and `{record_file}`.",
         "",
     ]
     manifest = {

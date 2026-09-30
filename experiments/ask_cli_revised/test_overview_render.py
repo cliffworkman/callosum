@@ -154,6 +154,27 @@ class ResearcherAnswerTests(unittest.TestCase):
         self.assertIn(rnd.DETAIL_FILE, self.answer)
         self.assertIn(rnd.RECORD_FILE, self.answer)
 
+    def test_a_caller_supplied_detail_and_record_file_replaces_the_generic_footer_names(self):
+        """Release-readiness item 2 (2026-09-29): Stage B's per-child loop passes the real per-
+        child filenames -- purely referential, no other line changes."""
+        sealed, record, _, _ = make()
+        answer_with_names, _ = rnd.researcher_answer(
+            sealed, record, detail_file="14b_detailed_inspection.c1.md", record_file="14a_overview.c1.json"
+        )
+        self.assertIn("14b_detailed_inspection.c1.md", answer_with_names)
+        self.assertIn("14a_overview.c1.json", answer_with_names)
+        self.assertNotIn(rnd.DETAIL_FILE, answer_with_names)
+        self.assertNotIn(rnd.RECORD_FILE, answer_with_names)
+        # Every other line is byte-identical to the default-filename call -- purely referential.
+        default_answer, _ = rnd.researcher_answer(sealed, record)
+        default_lines = default_answer.splitlines()
+        named_lines = answer_with_names.splitlines()
+        self.assertEqual(len(default_lines), len(named_lines))
+        footer_index = next(i for i, line in enumerate(default_lines) if line.startswith("Full inspection:"))
+        for i, (a, b) in enumerate(zip(default_lines, named_lines, strict=True)):
+            if i != footer_index:
+                self.assertEqual(a, b)
+
 
 class UnresolvedPartsTests(unittest.TestCase):
     def setUp(self):

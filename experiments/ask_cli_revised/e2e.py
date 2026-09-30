@@ -445,10 +445,15 @@ def execute(
                         child_sealed, child_hash, supervisor=bound.supervisors["S"], entail=entail
                     )
                     entry["detail"] = overview.stage_detail(child_record)
-                answer_text, _ = overview_render.researcher_answer(child_sealed, child_record)
                 record_file = f"14a_overview.{child_id}.json"
                 answer_file = f"14_final_answer.{child_id}.md"
                 detail_file = f"14b_detailed_inspection.{child_id}.md"
+                # detail_file/record_file: purely referential -- the footer names the real per-child
+                # file that will actually exist on disk (written just below), not the generic flat-run
+                # name researcher_answer defaults to.
+                answer_text, _ = overview_render.researcher_answer(
+                    child_sealed, child_record, detail_file=detail_file, record_file=record_file
+                )
                 trace.write_json(record_file, child_record)
                 if child_reasoning:
                     trace.write_report(f"14c_overview_reasoning.{child_id}.txt", [child_reasoning])

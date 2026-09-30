@@ -124,6 +124,20 @@ class ChildOverviewLoopE2ETests(unittest.TestCase):
         # _literal markdown-escapes the trailing period (\.) -- check the substring before it.
         self.assertIn(statement.rstrip("."), answer_text)
 
+    def test_the_footer_names_the_real_per_child_detail_and_record_files_not_the_generic_ones(self):
+        """Release-readiness item 2 (2026-09-29): the footer must name the file that actually
+        exists on disk for this child, not overview_render's generic default."""
+        harness = self._harness(
+            s_answers={"c1": {"overview": [{"unit_ids": ["U1"], "bears_on": ["c1"], "text": "irrelevant"}]}}
+        )
+        result = harness.run(entail=Entail())
+        manifest = result["child_overview_manifest"]
+        answer_text = (harness.trace.dir / manifest["c1"]["answer_file"]).read_text(encoding="utf-8")
+        self.assertIn(manifest["c1"]["detail_file"], answer_text)
+        self.assertIn(manifest["c1"]["record_file"], answer_text)
+        self.assertNotIn("`14b_detailed_inspection.md`", answer_text)  # the generic, wrong-for-this-child name
+        self.assertNotIn("`14a_overview.json`", answer_text)
+
     def test_every_child_gets_its_own_trace_files(self):
         harness = self._harness(s_answers={"c1": None})
         harness.run(entail=Entail())
