@@ -76,3 +76,25 @@ the contract to an unreviewed v9 candidate leaving v8 permanently immutable, and
 before/after structural comparison plus one newly-discovered issue (a same_proposition
 joint-grounding interaction with the anchor-dedup's primary-id choice, left unfixed and
 explicitly out of this increment's authorized scope).
+
+---
+
+## Phase 4 — generic support-set fix for the Phase 3 finding (appended 2026-09-30; does not alter the rows above)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-09-30 | Disposition / refinement | Cliff Workman |
+| 2026-09-30 | Implementation | Claude |
+
+**Disposition / refinement (Cliff Workman).** Diagnosed Phase 3's newly-discovered c1 issue as a
+generic representation problem (semantic completion depending on which proposition a collapsed
+nomination happened to select as primary) and specified a bounded, generic fix: joint-grounding
+must consult a binding's full recorded proposition-support set, never the primary id alone, while
+explicitly forbidding any loosening to evidence-anchor identity.
+
+**Implementation (Claude).** Verified the exact c1 support sets genuinely intersected (on `p2`)
+before implementing, per the instruction to stop and report rather than build a same-anchor
+verifier if they did not. Implemented `sufficiency_engine._support_set`/the generalized
+`_verify_same_proposition` (intersection of every role's support set), added 5 adversarial tests,
+and confirmed the offline replay of Phase 2's own recorded outputs now matches Phase 2's actual
+live states exactly, with only instance counts differing.
