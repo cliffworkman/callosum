@@ -343,9 +343,38 @@ def new_search_status(
 # ---------------------------------------------------------------------------------------------
 
 
+def _support_set(binding: dict) -> set:
+    """The full proposition-support set a binding represents for `same_proposition` joint-
+    grounding -- `supporting_proposition_ids` (the Phase 3 anchor-dedup's own provenance field,
+    present only on a model-sourced binding that collapsed 2+ same-anchor propositions) UNION the
+    binding's own primary `proposition_id`, never the primary ALONE. The primary stays the
+    deterministic citation/provenance representative; it must not by itself narrow the semantic
+    support the binding actually carries (Phase 3's own `MODEL_NOMINATION_DIAGNOSTIC_RESULTS.md`/
+    `PHASE3_BOUNDED_FIXES_RESULTS.md` finding: two jointly-required bindings collapsed to
+    DIFFERENT primaries from the SAME anchor-duplicate pair could spuriously fail this check even
+    though they share real, recorded proposition support). A binding with no `supporting_
+    proposition_ids` (every deterministic binding, and every model binding that never needed to
+    collapse anything) degrades to exactly `{proposition_id}` -- byte-identical to the pre-fix
+    check for every such binding."""
+    proposition_id = binding.get("proposition_id")
+    supporting = binding.get("provenance", {}).get("supporting_proposition_ids")
+    support = set(supporting) if supporting else set()
+    if proposition_id is not None:
+        support.add(proposition_id)
+    return support
+
+
 def _verify_same_proposition(role_bindings: dict, roles: list[str]) -> bool:
-    prop_ids = {role_bindings[r].get("proposition_id") for r in roles}
-    return len(prop_ids) == 1 and None not in prop_ids
+    """TRUE iff every role's own proposition-support set (see `_support_set`) shares at least one
+    common proposition_id -- the natural N-way generalization of "all roles cite the identical
+    proposition": when every binding's support set is a singleton (the universal case before
+    Phase 3's dedup existed), this is byte-identical to the original literal-equality check.
+    Deliberately still proposition-identity, never evidence-ANCHOR identity -- a physical anchor
+    co-occurrence alone never satisfies this (see the module's own adversarial tests)."""
+    support_sets = [_support_set(role_bindings[r]) for r in roles]
+    if any(not s for s in support_sets):
+        return False
+    return bool(set.intersection(*support_sets))
 
 
 def _verify_contract_directed_links(role_bindings: dict, roles: list[str], *, context: dict | None = None) -> bool:

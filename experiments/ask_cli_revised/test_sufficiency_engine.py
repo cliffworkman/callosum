@@ -149,6 +149,124 @@ class RoleCompletionTests(unittest.TestCase):
             se.new_requirement("bad#req", "atomic", specs, completion, "exists")
 
 
+def _filled_with_support(role, primary, supporting, text):
+    """A model-mapping binding carrying the Phase 3 `supporting_proposition_ids` provenance
+    field (the anchor-dedup's own record of every proposition a collapsed nomination actually
+    rests on), distinct from `_filled`'s plain deterministic shape."""
+    return se.new_role_binding(
+        role,
+        state="filled",
+        proposition_id=primary,
+        exact_text=text,
+        provenance={
+            "candidate_source": "model_mapping",
+            "detail": "model_nomination_only",
+            "model": "fake",
+            "supporting_proposition_ids": list(supporting),
+        },
+    )
+
+
+class SupportSetSamePropositionTests(unittest.TestCase):
+    """Phase 4 adversarial proof: `same_proposition` joint-grounding uses a binding's FULL
+    proposition-support set (primary + `supporting_proposition_ids`), never the primary alone --
+    fixing the exact issue the Phase 3 structural replay found (c1 spuriously flipping
+    `filled` -> `partially_filled` purely from which of two anchor-duplicate propositions the
+    anchor-dedup happened to pick as primary). Still strictly proposition-IDENTITY, never
+    evidence-anchor identity: the engine layer these tests exercise never even receives an
+    anchor, so anchor co-occurrence structurally cannot leak into this check."""
+
+    def _two_role_requirement(self):
+        specs = {
+            "a": se.new_role_spec("a", "entity A", "model_nomination_only"),
+            "b": se.new_role_spec("b", "entity B", "model_nomination_only"),
+        }
+        completion = se.new_role_completion(required_roles=["a", "b"])
+        return se.new_requirement("sup#req", "relational", specs, completion, "exists")
+
+    def test_primary_selection_order_cannot_change_truth_when_support_sets_are_identical(self):
+        """The exact Phase 3 scenario: two bindings collapsed from the SAME anchor-duplicate
+        pair {p2, p11}, but choosing p11 as primary for one and p2 (via a third, deterministic
+        role elsewhere) as the other's own identity must not matter -- both orderings of WHICH
+        proposition became primary must agree, since the underlying support sets are identical."""
+        req = self._two_role_requirement()
+
+        inst1 = se.new_instance()
+        inst1["role_bindings"]["a"] = _filled_with_support("a", "p11", ["p11", "p2"], "text")
+        inst1["role_bindings"]["b"] = _filled_with_support("b", "p11", ["p11", "p2"], "text")
+        req1 = {**req, "instances": [inst1]}
+        result1 = se.recompute_requirement(req1)
+
+        inst2 = se.new_instance()
+        inst2["role_bindings"]["a"] = _filled_with_support("a", "p2", ["p11", "p2"], "text")
+        inst2["role_bindings"]["b"] = _filled_with_support("b", "p11", ["p11", "p2"], "text")
+        req2 = {**req, "instances": [inst2]}
+        result2 = se.recompute_requirement(req2)
+
+        self.assertEqual(result1["state"], "filled")
+        self.assertEqual(result1["state"], result2["state"])
+
+    def test_bindings_with_one_shared_supporting_proposition_pass(self):
+        req = self._two_role_requirement()
+        inst = se.new_instance()
+        # "a" is a plain deterministic binding on p2; "b" collapsed from {p9, p2} but chose p9 as
+        # primary -- p2 is still in "b"'s recorded support, so they must jointly ground.
+        inst["role_bindings"]["a"] = _filled("a", "p2", "own evidence")
+        inst["role_bindings"]["b"] = _filled_with_support("b", "p9", ["p9", "p2"], "own evidence")
+        req["instances"] = [inst]
+        result = se.recompute_requirement(req)
+        self.assertEqual(result["state"], "filled")
+
+    def test_disjoint_support_sets_fail_even_when_conceptually_from_one_anchor(self):
+        """Never anchor-loosened: even a binding shape meant to represent 'these two nominations
+        happened to share a physical anchor' must still fail this check when their RECORDED
+        proposition support genuinely does not overlap -- this engine layer never receives an
+        anchor at all, so it structurally cannot let anchor co-occurrence substitute for real
+        proposition-identity overlap."""
+        req = self._two_role_requirement()
+        inst = se.new_instance()
+        inst["role_bindings"]["a"] = _filled_with_support("a", "p1", ["p1", "p3"], "text")
+        inst["role_bindings"]["b"] = _filled_with_support("b", "p7", ["p7", "p9"], "text")
+        req["instances"] = [inst]
+        result = se.recompute_requirement(req)
+        self.assertNotEqual(result["state"], "filled")
+        self.assertFalse(result["instances"][0]["complete"])
+
+    def test_legacy_bindings_without_supporting_proposition_ids_retain_original_behavior(self):
+        """Every deterministic binding, and every pre-Phase-3 model binding: no
+        `supporting_proposition_ids` field at all -- must behave EXACTLY as the original
+        single-proposition-id check did."""
+        req = self._two_role_requirement()
+
+        same_prop = se.new_instance()
+        same_prop["role_bindings"]["a"] = _filled("a", "p1", "text")
+        same_prop["role_bindings"]["b"] = _filled("b", "p1", "text")
+        same_result = se.recompute_requirement({**req, "instances": [same_prop]})
+        self.assertEqual(same_result["state"], "filled")
+
+        diff_prop = se.new_instance()
+        diff_prop["role_bindings"]["a"] = _filled("a", "p1", "text")
+        diff_prop["role_bindings"]["b"] = _filled("b", "p2", "different proposition")
+        diff_result = se.recompute_requirement({**req, "instances": [diff_prop]})
+        self.assertNotEqual(diff_result["state"], "filled")
+
+    def test_relational_requirement_does_not_fill_from_anchor_co_occurrence_alone(self):
+        """A relational pairing whose two roles were independently bound to DIFFERENT
+        propositions (no recorded supporting-id overlap at all) must never complete merely
+        because a human might know, out of band, that those propositions share a physical
+        anchor -- this function has no anchor input and must not fill regardless."""
+        req = self._two_role_requirement()
+        inst = se.new_instance()
+        # p4 and p5 are stipulated (in the scenario this test documents) to share one physical
+        # evidence anchor -- but NEITHER binding's own supporting_proposition_ids records that,
+        # so the check must see them as unrelated.
+        inst["role_bindings"]["a"] = _filled("a", "p4", "text from one proposition")
+        inst["role_bindings"]["b"] = _filled("b", "p5", "text from a same-anchor sibling proposition")
+        req["instances"] = [inst]
+        result = se.recompute_requirement(req)
+        self.assertNotEqual(result["state"], "filled")
+
+
 class InstanceQuantifierTests(unittest.TestCase):
     def _pair_requirement(self, quantifier, **kwargs):
         specs = {
