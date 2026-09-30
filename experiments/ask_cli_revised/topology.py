@@ -54,6 +54,10 @@ class Profile:
     S: Binding = Binding(
         "off"
     )  # researcher-facing overview synthesis; off in every Wave-1 profile (see OVERVIEW_PROFILES)
+    # The S role's OWN options envelope (distinct from SUPERVISOR_BASE_OPTIONS, which R/C/P always use).
+    # None whenever S is off. bind() reads this generically -- it is what makes a profile self-describing
+    # rather than requiring bind() to special-case a profile by name to find its S options.
+    S_options: dict | None = None
 
 
 def _ollama(model: str, think=None) -> Binding:
@@ -84,6 +88,10 @@ def validate(profile: Profile) -> None:
         raise ValueError(f"{profile.name}: R must be off or a model")
     if profile.S.kind not in {"off", "ollama"}:
         raise ValueError(f"{profile.name}: S must be off or an Ollama-native model")
+    if profile.S.kind == "ollama" and profile.S_options is None:
+        raise ValueError(f"{profile.name}: an Ollama-native S needs its own S_options (bind() has no fallback)")
+    if profile.S.kind == "off" and profile.S_options is not None:
+        raise ValueError(f"{profile.name}: S_options is set but S is off -- it would never be used")
     if profile.C.kind == "det" and profile.R.kind == "off":
         raise ValueError(f"{profile.name}: deterministic coverage consumes R's mappings, so R cannot be off")
     if profile.C.kind == "ollama" and profile.R.kind != "off":
@@ -158,7 +166,9 @@ OVERVIEW_S_OPTIONS = {
     "num_thread": SUPERVISOR_BASE_OPTIONS["num_thread"],
     "num_batch": SUPERVISOR_BASE_OPTIONS["num_batch"],
 }
-OVERVIEW_PROFILES = {"T5O": replace(WAVE1["T5"], name="T5*+O", S=_ollama(_QWEN35, think=True))}
+OVERVIEW_PROFILES = {
+    "T5O": replace(WAVE1["T5"], name="T5*+O", S=_ollama(_QWEN35, think=True), S_options=OVERVIEW_S_OPTIONS)
+}
 for _profile in OVERVIEW_PROFILES.values():
     validate(_profile)
 
@@ -181,7 +191,11 @@ for _profile in OVERVIEW_PROFILES.values():
 # T5C has NOT been run live. Its evidence status is `Testing`, never `Evaluated`, until it has -- the existing
 # thinking-on T5O run and its artifacts are unaffected and remain the only live evidence this arm currently has.
 CHILD_OVERVIEW_S_OPTIONS = dict(SUPERVISOR_BASE_OPTIONS)
-CHILD_OVERVIEW_PROFILES = {"T5C": replace(WAVE1["T5"], name="T5*+C", S=_ollama(_QWEN35, think=False))}
+CHILD_OVERVIEW_PROFILES = {
+    "T5C": replace(
+        WAVE1["T5"], name="T5*+C", S=_ollama(_QWEN35, think=False), S_options=CHILD_OVERVIEW_S_OPTIONS
+    )
+}
 for _profile in CHILD_OVERVIEW_PROFILES.values():
     validate(_profile)
 

@@ -115,10 +115,10 @@ def bind(profile: topo.Profile, *, rt, clients: dict, trace, managed_chat=backen
         supervisors[role] = stages.Supervisor(
             role=role, binding=binding, client=client, base_options=topo.SUPERVISOR_BASE_OPTIONS, trace=trace
         )
-    if profile.S.kind == "ollama":  # the overview role has its own explicit envelope (topology.OVERVIEW_S_OPTIONS)
-        supervisors["S"] = stages.Supervisor(
+    if profile.S.kind == "ollama":  # each S-enabled profile owns its own options envelope (topo.Profile.S_options);
+        supervisors["S"] = stages.Supervisor(                             # validate() guarantees it is set here
             role="S", binding=profile.S, client=clients[profile.S.endpoint],
-            base_options=topo.OVERVIEW_S_OPTIONS, trace=trace,
+            base_options=profile.S_options, trace=trace,
         )  # fmt: skip
     return Bound(qwen=QwenTasks(config=worker_config, trace=trace), supervisors=supervisors)
 
@@ -813,8 +813,10 @@ def main(argv: list[str] | None = None) -> int:
                 print(
                     hierarchy_contract.preflight_report(hierarchy_contract.load_contract_for_preflight(hier_question))
                 )
-                if args.profile and topo.resolve_profile(args.profile).S.kind != "off":
-                    print("\n" + overview.preflight_report(topo.OVERVIEW_S_OPTIONS))
+                if args.profile:
+                    resolved = topo.resolve_profile(args.profile)
+                    if resolved.S.kind != "off":
+                        print("\n" + overview.preflight_report(resolved.S_options))
                 return 0
             hierarchy_contract.load_contract_for_live(hier_question)
             hierarchy_contract.check_authorization(args.experiment_authorization, hier_question)

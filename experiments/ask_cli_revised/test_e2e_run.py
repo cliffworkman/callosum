@@ -486,6 +486,66 @@ class ModelPresenceTests(unittest.TestCase):
         self.assertEqual(client.calls, [])  # nothing was sent to any model
 
 
+class BindTests(unittest.TestCase):
+    """Release-gate production-binding fix (2026-09-30): e2e.bind() constructs the REAL per-role
+    Supervisor a live run would use. profile_names()/resolve_profile() only prove a profile is
+    reachable BY NAME -- this proves the S-role Supervisor it actually builds carries the RIGHT
+    options, closing the exact gap that left bind() hardcoding topo.OVERVIEW_S_OPTIONS for every
+    Ollama S regardless of which profile was resolved."""
+
+    def bound(self, profile):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        clients = {"shared": ScriptedClient(), "isolated": ScriptedClient()}
+        rt = SimpleNamespace(qwen_config="QWEN-CONFIG")
+        trace = TraceWriter(Path(tmp.name) / "run")
+        return e2e.bind(profile, rt=rt, clients=clients, trace=trace)
+
+    def test_t5o_s_gets_its_own_existing_options_unchanged(self):
+        bound = self.bound(topo.OVERVIEW_PROFILES["T5O"])
+        s = bound.supervisors["S"]
+        self.assertEqual(s.binding.model, "qwen3.5:9b")
+        self.assertIs(s.binding.think, True)
+        self.assertEqual(s.base_options, topo.OVERVIEW_S_OPTIONS)
+
+    def test_t5c_s_gets_child_overview_options_not_t5os(self):
+        bound = self.bound(topo.CHILD_OVERVIEW_PROFILES["T5C"])
+        s = bound.supervisors["S"]
+        self.assertEqual(s.binding.model, "qwen3.5:9b")
+        self.assertIs(s.binding.think, False)
+        self.assertEqual(s.base_options, topo.CHILD_OVERVIEW_S_OPTIONS)
+        self.assertNotEqual(s.base_options, topo.OVERVIEW_S_OPTIONS)
+
+    def test_the_two_option_sets_remain_distinct_where_intentionally_so(self):
+        self.assertNotEqual(topo.CHILD_OVERVIEW_S_OPTIONS["num_predict"], topo.OVERVIEW_S_OPTIONS["num_predict"])
+        self.assertNotEqual(topo.CHILD_OVERVIEW_S_OPTIONS["temperature"], topo.OVERVIEW_S_OPTIONS["temperature"])
+
+    def test_wave1_profiles_have_no_s_supervisor_at_all(self):
+        for name in topo.WAVE1:
+            with self.subTest(name=name):
+                bound = self.bound(topo.WAVE1[name])
+                self.assertNotIn("S", bound.supervisors)
+
+    def test_non_s_roles_never_receive_s_role_options(self):
+        # T5C derives its R/C/P unchanged from WAVE1["T5"] (R=off, C=phi4, P=gemma3) -- confirm bind()'s
+        # unrelated R/C/P construction (untouched by this fix) still uses SUPERVISOR_BASE_OPTIONS, never
+        # either S-only options dict, so the fix's new per-profile S routing cannot leak into another role.
+        bound = self.bound(topo.CHILD_OVERVIEW_PROFILES["T5C"])
+        for role in ("R", "C", "P"):
+            sup = bound.supervisors.get(role)
+            if sup is None:  # off in this profile (T5 derives R=off)
+                continue
+            with self.subTest(role=role):
+                self.assertEqual(sup.base_options, topo.SUPERVISOR_BASE_OPTIONS)
+
+    def test_t0_through_t5_bindings_are_unaffected(self):
+        for name in topo.WAVE1:
+            with self.subTest(name=name):
+                bound = self.bound(topo.WAVE1[name])
+                for role, sup in bound.supervisors.items():
+                    self.assertEqual(sup.base_options, topo.SUPERVISOR_BASE_OPTIONS)
+
+
 class SmokeLimitTests(unittest.TestCase):
     def test_smoke_limits_bound_the_work_without_touching_the_contract_or_the_stage_sequence(self):
         shared = ScriptedClient(r=r_maps("s3-o1"))
