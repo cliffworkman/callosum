@@ -187,8 +187,12 @@ for _profile in CHILD_OVERVIEW_PROFILES.values():
 
 
 def profile_names() -> list[str]:
-    return [*WAVE1, *OVERVIEW_PROFILES]
+    return [*WAVE1, *OVERVIEW_PROFILES, *CHILD_OVERVIEW_PROFILES]
 
 
 def resolve_profile(name: str) -> Profile:
-    return WAVE1[name] if name in WAVE1 else OVERVIEW_PROFILES[name]
+    if name in WAVE1:
+        return WAVE1[name]
+    if name in OVERVIEW_PROFILES:
+        return OVERVIEW_PROFILES[name]
+    return CHILD_OVERVIEW_PROFILES[name]

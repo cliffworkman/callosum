@@ -399,6 +399,28 @@ class CommandLineTests(unittest.TestCase):
         self.assertIsNone(args.db)
         self.assertIsNone(args.out)
 
+    def test_t5c_is_reachable_through_the_actual_production_argument_parser(self):
+        """Stage B's own CLI-wiring gap (release-gate step 5, 2026-09-30): CHILD_OVERVIEW_PROFILES existed and
+        validated correctly, but topo.profile_names()/resolve_profile() -- what --profile's argparse choices
+        and e2e.main()'s own resolution both consult -- were never extended to include it, so `--profile T5C`
+        was rejected by argparse before main() ever ran. This proves it through the REAL parser this class
+        already exercises for every other profile, not a helper function in isolation."""
+        args = self.parse("--hierarchy", "--preflight-only", "--profile", "T5C")
+        self.assertEqual(args.profile, "T5C")
+        resolved = topo.resolve_profile(args.profile)
+        self.assertEqual(resolved.S.kind, "ollama")
+        self.assertEqual(resolved.S.model, "qwen3.5:9b")
+        self.assertIs(resolved.S.think, False)
+
+    def test_t5o_still_resolves_through_the_parser_with_thinking_on_unchanged(self):
+        args = self.parse("--hierarchy", "--preflight-only", "--profile", "T5O")
+        resolved = topo.resolve_profile(args.profile)
+        self.assertIs(resolved.S.think, True)
+
+    def test_an_unknown_profile_name_still_fails_at_the_parser_as_before(self):
+        with self.assertRaises(SystemExit):
+            self.parse("--hierarchy", "--preflight-only", "--profile", "NOT-A-REAL-PROFILE")
+
 
 class MainOrderingTests(unittest.TestCase):
     def setUp(self):

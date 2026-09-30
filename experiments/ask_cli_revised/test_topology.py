@@ -185,5 +185,39 @@ class ChildOverviewProfileTests(unittest.TestCase):
         topo.validate(topo.CHILD_OVERVIEW_PROFILES["T5C"])
 
 
+class ProfileResolutionTests(unittest.TestCase):
+    """Release-gate step 5 (2026-09-30): CHILD_OVERVIEW_PROFILES existed and validated, but the shared
+    discovery/resolution path -- what e2e.py's --profile argparse choices and e2e.main() itself both
+    consult -- never learned about it, so T5C was unreachable by name despite being fully defined and
+    correct. profile_names()/resolve_profile() must cover WAVE1, OVERVIEW_PROFILES, AND
+    CHILD_OVERVIEW_PROFILES generically, with no special-casing of any one profile name."""
+
+    def test_profile_names_includes_every_registry_including_child_overview(self):
+        names = topo.profile_names()
+        self.assertEqual(set(names), set(topo.WAVE1) | set(topo.OVERVIEW_PROFILES) | set(topo.CHILD_OVERVIEW_PROFILES))
+        self.assertIn("T5C", names)
+
+    def test_resolve_profile_returns_the_actual_child_overview_profile_object(self):
+        self.assertIs(topo.resolve_profile("T5C"), topo.CHILD_OVERVIEW_PROFILES["T5C"])
+
+    def test_resolve_profile_t5c_has_the_expected_s_binding(self):
+        resolved = topo.resolve_profile("T5C")
+        self.assertEqual(resolved.S.kind, "ollama")
+        self.assertEqual(resolved.S.model, "qwen3.5:9b")
+        self.assertIs(resolved.S.think, False)
+
+    def test_existing_resolution_is_unchanged_for_every_prior_profile(self):
+        for name, profile in {**topo.WAVE1, **topo.OVERVIEW_PROFILES}.items():
+            with self.subTest(name=name):
+                self.assertIs(topo.resolve_profile(name), profile)
+
+    def test_t5o_thinking_on_is_unaffected_by_the_fix(self):
+        self.assertIs(topo.resolve_profile("T5O").S.think, True)
+
+    def test_an_unknown_name_still_raises(self):
+        with self.assertRaises(KeyError):
+            topo.resolve_profile("NOT-A-REAL-PROFILE")
+
+
 if __name__ == "__main__":
     unittest.main()

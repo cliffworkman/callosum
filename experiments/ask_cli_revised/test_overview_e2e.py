@@ -61,7 +61,10 @@ class TopologyTests(unittest.TestCase):
             (T5O.name, T5O.S.kind, T5O.S.model, T5O.S.think, T5O.S.endpoint),
             ("T5*+O", "ollama", "qwen3.5:9b", True, "isolated"),
         )
-        self.assertEqual(topo.profile_names(), [*topo.WAVE1, "T5O"])
+        # profile_names()'s full membership (WAVE1 + T5O + Stage B's own T5C) is ProfileResolutionTests'
+        # job in test_topology.py; this assertion only needs T5O's own presence, not the exact full list --
+        # hardcoding the whole list here is exactly what went stale when Stage B added CHILD_OVERVIEW_PROFILES.
+        self.assertIn("T5O", topo.profile_names())
         self.assertIs(topo.resolve_profile("T5O"), T5O)
 
     def test_the_envelope_is_explicit_and_fixed(self):
