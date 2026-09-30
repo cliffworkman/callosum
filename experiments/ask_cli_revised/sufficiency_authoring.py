@@ -35,7 +35,17 @@ import json
 from experiments.ask_cli_revised import sufficiency_engine as se
 from experiments.ask_cli_revised import sufficiency_mapping as sm
 
-QUESTION_KEY = "aib_hier_v8"
+# v8 -> v9 (Phase 2 diagnostic Finding C, 2026-09-30): bumped because _NEURAL_MEASURE_OR_MODALITY_
+# DESCRIPTION/_BEHAVIOR_OR_BEHAVIORAL_MEASURE_DESCRIPTION below changed, which is model-facing
+# contract-visible content -- the combined_hash changes with it. sufficiency_contract.aib_hier_v8.
+# frozen.json (Cliff-reviewed, 2026-09-30, hash 9de276b19d2e5afee5f532d64c6a678de6e59a9f41f37198
+# fa00409c5f3094ac) stays on disk, untouched, forever -- nothing in this module writes to that
+# filename anymore once this constant points at v9 (sufficiency_freeze.FROZEN_PATH is derived
+# from this value). This is an entirely SEPARATE version number from hierarchy_contract.py's own
+# HIER_QUESTION_KEY = "aib_hier_v8", which this change does not touch, read, or imply anything
+# about -- the two "v8"s coincidentally started at the same number in Phase 1 but track
+# independent things (hierarchy decomposition vs. sufficiency role-semantics).
+QUESTION_KEY = "aib_hier_v9"
 SUFFICIENCY_CONTRACT_VERSION = "sufficiency-contract-v1"
 
 # ---------------------------------------------------------------------------------------------
@@ -165,10 +175,23 @@ def _manifestation_role(name: str, description: str, wording: str, *, disqualify
     )
 
 
+# v9 semantic tightening (Phase 2 diagnostic Finding C, aib_hier_v9): both descriptions below are
+# domain-general distinctions, never benchmark-specific instrument/answer wording -- see
+# MODEL_NOMINATION_DIAGNOSTIC_RESULTS.md's own adjudication for the two live errors these close.
+_NEURAL_MEASURE_OR_MODALITY_DESCRIPTION = (
+    "the method or modality used to measure neural activity or structure (not the anatomical "
+    "region itself, and not the observed neural response or finding)"
+)
+_BEHAVIOR_OR_BEHAVIORAL_MEASURE_DESCRIPTION = (
+    "an observed behavior, behavioral choice or action, or a task or measure of behavior "
+    "(not a self-report attitude, belief, or prejudice questionnaire)"
+)
+
+
 def _build_c1(wording: str) -> dict:
     specs = {
         "neural_measure_or_modality": _entity_role(
-            "neural_measure_or_modality", "a neural measure or imaging modality", wording
+            "neural_measure_or_modality", _NEURAL_MEASURE_OR_MODALITY_DESCRIPTION, wording
         ),
         "brain_region_or_network": _entity_role("brain_region_or_network", "a specific named brain area", wording),
         "neural_manifestation_evidence": _manifestation_role(
@@ -194,7 +217,7 @@ def _build_c1(wording: str) -> dict:
 def _build_c2(wording: str) -> dict:
     specs = {
         "behavior_or_behavioral_measure": _entity_role(
-            "behavior_or_behavioral_measure", "a named behavior or behavioral measure", wording
+            "behavior_or_behavioral_measure", _BEHAVIOR_OR_BEHAVIORAL_MEASURE_DESCRIPTION, wording
         ),
         "behavioral_manifestation_evidence": _manifestation_role(
             "behavioral_manifestation_evidence", "an observed behavioral finding bearing on the bias", wording
@@ -290,7 +313,7 @@ def _build_c5(wording: str) -> dict:
             "named_brain_region_or_network", "a specific named brain area", wording
         ),
         "behavior_or_behavioral_measure": _entity_role(
-            "behavior_or_behavioral_measure", "a named behavior or behavioral measure", wording
+            "behavior_or_behavioral_measure", _BEHAVIOR_OR_BEHAVIORAL_MEASURE_DESCRIPTION, wording
         ),
     }
     completion = se.new_role_completion(
