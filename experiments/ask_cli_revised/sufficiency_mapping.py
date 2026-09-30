@@ -138,8 +138,13 @@ def _deterministic_text_for_role(role_spec: dict, passage: str) -> str | None:
 
 
 # ---------------------------------------------------------------------------------------------
-# Model-nomination scaffold -- explicitly unbound. Present for provenance/type completeness and
-# future wiring only; calling it is a programming error, never a silent no-op.
+# Model-nomination: a narrow evidence-grounded nomination task, not synthesis. The model may
+# propose only {proposition_id, exact_text} per excerpt (see qwen.QwenTasks.nominate_
+# sufficiency_role); `proposed_role` is always host-stamped from the role_spec this call was
+# scoped to, never asked of the model (one call is always scoped to exactly one role). This
+# function remains responsible for literal grounding (canonical_text_contains against that exact
+# proposition's own verified passage) and admissibility (is_admissible) before anything it
+# returns can become a role binding -- see `_bind_role_candidates`, its only caller.
 # ---------------------------------------------------------------------------------------------
 
 MODEL_NOMINATION_PROMPT_TEMPLATE = (
@@ -149,16 +154,60 @@ MODEL_NOMINATION_PROMPT_TEMPLATE = (
 )
 
 
+def _unit_for_proposition(units: list[dict], proposition_id: str) -> dict | None:
+    for unit in units:
+        if proposition_id in (unit.get("proposition_ids") or []):
+            return unit
+    return None
+
+
 def nominate_with_model(role_spec: dict, candidate_units: list[dict], model_client) -> list[dict]:
-    """UNBOUND. Would return a list of `{proposition_id, exact_text, proposed_role}`
-    nominations -- never a verdict; the engine (`sufficiency_engine.recompute_requirement`)
-    independently grounds every nomination before it can reach `filled`. Turning this on is a
-    separate, later, explicitly-authorized experiment (no model call happens in this codebase
-    path today)."""
-    raise NotImplementedError(
-        "Model-assisted nomination is scaffolded but intentionally left unbound. "
-        "No live model call is authorized for this path."
+    """Proposition-scoped nomination (never a unit_id, never an index-based unit->proposition
+    translation -- a returned `proposition_id` IS the grounding reference). Shows the model one
+    candidate row per PROPOSITION (a unit whose several proposition_ids share one passage yields
+    one row per id, since only the id is a closed-enum choice; the underlying text is identical
+    either way) and this role's own `category_description` -- nothing else. `model_client` is a
+    QwenTasks-shaped object (or test fake) exposing `nominate_sufficiency_role(category_
+    description=..., candidates=...)`.
+
+    Returns ALL independently grounded nominations, deduplicated by `(proposition_id, normalized
+    exact_text)` -- never just the first: a single passage may name several distinct instances of
+    the same open-list/multi-instance role (e.g. two traits in one sentence), and the caller
+    (`_bind_role_candidates`) forks an instance for each one. Every returned nomination has
+    already passed `canonical_text_contains` against that specific proposition's own verified
+    passage and `is_admissible` against this role's own guards -- the engine, not the model,
+    decided it is literally grounded and admissible."""
+    admissible_units = [u for u in candidate_units if is_admissible(role_spec, u.get("flags", {}))]
+    unit_by_proposition: dict[str, dict] = {}
+    candidates: list[dict] = []
+    for unit in admissible_units:
+        for proposition_id in unit.get("proposition_ids") or []:
+            if proposition_id in unit_by_proposition:
+                continue  # a proposition_id is structurally unique to one unit
+            unit_by_proposition[proposition_id] = unit
+            candidates.append({"proposition_id": proposition_id, "passage": unit["passage"]})
+    if not candidates:
+        return []
+    raw = model_client.nominate_sufficiency_role(
+        category_description=role_spec["category_description"], candidates=candidates
     )
+    accepted: list[dict] = []
+    seen: set[tuple[str, str]] = set()
+    for item in raw:
+        unit = unit_by_proposition.get(item["proposition_id"])
+        if unit is None:
+            continue  # not in the closed eligible set this call actually offered -- dropped, never raised
+        exact_text = item["exact_text"]
+        if not canonical_text_contains(needle=exact_text, haystack=unit["passage"]):
+            continue  # not a literal substring of that proposition's own verified passage
+        key = (item["proposition_id"], exact_text.strip().lower())
+        if key in seen:
+            continue
+        seen.add(key)
+        accepted.append(
+            {"proposition_id": item["proposition_id"], "exact_text": exact_text, "proposed_role": role_spec["role"]}
+        )
+    return accepted
 
 
 # ---------------------------------------------------------------------------------------------
@@ -170,7 +219,13 @@ def _best_unit(units: list[dict]) -> dict | None:
     return units[0] if units else None
 
 
-def _bind_role_from_units(role_spec: dict, units: list[dict]) -> dict:
+def _bind_role_candidates(role_spec: dict, units: list[dict], *, model_client=None) -> list[dict]:
+    """0+ FILLED role bindings for this role from these units. A deterministic-strategy role can
+    only ever produce 0 or 1 candidate here (the first admissible unit whose detector matches,
+    exactly as before `model_client` existed) -- ONLY `model_nomination_only` with a supplied
+    `model_client` can return more than one, which is what lets a caller fork an instance
+    (`map_requirement`/`map_paired_requirement`). With `model_client=None` (every existing call
+    site) this function's observable behavior is identical to the old `_bind_role_from_units`."""
     role = role_spec["role"]
     for unit in units:
         if not is_admissible(role_spec, unit.get("flags", {})):
@@ -181,19 +236,54 @@ def _bind_role_from_units(role_spec: dict, units: list[dict]) -> dict:
         if not canonical_text_contains(needle=exact_text, haystack=unit["passage"]):
             continue  # belt-and-suspenders: the literal-text gate is absolute, regardless of source
         proposition_id = unit["proposition_ids"][0] if unit.get("proposition_ids") else None
-        return se.new_role_binding(
-            role,
-            state="filled",
-            proposition_id=proposition_id,
-            exact_text=exact_text,
-            provenance={
-                "candidate_source": "deterministic_mapping",
-                "detail": role_spec["mapping_strategy"],
-                "model": None,
-            },
-            guard=unit.get("flags", {}),
-        )
-    return se.new_role_binding(role, state="missing", reason="not_found")
+        return [
+            se.new_role_binding(
+                role,
+                state="filled",
+                proposition_id=proposition_id,
+                exact_text=exact_text,
+                provenance={
+                    "candidate_source": "deterministic_mapping",
+                    "detail": role_spec["mapping_strategy"],
+                    "model": None,
+                },
+                guard=unit.get("flags", {}),
+            )
+        ]
+    if (
+        model_client is not None
+        and role_spec["mapping_strategy"] == "model_nomination_only"
+        and role_spec["model_nomination_permitted"]
+    ):
+        model_name = getattr(model_client, "model_name", None)
+        bindings = []
+        for nomination in nominate_with_model(role_spec, units, model_client):
+            src_unit = _unit_for_proposition(units, nomination["proposition_id"])
+            bindings.append(
+                se.new_role_binding(
+                    role,
+                    state="filled",
+                    proposition_id=nomination["proposition_id"],
+                    exact_text=nomination["exact_text"],
+                    provenance={
+                        "candidate_source": "model_mapping",
+                        "detail": "model_nomination_only",
+                        "model": model_name,
+                    },
+                    guard=(src_unit or {}).get("flags", {}),
+                )
+            )
+        return bindings
+    return []
+
+
+def _bind_role_from_units(role_spec: dict, units: list[dict]) -> dict:
+    """UNCHANGED signature/behavior for any existing direct caller/test: always exactly one
+    binding, deterministic-only (no model_client). Thin wrapper over `_bind_role_candidates`."""
+    candidates = _bind_role_candidates(role_spec, units)
+    if candidates:
+        return candidates[0]
+    return se.new_role_binding(role_spec["role"], state="missing", reason="not_found")
 
 
 def build_multi_instances(candidate_units: list[dict]) -> list[dict]:
@@ -209,18 +299,59 @@ def build_multi_instances(candidate_units: list[dict]) -> list[dict]:
     return [se.new_instance(unit["unit_id"]) for unit in candidate_units]
 
 
+def _fork_instances_over_role(
+    forks: list[dict],
+    role: str,
+    spec: dict,
+    units_here: list[dict],
+    parent_context_bindings: dict,
+    model_client,
+) -> list[dict]:
+    """Extends each of `forks` (a list of in-progress `Instance` dicts, initially length 1) with a
+    binding for `role`. When `_bind_role_candidates` returns MORE THAN ONE grounded candidate for
+    a fork (only possible for a `model_nomination_only` role when `model_client` is supplied -- a
+    deterministic strategy always yields 0 or 1, so `model_client=None` never forks anything), that
+    one fork is replaced by N copies, `instance_key` suffixed `#1`, `#2`, ... so each carries a
+    distinct grounded instance rather than silently keeping only the first. Own evidence is always
+    tried before falling back to `parent_context_bindings` (context, not proof -- unchanged from
+    before this function existed)."""
+    next_forks: list[dict] = []
+    for forked in forks:
+        candidates = _bind_role_candidates(spec, units_here, model_client=model_client)
+        if not candidates and role in parent_context_bindings:
+            next_forks.append(
+                {**forked, "role_bindings": {**forked["role_bindings"], role: parent_context_bindings[role]}}
+            )
+            continue
+        if not candidates:
+            missing = se.new_role_binding(role, state="missing", reason="not_found")
+            next_forks.append({**forked, "role_bindings": {**forked["role_bindings"], role: missing}})
+            continue
+        for index, candidate in enumerate(candidates):
+            key = forked["instance_key"] if index == 0 else f"{forked['instance_key']}#{index}"
+            next_forks.append(
+                {**forked, "instance_key": key, "role_bindings": {**forked["role_bindings"], role: candidate}}
+            )
+    return next_forks
+
+
 def map_requirement(
     requirement: dict,
     candidate_units: list[dict],
     *,
     parent_context_bindings: dict | None = None,
+    model_client=None,
 ) -> dict:
-    """Deterministic-only mapping for one requirement. `candidate_units` are already filtered by
-    the caller to units attached to this requirement's own child (never another child's, never
-    a hidden benchmark list). `parent_context_bindings`: optional `{role: RoleBinding}` for roles
-    declared in `parent_context_roles`, pre-seeded from a parent's own completed instance -- this
-    can supply candidate CONTEXT but role-completion still requires the requirement's OTHER
-    role(s) to come from this child's own evidence (parent inheritance is context, not proof).
+    """Mapping for one requirement: deterministic-first, with model-assisted nomination attempted
+    for any still-unfilled `model_nomination_only` role ONLY when `model_client` is explicitly
+    supplied (every existing caller omits it, so behavior is unchanged for them -- see
+    `_fork_instances_over_role`'s own docstring for the forking mechanics this introduces).
+    `candidate_units` are already filtered by the caller to units attached to this requirement's
+    own child (never another child's, never a hidden benchmark list). `parent_context_bindings`:
+    optional `{role: RoleBinding}` for roles declared in `parent_context_roles`, pre-seeded from a
+    parent's own completed instance -- this can supply candidate CONTEXT but role-completion still
+    requires the requirement's OTHER role(s) to come from this child's own evidence (parent
+    inheritance is context, not proof).
 
     Returns a NEW requirement dict with `instances` populated and `state`/`reason` recomputed.
     """
@@ -234,30 +365,26 @@ def map_requirement(
         instances = [se.new_instance()]
         units_by_instance = {None: candidate_units}
 
+    all_instances: list[dict] = []
     for instance in instances:
         units_here = units_by_instance.get(instance["instance_key"], candidate_units)
+        forks = [instance]
         for role, spec in role_specs.items():
-            # Own evidence first, parent context only as a FALLBACK when this child's own
-            # evidence doesn't independently fill the role -- "parent inheritance is context,
-            # not proof" means the child may still establish its own instance from its own
-            # retrieval even when a parent has already identified something (e.g. c5 finding its
-            # own region mention independently of c4's), not that the parent's identity always
-            # wins once offered.
-            own_binding = _bind_role_from_units(spec, units_here)
-            if own_binding["state"] == "filled" or role not in parent_context_bindings:
-                instance["role_bindings"][role] = own_binding
-            else:
-                instance["role_bindings"][role] = parent_context_bindings[role]
+            forks = _fork_instances_over_role(forks, role, spec, units_here, parent_context_bindings, model_client)
+        all_instances.extend(forks)
 
-    new_requirement = {**requirement, "instances": instances}
+    new_requirement = {**requirement, "instances": all_instances}
     return se.recompute_requirement(new_requirement)
 
 
-def map_cardinality_requirement(requirement: dict, candidate_units: list[dict]) -> dict:
+def map_cardinality_requirement(requirement: dict, candidate_units: list[dict], *, model_client=None) -> dict:
     """Specialization for `all_requested_categories`: one instance per named category (from the
     role's own `requested_category_terms` -- the contract's own wording-derived terms, never a
     hidden list), each checked against that SPECIFIC literal term -- never "any category
-    satisfies any instance". Exactly one category-evidence role is expected."""
+    satisfies any instance". Exactly one category-evidence role is expected. `model_client`
+    threaded for architectural consistency (no q_aib category role declares
+    `model_nomination_only` today, so this is inert in practice -- the category identity is
+    already fixed by the requested term, so no forking applies here even if it were used)."""
     role_names = list(requirement["role_specs"])
     if len(role_names) != 1:
         raise ValueError("a cardinality requirement expects exactly one category-evidence role")
@@ -267,19 +394,31 @@ def map_cardinality_requirement(requirement: dict, candidate_units: list[dict]) 
     for term in spec["requested_category_terms"]:
         instance = se.new_instance(term)
         term_spec = {**spec, "requested_category_terms": [term]}
-        instance["role_bindings"][role] = _bind_role_from_units(term_spec, candidate_units)
+        candidates = _bind_role_candidates(term_spec, candidate_units, model_client=model_client)
+        instance["role_bindings"][role] = (
+            candidates[0] if candidates else se.new_role_binding(role, state="missing", reason="not_found")
+        )
         instances.append(instance)
     new_requirement = {**requirement, "instances": instances}
     return se.recompute_requirement(new_requirement)
 
 
-def map_paired_requirement(requirement: dict, parent_requirement: dict, candidate_units: list[dict]) -> dict:
+def map_paired_requirement(
+    requirement: dict, parent_requirement: dict, candidate_units: list[dict], *, model_client=None
+) -> dict:
     """For a `for_each_discovered_instance` requirement whose identifying role is declared in
     `parent_context_roles` (paired against a PARENT requirement's own discovered instances --
     e.g. a scale-per-trait pairing scoped to exactly the traits a parent has *currently*
     discovered, never "all conceivable traits"): one instance per parent instance whose own
     parent-context role is filled. Parent inheritance is CONTEXT, not proof -- the paired
-    role(s) must still come from this requirement's own candidate units."""
+    role(s) must still come from this requirement's own candidate units.
+
+    `parent_requirement` is read as the caller (`compute_diagnostic_sufficiency_map`) last
+    computed it -- when the SAME `model_client` was supplied for the parent's own mapping pass
+    (the caller's topological ordering guarantees the parent is mapped first), a trait the
+    deterministic pass alone could never fill but a model nomination did is a `filled` parent
+    instance here exactly like any other, so pairing against it just works: no separate
+    propagation step exists or is needed."""
     parent_role = requirement["parent_context_roles"][0]
     other_roles = [r for r in requirement["role_specs"] if r != parent_role]
     instances = []
@@ -290,9 +429,9 @@ def map_paired_requirement(requirement: dict, parent_requirement: dict, candidat
         instance = se.new_instance(parent_instance["instance_key"])
         # Re-stamped, never passed through verbatim: from THIS requirement's own perspective the
         # role is parent-context, regardless of how the parent itself originally established it
-        # (deterministically, or via a future model nomination) -- this is what exempts it from
-        # the joint-grounding check below (a parent-context role can never share a proposition
-        # with anything this child retrieves, by construction) while still recording, for full
+        # (deterministically, or via model nomination) -- this is what exempts it from the
+        # joint-grounding check below (a parent-context role can never share a proposition with
+        # anything this child retrieves, by construction) while still recording, for full
         # transparency, exactly how the parent arrived at it.
         instance["role_bindings"][parent_role] = {
             **parent_binding,
@@ -302,9 +441,12 @@ def map_paired_requirement(requirement: dict, parent_requirement: dict, candidat
                 "model": parent_binding.get("provenance", {}).get("model"),
             },
         }
+        forks = [instance]
         for role in other_roles:
-            instance["role_bindings"][role] = _bind_role_from_units(requirement["role_specs"][role], candidate_units)
-        instances.append(instance)
+            forks = _fork_instances_over_role(
+                forks, role, requirement["role_specs"][role], candidate_units, {}, model_client
+            )
+        instances.extend(forks)
     new_requirement = {**requirement, "instances": instances}
     return se.recompute_requirement(new_requirement)
 
@@ -334,7 +476,11 @@ def _parent_context_binding_for_single_instance(requirement: dict, parent_requir
 
 
 def map_any_requirement(
-    requirement: dict, candidate_units: list[dict], *, parent_requirement: dict | None = None
+    requirement: dict,
+    candidate_units: list[dict],
+    *,
+    parent_requirement: dict | None = None,
+    model_client=None,
 ) -> dict:
     """Generic dispatch, by the requirement's OWN declared shape -- never by child/role identity.
 
@@ -348,9 +494,13 @@ def map_any_requirement(
     instance` (a genuine list-pairing need, e.g. c9's trait<->scale pairing, one instance per
     parent-discovered referent) uses the paired mapper; anything else (a single-instance ask that
     merely inherits candidate CONTEXT, e.g. c5/c6's region) uses the generic mapper with the
-    parent's binding offered only as a fallback, never overriding this child's own evidence."""
+    parent's binding offered only as a fallback, never overriding this child's own evidence.
+
+    `model_client`, threaded through to every mapper below, defaults to `None` everywhere -- every
+    existing call site (including `e2e.py`) omits it and observes identical deterministic-only
+    behavior."""
     if requirement["instance_quantifier"] == "all_requested_categories":
-        return map_cardinality_requirement(requirement, candidate_units)
+        return map_cardinality_requirement(requirement, candidate_units, model_client=model_client)
     if requirement["parent_context_roles"]:
         if parent_requirement is None:
             raise ValueError(
@@ -359,10 +509,12 @@ def map_any_requirement(
                 "mapper that ignores the parent relationship entirely."
             )
         if requirement["instance_quantifier"] == "for_each_discovered_instance":
-            return map_paired_requirement(requirement, parent_requirement, candidate_units)
+            return map_paired_requirement(requirement, parent_requirement, candidate_units, model_client=model_client)
         parent_context_bindings = _parent_context_binding_for_single_instance(requirement, parent_requirement)
-        return map_requirement(requirement, candidate_units, parent_context_bindings=parent_context_bindings)
-    return map_requirement(requirement, candidate_units)
+        return map_requirement(
+            requirement, candidate_units, parent_context_bindings=parent_context_bindings, model_client=model_client
+        )
+    return map_requirement(requirement, candidate_units, model_client=model_client)
 
 
 def recovery_hint(requirement: dict) -> str:

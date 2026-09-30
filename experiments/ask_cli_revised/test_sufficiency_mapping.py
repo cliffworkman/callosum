@@ -344,16 +344,144 @@ class DirectionAndEffectivenessMappingTests(unittest.TestCase):
         self.assertFalse(result["outcome_reported"])
 
 
-class ModelNominationScaffoldTests(unittest.TestCase):
-    def test_nominate_with_model_is_unbound(self):
-        spec = se.new_role_spec("x", "x", "model_nomination_only")
-        with self.assertRaises(NotImplementedError):
-            sm.nominate_with_model(spec, [], model_client=None)
+class _FakeModelClient:
+    """Hand-written fake -- never a real QwenTasks/network call. `scripted`: proposition_id ->
+    exact_text, or a proposition_id -> [exact_text, ...] to nominate SEVERAL distinct instances
+    from the same proposition (correction #5)."""
 
+    model_name = "fake-qwen"
+
+    def __init__(self, scripted: dict | None = None, *, hallucinate_proposition_id: str | None = None):
+        self.scripted = scripted or {}
+        self.hallucinate_proposition_id = hallucinate_proposition_id
+        self.calls: list[dict] = []
+
+    def nominate_sufficiency_role(self, *, category_description: str, candidates: list[dict]) -> list[dict]:
+        self.calls.append({"category_description": category_description, "candidates": candidates})
+        out = []
+        if self.hallucinate_proposition_id:
+            out.append({"proposition_id": self.hallucinate_proposition_id, "exact_text": "anything"})
+        for candidate in candidates:
+            texts = self.scripted.get(candidate["proposition_id"])
+            if texts is None:
+                continue
+            for text in texts if isinstance(texts, list) else [texts]:
+                out.append({"proposition_id": candidate["proposition_id"], "exact_text": text})
+        return out
+
+
+class ModelNominationScaffoldTests(unittest.TestCase):
     def test_prompt_template_uses_category_description_only(self):
         rendered = sm.MODEL_NOMINATION_PROMPT_TEMPLATE.format(category_description="a named brain region")
         self.assertIn("a named brain region", rendered)
         self.assertNotIn("{", rendered)
+
+
+class NominateWithModelTests(unittest.TestCase):
+    def _role_spec(self, **kwargs):
+        return se.new_role_spec(
+            "brain_region_or_network", "a specific named brain area", "model_nomination_only", **kwargs
+        )
+
+    def test_empty_candidate_units_never_calls_the_model(self):
+        client = _FakeModelClient()
+        result = sm.nominate_with_model(self._role_spec(), [], client)
+        self.assertEqual(result, [])
+        self.assertEqual(client.calls, [])
+
+    def test_accepted_nomination_is_literally_grounded_and_stamps_proposed_role(self):
+        units = [_unit("u1", 1, "The amygdala showed increased activity.")]
+        client = _FakeModelClient({units[0]["proposition_ids"][0]: "amygdala"})
+        result = sm.nominate_with_model(self._role_spec(), units, client)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["proposition_id"], units[0]["proposition_ids"][0])
+        self.assertEqual(result[0]["exact_text"], "amygdala")
+        self.assertEqual(result[0]["proposed_role"], "brain_region_or_network")
+
+    def test_nomination_with_text_not_literally_in_the_passage_is_dropped(self):
+        units = [_unit("u1", 1, "The amygdala showed increased activity.")]
+        client = _FakeModelClient({units[0]["proposition_ids"][0]: "the hippocampus"})  # never in the passage
+        result = sm.nominate_with_model(self._role_spec(), units, client)
+        self.assertEqual(result, [])
+
+    def test_nomination_naming_a_proposition_outside_the_offered_set_is_dropped(self):
+        """Correction #4: the model nominates a proposition_id directly (never a unit_id needing
+        translation), and an id outside the closed eligible set offered this call is dropped."""
+        units = [_unit("u1", 1, "The amygdala showed increased activity.")]
+        client = _FakeModelClient(hallucinate_proposition_id="p_nonexistent")
+        result = sm.nominate_with_model(self._role_spec(), units, client)
+        self.assertEqual(result, [])
+
+    def test_inadmissible_unit_is_never_even_offered_to_the_model(self):
+        units = [_unit("u1", 1, "might involve the amygdala")]
+        role_spec = self._role_spec(disqualifying_guards=["hedged"])
+        client = _FakeModelClient({units[0]["proposition_ids"][0]: "amygdala"})
+        result = sm.nominate_with_model(role_spec, units, client)
+        self.assertEqual(result, [])
+        self.assertEqual(client.calls, [])  # the hedged unit never reached the model at all
+
+    def test_a_single_passage_can_yield_several_distinct_nominations(self):
+        """Correction #5: one passage naming two distinct instances of the same role must not be
+        collapsed to one -- both are returned, deduplicated only when literally identical."""
+        units = [_unit("u1", 1, "Both the amygdala and the insula showed increased activity.")]
+        pid = units[0]["proposition_ids"][0]
+        client = _FakeModelClient({pid: ["amygdala", "insula"]})
+        result = sm.nominate_with_model(self._role_spec(), units, client)
+        self.assertEqual({r["exact_text"] for r in result}, {"amygdala", "insula"})
+        self.assertTrue(all(r["proposition_id"] == pid for r in result))
+
+    def test_exact_duplicate_nominations_for_the_same_proposition_are_deduplicated(self):
+        units = [_unit("u1", 1, "The amygdala showed increased activity.")]
+        pid = units[0]["proposition_ids"][0]
+        client = _FakeModelClient({pid: ["amygdala", "Amygdala", "amygdala"]})  # case/whitespace-only variants
+        result = sm.nominate_with_model(self._role_spec(), units, client)
+        self.assertEqual(len(result), 1)
+
+    def test_candidates_shown_to_the_model_are_keyed_by_proposition_id_not_unit_id(self):
+        """A unit carrying MULTIPLE proposition_ids shares its passage across all of them -- each
+        must appear as its own candidate row, never collapsed to unit[0]."""
+        units = [_unit("u1", 1, "The amygdala showed increased activity.", proposition_ids=["p1", "p2"])]
+        client = _FakeModelClient()
+        sm.nominate_with_model(self._role_spec(), units, client)
+        self.assertEqual(len(client.calls), 1)
+        seen_ids = {c["proposition_id"] for c in client.calls[0]["candidates"]}
+        self.assertEqual(seen_ids, {"p1", "p2"})
+
+
+class ForkingMappingTests(unittest.TestCase):
+    """Proves `map_requirement`'s fork mechanic: a role yielding >1 grounded model nomination for
+    one unit-scope produces >1 instance, never silently keeps only the first (correction #5)."""
+
+    def test_deterministic_only_never_forks_regardless_of_model_client_arg(self):
+        specs = {"assay": se.new_role_spec("assay", "assay", "named_instrument_lexicon")}
+        completion = se.new_role_completion(required_roles=["assay"])
+        req = se.new_requirement("t#req", "atomic", specs, completion, "exists")
+        units = [_unit("u1", 1, "The Empathy Scale was used.")]
+        result = sm.map_requirement(req, units)  # no model_client at all -- every existing call site
+        self.assertEqual(len(result["instances"]), 1)
+
+    def test_a_single_unit_naming_two_traits_forks_into_two_instances(self):
+        specs = {"trait": se.new_role_spec("trait", "a named trait", "model_nomination_only")}
+        completion = se.new_role_completion(required_roles=["trait"])
+        req = se.new_requirement("c8#req", "atomic", specs, completion, "open_list", multi_instance=True)
+        units = [_unit("u1", 1, "Both neuroticism and openness were measured.")]
+        pid = units[0]["proposition_ids"][0]
+        client = _FakeModelClient({pid: ["neuroticism", "openness"]})
+        result = sm.map_requirement(req, units, model_client=client)
+        self.assertEqual(len(result["instances"]), 2)
+        texts = {inst["role_bindings"]["trait"]["exact_text"] for inst in result["instances"]}
+        self.assertEqual(texts, {"neuroticism", "openness"})
+        keys = {inst["instance_key"] for inst in result["instances"]}
+        self.assertEqual(len(keys), 2)  # distinct instance_key per fork, never collapsed
+
+    def test_a_still_missing_role_with_no_model_client_stays_missing(self):
+        specs = {"trait": se.new_role_spec("trait", "a named trait", "model_nomination_only")}
+        completion = se.new_role_completion(required_roles=["trait"])
+        req = se.new_requirement("c8#req", "atomic", specs, completion, "open_list", multi_instance=True)
+        units = [_unit("u1", 1, "Neuroticism was measured.")]
+        result = sm.map_requirement(req, units)  # model_client omitted
+        self.assertEqual(len(result["instances"]), 1)
+        self.assertEqual(result["instances"][0]["role_bindings"]["trait"]["state"], "missing")
 
 
 if __name__ == "__main__":

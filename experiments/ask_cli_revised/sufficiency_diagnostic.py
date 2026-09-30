@@ -52,12 +52,21 @@ def units_by_child(sealed: dict) -> dict[str, list[dict]]:
     return by_child
 
 
-def compute_diagnostic_sufficiency_map(sealed: dict, contract_by_child: dict, parent_of: dict) -> dict:
+def compute_diagnostic_sufficiency_map(
+    sealed: dict, contract_by_child: dict, parent_of: dict, *, model_client=None
+) -> dict:
     """`contract_by_child`: `{child_id: SufficiencyContract}` (Layer B's frozen instance, e.g.
     `sufficiency_authoring.build_qaib_contract(...)`). `parent_of`: `{child_id: parent_child_id}`,
     read from the SAME approved hierarchy contract's own `child["parent"]` field -- never
     invented here. Returns `{child_id: SufficiencyContract}` with every requirement's `instances`/
-    `state` recomputed deterministically against `sealed`'s own verified propositions/evidence.
+    `state` recomputed against `sealed`'s own verified propositions/evidence.
+
+    `model_client` (default `None`, matching every existing caller including `e2e.py`) is threaded
+    through to `sufficiency_mapping.map_any_requirement` for every child. Because children with no
+    `parent_context_roles` are mapped FIRST (see below), a parent's own model-assisted instances
+    -- not just its deterministic ones -- are already fully resolved by the time a paired child
+    (e.g. c9 pairing against c8) reads them; no separate propagation step exists or is needed, the
+    SAME topological ordering that already served the deterministic-only case does this for free.
 
     Children with no `parent_context_roles` on any requirement are mapped first, so a parent's
     own discovered instances are available by the time a paired child needs them (q_aib's own
@@ -97,7 +106,11 @@ def compute_diagnostic_sufficiency_map(sealed: dict, contract_by_child: dict, pa
                         f"(parent_of={parent_of!r}, mapped so far={sorted(mapped)!r}) -- check role-name "
                         "agreement between the child and its parent, and that the parent was mapped first."
                     )
-            new_requirements.append(sm.map_any_requirement(req, candidate_units, parent_requirement=parent_requirement))
+            new_requirements.append(
+                sm.map_any_requirement(
+                    req, candidate_units, parent_requirement=parent_requirement, model_client=model_client
+                )
+            )
         mapped[child_id] = se.new_contract(child_id, new_requirements)
     return mapped
 

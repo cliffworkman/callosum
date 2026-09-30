@@ -106,6 +106,75 @@ class ComputeDiagnosticSufficiencyMapTests(unittest.TestCase):
         self.assertEqual(mapped["c"]["requirements"][0]["state"], "missing")
 
 
+class _FakeModelClient:
+    """Hand-written fake -- never a real QwenTasks/network call."""
+
+    model_name = "fake-qwen"
+
+    def nominate_sufficiency_role(self, *, category_description, candidates):
+        return [
+            {"proposition_id": c["proposition_id"], "exact_text": "empathy"}
+            for c in candidates
+            if "empathy" in c["passage"].lower()
+        ]
+
+
+class ModelAssistedParentPropagationTests(unittest.TestCase):
+    """The single most important correctness property the model_client threading exists to prove
+    (Cliff's corrections #2/#3): a parent role the deterministic pass alone can never fill
+    (`model_nomination_only`, no detector) can still be discovered via model nomination, and a
+    PAIRED CHILD sees that newly-filled parent instance in THE SAME call -- no separate
+    propagation step, because the existing topological order already maps the parent first and
+    the child reads its CURRENT instances."""
+
+    def test_deterministic_only_baseline_leaves_the_child_unpaired(self):
+        """Restates test_parent_is_mapped_before_paired_child_and_pairing_works's own documented
+        gap explicitly as a baseline, so the model-assisted test below is a direct before/after."""
+        sealed = _sealed(
+            [
+                _prop("p1", 1, "This finding showed empathy was strongly related to the outcome.", ["p"]),
+                _prop("p2", 2, "The Empathy Scale was used to assess trait empathy in participants.", ["c"]),
+            ]
+        )
+        mapped = sd.compute_diagnostic_sufficiency_map(sealed, _small_contract(), parent_of={"c": "p"})
+        self.assertEqual(mapped["p"]["requirements"][0]["instances"][0]["role_bindings"]["trait"]["state"], "missing")
+        self.assertEqual(mapped["c"]["requirements"][0]["instances"], [])
+
+    def test_a_trait_the_deterministic_pass_cannot_fill_is_discovered_and_paired_in_one_pass(self):
+        sealed = _sealed(
+            [
+                _prop("p1", 1, "This finding showed empathy was strongly related to the outcome.", ["p"]),
+                _prop("p2", 2, "The Empathy Scale was used to assess trait empathy in participants.", ["c"]),
+            ]
+        )
+        mapped = sd.compute_diagnostic_sufficiency_map(
+            sealed, _small_contract(), parent_of={"c": "p"}, model_client=_FakeModelClient()
+        )
+        parent_req = mapped["p"]["requirements"][0]
+        self.assertEqual(len(parent_req["instances"]), 1)
+        trait_binding = parent_req["instances"][0]["role_bindings"]["trait"]
+        self.assertEqual(trait_binding["state"], "filled")
+        self.assertEqual(trait_binding["provenance"]["candidate_source"], "model_mapping")
+        self.assertEqual(trait_binding["provenance"]["model"], "fake-qwen")
+
+        child_req = mapped["c"]["requirements"][0]
+        self.assertEqual(len(child_req["instances"]), 1)
+        self.assertEqual(child_req["state"], "filled")
+
+    def test_with_no_model_client_the_same_contract_is_still_byte_identical_to_the_old_signature(self):
+        """Regression proof: adding model_client=None as a trailing kwarg changes nothing for a
+        caller that omits it, positionally or by keyword."""
+        sealed = _sealed(
+            [
+                _prop("p1", 1, "This finding showed a strong relation to the outcome.", ["p"]),
+                _prop("p2", 2, "The Empathy Scale was used to assess trait empathy in participants.", ["c"]),
+            ]
+        )
+        positional = sd.compute_diagnostic_sufficiency_map(sealed, _small_contract(), {"c": "p"})
+        keyword = sd.compute_diagnostic_sufficiency_map(sealed, _small_contract(), parent_of={"c": "p"})
+        self.assertEqual(positional, keyword)
+
+
 class RecoveryCandidateReportingTests(unittest.TestCase):
     def test_missing_requirement_is_a_recovery_candidate(self):
         sealed = _sealed([])
