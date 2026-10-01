@@ -10,6 +10,8 @@ mod python_runtime;
 mod quick_tunnel;
 mod startup;
 mod updater;
+#[cfg(windows)]
+mod windows_connector_path;
 
 use backend::{
     kill_backend, kill_word_https, resolved_paths, spawn_backend, spawn_word_https,

@@ -61,6 +61,10 @@ fn register(app: &AppHandle, root: &Path) -> Result<(), String> {
             .resource_dir()
             .map_err(|_| "Missing resources")?
             .join("connector/callosum-connector.exe");
+        // Tauri may return a verbatim (\\?\) resource path. Chrome's cmd launch path
+        // cannot execute it, and NSIS's exact-path uninstall check expects a normal path.
+        // Normalize before deriving BOTH the manifest's executable and its registry path.
+        let connector = crate::windows_connector_path::for_browser(&connector)?;
         if !connector.is_file() {
             return Err("Packaged connector missing. Reinstall Callosum.".into());
         }

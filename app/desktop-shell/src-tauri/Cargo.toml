@@ -40,6 +40,8 @@ tar = { version = "0.4", default-features = false }
 
 [target.'cfg(windows)'.dependencies]
 win32job = "2"
+# Already in Tauri's dependency graph; preserves path semantics when removing verbatim prefixes.
+dunce = "1.0.5"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

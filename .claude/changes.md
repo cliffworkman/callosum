@@ -9,6 +9,15 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+
+## 2026-10-01 — Windows preview native-host path correction (local only)
+- **Cause/evidence:** Cliff's real Chrome connection failed after Prepare. The manifest/registry used a Tauri verbatim Windows path; Cody reproduced cmd.exe failing to launch that exact executable path while the ordinary path returned a valid native message. The actual Chrome launch branch remains untraced.
+- **Change:** simplify safe Windows resource paths before deriving both native-host manifest executable and registry path. Reuse the already-locked dunce 1.0.5 library; reject unsafe-to-simplify and unsupported namespace paths explicitly. Preserve NSIS's ordinary-path ownership comparison, exact extension origin policy and pairing boundaries.
+- **Regression:** Windows path cases and a staged real connector launched through cmd from a Unicode/space-containing folder; protocol 0 stops before sessions/capture. Existing caller-admission and preview-package coverage remain gates.
+- **Scope:** new isolated fix/windows-preview-native-host-path branch from frozen fcaabb7a. No runtime correction, browser identity, source push, release/version or normal-user state change.
+- **Recovery:** separately launch the newly built packaged candidate from ordinary user Windows, preserving the redirected Codex QA state; never substitute a copied runtime or manual host registration.
+- **Revert:** revert this local correction commit; the frozen integration worktree and prior acceptance evidence remain untouched.
+
 ## 2026-09-24 — local Ioannidis DOI-review correction (not pushed)
 - **Cause:** page-wide Summary/abstract state classified the page-1 publication DOI as body;
   review ignored unresolved observations and falsely said no DOI was found. An InDesign
