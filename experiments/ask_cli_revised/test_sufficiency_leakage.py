@@ -215,6 +215,70 @@ class NominationPromptLeakageTests(unittest.TestCase):
         self.assertEqual(hc.provenance_tokens(prompt), [])
 
 
+class SpecificityPromptLeakageTests(unittest.TestCase):
+    """Phase 6's second key: `qwen.specificity_prompt` must carry the SAME leakage-safety
+    discipline as `nomination_prompt` -- only `category_description` and already-grounded
+    candidate text/passages reach the model, never a hidden benchmark term, provenance token, or
+    'networks' mention from the question-construction side. Mirrors
+    `NominationPromptLeakageTests` exactly: the `candidates` fixture deliberately carries a
+    hidden-benchmark-shaped word inside evidence text to prove these assertions are about the
+    QUESTION portion, never a rejection of real retrieved evidence."""
+
+    @needs_real_contract
+    def test_every_role_category_description_is_leakage_clean_when_rendered_into_the_specificity_prompt(self):
+        from experiments.ask_cli_revised import qwen as qwen_module
+
+        children = _load_children_by_id()
+        contract = sa.build_qaib_contract(children)
+        candidates = [
+            {
+                "candidate_id": "cand0",
+                "exact_text": "the IAT",
+                "passage": "The IAT was administered to participants in Hadza villages.",
+            }
+        ]
+        for child_contract in contract.values():
+            for req in child_contract["requirements"]:
+                for spec in req["role_specs"].values():
+                    if spec["mapping_strategy"] != "model_nomination_only":
+                        continue
+                    prompt = qwen_module.specificity_prompt(
+                        category_description=spec["category_description"], candidates=candidates
+                    )
+                    question_only = prompt.split("Candidates:\n", 1)[0]
+                    self.assertEqual(hc.provenance_tokens(question_only), [])
+                    self.assertFalse(hc.mentions_networks(question_only))
+                    for term in _HIDDEN_BENCHMARK_TERMS:
+                        self.assertFalse(
+                            _mentions_whole_word(term, question_only),
+                            f"specificity question leaked {term!r} via category_description",
+                        )
+                    # the full prompt DOES carry the evidence text verbatim (the validator needs
+                    # it to do its job) -- confirming this test isn't accidentally vacuous.
+                    self.assertIn("Hadza", prompt)
+
+    def test_specificity_prompt_never_embeds_a_requirement_or_child_id(self):
+        from experiments.ask_cli_revised import qwen as qwen_module
+
+        prompt = qwen_module.specificity_prompt(
+            category_description="a specific named brain area",
+            candidates=[{"candidate_id": "cand0", "exact_text": "amygdala", "passage": "x"}],
+        )
+        self.assertEqual(hc.provenance_tokens(prompt), [])
+
+    def test_specificity_prompt_two_fixed_examples_are_benchmark_neutral(self):
+        """The prompt's own two cross-domain worked examples (adolescents-in-Japan/mindfulness-
+        training) must never be, or become, q_aib-specific -- they are fixed literal text, not
+        derived from any contract."""
+        from experiments.ask_cli_revised import qwen as qwen_module
+
+        prompt = qwen_module.specificity_prompt(category_description="a named trait", candidates=[])
+        self.assertEqual(hc.provenance_tokens(prompt), [])
+        self.assertFalse(hc.mentions_networks(prompt))
+        for term in _HIDDEN_BENCHMARK_TERMS:
+            self.assertFalse(_mentions_whole_word(term, prompt), f"fixed example text leaked {term!r}")
+
+
 class BenchmarkIsolationScopeTests(unittest.TestCase):
     """Restates the isolation boundary as a direct, inspectable assertion over the module's own
     declared inputs, independent of any specific contract instance."""
