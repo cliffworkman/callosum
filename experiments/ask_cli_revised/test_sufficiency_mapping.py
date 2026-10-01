@@ -374,6 +374,14 @@ class _FakeModelClient:
                 out.append({"proposition_id": candidate["proposition_id"], "exact_text": text})
         return out
 
+    def verify_specific_instances(self, *, category_description: str, candidates: list[dict]) -> list[dict]:
+        """Always-approve default: these tests exercise nomination/dedup/forking, not the
+        specificity gate itself (see `SpecificityConfirmationTests` for that) -- approving
+        everything makes this fake a pure pass-through, preserving every pre-Phase-6 assertion."""
+        return [
+            {"candidate_id": c["candidate_id"], "specific": True, "instance_text": c["exact_text"]} for c in candidates
+        ]
+
 
 class NominateWithModelTests(unittest.TestCase):
     def _role_spec(self, **kwargs):
@@ -493,6 +501,11 @@ class _TwoRoleForkingClient:
         if category_description == "role a":
             return [{"proposition_id": pid, "exact_text": "alpha"}, {"proposition_id": pid, "exact_text": "beta"}]
         return [{"proposition_id": pid, "exact_text": "gamma"}, {"proposition_id": pid, "exact_text": "delta"}]
+
+    def verify_specific_instances(self, *, category_description, candidates):
+        return [
+            {"candidate_id": c["candidate_id"], "specific": True, "instance_text": c["exact_text"]} for c in candidates
+        ]
 
 
 class InstanceKeyCollisionTests(unittest.TestCase):

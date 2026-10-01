@@ -81,6 +81,15 @@ class RecordedNominationClient:
         parsed = json.loads(row["raw_output"])
         return parsed.get("nominations", [])
 
+    def verify_specific_instances(self, *, category_description: str, candidates: list[dict]) -> list[dict]:
+        """Phase 6's specificity gate did not exist when Phase 2's trace was recorded -- there is
+        nothing to replay for it. Always-approve (pure pass-through) so this module keeps testing
+        EXACTLY what it always has (A/B structural accounting only); `sufficiency_phase5_replay.py`
+        is where a deliberately-scripted specificity validator lives."""
+        return [
+            {"candidate_id": c["candidate_id"], "specific": True, "instance_text": c["exact_text"]} for c in candidates
+        ]
+
 
 def replay(*, run_dir: Path, trace_path: Path | None = None) -> dict:
     """Runs deterministic-only AND corrected-mapper-over-RECORDED-outputs, mirroring

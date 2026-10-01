@@ -118,6 +118,11 @@ class _FakeModelClient:
             if "empathy" in c["passage"].lower()
         ]
 
+    def verify_specific_instances(self, *, category_description, candidates):
+        return [
+            {"candidate_id": c["candidate_id"], "specific": True, "instance_text": c["exact_text"]} for c in candidates
+        ]
+
 
 class ModelAssistedParentPropagationTests(unittest.TestCase):
     """The single most important correctness property the model_client threading exists to prove
