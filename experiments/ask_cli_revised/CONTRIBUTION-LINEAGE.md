@@ -207,3 +207,48 @@ authorization's explicit constraint. Recommended **NOT READY FOR RECOVERY EXPERI
 the live validator's own directionally-inverted miscalibration flagged as the newly discovered
 issue warranting investigation before any further specificity-gate experimentation. Recovery was
 not enabled or run.
+
+---
+
+## Phase 8 — forensic/planning pass, no implementation (appended 2026-09-30; does not alter the rows above)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-09-30 | Evidence | Phase 7 live diagnostic |
+| 2026-09-30 | Disposition | Cliff Workman + ChatGPT |
+| 2026-09-30 | Forensic analysis + architecture evaluation | Claude |
+
+**Evidence (Phase 7 live diagnostic).** The generic Qwen specificity-confirmation gate showed
+severe inverted calibration: it retained the known vague false nomination (c2's circular claim)
+while vetoing most genuinely specific candidates (8 of the other 10 candidates offered to it).
+
+**Disposition (Cliff Workman + ChatGPT).** Rejected further blind tuning of the second-pass
+validator and redirected work toward forensic analysis of the remaining false-fill shape and
+recovery-safe alternatives, explicitly instructing against assuming "improve the validator prompt"
+was the answer, and requiring the analysis to distinguish observations from hypotheses, verify no
+hidden implementation explanation, analyze the Phase 5 false fill generically, evaluate six named
+alternative architectures (including one the author explicitly asked to be treated with
+skepticism), run a benchmark-neutral generalization test, and recommend exactly one next path
+without implementing it.
+
+**Forensic analysis + architecture evaluation (Claude).** Reconstructed all 11 Phase 7 specificity
+decisions verbatim from the frozen trace against their exact prompts/passages; found 0 grounding
+rejections, 0 schema/mapping defects, 0 truncation — the failure is genuinely semantic, not
+structural. Found 7 of 8 incorrect vetoes share a concrete syntactic shape (the nominated span's
+grammatical head is an abstract/occurrence noun rather than the referent itself — e.g. "amygdala
+**response**," "**attitudes** (IAT and EBQ)"); one incorrect veto (EBQ) and the interaction/order
+question are left honestly unexplained rather than forced into the same story. Critically found
+that a naive cross-role non-redundancy rule (reject an identification role sharing a proposition
+with its sibling evidence role) would incorrectly reject Phase 5's own correctly-accepted c1/c4
+amygdala finding alongside c2's false one — both share a proposition with their sibling role, and
+the real distinguishing property is whether the nominated span names a referent at all, not
+proposition identity. Evaluated all six proposed alternatives (including an explicit, evidence-
+grounded rejection of the deterministic POS/capitalization guard, proven unsafe against Cliff's own
+canonical "mindfulness training"/"adolescents in Japan" examples) and recommended retiring the
+second-pass validator in favor of reformulating the single first-stage nomination task toward
+minimal-referent extraction with an explicit null-on-no-referent instruction and an authoring-time
+contrastive exclusion, backed by a narrow deterministic redundancy check and a recovery-controller-
+side provisional-fill policy that removes the catastrophic failure mode independent of mapping
+accuracy. Full detail in `PHASE8_FORENSIC_PLANNING_RESULTS.md`. No code was changed, no live model
+call was made, and v9 remains byte-identical (hash unchanged). The recommendation is not
+implemented in this phase.
