@@ -500,3 +500,44 @@ and a `--preflight-only` readiness-code mismatch reproduced identically on basel
 `combined_hash` confirmed byte-identical throughout:
 `9c72dc6a0180e95c55e68a009c366843b671684c19c6ae84ed254f3865305586`. Recovery gate remained OFF
 throughout; no live model call, no retrieval, no recovery execution, no contract or v10 change.
+
+---
+
+## Phase 13 — one live, isolated RecoveryTarget experiment (appended 2026-10-01; does not alter the rows above)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-10-01 | Target selection + falsification criteria | Cliff Workman |
+| 2026-10-01 | Pre-run gate review, isolation harness, live execution, adjudication | Claude |
+
+**Target selection + falsification criteria (Cliff Workman).** Selected `target_id
+c4::0c3e1a392e7868e4` from Phase 12's own real offline inventory (the c4→c6 redirected provisional-
+corroboration target) as the single authorized live experiment, with six pre-registered mechanical
+falsification criteria (redirection, confirmation-bias, dedup, target-id, scope, provenance) and
+an explicit "no retry for a scientifically valid but disappointing result" constraint.
+
+**Pre-run gate review, isolation harness, live execution, adjudication (Claude).** Found and
+disclosed a real, pre-existing, unrelated blocker before any live call (hierarchy pin-drift in
+`hierarchy_contract.py`, confirmed via direct hash comparison and git log to predate this work and
+to leave the hierarchy data itself unaffected) and obtained Cliff's explicit decision before
+proceeding, rather than silently bypassing a safety gate. Built the smallest diagnostic-only
+isolation harness (`phase13_c4_recovery_experiment.py`) that changes zero `_recover`/retrieval
+semantics, reusing `e2e.seed_pass_from`'s own seeding closure and the unchanged `cli._recover`/
+`stages.run_coverage_audit`. Verified all 12 Section-B mechanical gates in dry-run before making
+the one live call. Executed exactly one recovery attempt (qwen3.5:9b, `think=False`) plus the
+mechanical coverage-sealing step (phi4:14b) the sufficiency recomputation structurally requires —
+found one new, verified, but ambiguously-relevant piece of evidence (a theory-of-mind/RTPJ
+passage, not a direct bias-manifestation finding). **Found and corrected a real methodological
+error in its own first recomputation**: comparing a with-model "before" (Phase 5's replay) against
+a deterministic-only "after" (this run's own recomputation, correctly scoped without an
+additional, unauthorized model-nomination call) would have shown large, spurious changes across
+every unrelated child; verified offline, with no further live call, that every child except c4
+reproduces its own deterministic-only baseline exactly, isolating the true, honest result: c4's
+state is unchanged by this experiment under a valid apples-to-apples comparison, and whether the
+new evidence or the prior amygdala nomination would survive a further model-nomination pass is
+genuinely undetermined, not a negative finding. All six pre-registered falsification criteria
+passed; architecture judged mechanically valid; recovery usefulness judged "no material change."
+Recommended next step: B (mechanically valid, query/retrieval targeting refinement candidate
+noted, not validated). No second target, no broader run. v9 `combined_hash` unchanged:
+`9c72dc6a0180e95c55e68a009c366843b671684c19c6ae84ed254f3865305586`. Full detail in
+`PHASE13_C4_LIVE_RECOVERY_EXPERIMENT_RESULTS.md`.
