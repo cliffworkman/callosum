@@ -1,0 +1,18 @@
+{
+  "experiment_id": "q_aib_sufficiency_model_nomination_diagnostic_v1",
+  "run_id": "phase10-v9-single-stage-minimal-referent-live-20261001",
+  "authorized_by": "Cliff",
+  "authorized_at": "2026-10-01T08:45:06-04:00",
+  "brief_confirmed": true,
+  "question_sha256s": [
+    "6e037bab4baad2c0b4427a1c73c6e1720296292b3be36189cd9cf02436e57030"
+  ],
+  "frozen_contract_hash": "9c72dc6a0180e95c55e68a009c366843b671684c19c6ae84ed254f3865305586",
+  "model": "qwen3.5:9b",
+  "thinking": false,
+  "mapping_mechanism": "single_stage_minimal_referent_nomination",
+  "specificity_confirmation_gate_present": false,
+  "recovery_enabled": false,
+  "authorized_executions": 1,
+  "scope": "Exactly ONE live v9 model-assisted semantic-sufficiency nomination diagnostic over the SAME preserved q_aib hierarchical evidence Phase 2/Phase 5/Phase 7 used, using Phase 9's single-stage minimal-referent-extraction nomination prompt (the Phase 6/7 second-pass specificity-confirmation gate is retired and structurally absent from this run -- confirm_specific_instances/specificity_prompt/specificity_schema/verify_specific_instances do not exist in this codebase state). Purpose: determine empirically whether qwen3.5:9b, thinking OFF, reliably follows the reformulated extraction instruction (extract the shortest referent-naming span; decline on a bare occurrence/existence assertion) on real evidence, informing a recovery-readiness recommendation together with a parent_context transitive-provenance code audit (no code change). Does NOT authorize: retrieval, a W research round, a C coverage rerun, sufficiency-driven recovery gating (stays OFF), child-Overview regeneration, parent synthesis, a new hierarchical E2E run, or prompt/mechanism tuning after observing the result. A retry is permitted only for a mechanical execution failure producing no valid experimental result, explicitly documented as such -- never a retry of a scientifically valid but disappointing result. This is a SEPARATE authorization from sufficiency_model_nomination_authorization.json (Phase 2, v8) and sufficiency_model_nomination_authorization_v9.json / sufficiency_model_nomination_authorization_v9_phase7.json (Phase 5/7, v9 single-key and two-key) -- none of those files are reused, modified, or overwritten here."
+}

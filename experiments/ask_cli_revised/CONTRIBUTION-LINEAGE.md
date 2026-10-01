@@ -302,3 +302,47 @@ this fixture's own first draft (c5 spuriously completing) was caught and fixed d
 construction, documented in the fixture's own module docstring rather than silently corrected
 away. v9 remains byte-identical throughout (hash unchanged); no live model call was made in this
 phase. Full detail in `PHASE9_SINGLE_STAGE_MAPPER_RESULTS.md`.
+
+---
+
+## Phase 10 — live v9 single-stage diagnostic + parent_context provenance audit (appended 2026-10-01; does not alter the rows above)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-10-01 | Pre-run gate review + experimental authorization | Cliff Workman |
+| 2026-10-01 | Live experimental execution, manual adjudication, code audit, and analysis | Claude |
+
+**Pre-run gate review + experimental authorization (Cliff Workman).** Reviewed Phase 9's
+single-stage architecture and, after confirming an explicit 7-point mechanical pre-run gate,
+authorized exactly one live execution of the reformulated minimal-referent-extraction mapper over
+the same preserved q_aib evidence — pre-registering the adjudication protocol (correct/incorrect/
+ambiguous per accepted nomination, false negatives among declines), the primary empirical question
+(does Qwen reliably follow the new extraction instruction), and a required code-level audit of
+whether model-dependence survives `parent_context` propagation, with an explicit pre-registered
+rule: if it does not, recommend a bounded follow-up before recovery regardless of how well the
+mapper itself performs.
+
+**Live experimental execution, manual adjudication, code audit, and analysis (Claude).** Ran the
+one authorized live replay (mechanically clean except 3 genuine grounding rejections — a first in
+this arc, traced to a benign PDF-whitespace artifact, not a model defect), manually adjudicated all
+18 distinct accepted nominations against their real source passages, and reported the full
+comparison against Phase 5/Phase 7 in `PHASE10_LIVE_SINGLE_STAGE_DIAGNOSTIC_RESULTS.md`.
+**Empirical result: a mixed, role-dependent outcome, not a clean win.** The reformulation
+dramatically improved c8's extraction (minimal referents instead of abstract-headed phrases,
+exactly as intended) but did NOT fix c2's circular-assertion problem — the model extracted a
+*different* vague occurrence-assertion span from the same sentence rather than correctly declining
+— and introduced new false positives in c5 (a direct violation of the role's own explicit textual
+exclusion, accepting a self-report questionnaire for a role that names one as excluded), c10, and
+c12 (category-adjacent substitutions), none of which any prior phase ever produced. Precision
+regressed sharply: 9 correct / 7 incorrect / 2 ambiguous of 18, versus Phase 5's 8/1/0 of 9.
+**Code-level audit, confirmed by a read-only synthetic reproduction of the exact c8→c9 shape (no
+file modified): transitive model-dependence IS lost through `parent_context`** —
+`_instance_completion_is_model_dependent` checks only the literal `candidate_source` string, which
+`map_paired_requirement`'s own re-stamping always sets to `"parent_context"` regardless of the
+inherited binding's true origin, preserved only as unparsed free text. This did not cause an
+unsafe certification anywhere in this run's own data (every `filled` requirement also carried its
+own directly model-sourced role), but the gap is real and would bite the moment a propagated-only
+completion occurs. Per the pre-registered rule, recommended **READY FOR A BOUNDED FOLLOW-UP BEFORE
+RECOVERY** — two independent sufficient reasons: the mapper's own regressed precision, and the
+confirmed provenance gap. No code was changed and no fix was applied in this phase. Recovery was
+not enabled or run.
