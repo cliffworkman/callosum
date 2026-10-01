@@ -290,6 +290,8 @@ def confirm_specific_instances(role_spec: dict, nominations: list[dict], units: 
     raw = model_client.verify_specific_instances(
         category_description=role_spec["category_description"], candidates=candidates
     )
+    if not isinstance(raw, list):
+        raw = []  # malformed validator response -- fail closed, never iterate something unexpected
     decisions_by_id = {
         d["candidate_id"]: d for d in raw if isinstance(d, dict) and isinstance(d.get("candidate_id"), str)
     }
