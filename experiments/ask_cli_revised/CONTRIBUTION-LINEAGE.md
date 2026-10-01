@@ -98,3 +98,30 @@ verifier if they did not. Implemented `sufficiency_engine._support_set`/the gene
 `_verify_same_proposition` (intersection of every role's support set), added 5 adversarial tests,
 and confirmed the offline replay of Phase 2's own recorded outputs now matches Phase 2's actual
 live states exactly, with only instance counts differing.
+
+---
+
+## Phase 5 — v9 live rerun, empirical validation (appended 2026-09-30; does not alter the rows above)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-09-30 | v9 researcher approval + experimental authorization | Cliff Workman |
+| 2026-09-30 | Live experimental execution, manual adjudication, and analysis | Claude |
+
+**v9 researcher approval + experimental authorization (Cliff Workman).** Reviewed and approved
+the v9 frozen contract's exact hash after confirming the mechanical review gate (v8/v9
+byte-identity, the exact 3-description diff, benchmark-neutral wording), then authorized exactly
+one live model-assisted nomination rerun over the same preserved q_aib evidence to determine
+empirically whether v9's tightened generic role descriptions changed model behavior.
+
+**Live experimental execution, manual adjudication, and analysis (Claude).** Ran the one
+authorized v9 replay (mechanically clean: 14 calls, 0 failures, 0 grounding rejections, thinking
+confirmed OFF throughout), manually adjudicated every one of 9 distinct accepted semantic claims
+against its verified proposition, manually reviewed every decline for false negatives, and
+reported the full comparison against Phase 2 in `PHASE5_V9_LIVE_RERUN_RESULTS.md`. **Empirical
+result:** both of Phase 2's originally-identified category-boundary errors disappeared under v9's
+wording (confirmed, not assumed — c1's own modality attempt now correctly declines; c5's own
+behavior attempt now correctly declines EBQ and c5 honestly reverts to `partially_filled`). A
+new, different nomination weakness was found in c2 (a circular/self-referential match, not a
+repeat of either original error), informing a **NOT READY** recommendation for
+sufficiency-directed recovery experimentation. Recovery was not enabled or run.

@@ -1,0 +1,7 @@
+{
+  "reviewed_by": "Cliff",
+  "reviewed_at": "2026-09-30T20:17:31-04:00",
+  "question_key": "aib_hier_v9",
+  "combined_hash": "9c72dc6a0180e95c55e68a009c366843b671684c19c6ae84ed254f3865305586",
+  "scope": "Reviews and approves the frozen q_aib SufficiencyContract v9 candidate (sufficiency_contract.aib_hier_v9.frozen.json) naming this exact combined_hash, after confirming the v8->v9 diff is limited to the three intended category_description changes (c1 neural_measure_or_modality; c2 and c5 behavior_or_behavioral_measure) and that those descriptions contain only generic semantic distinctions, no benchmark-specific content. Approved as the basis for the Phase 5 live model-assisted nomination rerun. Sufficiency assessment only -- does not amend hierarchy_contract.py's own D1_RECORD, pin, or hash."
+}

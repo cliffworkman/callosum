@@ -1,0 +1,12 @@
+{
+  "experiment_id": "q_aib_sufficiency_model_nomination_diagnostic_v1",
+  "authorized_by": "Cliff",
+  "authorized_at": "2026-09-30T20:17:31-04:00",
+  "brief_confirmed": true,
+  "question_sha256s": ["6e037bab4baad2c0b4427a1c73c6e1720296292b3be36189cd9cf02436e57030"],
+  "frozen_contract_hash": "9c72dc6a0180e95c55e68a009c366843b671684c19c6ae84ed254f3865305586",
+  "model": "qwen3.5:9b",
+  "thinking": false,
+  "authorized_executions": 1,
+  "scope": "Exactly ONE v9 model-assisted semantic-sufficiency nomination replay over the SAME preserved q_aib hierarchical evidence Phase 2 used, comparing deterministic-only vs. Phase 2 v8 vs. this v9 run. Purpose: the final mapping-calibration experiment before deciding whether sufficiency-directed recovery is ready for a separately authorized test -- determines whether v9's tightened generic role descriptions alter model behavior naturally, never tuned toward a desired outcome. Does NOT authorize: retrieval, a W research round, a C coverage rerun, sufficiency-driven recovery gating (stays OFF), child-Overview regeneration, parent synthesis, a new hierarchical E2E run, or prompt/option tuning after observing the result. A retry is permitted only for a mechanical execution failure producing no valid experimental result, explicitly documented as such -- never a retry of a scientifically valid but disappointing result. This is a SEPARATE authorization from sufficiency_model_nomination_authorization.json (Phase 2's own, bound to v8's hash, already consumed) -- that file remains the permanent historical record of the first live run and is not reused or overwritten here."
+}
