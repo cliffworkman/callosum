@@ -1,11 +1,21 @@
-"""Offline replay of Phase 5's OWN recorded v9 model outputs through the Phase 6 specificity gate,
-scripted to Cliff's OWN already-frozen manual adjudication (`PHASE5_V9_LIVE_RERUN_RESULTS.md`) --
-NO live model call anywhere in this module, and NO new adjudication. This answers one narrow
-question: does vetoing EXACTLY the one nomination Phase 5's adjudication judged circular/self-
-referential ("described a behavioral manifestation of the 'anomalous-is-bad' stereotype affecting
+"""Offline replay of Phase 5's OWN recorded v9 model outputs, scripted to Cliff's OWN
+already-frozen manual adjudication (`PHASE5_V9_LIVE_RERUN_RESULTS.md`) -- NO live model call
+anywhere in this module, and NO new adjudication. This answers one narrow question: does
+withholding EXACTLY the one nomination Phase 5's adjudication judged circular/self-referential
+("described a behavioral manifestation of the 'anomalous-is-bad' stereotype affecting
 prosociality") remove c2's false `filled` state without damaging any of the 8 correctly-accepted
-claims? The validator here is a stand-in for "what the gate would have done given Cliff's own
-completed judgment" -- never a live specificity call, never a new judgment call of its own.
+claims?
+
+HISTORICAL NOTE (Phase 9): this module originally reproduced Phase 6's live second-pass
+specificity-confirmation gate (`confirm_specific_instances`/`verify_specific_instances`), which
+Phase 7's live diagnostic found net-harmful and Phase 9 retired from the active mapping path (see
+`sufficiency_mapping.py`'s own module comment). The scripted validator below is now
+SELF-CONTAINED: it filters Phase 5's recorded raw nominations inline, inside its own
+`nominate_sufficiency_role`, so it reproduces the exact same documented net filtering effect
+through today's single-model-operation mapping path (`nominate_with_model` ->
+`_bind_role_candidates`, no second call) -- it does not call, and does not depend on, any
+Phase-6-era code. Never evidence of what a live model would do under any prompt; a scripted
+reproduction of an already-completed human judgment call, same as before.
 """
 
 from __future__ import annotations
@@ -52,12 +62,13 @@ class _RecordedV9NominationClient(RecordedNominationClient):
 
 
 class _Phase5AdjudicationValidator:
-    """Replays Phase 5's OWN frozen manual adjudication as a scripted specificity decision --
-    vetoes EXACTLY `_VETOED_EXACT_TEXT`, approves every other nomination Phase 5 actually
-    produced (the amygdala findings, the two "visual attention" phrasings, the EBQ findings, and
-    the four c8 named constructs). `instance_text` is always the nomination's own `exact_text`
-    verbatim -- this replay introduces no new value, only a specific/not-specific judgment already
-    settled by Cliff's own adjudication table."""
+    """Replays Phase 5's OWN frozen manual adjudication as a scripted, SELF-CONTAINED filter over
+    the inner recorded client's raw nominations -- withholds EXACTLY `_VETOED_EXACT_TEXT`, returns
+    every other nomination Phase 5 actually produced (the amygdala findings, the two "visual
+    attention" phrasings, the EBQ findings, and the four c8 named constructs) unchanged. From
+    `nominate_with_model`'s perspective this is indistinguishable from any other
+    `nominate_sufficiency_role` implementation returning a shorter list -- there is no second
+    call, no separate verdict stage; the filtering decision happens before this method returns."""
 
     model_name = "scripted-phase5-adjudication (REPLAYED -- not live)"
 
@@ -66,31 +77,29 @@ class _Phase5AdjudicationValidator:
         self.decisions_made: list[dict] = []
 
     def nominate_sufficiency_role(self, *, category_description: str, candidates: list[dict]) -> list[dict]:
-        return self._inner.nominate_sufficiency_role(category_description=category_description, candidates=candidates)
-
-    def verify_specific_instances(self, *, category_description: str, candidates: list[dict]) -> list[dict]:
-        decisions = []
-        for c in candidates:
-            specific = c["exact_text"].strip() != _VETOED_EXACT_TEXT
-            decisions.append(
-                {"candidate_id": c["candidate_id"], "specific": specific, "instance_text": c["exact_text"] if specific else ""}
-            )
+        raw = self._inner.nominate_sufficiency_role(category_description=category_description, candidates=candidates)
+        kept = []
+        for item in raw:
+            exact_text = item.get("exact_text", "")
+            specific = exact_text.strip() != _VETOED_EXACT_TEXT
             self.decisions_made.append(
-                {"category_description": category_description, "exact_text": c["exact_text"], "specific": specific}
+                {"category_description": category_description, "exact_text": exact_text, "specific": specific}
             )
-        return decisions
+            if specific:
+                kept.append(item)
+        return kept
 
 
 def replay(*, run_dir: Path = _DEFAULT_RUN_DIR, trace_path: Path | None = None) -> dict:
-    """Runs deterministic-only AND the Phase-6-gated mapper over Phase 5's RECORDED outputs,
-    mirroring `sufficiency_phase2_replay.replay`'s own shape. `contract_by_child` is loaded from
-    the CURRENT committed frozen artifact (v9, byte-identical, hash unchanged by Phase 6) -- this
-    replay never re-authors the contract and makes no live call."""
+    """Runs deterministic-only AND the (self-contained, scripted-filter) mapper over Phase 5's
+    RECORDED outputs, mirroring `sufficiency_phase2_replay.replay`'s own shape. `contract_by_child`
+    is loaded from the CURRENT committed frozen artifact (v9, byte-identical, hash unchanged by
+    this or any later phase) -- this replay never re-authors the contract and makes no live call."""
     _frozen, contract_by_child = diag.load_frozen_contract()
     inner = _RecordedV9NominationClient(trace_path or _DEFAULT_TRACE)
     validator = _Phase5AdjudicationValidator(inner)
     result = diag.run(run_dir=run_dir, contract_by_child=contract_by_child, model_client=validator, model_name=validator.model_name)
-    return {**result, "replay_note": "Phase 6 specificity gate replayed against Phase 5's own frozen manual adjudication"}
+    return {**result, "replay_note": "Phase 5's own frozen manual adjudication replayed as a self-contained scripted filter"}
 
 
 def state_report(mapped: dict) -> dict[str, dict]:

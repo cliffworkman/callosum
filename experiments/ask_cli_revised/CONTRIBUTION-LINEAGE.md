@@ -252,3 +252,53 @@ side provisional-fill policy that removes the catastrophic failure mode independ
 accuracy. Full detail in `PHASE8_FORENSIC_PLANNING_RESULTS.md`. No code was changed, no live model
 call was made, and v9 remains byte-identical (hash unchanged). The recommendation is not
 implemented in this phase.
+
+---
+
+## Phase 9 — single-stage minimal-referent mapper + provisional stop-search policy (appended 2026-09-30; does not alter the rows above)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-09-30 | Evidence | Phase 8 forensic analysis |
+| 2026-09-30 | Disposition / refinement | Cliff Workman + ChatGPT |
+| 2026-09-30 | Implementation | Claude |
+
+**Evidence (Phase 8 forensic analysis).** Established that Phase 7's validator failure was
+genuinely semantic/model-level; showed that proposition-sharing cannot distinguish valid
+identification from circular occurrence assertions; identified referent extraction as the
+meaningful distinction.
+
+**Disposition / refinement (Cliff Workman + ChatGPT).** Accepted retirement of the second-pass
+validator, resolved the A+D design as generic minimal-referent extraction at the
+`model_nomination_only` task level while preserving v9 unchanged, declined to make the proposed
+redundancy smell-test an authoritative veto (explicitly instructing it be omitted rather than
+risk a brittle heuristic), and separated semantic answer sufficiency from stop-search authority
+so model-only fills remain provisional for recovery control.
+
+**Implementation (Claude).** Retired `confirm_specific_instances`/`specificity_prompt`/
+`specificity_schema`/`QwenTasks.verify_specific_instances` from the active mapping path entirely
+(`_bind_role_candidates` is back to ONE model operation: nomination -> deterministic grounding/
+admissibility -> RoleBinding); their exact specification remains in git history
+(commits `f0814716`/`8bf203b2`) and the Phase 6/7 markdown reports, and
+`sufficiency_phase5_replay.py` was redesigned to reproduce Phase 6 Part F's historical finding as
+a self-contained scripted filter, with zero dependency on the retired code. Reformulated
+`qwen.nomination_prompt` toward minimal-referent extraction with an explicit null-on-no-referent
+instruction and 5 benchmark-neutral worked examples (population/intervention/behavior/
+measurement/trait), explicitly not requiring noun-phrase or capitalized/proper-noun shape (the
+exact property Phase 8 found the old live validator's incorrect vetoes clustered on). Added
+`sufficiency_engine.compute_stop_search_certified` (a parallel per-`instance_quantifier`
+aggregation over "clean completion" rather than "any completion," mirroring `_AGGREGATORS`'s own
+dispatch shape) and wired it into `compute_recovery_needed`'s existing `filled` branch, giving a
+model-dependent fill the same bounded-breadth single-recovery-opportunity shape `open_list`
+already used — `state` itself is never overloaded. Declined to implement the redundancy
+smell-test (Part D), per instruction, after confirming no robust version could be defined without
+risking exactly the false-positive-veto failure mode Phase 7 already demonstrated. Proved the
+reformulated nominator's plumbing can represent all 11 benchmark-neutral ACCEPT/DECLINE examples
+via fake clients (explicitly labeled as plumbing proof, not a claim about live model behavior),
+and built a hand-scripted COUNTERFACTUAL replay over the real preserved q_aib evidence showing the
+proposed minimal-referent nominations remove c2's false fill while every other previously-correct
+finding (c1, c4, c6, c8, c8→c9 propagation) survives intact — a real cross-call collision bug in
+this fixture's own first draft (c5 spuriously completing) was caught and fixed during
+construction, documented in the fixture's own module docstring rather than silently corrected
+away. v9 remains byte-identical throughout (hash unchanged); no live model call was made in this
+phase. Full detail in `PHASE9_SINGLE_STAGE_MAPPER_RESULTS.md`.

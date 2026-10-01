@@ -374,14 +374,6 @@ class _FakeModelClient:
                 out.append({"proposition_id": candidate["proposition_id"], "exact_text": text})
         return out
 
-    def verify_specific_instances(self, *, category_description: str, candidates: list[dict]) -> list[dict]:
-        """Always-approve default: these tests exercise nomination/dedup/forking, not the
-        specificity gate itself (see `SpecificityConfirmationTests` for that) -- approving
-        everything makes this fake a pure pass-through, preserving every pre-Phase-6 assertion."""
-        return [
-            {"candidate_id": c["candidate_id"], "specific": True, "instance_text": c["exact_text"]} for c in candidates
-        ]
-
 
 class NominateWithModelTests(unittest.TestCase):
     def _role_spec(self, **kwargs):
@@ -501,11 +493,6 @@ class _TwoRoleForkingClient:
         if category_description == "role a":
             return [{"proposition_id": pid, "exact_text": "alpha"}, {"proposition_id": pid, "exact_text": "beta"}]
         return [{"proposition_id": pid, "exact_text": "gamma"}, {"proposition_id": pid, "exact_text": "delta"}]
-
-    def verify_specific_instances(self, *, category_description, candidates):
-        return [
-            {"candidate_id": c["candidate_id"], "specific": True, "instance_text": c["exact_text"]} for c in candidates
-        ]
 
 
 class InstanceKeyCollisionTests(unittest.TestCase):
@@ -663,6 +650,106 @@ class AnchorDedupTests(unittest.TestCase):
         result = sm.nominate_with_model(self._role_spec(), units, client)
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["supporting_proposition_ids"], ["p1"])
+
+
+class ReformulatedNominationRepresentabilityTests(unittest.TestCase):
+    """Phase 9 Part G: proves the PLUMBING (grounding, schema shape, `map_requirement`'s own
+    accept/decline handling) can represent every ACCEPT/DECLINE example the reformulated
+    `qwen.nomination_prompt` asks a model to distinguish -- clause-shaped behaviors, lowercase
+    common-noun entities, bare proper nouns, and the matching generic-assertion declines. These
+    are hand-scripted fake clients; the engine cannot prove the model semantically obeys the
+    instruction, and NOTHING here is a claim about live Qwen's actual behavior under the new
+    prompt -- only that the architecture can correctly carry either outcome through to a
+    RoleBinding (accept) or `missing` (decline) once a client returns it."""
+
+    def _role_spec(self, category):
+        return se.new_role_spec("x", category, "model_nomination_only")
+
+    def _accepts(self, category, passage, exact_text):
+        units = [_unit("u1", 1, passage)]
+        client = _FakeModelClient({"u1-p": exact_text})
+        result = sm.map_requirement(
+            se.new_requirement(
+                "t#req", "atomic", {"x": self._role_spec(category)}, se.new_role_completion(required_roles=["x"]), "exists"
+            ),
+            units,
+            model_client=client,
+        )
+        self.assertEqual(result["state"], "filled", f"expected ACCEPT to fill: {exact_text!r}")
+        self.assertEqual(result["instances"][0]["role_bindings"]["x"]["exact_text"], exact_text)
+
+    def _declines(self, category, passage):
+        """A well-behaved nominator returns [] for a generic-assertion-only excerpt -- simulated
+        directly (never coerced from the passage), since this is a plumbing test of what happens
+        when a client declines, not a test of whether Qwen WOULD decline."""
+        units = [_unit("u1", 1, passage)]
+        client = _FakeModelClient({})  # scripted empty -- returns no nominations for any proposition
+        result = sm.map_requirement(
+            se.new_requirement(
+                "t#req", "atomic", {"x": self._role_spec(category)}, se.new_role_completion(required_roles=["x"]), "exists"
+            ),
+            units,
+            model_client=client,
+        )
+        self.assertEqual(result["state"], "missing", f"expected DECLINE to leave the role missing: {passage!r}")
+
+    # -- ACCEPT: the identifying span survives end-to-end -----------------------------------------
+
+    def test_accept_population_adolescents_in_japan(self):
+        self._accepts(
+            "a named culture or population", "The sample consisted of adolescents in Japan.", "adolescents in Japan"
+        )
+
+    def test_accept_intervention_mindfulness_training(self):
+        self._accepts(
+            "a named intervention", "Participants completed mindfulness training over eight weeks.", "mindfulness training"
+        )
+
+    def test_accept_behavior_clause_shaped_participants_donated_less_money(self):
+        """Proves a CLAUSE (not a bare noun phrase) is representable -- the reformulated prompt
+        explicitly does not require noun-phrase shape."""
+        self._accepts(
+            "an observed behavior or behavioral measure",
+            "In the study, participants donated less money to the charity.",
+            "participants donated less money",
+        )
+
+    def test_accept_measurement_named_modality(self):
+        self._accepts(
+            "the method or modality used to measure neural activity",
+            "Functional MRI was used to measure activity during the task.",
+            "Functional MRI",
+        )
+
+    def test_accept_trait_anxiety(self):
+        self._accepts("a named individual-difference trait or construct", "We measured trait anxiety in all participants.", "trait anxiety")
+
+    def test_accept_lowercase_common_noun_amygdala(self):
+        """Direct regression for the Phase 8 forensic finding and the Phase 9 prompt's explicit
+        'does not need to be a proper noun or capitalized' instruction -- a genuine scientific
+        term that is NOT capitalized must still be representable as an accepted referent."""
+        self._accepts(
+            "a specific named brain area", "Activity in the amygdala was elevated during the task.", "amygdala"
+        )
+
+    # -- DECLINE: a generic existence/occurrence assertion leaves the role missing ------------------
+
+    def test_decline_population_generic(self):
+        self._declines("a named culture or population", "A population was studied across several sites.")
+
+    def test_decline_intervention_generic(self):
+        self._declines("a named intervention", "An intervention reduced symptoms significantly.")
+
+    def test_decline_behavior_generic(self):
+        self._declines("an observed behavior or behavioral measure", "A behavioral manifestation occurred.")
+
+    def test_decline_measurement_generic(self):
+        self._declines("the method or modality used to measure neural activity", "Neural activity was measured.")
+
+    def test_decline_trait_generic(self):
+        self._declines(
+            "a named individual-difference trait or construct", "Individual differences predicted the outcome."
+        )
 
 
 if __name__ == "__main__":

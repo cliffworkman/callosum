@@ -561,6 +561,92 @@ def complete_instance_count(requirement: dict) -> int:
 
 
 # ---------------------------------------------------------------------------------------------
+# Stop-search authority -- a SEPARATE axis from semantic `state` (Phase 9, Phase 8 Option F).
+#
+# `state == "filled"` answers "is there enough evidence to construct an answer". It does NOT, by
+# itself, answer "should a recovery controller stop searching" -- those are different questions a
+# single boolean cannot honestly carry. A model-assisted nomination is exactly the PRINCIPLES.md
+# "signal, not verdict" case applied to search control: Phase 7's live diagnostic found a model-
+# sourced binding can complete a requirement on a vague, non-identifying nomination (see
+# PHASE7_LIVE_TWO_KEY_DIAGNOSTIC_RESULTS.md) -- so a `filled` state that DEPENDS on one or more
+# `model_mapping` bindings must never, by itself, certify that recovery should stop. It remains
+# fully `filled` and fully usable for answer construction (never hidden, never downgraded in the
+# user-facing map -- the direct analogue of invariant #4, "never hide a low-confidence or flagged
+# claim") while a SEPARATE query, `compute_stop_search_certified`, tells a recovery controller
+# whether THIS fill is safe to treat as a stop-search certificate.
+# ---------------------------------------------------------------------------------------------
+
+
+def _instance_completion_is_model_dependent(role_completion: dict, instance: dict) -> bool:
+    """True iff this COMPLETE instance's own-evidence completion-critical bindings include at
+    least one sourced from `model_mapping`. Mirrors `recompute_instance`'s own `filled_roles`
+    subset (every role participating in `role_completion`, i.e. `completion_roles`) -- a
+    `parent_context` binding is trusted background from an already-computed PARENT requirement,
+    never this instance's own search result, so it is inspected like any other role here (its
+    `candidate_source` is never `model_mapping` by construction, so it never flags an instance)."""
+    if not instance.get("complete"):
+        return False
+    bindings = instance["role_bindings"]
+    for role in completion_roles(role_completion):
+        binding = bindings.get(role, {})
+        if binding.get("state") != "filled":
+            continue
+        if binding.get("provenance", {}).get("candidate_source") == "model_mapping":
+            return True
+    return False
+
+
+def _stop_search_exists(flagged: list[dict], n) -> bool:
+    return any(i["complete"] and not i["_model_dependent"] for i in flagged)
+
+
+def _stop_search_all_complete_clean(flagged: list[dict], n) -> bool:
+    complete = [i for i in flagged if i["complete"]]
+    return bool(complete) and all(not i["_model_dependent"] for i in complete)
+
+
+def _stop_search_at_least_n(flagged: list[dict], n: int) -> bool:
+    clean_complete = sum(1 for i in flagged if i["complete"] and not i["_model_dependent"])
+    return clean_complete >= n
+
+
+_STOP_SEARCH_AGGREGATORS = {
+    # Mirrors `_AGGREGATORS`'s own per-`instance_quantifier` dispatch shape exactly, evaluated
+    # against "clean completion" (no model-mapping-dependent completion-critical binding) instead
+    # of "any completion" -- a deterministic re-aggregation of the SAME instance set against an
+    # already-present provenance fact, never a confidence score.
+    "exists": _stop_search_exists,
+    "all_requested_categories": _stop_search_all_complete_clean,
+    "for_each_discovered_instance": _stop_search_all_complete_clean,
+    "at_least_n": _stop_search_at_least_n,
+    "open_list": lambda flagged, n: False,  # open_list's own aggregator never returns "filled"
+}
+
+
+def compute_stop_search_certified(requirement: dict) -> bool:
+    """Whether `requirement`'s OWN `state == "filled"` can be explained WITHOUT relying on any
+    model-mapping-sourced completion-critical binding. Returns True (certified) whenever
+    `state != "filled"` -- this predicate is only ever meaningful, and only ever consulted, within
+    `compute_recovery_needed`'s already-`filled` branch; outside that branch the caller's existing
+    `state`-based logic already applies and this query has nothing to add.
+
+    Reads only `state`/`instances`/`role_completion`/`instance_quantifier` -- already-computed,
+    already-hashed-separately runtime fields (see `_RUNTIME_ONLY_KEYS`) and the frozen
+    `role_completion`/`instance_quantifier` declarations themselves. Never mutates its input,
+    never writes back a field onto the requirement -- `state` stays the sole semantic-completeness
+    axis (never overloaded); this is a parallel, separately-named query, not a second state."""
+    if requirement["state"] != "filled":
+        return True
+    role_completion = requirement["role_completion"]
+    flagged = [
+        {**inst, "_model_dependent": _instance_completion_is_model_dependent(role_completion, inst)}
+        for inst in requirement["instances"]
+    ]
+    aggregator = _STOP_SEARCH_AGGREGATORS[requirement["instance_quantifier"]]
+    return bool(aggregator(flagged, requirement.get("quantifier_n")))
+
+
+# ---------------------------------------------------------------------------------------------
 # Recovery routing -- run-level, separate from semantic `state` (never "keep recovering forever")
 # ---------------------------------------------------------------------------------------------
 
@@ -578,6 +664,14 @@ def compute_recovery_needed(requirement: dict, search_status: dict) -> bool:
     budget is exhausted, recovery stops and the requirement may terminate honestly as
     `partially_filled` -- disclosed as non-exhaustive (see the rendering layer), never as if the
     literature had been searched to completion.
+
+    A `filled` requirement whose fill is NOT stop-search-certified (Phase 9, Phase 8 Option F --
+    see `compute_stop_search_certified`) gets the SAME bounded-breadth shape `open_list` already
+    uses, rather than either blind trust (treat a model-only fill like a certified one, Phase 7's
+    own demonstrated failure mode) or unlimited re-search (treat it like `missing`): exactly one
+    further recovery opportunity, then honest termination. Recovery stays OFF wherever this
+    function's caller does not independently enable it; this function only ever computes whether
+    recovery *would* be needed.
     """
     budget_spent = search_status.get("recovery_budget_exhausted") or search_status.get(
         "scoped_search_completed_no_additional_support"
@@ -589,7 +683,11 @@ def compute_recovery_needed(requirement: dict, search_status: dict) -> bool:
             return False
         return not budget_spent
     if requirement["state"] == "filled":
-        return False
+        if compute_stop_search_certified(requirement):
+            return False
+        if search_status.get("breadth_pass_used"):
+            return False
+        return not budget_spent
     if budget_spent:
         return False
     return requirement.get("reason") in _RECOVERABLE_REASONS

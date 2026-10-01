@@ -243,84 +243,20 @@ def nominate_with_model(role_spec: dict, candidate_units: list[dict], model_clie
 
 
 # ---------------------------------------------------------------------------------------------
-# Phase 6: the second key of the two-key nomination process -- a VETO-ONLY specificity gate.
+# Phase 6 added a second-pass specificity-confirmation gate here (`confirm_specific_instances`),
+# a VETO-ONLY check between `nominate_with_model` and binding construction. Phase 7's live
+# diagnostic found it net-harmful (it missed the one vague/circular nomination it existed to
+# catch while incorrectly vetoing 8 of the other 10 genuinely specific candidates), and Phase 8's
+# forensic pass found the real fix belonged in the nomination task itself, not a second judgment
+# pass -- see PHASE7_LIVE_TWO_KEY_DIAGNOSTIC_RESULTS.md / PHASE8_FORENSIC_PLANNING_RESULTS.md.
+# Phase 9 retires it: the active mapping path is back to ONE model operation (nomination ->
+# deterministic grounding/admissibility -> RoleBinding, exactly `_bind_role_candidates` below),
+# with the minimal-referent-extraction reformulation now carried entirely by
+# `qwen.nomination_prompt`. The retired function's exact specification is preserved in git history
+# (commits f0814716/8bf203b2) and the two markdown reports above; `sufficiency_phase5_replay.py`
+# reproduces its historical effect as a self-contained scripted fixture, never by calling this
+# (now-deleted) function.
 # ---------------------------------------------------------------------------------------------
-
-
-def confirm_specific_instances(role_spec: dict, nominations: list[dict], units: list[dict], model_client) -> list[dict]:
-    """Takes `nominate_with_model`'s OWN already-grounded, already-deduped output and asks,
-    batched into ONE call, whether each nominated text genuinely identifies WHICH specific
-    instance of the role's category is present -- rather than merely asserting that some
-    instance exists, occurred, was measured, or had an effect (the exact shape of the Phase 5
-    diagnostic's own newly-discovered weakness: a nomination sharing a proposition with
-    manifestation evidence passed every structural/grounding verifier while never actually
-    naming a specific behavior/measure).
-
-    This function may only DROP a nomination -- it never creates one, changes a proposition's
-    identity, broadens candidate scope, or substitutes a different value. `candidate_id`s are
-    host-generated (never derived from or confused with a `proposition_id`); the model cannot
-    introduce one. A nomination the validator does not mention, whose decision is malformed, or
-    whose `specific=true` carries no literally-grounded `instance_text`, FAILS CLOSED -- dropped,
-    never silently kept. The original nomination's own `exact_text`/`proposition_id` are carried
-    through completely unchanged; `instance_text` is recorded as ADDITIONAL provenance
-    (`specificity_validated_instance_text`), never a replacement value.
-
-    Called only when `nominations` is non-empty -- an already-declined nomination call (nothing
-    to confirm) never invokes the validator at all."""
-    if not nominations:
-        return []
-    unit_by_proposition: dict[str, dict] = {}
-    for unit in units:
-        for proposition_id in unit.get("proposition_ids") or []:
-            unit_by_proposition.setdefault(proposition_id, unit)
-
-    candidate_by_id = {f"cand{i}": nomination for i, nomination in enumerate(nominations)}
-    candidates = []
-    for candidate_id, nomination in candidate_by_id.items():
-        unit = unit_by_proposition.get(nomination["proposition_id"])
-        candidates.append(
-            {
-                "candidate_id": candidate_id,
-                "exact_text": nomination["exact_text"],
-                "passage": (unit or {}).get("passage", ""),
-            }
-        )
-
-    model_name = getattr(model_client, "model_name", None)
-    raw = model_client.verify_specific_instances(
-        category_description=role_spec["category_description"], candidates=candidates
-    )
-    if not isinstance(raw, list):
-        raw = []  # malformed validator response -- fail closed, never iterate something unexpected
-    decisions_by_id = {
-        d["candidate_id"]: d for d in raw if isinstance(d, dict) and isinstance(d.get("candidate_id"), str)
-    }
-
-    survivors: list[dict] = []
-    for candidate_id, nomination in candidate_by_id.items():
-        decision = decisions_by_id.get(candidate_id)
-        if decision is None:
-            continue  # the validator never mentioned this candidate -- fail closed, never kept
-        if decision.get("specific") is not True:
-            continue  # explicit veto, or anything other than a clean True -- dropped
-        instance_text = decision.get("instance_text")
-        if not isinstance(instance_text, str) or not instance_text.strip():
-            continue  # specific=true but no instance_text -- malformed, fail closed
-        unit = unit_by_proposition.get(nomination["proposition_id"]) or {}
-        passage = unit.get("passage", "")
-        grounded = canonical_text_contains(
-            needle=instance_text, haystack=nomination["exact_text"]
-        ) or canonical_text_contains(needle=instance_text, haystack=passage)
-        if not grounded:
-            continue  # fabricated instance_text -- fail closed, never trusted from the schema alone
-        survivors.append(
-            {
-                **nomination,
-                "specificity_validated_instance_text": instance_text,
-                "specificity_model": model_name,
-            }
-        )
-    return survivors
 
 
 # ---------------------------------------------------------------------------------------------
@@ -370,9 +306,8 @@ def _bind_role_candidates(role_spec: dict, units: list[dict], *, model_client=No
     ):
         model_name = getattr(model_client, "model_name", None)
         nominations = nominate_with_model(role_spec, units, model_client)
-        confirmed = confirm_specific_instances(role_spec, nominations, units, model_client)
         bindings = []
-        for nomination in confirmed:
+        for nomination in nominations:
             src_unit = _unit_for_proposition(units, nomination["proposition_id"])
             bindings.append(
                 se.new_role_binding(
@@ -385,8 +320,6 @@ def _bind_role_candidates(role_spec: dict, units: list[dict], *, model_client=No
                         "detail": "model_nomination_only",
                         "model": model_name,
                         "supporting_proposition_ids": nomination["supporting_proposition_ids"],
-                        "specificity_validated_instance_text": nomination["specificity_validated_instance_text"],
-                        "specificity_model": nomination["specificity_model"],
                     },
                     guard=(src_unit or {}).get("flags", {}),
                 )

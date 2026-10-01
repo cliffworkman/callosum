@@ -31,17 +31,11 @@ _DEFAULT_RUN_DIR = (
 
 
 class _NullModelClient:
-    """--dry-run only: proves the pipeline runs end-to-end without ever proposing a nomination.
-    `verify_specific_instances` is never actually called (an empty nomination list short-circuits
-    `confirm_specific_instances` before any model_client method is invoked) -- defined anyway for
-    protocol completeness."""
+    """--dry-run only: proves the pipeline runs end-to-end without ever proposing a nomination."""
 
     model_name = "null-dry-run"
 
     def nominate_sufficiency_role(self, *, category_description: str, candidates: list[dict]) -> list[dict]:
-        return []
-
-    def verify_specific_instances(self, *, category_description: str, candidates: list[dict]) -> list[dict]:
         return []
 
 
@@ -49,9 +43,10 @@ class _LiveQwenModelClient:
     """Thin adapter binding a real `qwen.QwenTasks` to the `model_client` protocol
     `sufficiency_mapping._bind_role_candidates` expects: a `.model_name` attribute (read via
     `getattr`, never assumed) plus `.nominate_sufficiency_role(category_description=,
-    candidates=)` and `.verify_specific_instances(category_description=, candidates=)`. Delegates
-    unchanged to the already-tested, already-schema-constrained `QwenTasks` methods -- this class
-    adds no new model-facing behavior of its own."""
+    candidates=)` -- ONE model operation (Phase 9 retired the Phase 6/7 second-pass specificity
+    gate; see `sufficiency_mapping.py`'s own module comment). Delegates unchanged to the
+    already-tested, already-schema-constrained `QwenTasks` method -- this class adds no new
+    model-facing behavior of its own."""
 
     def __init__(self, tasks, model_name: str) -> None:
         self._tasks = tasks
@@ -59,9 +54,6 @@ class _LiveQwenModelClient:
 
     def nominate_sufficiency_role(self, *, category_description: str, candidates: list[dict]) -> list[dict]:
         return self._tasks.nominate_sufficiency_role(category_description=category_description, candidates=candidates)
-
-    def verify_specific_instances(self, *, category_description: str, candidates: list[dict]) -> list[dict]:
-        return self._tasks.verify_specific_instances(category_description=category_description, candidates=candidates)
 
 
 def check_endpoint_reachable(client, model: str) -> tuple[bool, str]:

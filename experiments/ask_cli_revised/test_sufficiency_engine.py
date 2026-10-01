@@ -6,6 +6,7 @@ or benchmark content. No model, no network, no E2E.
 
 from __future__ import annotations
 
+import copy
 import unittest
 
 from experiments.ask_cli_revised import sufficiency_engine as se
@@ -448,6 +449,116 @@ class ModelMappingProvenanceTests(unittest.TestCase):
         self.assertEqual(
             result["instances"][0]["role_bindings"]["a"]["provenance"]["candidate_source"], "model_mapping"
         )
+
+
+class StopSearchCertificationTests(unittest.TestCase):
+    """Phase 9 (Phase 8 Option F): semantic answer-sufficiency (`state`) and stop-search
+    authority (`compute_stop_search_certified`/`compute_recovery_needed`) are separate axes. Zero
+    q_aib vocabulary -- every fixture here is a generic single/dual-role requirement."""
+
+    def _req(self, req_id, role_bindings, *, required=("a",), optional=()):
+        specs = {r: se.new_role_spec(r, r, "model_nomination_only") for r in set(role_bindings)}
+        completion = se.new_role_completion(required_roles=list(required), optional_roles=list(optional))
+        req = se.new_requirement(req_id, "atomic", specs, completion, "exists")
+        inst = se.new_instance()
+        inst["role_bindings"] = role_bindings
+        req["instances"] = [inst]
+        return se.recompute_requirement(req)
+
+    def test_deterministic_filled_is_stop_search_certified(self):
+        req = self._req("det#req", {"a": _filled("a", "p1", "text", method="deterministic_mapping")})
+        self.assertEqual(req["state"], "filled")
+        self.assertTrue(se.compute_stop_search_certified(req))
+        self.assertFalse(se.compute_recovery_needed(req, se.new_search_status(req["id"])))
+
+    def test_model_only_filled_is_provisional_for_stop_search(self):
+        req = self._req("mm#req", {"a": _filled("a", "p1", "text", method="model_mapping")})
+        self.assertEqual(req["state"], "filled")  # semantic state unaffected
+        self.assertFalse(se.compute_stop_search_certified(req))
+        # bounded-breadth shape, mirroring open_list's own first-pass allowance exactly
+        fresh = se.new_search_status(req["id"], breadth_pass_used=False)
+        self.assertTrue(se.compute_recovery_needed(req, fresh))
+        spent = se.new_search_status(req["id"], breadth_pass_used=True)
+        self.assertFalse(se.compute_recovery_needed(req, spent))
+        exhausted = se.new_search_status(req["id"], recovery_budget_exhausted=True)
+        self.assertFalse(se.compute_recovery_needed(req, exhausted))
+
+    def test_mixed_completion_is_provisional_when_the_model_binding_is_required(self):
+        """Both roles required; both jointly grounded on the SAME proposition so the instance
+        completes -- one role is deterministic, the other is model_mapping. Since the
+        model-sourced role is itself completion-critical (required), the fill is provisional."""
+        req = self._req(
+            "mixed#req",
+            {
+                "a": _filled("a", "p1", "deterministic text", method="deterministic_mapping"),
+                "b": _filled("b", "p1", "model text", method="model_mapping"),
+            },
+            required=("a", "b"),
+        )
+        self.assertEqual(req["state"], "filled")
+        self.assertFalse(se.compute_stop_search_certified(req))
+
+    def test_optional_model_binding_does_not_taint_an_otherwise_deterministic_completion(self):
+        """`b` is declared OPTIONAL -- it never gates completion (`completion_roles` excludes it),
+        so a model-sourced `b` alongside a deterministic, independently-sufficient required `a`
+        must not make the fill provisional."""
+        req = self._req(
+            "optional#req",
+            {
+                "a": _filled("a", "p1", "deterministic text", method="deterministic_mapping"),
+                "b": _filled("b", "p9", "unrelated model text", method="model_mapping"),
+            },
+            required=("a",),
+            optional=("b",),
+        )
+        self.assertEqual(req["state"], "filled")
+        self.assertTrue(se.compute_stop_search_certified(req))
+        self.assertFalse(se.compute_recovery_needed(req, se.new_search_status(req["id"])))
+
+    def test_missing_and_partially_filled_behavior_is_unchanged(self):
+        """`compute_stop_search_certified` is a no-op (returns True, meaningless) outside the
+        `filled` branch -- `compute_recovery_needed`'s own missing/partial logic must be
+        byte-identical to its pre-Phase-9 behavior (already covered by RecoveryRoutingTests;
+        restated here directly alongside the new predicate for a single-file proof)."""
+        missing_req = self._req("missing#req", {"a": _missing("a")})
+        self.assertEqual(missing_req["state"], "missing")
+        self.assertTrue(se.compute_stop_search_certified(missing_req))  # trivially true, not meaningful
+        self.assertTrue(se.compute_recovery_needed(missing_req, se.new_search_status(missing_req["id"])))
+
+        partial_req = self._req(
+            "partial#req",
+            {"a": _filled("a", "p1", "text", method="model_mapping"), "b": _missing("b")},
+            required=("a", "b"),
+        )
+        self.assertEqual(partial_req["state"], "partially_filled")
+        self.assertTrue(se.compute_recovery_needed(partial_req, se.new_search_status(partial_req["id"])))
+
+    def test_search_policy_never_mutates_the_frozen_contract_or_its_hash(self):
+        contract = se.new_contract("c", [self._req("mm#req", {"a": _filled("a", "p1", "t", method="model_mapping")})])
+        before = se.contract_hash(contract)
+        req = contract["requirements"][0]
+        se.compute_stop_search_certified(req)
+        se.compute_recovery_needed(req, se.new_search_status(req["id"], breadth_pass_used=True))
+        se.compute_recovery_needed(req, se.new_search_status(req["id"], recovery_budget_exhausted=True))
+        after = se.contract_hash(contract)
+        self.assertEqual(before, after)
+
+    def test_answer_rendering_can_still_consume_provisional_filled_content(self):
+        """A provisional fill is fully usable for answer construction -- its `state`/`exact_text`/
+        `role_bindings` are completely untouched by stop-search querying; nothing is hidden or
+        downgraded (the direct analogue of invariant #4)."""
+        req = self._req("render#req", {"a": _filled("a", "p1", "the specific finding text", method="model_mapping")})
+        se.compute_stop_search_certified(req)  # querying it must not mutate anything renderable
+        self.assertEqual(req["state"], "filled")
+        self.assertEqual(req["instances"][0]["role_bindings"]["a"]["exact_text"], "the specific finding text")
+        self.assertEqual(req["instances"][0]["role_bindings"]["a"]["state"], "filled")
+
+    def test_compute_functions_are_pure_and_never_mutate_their_input(self):
+        req = self._req("pure#req", {"a": _filled("a", "p1", "t", method="model_mapping")})
+        before = copy.deepcopy(req)
+        se.compute_stop_search_certified(req)
+        se.compute_recovery_needed(req, se.new_search_status(req["id"]))
+        self.assertEqual(req, before)
 
 
 # ---------------------------------------------------------------------------------------------

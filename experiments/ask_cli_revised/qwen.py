@@ -31,9 +31,6 @@ _RECOVERY_OUTPUT_TOKENS = 64
 _NOMINATION_OUTPUT_TOKENS = 256
 _NOMINATION_EXACT_TEXT_MAX_LEN = 300
 _NOMINATION_MAX_ITEMS = 8
-_SPECIFICITY_OUTPUT_TOKENS = 384
-_SPECIFICITY_INSTANCE_TEXT_MAX_LEN = 300
-_SPECIFICITY_MAX_ITEMS = 8
 
 
 def evidence_selection_schema(span_ids: list[str], max_spans: int = 4) -> dict:
@@ -59,15 +56,42 @@ def nomination_prompt(*, category_description: str, candidates: list[dict]) -> s
     this ever interpolates from the contract is `category_description` (see
     `sufficiency_authoring.py`'s own D10 compliance note); `candidates` are already-verified
     excerpt text a caller supplies -- genuine evidence-originated terms there are not a leak
-    (see `test_sufficiency_leakage.py`'s explicit scope note)."""
+    (see `test_sufficiency_leakage.py`'s explicit scope note).
+
+    Phase 9 (Phase 8's A+D recommendation): a MINIMAL-REFERENT EXTRACTION framing, folded into
+    this single nomination call rather than split across a second specificity-judgment call
+    (Phase 6/7's `confirm_specific_instances`/`verify_specific_instances`, retired -- Phase 7's
+    live diagnostic found that second-pass judgment net-harmful: it missed the one vague/circular
+    nomination it existed to catch while incorrectly vetoing 8 of 10 genuinely specific ones; see
+    PHASE7_LIVE_TWO_KEY_DIAGNOSTIC_RESULTS.md / PHASE8_FORENSIC_PLANNING_RESULTS.md). The
+    `category_description` continues to define WHAT category is sought; this protocol defines
+    HOW an instance must be extracted, and is itself entirely benchmark-neutral -- no q_aib
+    vocabulary anywhere below. Explicitly does NOT require noun-phrase shape (a concrete behavior
+    may be clause-like) or capitalization/proper-noun shape (a genuine scientific term like
+    "amygdala" is a specific referent despite being a lowercase common noun) -- Phase 8's forensic
+    pass found the live validator's own incorrect vetoes clustered on exactly candidates whose
+    head was an abstract/occurrence noun, not on any reliable syntactic marker the model could be
+    asked to pattern-match instead."""
     excerpt_text = "\n\n".join(f"[{c['proposition_id']}] {c['passage']}" for c in candidates)
     return (
-        f"Does any excerpt below name a SPECIFIC instance of {category_description}, as "
-        f"opposed to a generic/unspecified reference to {category_description}?\n\n"
-        "For each excerpt that names one, return its id and the exact supporting substring "
-        "copied verbatim from that excerpt. An excerpt may name more than one distinct "
-        "instance -- return each separately. Do not paraphrase. Do not invent an excerpt id. "
-        "If none qualify, return an empty list.\n\n"
+        f"For each excerpt below, extract the SHORTEST exact span that itself identifies WHICH "
+        f"specific instance of {category_description} is present.\n\n"
+        "If an excerpt only says or implies that some instance of that category exists, "
+        "occurred, was measured, had an effect, or was associated with something -- without "
+        "identifying which instance -- do not return a nomination for it. The returned span "
+        "itself must contain the identifying information; do not return a larger clause merely "
+        "because that clause supports the existence or effect of the category.\n\n"
+        "The identifying span does not need to be a proper noun or capitalized, and it does not "
+        "need to be a bare noun phrase -- a specific action or task can be identifying too.\n\n"
+        'For example: "adolescents in Japan" identifies a specific population; "a population '
+        'was studied" does not. "mindfulness training" identifies a specific intervention; "an '
+        'intervention reduced symptoms" does not. "participants donated less money" identifies '
+        'a specific behavior; "a behavioral effect occurred" does not. A named measurement '
+        'method or modality identifies a specific measurement; "neural activity was measured" '
+        'does not. "trait anxiety" identifies a specific trait; "individual differences '
+        'predicted the outcome" does not.\n\n'
+        "An excerpt may identify more than one distinct instance -- return each separately. Do "
+        "not paraphrase. Do not invent an excerpt id. If none qualify, return an empty list.\n\n"
         'Return only JSON: {"nominations":[{"proposition_id":"...","exact_text":"..."}]}\n\n'
         f"Excerpts:\n{excerpt_text}"
     )
@@ -119,102 +143,15 @@ def _validate_nominations(payload: Any, *, allowed_proposition_ids: set[str], li
     return out, True
 
 
-# ---------------------------------------------------------------------------------------------
-# Phase 6: the second key of the two-key nomination process -- a VETO-ONLY specificity gate.
-# Never creates a nomination, never changes proposition identity, never broadens candidate scope,
-# never substitutes a different value. See `sufficiency_mapping.confirm_specific_instances`,
-# the only caller, for the fail-closed grounding/matching rules applied to this task's own output.
-# ---------------------------------------------------------------------------------------------
-
-
-def specificity_prompt(*, category_description: str, candidates: list[dict]) -> str:
-    """Pure prompt builder, mirroring `nomination_prompt`'s own leakage-safety discipline: the
-    ONLY sufficiency-layer string interpolated is `category_description`; `candidates` carry
-    already-nominated, already-grounded text plus its own verified passage context -- never a
-    child id, requirement id, hidden qualification text, or sibling-child evidence. The two
-    cross-domain examples below are fixed, benchmark-neutral, and never q_aib-specific."""
-    excerpt_text = "\n\n".join(
-        f"[{c['candidate_id']}] nominated text: {c['exact_text']!r}\ncontext: {c['passage']}" for c in candidates
-    )
-    return (
-        f"Each candidate below claims to identify a SPECIFIC instance of {category_description}.\n\n"
-        "Does the nominated text actually identify WHICH specific instance is present, rather "
-        "than merely saying or implying that some instance of that category exists, occurred, "
-        "was measured, or had an effect? A useful test: if a reader were shown only the "
-        "nominated text, could they answer 'which one?'\n\n"
-        'For example: "adolescents in Japan" identifies a specific population; "a population '
-        'was studied" does not. "mindfulness training" identifies a specific intervention; "an '
-        'intervention reduced symptoms" does not.\n\n'
-        "When uncertain, mark the candidate NOT specific.\n\n"
-        "For each candidate, return whether it is specific, and if so, the exact substring "
-        "(copied verbatim from its nominated text or context) that names the specific instance. "
-        "Do not invent a candidate id.\n\n"
-        'Return only JSON: {"decisions":[{"candidate_id":"...","specific":true|false,'
-        '"instance_text":"..."}]}\n\n'
-        f"Candidates:\n{excerpt_text}"
-    )
-
-
-def specificity_schema(candidate_ids: list[str], max_items: int = _SPECIFICITY_MAX_ITEMS) -> dict:
-    """Closed-enum candidate_id (host-generated, never a proposition_id -- the validator cannot
-    introduce or rename a proposition). `instance_text` stays free text; grounding against the
-    nominated exact_text or its own passage is re-verified deterministically by the caller
-    (`sufficiency_mapping.confirm_specific_instances`), never trusted from the schema alone."""
-    return {
-        "type": "object",
-        "required": ["decisions"],
-        "additionalProperties": False,
-        "properties": {
-            "decisions": {
-                "type": "array",
-                "maxItems": max_items,
-                "items": {
-                    "type": "object",
-                    "required": ["candidate_id", "specific", "instance_text"],
-                    "additionalProperties": False,
-                    "properties": {
-                        "candidate_id": {"type": "string", "enum": candidate_ids},
-                        "specific": {"type": "boolean"},
-                        "instance_text": {"type": "string", "maxLength": _SPECIFICITY_INSTANCE_TEXT_MAX_LEN},
-                    },
-                },
-            }
-        },
-    }
-
-
-def _validate_specificity_decisions(
-    payload: Any, *, allowed_candidate_ids: set[str], limit: int
-) -> tuple[list[dict], bool]:
-    """Schema-level validation only -- a decision naming a real candidate_id with the required
-    shape passes through here regardless of `specific`'s value; `confirm_specific_instances` is
-    what applies the actual fail-closed veto/grounding rules (omitted, malformed, or ungrounded
-    `instance_text` is ITS job, not this function's)."""
-    if not isinstance(payload, dict) or not isinstance(payload.get("decisions"), list):
-        return [], False
-    out: list[dict] = []
-    seen: set[str] = set()
-    for item in payload["decisions"][:limit]:
-        if not isinstance(item, dict):
-            continue
-        candidate_id = item.get("candidate_id")
-        specific = item.get("specific")
-        instance_text = item.get("instance_text")
-        if not isinstance(candidate_id, str) or candidate_id not in allowed_candidate_ids or candidate_id in seen:
-            continue
-        if not isinstance(specific, bool):
-            continue
-        if not isinstance(instance_text, str):
-            continue
-        seen.add(candidate_id)
-        out.append(
-            {
-                "candidate_id": candidate_id,
-                "specific": specific,
-                "instance_text": instance_text.strip()[:_SPECIFICITY_INSTANCE_TEXT_MAX_LEN],
-            }
-        )
-    return out, True
+# Phase 6's second-pass specificity-confirmation gate (`specificity_prompt`/`specificity_schema`/
+# `_validate_specificity_decisions`/`QwenTasks.verify_specific_instances`) was RETIRED in Phase 9
+# after Phase 7's live diagnostic found it net-harmful (missed the one vague nomination it existed
+# to catch, incorrectly vetoed 8 of 10 genuinely specific ones). Its exact specification is
+# preserved in PHASE6_SPECIFICITY_GATE_RESULTS.md/PHASE7_LIVE_TWO_KEY_DIAGNOSTIC_RESULTS.md and in
+# git history (commits f0814716/8bf203b2); `sufficiency_phase5_replay.py` reproduces its historical
+# behavior as a self-contained scripted fixture rather than depending on this (now-deleted) code.
+# See `nomination_prompt`'s own docstring for what replaced it: a single, reformulated extraction
+# task on the first (and now only) model call.
 
 
 # Same grammar-constrained mechanism as evidence_selection_schema, applied to the demonstrated
@@ -714,50 +651,6 @@ class QwenTasks:
             consequence=f"{len(nominations)} raw nominations",
         )
         return nominations
-
-    def verify_specific_instances(self, *, category_description: str, candidates: list[dict]) -> list[dict]:
-        """The second key of the two-key nomination process (Phase 6): a VETO-ONLY check over
-        already-nominated, already-grounded candidates. Never creates a candidate, never changes
-        a proposition's identity, never broadens scope, never substitutes a value -- it only ever
-        answers, per candidate, whether the nominated text identifies WHICH specific instance is
-        present (`specific=true` + the substring that names it) or merely asserts one exists
-        (`specific=false`). The caller (`sufficiency_mapping.confirm_specific_instances`)
-        independently re-verifies `instance_text`'s own grounding and fails closed on anything
-        malformed or omitted -- this method only runs the one batched model call and validates
-        its shape.
-
-        `candidates`: `[{"candidate_id": str, "exact_text": str, "passage": str}, ...]` (host-
-        generated ids, never a proposition_id). Returns validated
-        `[{"candidate_id": str, "specific": bool, "instance_text": str}, ...]`.
-        """
-        if not candidates:
-            return []
-        candidate_ids = [c["candidate_id"] for c in candidates]
-        prompt = specificity_prompt(category_description=category_description, candidates=candidates)
-        call = self._call(
-            prompt=prompt,
-            output_cap=_SPECIFICITY_OUTPUT_TOKENS,
-            json_schema=specificity_schema(candidate_ids),
-        )
-        parsed = _extract_json(call.raw_text) if call.provider_ok else None
-        decisions, valid = _validate_specificity_decisions(
-            parsed, allowed_candidate_ids=set(candidate_ids), limit=_SPECIFICITY_MAX_ITEMS
-        )
-        used_fallback = not (call.provider_ok and valid)
-        if used_fallback:
-            decisions = []
-        self._record(
-            stage="18_sufficiency_specificity",
-            task="verify_specific_instances",
-            prompt=prompt,
-            input_text=f"[category] {category_description}\n[candidate_ids] {candidate_ids}",
-            call=call,
-            parsed=parsed,
-            valid=valid,
-            fallback_used=used_fallback,
-            consequence=f"{len(decisions)} raw specificity decisions",
-        )
-        return decisions
 
 
 # ---- strict validators + deterministic fallbacks -------------------------------------------------
