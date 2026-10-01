@@ -58,40 +58,23 @@ def nomination_prompt(*, category_description: str, candidates: list[dict]) -> s
     excerpt text a caller supplies -- genuine evidence-originated terms there are not a leak
     (see `test_sufficiency_leakage.py`'s explicit scope note).
 
-    Phase 9 (Phase 8's A+D recommendation): a MINIMAL-REFERENT EXTRACTION framing, folded into
-    this single nomination call rather than split across a second specificity-judgment call
-    (Phase 6/7's `confirm_specific_instances`/`verify_specific_instances`, retired -- Phase 7's
-    live diagnostic found that second-pass judgment net-harmful: it missed the one vague/circular
-    nomination it existed to catch while incorrectly vetoing 8 of 10 genuinely specific ones; see
-    PHASE7_LIVE_TWO_KEY_DIAGNOSTIC_RESULTS.md / PHASE8_FORENSIC_PLANNING_RESULTS.md). The
-    `category_description` continues to define WHAT category is sought; this protocol defines
-    HOW an instance must be extracted, and is itself entirely benchmark-neutral -- no q_aib
-    vocabulary anywhere below. Explicitly does NOT require noun-phrase shape (a concrete behavior
-    may be clause-like) or capitalization/proper-noun shape (a genuine scientific term like
-    "amygdala" is a specific referent despite being a lowercase common noun) -- Phase 8's forensic
-    pass found the live validator's own incorrect vetoes clustered on exactly candidates whose
-    head was an abstract/occurrence noun, not on any reliable syntactic marker the model could be
-    asked to pattern-match instead."""
+    Phase 11 ROLLBACK: restored byte-for-byte to the exact wording Phase 5's live diagnostic
+    tested and found empirically strongest (8 correct / 1 incorrect / 0 ambiguous of 9 distinct
+    claims, 0 false negatives) -- extracted from git history at commit `f7be3175` (Phase 5's own
+    commit), never reconstructed from memory. Phase 9's minimal-referent-extraction reformulation
+    (`confirm_specific_instances`'s intended replacement) was itself live-tested in Phase 10 and
+    found to REGRESS precision sharply (9 correct / 7 incorrect / 2 ambiguous of 18) without
+    fixing the targeted c2 circular-assertion failure -- see PHASE10_LIVE_SINGLE_STAGE_DIAGNOSTIC_
+    RESULTS.md. That reformulated prompt text is not preserved behind any flag (git history is the
+    record, per Phase 11's own disposition); this is the one, single, active prompt."""
     excerpt_text = "\n\n".join(f"[{c['proposition_id']}] {c['passage']}" for c in candidates)
     return (
-        f"For each excerpt below, extract the SHORTEST exact span that itself identifies WHICH "
-        f"specific instance of {category_description} is present.\n\n"
-        "If an excerpt only says or implies that some instance of that category exists, "
-        "occurred, was measured, had an effect, or was associated with something -- without "
-        "identifying which instance -- do not return a nomination for it. The returned span "
-        "itself must contain the identifying information; do not return a larger clause merely "
-        "because that clause supports the existence or effect of the category.\n\n"
-        "The identifying span does not need to be a proper noun or capitalized, and it does not "
-        "need to be a bare noun phrase -- a specific action or task can be identifying too.\n\n"
-        'For example: "adolescents in Japan" identifies a specific population; "a population '
-        'was studied" does not. "mindfulness training" identifies a specific intervention; "an '
-        'intervention reduced symptoms" does not. "participants donated less money" identifies '
-        'a specific behavior; "a behavioral effect occurred" does not. A named measurement '
-        'method or modality identifies a specific measurement; "neural activity was measured" '
-        'does not. "trait anxiety" identifies a specific trait; "individual differences '
-        'predicted the outcome" does not.\n\n'
-        "An excerpt may identify more than one distinct instance -- return each separately. Do "
-        "not paraphrase. Do not invent an excerpt id. If none qualify, return an empty list.\n\n"
+        f"Does any excerpt below name a SPECIFIC instance of {category_description}, as "
+        f"opposed to a generic/unspecified reference to {category_description}?\n\n"
+        "For each excerpt that names one, return its id and the exact supporting substring "
+        "copied verbatim from that excerpt. An excerpt may name more than one distinct "
+        "instance -- return each separately. Do not paraphrase. Do not invent an excerpt id. "
+        "If none qualify, return an empty list.\n\n"
         'Return only JSON: {"nominations":[{"proposition_id":"...","exact_text":"..."}]}\n\n'
         f"Excerpts:\n{excerpt_text}"
     )

@@ -579,11 +579,15 @@ def complete_instance_count(requirement: dict) -> int:
 
 def _instance_completion_is_model_dependent(role_completion: dict, instance: dict) -> bool:
     """True iff this COMPLETE instance's own-evidence completion-critical bindings include at
-    least one sourced from `model_mapping`. Mirrors `recompute_instance`'s own `filled_roles`
-    subset (every role participating in `role_completion`, i.e. `completion_roles`) -- a
-    `parent_context` binding is trusted background from an already-computed PARENT requirement,
-    never this instance's own search result, so it is inspected like any other role here (its
-    `candidate_source` is never `model_mapping` by construction, so it never flags an instance)."""
+    least one sourced from `model_mapping` -- DIRECTLY, or TRANSITIVELY through one or more
+    `parent_context` hops (Phase 11 fix for a Phase 10-confirmed gap: a binding whose immediate
+    `candidate_source` is `"parent_context"` can still owe its value to an upstream model
+    nomination, and the ORIGINAL check here only ever looked at the immediate, re-stamped source).
+    Mirrors `recompute_instance`'s own `filled_roles` subset (every role participating in
+    `role_completion`, i.e. `completion_roles`). A binding's structured `provenance[
+    "upstream_model_dependent"]` (see `sufficiency_mapping._propagated_provenance`) carries this
+    transitively without ever parsing `detail`'s free text -- absent on every binding that was
+    never propagated (deterministic or direct model_mapping), where it is simply not consulted."""
     if not instance.get("complete"):
         return False
     bindings = instance["role_bindings"]
@@ -591,7 +595,10 @@ def _instance_completion_is_model_dependent(role_completion: dict, instance: dic
         binding = bindings.get(role, {})
         if binding.get("state") != "filled":
             continue
-        if binding.get("provenance", {}).get("candidate_source") == "model_mapping":
+        provenance = binding.get("provenance", {})
+        if provenance.get("candidate_source") == "model_mapping":
+            return True
+        if provenance.get("upstream_model_dependent"):
             return True
     return False
 

@@ -471,6 +471,51 @@ def map_cardinality_requirement(requirement: dict, candidate_units: list[dict], 
     return se.recompute_requirement(new_requirement)
 
 
+def _propagated_provenance(parent_requirement_id: str, source_binding: dict) -> dict:
+    """Builds the re-stamped `parent_context` provenance for a binding inherited from a parent
+    requirement's own completed instance -- the ONE shared construction both `map_paired_
+    requirement` and `_parent_context_binding_for_single_instance` use (Phase 11 de-duplicated
+    two previously-identical inline copies).
+
+    Preserves `candidate_source="parent_context"` as the IMMEDIATE source identity, unchanged and
+    never overloaded -- `same_proposition`'s own joint-grounding exemption for parent-context
+    roles depends on this literal value staying exactly `"parent_context"`.
+
+    Adds STRUCTURED, machine-readable upstream provenance that survives arbitrary propagation
+    depth without ever parsing `detail`'s free text (Phase 10's confirmed gap: `detail` alone is
+    not machine-readable, and `compute_stop_search_certified` must never need to parse it):
+
+    - `upstream_model_dependent`: True iff `source_binding`'s own immediate `candidate_source` is
+      `"model_mapping"`, OR `source_binding`'s own `upstream_model_dependent` was already True.
+      Recursive by construction: a grandchild inheriting from a parent_context binding that itself
+      carries `upstream_model_dependent=True` reads that flag straight through -- model_mapping ->
+      parent_context -> parent_context -> ... all stay machine-readably model-dependent, no matter
+      how many hops deep, with zero special-casing per hop.
+    - `source_lineage`: the full ordered list of every `candidate_source` this value has passed
+      through, oldest first (e.g. `["model_mapping", "parent_context", "parent_context"]`) --
+      preserves useful ancestry rather than only a lossy boolean, at the cost of one list append
+      per hop. Never required by any correctness check; purely for inspectability.
+
+    Robust to a `source_binding` that never carried either new key (every deterministic/direct-
+    model-mapping binding built before this phase, and every binding built elsewhere in this
+    codebase) -- `.get(...)` defaults degrade correctly to a plain first-hop computation."""
+    source_provenance = source_binding.get("provenance") or {}
+    source_candidate_source = source_provenance.get("candidate_source")
+    source_lineage = source_provenance.get("source_lineage") or (
+        [source_candidate_source] if source_candidate_source else []
+    )
+    upstream_model_dependent = source_candidate_source == "model_mapping" or bool(
+        source_provenance.get("upstream_model_dependent")
+    )
+    return {
+        "candidate_source": "parent_context",
+        "detail": f"from parent {parent_requirement_id!r}: {source_candidate_source}",
+        "model": source_provenance.get("model"),
+        "upstream_model_dependent": upstream_model_dependent,
+        "source_lineage": [*source_lineage, "parent_context"],
+    }
+
+
 def map_paired_requirement(
     requirement: dict, parent_requirement: dict, candidate_units: list[dict], *, model_client=None
 ) -> dict:
@@ -504,11 +549,7 @@ def map_paired_requirement(
         # transparency, exactly how the parent arrived at it.
         instance["role_bindings"][parent_role] = {
             **parent_binding,
-            "provenance": {
-                "candidate_source": "parent_context",
-                "detail": f"from parent {parent_requirement['id']!r}: {parent_binding.get('provenance', {}).get('candidate_source')}",
-                "model": parent_binding.get("provenance", {}).get("model"),
-            },
+            "provenance": _propagated_provenance(parent_requirement["id"], parent_binding),
         }
         forks = [instance]
         for role in other_roles:
@@ -532,16 +573,7 @@ def _parent_context_binding_for_single_instance(requirement: dict, parent_requir
     binding = parent_instance["role_bindings"].get(role)
     if not binding or binding.get("state") != "filled":
         return {}
-    return {
-        role: {
-            **binding,
-            "provenance": {
-                "candidate_source": "parent_context",
-                "detail": f"from parent {parent_requirement['id']!r}: {binding.get('provenance', {}).get('candidate_source')}",
-                "model": binding.get("provenance", {}).get("model"),
-            },
-        }
-    }
+    return {role: {**binding, "provenance": _propagated_provenance(parent_requirement["id"], binding)}}
 
 
 def map_any_requirement(

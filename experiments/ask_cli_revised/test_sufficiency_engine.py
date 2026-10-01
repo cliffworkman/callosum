@@ -10,6 +10,7 @@ import copy
 import unittest
 
 from experiments.ask_cli_revised import sufficiency_engine as se
+from experiments.ask_cli_revised import sufficiency_mapping as sm
 
 
 def _filled(role, prop_id, text, method="deterministic_mapping"):
@@ -559,6 +560,180 @@ class StopSearchCertificationTests(unittest.TestCase):
         se.compute_stop_search_certified(req)
         se.compute_recovery_needed(req, se.new_search_status(req["id"]))
         self.assertEqual(req, before)
+
+
+class TransitiveProvenanceTests(unittest.TestCase):
+    """Phase 11 (Phase 10's confirmed gap): a `parent_context`-sourced binding must remain
+    machine-readably model-dependent for stop-search purposes, across ARBITRARY propagation
+    depth, without `candidate_source` itself ever being overloaded and without parsing
+    `provenance["detail"]`'s free text anywhere. Zero q_aib vocabulary."""
+
+    def _req(self, req_id, role_bindings, *, required=("a", "b")):
+        specs = {r: se.new_role_spec(r, r, "model_nomination_only") for r in set(role_bindings)}
+        completion = se.new_role_completion(required_roles=list(required))
+        req = se.new_requirement(req_id, "atomic", specs, completion, "exists")
+        inst = se.new_instance()
+        inst["role_bindings"] = role_bindings
+        req["instances"] = [inst]
+        return se.recompute_requirement(req)
+
+    def _propagated(self, source_candidate_source, *, upstream_model_dependent=None, source_lineage=None, model=None):
+        """Builds a binding's own provenance as `_propagated_provenance` would have left it after
+        ONE hop from a source carrying `source_candidate_source` (plus optional pre-existing
+        structured ancestry, for multi-hop fixtures) -- exercises the real function, never
+        hand-authors the resulting shape."""
+        source_provenance = {"candidate_source": source_candidate_source, "model": model}
+        if upstream_model_dependent is not None:
+            source_provenance["upstream_model_dependent"] = upstream_model_dependent
+        if source_lineage is not None:
+            source_provenance["source_lineage"] = source_lineage
+        provenance = sm._propagated_provenance("parent#req", {"provenance": source_provenance})
+        return se.new_role_binding("a", state="filled", proposition_id="p1", exact_text="t", provenance=provenance)
+
+    # 1. direct model_mapping required role -> provisional (restated here for a single-file proof
+    # of every item in the Phase 11 Part C list, alongside the Phase 9 StopSearchCertificationTests
+    # that already cover this).
+    def test_direct_model_mapping_required_role_is_provisional(self):
+        req = self._req("direct#req", {"a": _filled("a", "p1", "t", method="model_mapping")}, required=("a",))
+        self.assertFalse(se.compute_stop_search_certified(req))
+
+    # 2. model_mapping parent -> parent_context child -> provisional
+    def test_one_hop_propagation_remains_provisional(self):
+        a = self._propagated("model_mapping")
+        self.assertEqual(a["provenance"]["candidate_source"], "parent_context")  # immediate identity preserved
+        self.assertTrue(a["provenance"]["upstream_model_dependent"])
+        req = self._req(
+            "onehop#req", {"a": a, "b": _filled("b", "p2", "t2", method="deterministic_mapping")}
+        )
+        self.assertEqual(req["state"], "filled")
+        self.assertFalse(se.compute_stop_search_certified(req))
+
+    # 3. model_mapping parent -> parent_context -> parent_context grandchild -> STILL provisional
+    def test_two_hop_propagation_remains_provisional(self):
+        hop1 = self._propagated("model_mapping")
+        hop2_provenance = sm._propagated_provenance("grandchild#req", hop1)
+        self.assertTrue(hop2_provenance["upstream_model_dependent"])
+        self.assertEqual(hop2_provenance["source_lineage"], ["model_mapping", "parent_context", "parent_context"])
+        a = se.new_role_binding("a", state="filled", proposition_id="p1", exact_text="t", provenance=hop2_provenance)
+        req = self._req(
+            "twohop#req", {"a": a, "b": _filled("b", "p2", "t2", method="deterministic_mapping")}
+        )
+        self.assertFalse(se.compute_stop_search_certified(req))
+
+    # 4. fully deterministic parent_context ancestry -> can certify normally
+    def test_fully_deterministic_ancestry_can_certify(self):
+        a = self._propagated("deterministic_mapping")
+        self.assertFalse(a["provenance"]["upstream_model_dependent"])
+        req = self._req(
+            "cleanancestry#req", {"a": a, "b": _filled("b", "p2", "t2", method="deterministic_mapping")}
+        )
+        self.assertEqual(req["state"], "filled")
+        self.assertTrue(se.compute_stop_search_certified(req))
+
+    # 5. mixed deterministic/model ancestry remains provisional whenever the model-dependent
+    # inherited binding is completion-critical (required)
+    def test_mixed_ancestry_stays_provisional_when_the_model_dependent_role_is_required(self):
+        a = self._propagated("model_mapping")  # required role, model-dependent via propagation
+        b = _filled("b", "p2", "t2", method="deterministic_mapping")  # required, clean
+        req = self._req("mixedreq#req", {"a": a, "b": b}, required=("a", "b"))
+        self.assertFalse(se.compute_stop_search_certified(req))
+
+    # 6. optional inherited model-dependent binding does not taint deterministic completion
+    def test_optional_propagated_model_dependent_binding_does_not_taint(self):
+        a = _filled("a", "p1", "t", method="deterministic_mapping")  # the ONLY required role
+        b = self._propagated("model_mapping")  # optional -- excluded from completion_roles
+        specs = {"a": se.new_role_spec("a", "a", "model_nomination_only"), "b": se.new_role_spec("b", "b", "model_nomination_only")}
+        completion = se.new_role_completion(required_roles=["a"], optional_roles=["b"])
+        req = se.new_requirement("optprop#req", "atomic", specs, completion, "exists")
+        inst = se.new_instance()
+        inst["role_bindings"] = {"a": a, "b": b}
+        req["instances"] = [inst]
+        req = se.recompute_requirement(req)
+        self.assertEqual(req["state"], "filled")
+        self.assertTrue(se.compute_stop_search_certified(req))
+
+    # 7. immediate candidate_source remains parent_context where appropriate
+    def test_immediate_candidate_source_is_always_parent_context_regardless_of_ancestry(self):
+        for source in ("model_mapping", "deterministic_mapping"):
+            with self.subTest(source=source):
+                provenance = sm._propagated_provenance("p#req", {"provenance": {"candidate_source": source}})
+                self.assertEqual(provenance["candidate_source"], "parent_context")
+
+    # 8. structured ancestry survives serialization/copying/recomputation
+    def test_structured_ancestry_survives_deepcopy_and_recomputation(self):
+        a = self._propagated("model_mapping")
+        req = self._req(
+            "survive#req", {"a": a, "b": _filled("b", "p2", "t2", method="deterministic_mapping")}
+        )
+        copied = copy.deepcopy(req)
+        recomputed = se.recompute_requirement(copied)
+        binding = recomputed["instances"][0]["role_bindings"]["a"]
+        self.assertTrue(binding["provenance"]["upstream_model_dependent"])
+        self.assertEqual(binding["provenance"]["source_lineage"], ["model_mapping", "parent_context"])
+        self.assertFalse(se.compute_stop_search_certified(recomputed))
+
+    # 9. no free-text detail parsing is required
+    def test_certification_is_unaffected_by_corrupting_the_detail_string(self):
+        """Mangling `detail` arbitrarily must never change the certification answer -- proves the
+        check genuinely reads only the structured fields, never `detail`'s free text."""
+        a = self._propagated("model_mapping")
+        a["provenance"]["detail"] = "XXX totally mangled, unparseable, not even English XXX"
+        req = self._req(
+            "detailcorrupt#req", {"a": a, "b": _filled("b", "p2", "t2", method="deterministic_mapping")}
+        )
+        self.assertFalse(se.compute_stop_search_certified(req))  # unchanged: still correctly provisional
+        import inspect
+
+        source = inspect.getsource(se._instance_completion_is_model_dependent)
+        self.assertNotIn('"detail"', source)
+        self.assertNotIn("['detail']", source)
+
+    # 10. frozen contract hash remains unchanged
+    def test_propagated_provenance_never_affects_the_frozen_contract_hash(self):
+        a = self._propagated("model_mapping")
+        contract = se.new_contract(
+            "h", [self._req("h#req", {"a": a, "b": _filled("b", "p2", "t2", method="deterministic_mapping")})]
+        )
+        before = se.contract_hash(contract)
+        se.compute_stop_search_certified(contract["requirements"][0])
+        after = se.contract_hash(contract)
+        self.assertEqual(before, after)
+
+    def test_phase10_c8_to_c9_shape_previously_unsafe_now_provisional(self):
+        """Exact reproduction of Phase 10's own synthetic c8->c9 audit (PHASE10_LIVE_SINGLE_STAGE_
+        DIAGNOSTIC_RESULTS.md): before this fix, this EXACT shape returned
+        compute_stop_search_certified == True (a false certification); confirms it is now False."""
+        parent_specs = {"trait": se.new_role_spec("trait", "trait", "model_nomination_only")}
+        parent_completion = se.new_role_completion(required_roles=["trait"])
+        parent_req = se.new_requirement("p8#req", "atomic", parent_specs, parent_completion, "exists")
+        parent_inst = se.new_instance()
+        parent_inst["role_bindings"]["trait"] = se.new_role_binding(
+            "trait", state="filled", proposition_id="p9", exact_text="just-world beliefs",
+            provenance={"candidate_source": "model_mapping", "detail": "model_nomination_only", "model": "qwen3.5:9b"},
+        )
+        parent_req["instances"] = [parent_inst]
+        parent_req = se.recompute_requirement(parent_req)
+
+        propagated = sm._parent_context_binding_for_single_instance({"parent_context_roles": ["trait"]}, parent_req)
+
+        child_specs = {
+            "trait": se.new_role_spec("trait", "trait", "model_nomination_only"),
+            "scale": se.new_role_spec("scale", "scale", "named_instrument_lexicon"),
+        }
+        child_completion = se.new_role_completion(required_roles=["trait", "scale"])
+        child_req = se.new_requirement("c9#req", "relational", child_specs, child_completion, "exists")
+        child_inst = se.new_instance()
+        child_inst["role_bindings"]["trait"] = propagated["trait"]
+        child_inst["role_bindings"]["scale"] = se.new_role_binding(
+            "scale", state="filled", proposition_id="p99", exact_text="Some Named Scale",
+            provenance={"candidate_source": "deterministic_mapping", "detail": "named_instrument_lexicon", "model": None},
+        )
+        child_req["instances"] = [child_inst]
+        child_req = se.recompute_requirement(child_req)
+
+        self.assertEqual(child_req["state"], "filled")
+        self.assertTrue(child_req["instances"][0]["complete"])
+        self.assertFalse(se.compute_stop_search_certified(child_req))  # was True before this phase's fix
 
 
 # ---------------------------------------------------------------------------------------------

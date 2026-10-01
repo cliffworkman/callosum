@@ -346,3 +346,52 @@ completion occurs. Per the pre-registered rule, recommended **READY FOR A BOUNDE
 RECOVERY** — two independent sufficient reasons: the mapper's own regressed precision, and the
 confirmed provenance gap. No code was changed and no fix was applied in this phase. Recovery was
 not enabled or run.
+
+---
+
+## Phase 11 — rollback to the strongest mapper, transitive provenance repair, recovery-targeting audit (appended 2026-10-01; does not alter the rows above)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-10-01 | Evidence | Phase 10 live diagnostic |
+| 2026-10-01 | Disposition / refinement | Cliff Workman + ChatGPT |
+| 2026-10-01 | Implementation / audit | Claude |
+
+**Evidence (Phase 10 live diagnostic).** The minimal-referent reformulation improved one mapping
+shape but sharply reduced overall precision, failed to resolve the original circular false fill,
+introduced new semantic substitutions, and confirmed loss of transitive model-dependence through
+`parent_context`.
+
+**Disposition / refinement (Cliff Workman + ChatGPT).** Rejected further nomination-prompt
+tuning, selected rollback to the empirically strongest Phase 5 v9 mapper (restored from git
+history, never reconstructed from memory), retained provenance-aware provisional stop-search as
+the safety mechanism while repairing its transitive gap, and identified meaningful recovery
+targeting for provisional fills as the remaining prerequisite to recovery experimentation —
+explicitly instructing the targeting question be audited, not implemented, unless the fix proved
+purely mechanical.
+
+**Implementation / audit (Claude).** Restored `qwen.nomination_prompt` byte-for-byte to the exact
+text at commit `f7be3175` (Phase 5's own commit), verified by direct function-output comparison
+(not just source diff). Added `sufficiency_mapping._propagated_provenance` — a single shared
+helper (de-duplicating two previously-identical inline constructions) that preserves
+`candidate_source="parent_context"` as the immediate, never-overloaded source identity while
+adding structured `upstream_model_dependent`/`source_lineage` fields that survive arbitrary
+propagation depth without ever parsing `provenance["detail"]`'s free text. Updated
+`sufficiency_engine._instance_completion_is_model_dependent` to consult the new structured field
+alongside the existing immediate-source check. Reproduced Phase 10's own synthetic c8→c9 shape and
+confirmed `compute_stop_search_certified` now correctly returns `False` where it previously,
+incorrectly, returned `True`. Added 11 adversarial tests covering direct/one-hop/two-hop
+propagation, fully-deterministic ancestry, mixed required/optional roles, hash-independence, and
+an explicit proof the certification path never reads `detail`'s free text. **Audited (code-traced,
+not inferred) the full recovery-targeting path** from `compute_recovery_needed` through actual
+query construction (`qwen.recovery_query(subquestion=..., obligation_note=gap.get("display") or
+gap.get("note", ""))`) and found `sufficiency_mapping.recovery_hint` has **zero production call
+sites** — sufficiency-driven recovery gating operates entirely at child granularity (any
+requirement needing recovery triggers that whole child's pre-existing, sufficiency-blind
+obligation note), with no role-level targeting and no redirection to an upstream parent child even
+when a child's entire provisionality is inherited. Classified this **REDESIGN NEEDED** — the
+existing gap representation has no slot for "which role," "direct or transitive," or "which child
+truly needs corroboration," which are semantic design choices, not mechanical plumbing — and
+reported rather than implemented a fix, per instruction. v9 remains byte-identical throughout
+(hash unchanged); no live model call was made in this phase; recovery was not enabled or run. Full
+detail in `PHASE11_ROLLBACK_AND_PROVENANCE_REPAIR_RESULTS.md`.
