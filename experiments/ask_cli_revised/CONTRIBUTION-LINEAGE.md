@@ -541,3 +541,97 @@ Recommended next step: B (mechanically valid, query/retrieval targeting refineme
 noted, not validated). No second target, no broader run. v9 `combined_hash` unchanged:
 `9c72dc6a0180e95c55e68a009c366843b671684c19c6ae84ed254f3865305586`. Full detail in
 `PHASE13_C4_LIVE_RECOVERY_EXPERIMENT_RESULTS.md`.
+
+---
+
+## Phase 14 — post-recovery semantic-consumption audit and design (appended 2026-10-01; does not alter the rows above)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-10-01 | Scope: audit the actual production call graph, design the consumption architecture | Cliff Workman |
+| 2026-10-01 | Call-graph trace, architecture comparison, design document | Claude |
+
+**Scope (Cliff Workman).** Asked whether/how recovery evidence can reach model-assisted roles,
+and to design (not build or run) the architecture that would close that loop, strictly bounded to
+audit + design: no live model call, no retrieval, no contract change, no pin re-freeze.
+
+**Call-graph trace, architecture comparison, design document (Claude).** Traced every call site
+(grep, not inference) and found a materially larger fact than the question's own framing assumed:
+production `e2e.py`/`__main__.py` perform **zero** model-assisted sufficiency nomination at any
+point — initial pass or post-recovery, with or without recovery. Compared three consumption
+architectures against the real mapper code: no remap (today's status quo, leaves
+`provisional_corroboration` targets permanently unresolved in-run), broad remap (costly,
+unattributable — re-attempts every `model_nomination_only` role hierarchy-wide), and
+target-scoped remap (recommended — a role-scoped model-client wrapper that forwards only the
+target role's exact `category_description` and declines elsewhere, exploiting the fact that every
+`model_nomination_only` role already gets a deterministic-or-model attempt independent of whether
+a client is supplied). Confirmed the confirmation-bias guarantee the design needed is already
+structurally true (`qwen.nomination_prompt` has no slot for a prior answer). Designed the
+re-mapping semantics (input map, outcome handling for all five possible nomination results,
+provenance as a caller-level snapshot diff, confirmed post-recovery bindings remain provisional
+with zero code change) and the smallest next live experiment (one role-scoped nomination call for
+c4's `named_brain_region_or_network`), verifying the proposed string-based scoping is safe for
+that one case (category-description globally unique in frozen v9) while recommending a robust
+`(child_id, requirement_id, role)`-based scoping for any future, more general use. No
+implementation, live call, or retrieval performed; v9 unchanged. Full detail in the Plan Mode
+record presented and approved before Phase 15's own implementation began.
+
+---
+
+## Phase 15 — one live, target-scoped semantic-consumption experiment (appended 2026-10-01; does not alter the rows above)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-10-01 | Required refinement over Phase 14's sketch; stop-condition review; proceed decision | Cliff Workman |
+| 2026-10-01 | Hybrid control/experimental harness, offline preflight, live execution, result analysis | Claude |
+
+**Required refinement, stop-condition review, proceed decision (Cliff Workman).** Required a
+CONTROL-map-vs-EXPERIMENTAL-map design (both over the identical post-recovery ledger, every
+non-target role held fixed to Phase 5's own recorded history) in place of Phase 14's simpler
+deterministic-vs-with-model sketch, to avoid re-creating Phase 13's own comparability problem.
+Specified a pre-registered falsification taxonomy (five mechanical outcomes, none ranked), an
+explicit candidate-visibility gate, and a named stop condition (Section C: if the control map
+shows unrelated semantic drift from the replay/control mechanism itself, stop before the live
+call). When that condition genuinely fired during the offline preflight, reviewed the specific
+finding presented and made the explicit decision to proceed, rather than the decision being
+assumed or defaulted.
+
+**Hybrid harness, offline preflight, live execution, result analysis (Claude).** Built
+`phase15_c4_semantic_consumption_experiment.py`, replicating
+`compute_diagnostic_sufficiency_map`'s own per-child topological loop (production code
+unmodified) to compose a per-child-scoped client — something that function's single shared
+`model_client` parameter cannot express. Ran the full offline preflight (50/50 gates): confirmed
+the recovered RTPJ evidence (p27) is visible in c4's target candidate pool; dry-ran the full
+build with a non-live stand-in, proving mechanically that exactly one call-site would go live;
+and found a **real, confirmed** instance of the brief's own named stop condition — the mandatory
+C2 re-sealing call (needed to seal the new evidence into one ledger) has a genuine, confirmed
+side effect on unrelated propositions' `responsive_obligation_ids`, drifting c5/c6/c12's
+`direction`/`effectiveness` fields relative to the Phase-5 baseline. Verified this drift is
+confined to those two fields (never requirement state or role bindings) and is structurally
+identical between the CONTROL and EXPERIMENTAL maps, so it does not contaminate the actual
+comparison — but per the brief's own literal instruction, stopped and presented the finding
+rather than deciding unilaterally to proceed or abort. After Cliff's explicit decision to
+proceed, executed the one authorized live call (`qwen3.5:9b`, `think=False`, isolated endpoint,
+44.1s). Result: **Outcome 4, multiple bindings** — the model recognized the newly recovered RTPJ
+passage as an independently specific named brain area distinct from the pre-existing amygdala
+finding, and the existing, unmodified instance-forking mechanism (`_fork_instances_over_role`)
+surfaced both as separate grounded candidates rather than the model simply re-affirming or
+discarding either. c6 inherited the new region via the existing, unmodified single-instance
+parent-context fallback with zero new code, exactly as predicted. **Found and fixed a real bug in
+its own reporting code while writing up the result** (not a bug in the underlying computation):
+the harness's first draft hard-coded the "expected to change" exclusion set as `{c4, c6}` when
+checking for unrelated isolation failures, which flagged `c5` as a false "isolation failure" —
+investigation (purely offline, replaying the already-recorded live result, no second live call)
+found c5 shares c6's exact structural relationship to c4 (both declare
+`parent_context_roles=["named_brain_region_or_network"]` with `parent_of` pointing at c4) and is
+therefore *also* legitimately expected to change, exactly mirroring c6's own change — not a new
+drift class. Fixed to derive the exclusion set structurally from the contract itself; re-verified
+offline that with the fix, the true unrelated-isolation-failure set is empty (c1/c2/c3/c8/c9/c10/
+c11/c12 all byte-identical between CONTROL and EXPERIMENTAL). Both open questions (Section N)
+answered separately: semantic-consumption mechanism **YES** (validated end to end on a real,
+non-trivial case); scientific effect **Outcome 4** (reported as a mechanical fact, not ranked
+good or bad). Existing sufficiency test suites (129 tests) pass unchanged; zero production code
+touched; v9 `combined_hash` unchanged:
+`9c72dc6a0180e95c55e68a009c366843b671684c19c6ae84ed254f3865305586`. No second live call, no
+recovery search, no contract or pin re-freeze. Full detail in
+`PHASE15_C4_SEMANTIC_CONSUMPTION_RESULTS.md`.

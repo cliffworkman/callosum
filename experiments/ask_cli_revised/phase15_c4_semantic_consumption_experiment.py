@@ -420,6 +420,27 @@ def build_control_map(sealed: dict, contract_by_child: dict, parent_of: dict) ->
 # ---------------------------------------------------------------------------------------------
 
 
+def _target_and_descendants(contract_by_child: dict, parent_of: dict) -> set[str]:
+    """TARGET_CHILD plus every child whose requirement declares TARGET_ROLE among its own
+    `parent_context_roles` AND whose hierarchy parent is TARGET_CHILD -- i.e. every child that
+    structurally INHERITS c4's own target-role binding, not just the one (c6) the brief names by
+    example. A real, confirmed finding from the live run: c5 shares this exact relationship with
+    c6 (both declare `parent_context_roles=["named_brain_region_or_network"]` with `parent_of`
+    pointing at c4) and is therefore expected to change too -- its top-level requirement `state`/
+    `reason` stayed identical (c5's OTHER required role is independently missing either way), but
+    its inherited region binding's `exact_text`/`proposition_id`/`provenance` legitimately
+    changed from the amygdala to the RTPJ, exactly mirroring c6's own change. Treating only
+    {TARGET_CHILD, "c6"} as expected-to-change (this module's own first draft) was an incomplete,
+    hard-coded assumption, not a fact about the architecture -- fixed to derive the set
+    structurally instead."""
+    expected = {TARGET_CHILD}
+    for child_id, contract in contract_by_child.items():
+        for req in contract["requirements"]:
+            if TARGET_ROLE in (req.get("parent_context_roles") or []) and parent_of.get(child_id) == TARGET_CHILD:
+                expected.add(child_id)
+    return expected
+
+
 def target_candidate_pool(sealed: dict, contract_by_child: dict) -> list[dict]:
     """The exact candidate units `nominate_with_model` would offer for TARGET_CHILD/TARGET_ROLE
     over the CURRENT (post-recovery) ledger -- proposition_id, passage text, admissibility, and
@@ -637,11 +658,15 @@ def run_live(state: dict, out_dir: Path) -> dict:
         log["live_call"] = live_rows[0]
         log["all_calls"] = exp_calls
         log["experimental_map_c4"] = experimental_map["c4"]
+        log["experimental_map_c5"] = experimental_map["c5"]
         log["experimental_map_c6"] = experimental_map["c6"]
+        log["control_map_c5"] = state["control_map"]["c5"]
 
+        expected_to_change = _target_and_descendants(state["contract_by_child"], state["parent_of"])
+        log["expected_to_change"] = sorted(expected_to_change)
         drift = []
         for child_id in sorted(set(experimental_map) | set(state["control_map"])):
-            if child_id in ("c4", "c6"):
+            if child_id in expected_to_change:
                 continue
             if experimental_map.get(child_id) != state["control_map"].get(child_id):
                 drift.append(child_id)
