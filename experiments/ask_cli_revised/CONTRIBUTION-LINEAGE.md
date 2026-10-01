@@ -125,3 +125,49 @@ behavior attempt now correctly declines EBQ and c5 honestly reverts to `partiall
 new, different nomination weakness was found in c2 (a circular/self-referential match, not a
 repeat of either original error), informing a **NOT READY** recommendation for
 sufficiency-directed recovery experimentation. Recovery was not enabled or run.
+
+---
+
+## Phase 6 — generic specific-instance confirmation gate (appended 2026-09-30; does not alter the rows above)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-09-30 | Evidence / critique | Phase 5 live rerun |
+| 2026-09-30 | Disposition / refinement | Cliff Workman |
+| 2026-09-30 | Implementation | Claude |
+
+**Evidence / critique (Phase 5 live rerun).** The second live replay found a new, different
+nomination weakness: c2's `behavior_or_behavioral_measure` role accepted a vague, self-referential
+nomination ("described a behavioral manifestation of the 'anomalous-is-bad' stereotype affecting
+prosociality") that restates an already-established manifestation fact rather than independently
+naming a specific behavior or measure — flipping c2 from the honest `partially_filled` to a false
+`filled` state built on weak grounding.
+
+**Disposition / refinement (Cliff Workman).** Diagnosed this as a generic category-boundary
+problem distinct from Phase 3's wording-tightening approach — not "which category does this
+belong to" but "does this nomination name a SPECIFIC instance at all, as opposed to merely
+asserting one exists" — and specified a bounded, generic fix: a second, VETO-ONLY nomination key
+(specific-instance confirmation) that can only drop a candidate the first key already produced,
+never create, modify, or broaden one. Required a host-generated closed `candidate_id` enum (never
+a `proposition_id`, so the validator cannot rename proposition identity), explicit fail-closed
+rules for every malformed/omitted/ungrounded decision, preservation of the original nomination's
+own provenance alongside new validation provenance, no contract version change, and an offline
+replay of Phase 5's own already-completed manual adjudication (never a new judgment call) before
+any further live diagnostic.
+
+**Implementation (Claude).** Implemented `qwen.specificity_prompt`/`specificity_schema`/
+`QwenTasks.verify_specific_instances` and `sufficiency_mapping.confirm_specific_instances` (the
+second key), wired into `_bind_role_candidates` between nomination and binding. Added 21 synthetic
+tests across four benchmark-neutral domains (behavior, population, intervention, neural
+region/modality) plus nine mechanical fail-closed/scope-boundary proofs, and a new
+`sufficiency_phase5_replay.py` module that replays Phase 5's own recorded v9 outputs through a
+validator scripted to Cliff's own frozen adjudication table — vetoing exactly the one nomination
+judged "Incorrect — Vague/circular," approving every other nomination Phase 5 actually produced.
+**Result (no live model call):** c2 drops from Phase 5's false `filled`/3-instances to the honest
+`partially_filled`/2-instances; the two surviving instances are the genuine "visual attention"
+findings, which legitimately fail the pre-existing `same_proposition` joint-grounding check
+against a different proposition than the manifestation-evidence role's own — confirming the
+state change is architecturally correct, not merely the gate suppressing a role. Every other
+child/requirement (c1, c3, c4, c5, c6 ×2, c8, c9, c10, c11, c12) matches Phase 5's own live v9
+result exactly. Extended the leakage suite with `SpecificityPromptLeakageTests` (3 tests) over the
+new prompt. v9 remains byte-identical throughout (hash unchanged); no live diagnostic was run.
