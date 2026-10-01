@@ -561,6 +561,43 @@ def complete_instance_count(requirement: dict) -> int:
 
 
 # ---------------------------------------------------------------------------------------------
+# Parent-instance eligibility (Phase 16) -- the ONE shared primitive deciding whether a parent
+# requirement's own instance may supply trusted `parent_context` to a descendant. Found necessary
+# by a real adversarial case (Phase 15's c4 recovery result): positional selection
+# (`instances[0]`) let an INCOMPLETE, newly-nominated instance displace an already-COMPLETE one
+# downstream, purely from raw model list order. `recompute_instance`'s own documented rationale
+# for exempting `parent_context` bindings from joint-grounding is that such a binding is "already
+# semantically established" -- which cannot be true of an instance the parent's OWN completion
+# rule has not yet certified `complete`. Used identically by every parent-context consumer
+# (`sufficiency_mapping.map_paired_requirement`, `sufficiency_recovery_targets.
+# _first_instance_targets`) so the mapper and the RecoveryTarget layer can never disagree about
+# whether a usable parent exists.
+# ---------------------------------------------------------------------------------------------
+
+
+def eligible_parent_instances(parent_requirement: dict, parent_role: str) -> list[dict]:
+    """The subset of `parent_requirement["instances"]` eligible to supply trusted `parent_context`
+    for `parent_role`: the requested role's own binding must be `state=="filled"` AND the
+    supplying instance itself must be `complete`. Deliberately NOT the same question as
+    `compute_stop_search_certified` -- a `complete` instance whose completion is model-dependent
+    (`candidate_source=="model_mapping"`, directly or via an already-propagated
+    `upstream_model_dependent` hop) remains eligible; its model-dependence is a provenance fact
+    the caller carries forward (`_propagated_provenance`'s own `upstream_model_dependent`/
+    `source_lineage`/`model_dependency_origins`), never a reason to withhold eligibility here.
+
+    Returned sorted by `instance_key` (never raw list/positional order) -- stable for serialized
+    output, but not itself load-bearing: the eligible SET is already order-independent by
+    construction (a pure per-instance filter with no cross-instance state), so every caller's own
+    semantic result is guaranteed invariant to how `parent_requirement["instances"]` was ordered."""
+    eligible = [
+        instance
+        for instance in parent_requirement["instances"]
+        if instance.get("complete") and instance["role_bindings"].get(parent_role, {}).get("state") == "filled"
+    ]
+    return sorted(eligible, key=lambda instance: instance["instance_key"] or "")
+
+
+# ---------------------------------------------------------------------------------------------
 # Stop-search authority -- a SEPARATE axis from semantic `state` (Phase 9, Phase 8 Option F).
 #
 # `state == "filled"` answers "is there enough evidence to construct an answer". It does NOT, by

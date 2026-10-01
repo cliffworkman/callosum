@@ -351,12 +351,7 @@ def build_multi_instances(candidate_units: list[dict]) -> list[dict]:
 
 
 def _fork_instances_over_role(
-    forks: list[dict],
-    role: str,
-    spec: dict,
-    units_here: list[dict],
-    parent_context_bindings: dict,
-    model_client,
+    forks: list[dict], role: str, spec: dict, units_here: list[dict], model_client
 ) -> list[dict]:
     """Extends each of `forks` (a list of in-progress `Instance` dicts, initially length 1) with a
     binding for `role`. When `_bind_role_candidates` returns MORE THAN ONE grounded candidate for
@@ -369,16 +364,16 @@ def _fork_instances_over_role(
     a shared ancestor can reach the same local index with different content). The caller
     (`map_requirement`/`map_paired_requirement`) re-derives a content-based key, once, only after
     ALL roles have been processed for an original instance -- see `sufficiency_engine.
-    derive_instance_key`. Own evidence is always tried before falling back to
-    `parent_context_bindings` (context, not proof -- unchanged from before this function existed)."""
+    derive_instance_key`.
+
+    Phase 16: the `parent_context_bindings` fallback this function used to offer was retired --
+    own-evidence-vs-parent-context dispatch for the ONE role that can legitimately inherit a
+    parent value now happens once, at a higher level, in `map_paired_requirement` itself (never
+    once per non-parent-context role, which never had anything to fall back to anyway). A role
+    with zero candidates here is simply `missing`."""
     next_forks: list[dict] = []
     for forked in forks:
         candidates = _bind_role_candidates(spec, units_here, model_client=model_client)
-        if not candidates and role in parent_context_bindings:
-            next_forks.append(
-                {**forked, "role_bindings": {**forked["role_bindings"], role: parent_context_bindings[role]}}
-            )
-            continue
         if not candidates:
             missing = se.new_role_binding(role, state="missing", reason="not_found")
             next_forks.append({**forked, "role_bindings": {**forked["role_bindings"], role: missing}})
@@ -406,24 +401,20 @@ def map_requirement(
     requirement: dict,
     candidate_units: list[dict],
     *,
-    parent_context_bindings: dict | None = None,
     model_client=None,
 ) -> dict:
-    """Mapping for one requirement: deterministic-first, with model-assisted nomination attempted
-    for any still-unfilled `model_nomination_only` role ONLY when `model_client` is explicitly
-    supplied (every existing caller omits it, so behavior is unchanged for them -- see
+    """Mapping for one requirement with NO parent context (see `map_paired_requirement` for that
+    shape -- Phase 16 retired this function's own former `parent_context_bindings` fallback,
+    which only one caller ever supplied). Deterministic-first, with model-assisted nomination
+    attempted for any still-unfilled `model_nomination_only` role ONLY when `model_client` is
+    explicitly supplied (every existing caller omits it, so behavior is unchanged for them -- see
     `_fork_instances_over_role`'s own docstring for the forking mechanics this introduces).
     `candidate_units` are already filtered by the caller to units attached to this requirement's
-    own child (never another child's, never a hidden benchmark list). `parent_context_bindings`:
-    optional `{role: RoleBinding}` for roles declared in `parent_context_roles`, pre-seeded from a
-    parent's own completed instance -- this can supply candidate CONTEXT but role-completion still
-    requires the requirement's OTHER role(s) to come from this child's own evidence (parent
-    inheritance is context, not proof).
+    own child (never another child's, never a hidden benchmark list).
 
     Returns a NEW requirement dict with `instances` populated and `state`/`reason` recomputed.
     """
     role_specs = requirement["role_specs"]
-    parent_context_bindings = parent_context_bindings or {}
 
     if requirement["multi_instance"]:
         instances = build_multi_instances(candidate_units)
@@ -438,7 +429,7 @@ def map_requirement(
         units_here = units_by_instance.get(root_key, candidate_units)
         forks = [instance]
         for role, spec in role_specs.items():
-            forks = _fork_instances_over_role(forks, role, spec, units_here, parent_context_bindings, model_client)
+            forks = _fork_instances_over_role(forks, role, spec, units_here, model_client)
         all_instances.extend(_rederive_keys_if_forked(forks, root_key))
 
     new_requirement = {**requirement, "instances": all_instances}
@@ -526,61 +517,104 @@ def _propagated_provenance(parent_requirement_id: str, source_binding: dict) -> 
 def map_paired_requirement(
     requirement: dict, parent_requirement: dict, candidate_units: list[dict], *, model_client=None
 ) -> dict:
-    """For a `for_each_discovered_instance` requirement whose identifying role is declared in
-    `parent_context_roles` (paired against a PARENT requirement's own discovered instances --
-    e.g. a scale-per-trait pairing scoped to exactly the traits a parent has *currently*
-    discovered, never "all conceivable traits"): one instance per parent instance whose own
-    parent-context role is filled. Parent inheritance is CONTEXT, not proof -- the paired
-    role(s) must still come from this requirement's own candidate units.
+    """The SOLE parent-context instance-generation path (Phase 16) -- used for EVERY quantifier a
+    `parent_context_roles` requirement declares, `exists` (e.g. c4->c5/c6's region inheritance)
+    and `for_each_discovered_instance` (e.g. c8->c9's trait<->scale pairing) alike. Quantifier-
+    specific aggregation is untouched and unconsulted here: `se.recompute_requirement` already
+    dispatches on `requirement["instance_quantifier"]` generically, so this function only ever
+    needs to produce the right SET of instances; `exists` then needs one of them complete, `for_
+    each_discovered_instance` needs all of them. `multi_instance` is never consulted either --
+    exactly Phase 12's own established rule: runtime multiplicity follows what's actually eligible
+    to pair against, never a declared flag.
+
+    Own-evidence-first (Phase 16): for an `exists`-shaped (or any non-`for_each_discovered_
+    instance`) parent-context requirement, this child's OWN evidence is tried for the parent-
+    context role itself FIRST, exactly as `_fork_instances_over_role` already does for every
+    OTHER role -- own evidence always wins when it exists. If it does, the parent is never
+    consulted at all for this role (no per-eligible-parent duplication merely because eligible
+    parents happen to exist); if it is empty, the parent IS consulted, but only its ELIGIBLE
+    instances (`se.eligible_parent_instances` -- role filled AND `instance.complete`; never
+    `instances[0]`, never list order -- see the Phase-15 adversarial finding this closes).
+
+    `for_each_discovered_instance` NEVER tries own evidence for the parent-context role (found
+    necessary empirically, not assumed -- see the Phase-16 regression this surfaced against real
+    c8/c9 and Phase 2/5/9 replay fixtures): that quantifier's own semantics is "mirror exactly
+    what the parent discovered," which is incompatible with the child ALSO independently
+    re-discovering the identical role from its own evidence -- c9's own `sufficiency_authoring.py`
+    comment is explicit that it "does not ask again which traits relate to the bias", a deliberate,
+    pre-Phase-16 design commitment this preserves rather than overrides. A role-name collision
+    between a child's own candidate pool and its parent's is common (shared units), so this is not
+    a hypothetical: naively trying own-evidence here would silently swap a parent-context
+    inheritance for an independent (and untested-by-replay) re-discovery.
+
+    Zero eligible parents and empty/skipped own evidence together mean the role stays unresolved
+    -- but what that produces differs by shape, matching each quantifier's own pre-existing
+    contract exactly (found necessary by a real regression against the Phase-15 harness, not
+    assumed): `for_each_discovered_instance` means "one instance per discovered/eligible parent",
+    so zero eligible correctly means zero instances (`test_no_parent_discovered_instances_means_
+    no_child_instances` already locks this in). Every OTHER shape (e.g. `exists`) is a SINGLE
+    overall instance whose roles are evaluated independently -- the historical single-instance
+    fallback mapper (`map_requirement`, which this function replaces for parent-context
+    requirements) always built exactly one base instance regardless of whether the parent-context
+    role resolved, so this requirement's OTHER role(s) still get a genuine chance against this
+    child's own evidence. Returning zero instances here instead would silently also skip testing
+    those OTHER roles -- not a cosmetic difference, a real evidence-blind gap -- so exactly one
+    base instance (parent role `missing`) is built instead, never omitted.
 
     `parent_requirement` is read as the caller (`compute_diagnostic_sufficiency_map`) last
     computed it -- when the SAME `model_client` was supplied for the parent's own mapping pass
     (the caller's topological ordering guarantees the parent is mapped first), a trait the
-    deterministic pass alone could never fill but a model nomination did is a `filled` parent
-    instance here exactly like any other, so pairing against it just works: no separate
-    propagation step exists or is needed."""
+    deterministic pass alone could never fill but a model nomination did is a `filled`, possibly-
+    `complete` parent instance here exactly like any other, so pairing against it just works: no
+    separate propagation step exists or is needed. A parent instance's OWN model-dependence is a
+    SEPARATE axis from its eligibility (`instance.complete` never implies `compute_stop_search_
+    certified`) -- it propagates forward unchanged via `_propagated_provenance`."""
     parent_role = requirement["parent_context_roles"][0]
     other_roles = [r for r in requirement["role_specs"] if r != parent_role]
-    instances = []
-    for parent_instance in parent_requirement["instances"]:
-        parent_binding = parent_instance["role_bindings"].get(parent_role)
-        if not parent_binding or parent_binding.get("state") != "filled":
-            continue  # nothing to pair against yet -- not yet discovered by the parent
-        root_key = parent_instance["instance_key"]
-        instance = se.new_instance(root_key)
-        # Re-stamped, never passed through verbatim: from THIS requirement's own perspective the
-        # role is parent-context, regardless of how the parent itself originally established it
-        # (deterministically, or via model nomination) -- this is what exempts it from the
-        # joint-grounding check below (a parent-context role can never share a proposition with
-        # anything this child retrieves, by construction) while still recording, for full
-        # transparency, exactly how the parent arrived at it.
-        instance["role_bindings"][parent_role] = {
-            **parent_binding,
-            "provenance": _propagated_provenance(parent_requirement["id"], parent_binding),
-        }
-        forks = [instance]
+    parent_role_spec = requirement["role_specs"][parent_role]
+    is_for_each = requirement["instance_quantifier"] == "for_each_discovered_instance"
+
+    def _forked_over_other_roles(base_instances: list[dict], root_key: str | None) -> list[dict]:
+        forks = base_instances
         for role in other_roles:
             forks = _fork_instances_over_role(
-                forks, role, requirement["role_specs"][role], candidate_units, {}, model_client
+                forks, role, requirement["role_specs"][role], candidate_units, model_client
             )
-        instances.extend(_rederive_keys_if_forked(forks, root_key))
+        return _rederive_keys_if_forked(forks, root_key)
+
+    own_candidates = (
+        [] if is_for_each else _bind_role_candidates(parent_role_spec, candidate_units, model_client=model_client)
+    )
+    if own_candidates:
+        base_instances = [{**se.new_instance(), "role_bindings": {parent_role: c}} for c in own_candidates]
+        instances = _forked_over_other_roles(base_instances, None)
+    else:
+        eligible = se.eligible_parent_instances(parent_requirement, parent_role)
+        if not eligible and not is_for_each:
+            missing_binding = se.new_role_binding(parent_role, state="missing", reason="not_found")
+            instances = _forked_over_other_roles(
+                [{**se.new_instance(), "role_bindings": {parent_role: missing_binding}}], None
+            )
+        else:
+            instances = []
+            for parent_instance in eligible:
+                root_key = parent_instance["instance_key"]
+                parent_binding = parent_instance["role_bindings"][parent_role]
+                instance = se.new_instance(root_key)
+                # Re-stamped, never passed through verbatim: from THIS requirement's own
+                # perspective the role is parent-context, regardless of how the parent itself
+                # originally established it (deterministically, or via model nomination) -- this
+                # is what exempts it from the joint-grounding check below (a parent-context role
+                # can never share a proposition with anything this child retrieves, by
+                # construction) while still recording, for full transparency, exactly how the
+                # parent arrived at it.
+                instance["role_bindings"][parent_role] = {
+                    **parent_binding,
+                    "provenance": _propagated_provenance(parent_requirement["id"], parent_binding),
+                }
+                instances.extend(_forked_over_other_roles([instance], root_key))
     new_requirement = {**requirement, "instances": instances}
     return se.recompute_requirement(new_requirement)
-
-
-def _parent_context_binding_for_single_instance(requirement: dict, parent_requirement: dict) -> dict:
-    """For a requirement that is NOT `for_each_discovered_instance` (a single instance overall,
-    e.g. c5/c6's own relational pairing with a region inherited from c4): the parent's own
-    (also single, non-multi-instance) role binding, re-stamped `parent_context`, offered as a
-    FALLBACK candidate only -- `map_requirement` tries this child's own evidence first."""
-    if parent_requirement is None or parent_requirement.get("multi_instance") or not parent_requirement["instances"]:
-        return {}
-    parent_instance = parent_requirement["instances"][0]
-    role = requirement["parent_context_roles"][0]
-    binding = parent_instance["role_bindings"].get(role)
-    if not binding or binding.get("state") != "filled":
-        return {}
-    return {role: {**binding, "provenance": _propagated_provenance(parent_requirement["id"], binding)}}
 
 
 def map_any_requirement(
@@ -598,11 +632,16 @@ def map_any_requirement(
     units and never actually pair them against the parent at all (a real role-name mismatch
     between a child and its declared parent produced exactly this silent fallback before this
     guard existed; see `sufficiency_authoring.py`'s comments on c9's and c5/c6's role naming).
-    Among parent-context requirements, the SHAPE decides which mapper: `for_each_discovered_
-    instance` (a genuine list-pairing need, e.g. c9's trait<->scale pairing, one instance per
-    parent-discovered referent) uses the paired mapper; anything else (a single-instance ask that
-    merely inherits candidate CONTEXT, e.g. c5/c6's region) uses the generic mapper with the
-    parent's binding offered only as a fallback, never overriding this child's own evidence.
+
+    Phase 16: EVERY parent-context requirement, regardless of its own `instance_quantifier`, now
+    uses `map_paired_requirement` -- the former quantifier-based branch (a bespoke single-instance
+    fallback mapper for `exists`-shaped children, `_parent_context_binding_for_single_instance`,
+    retired outright) read only `parent_requirement["instances"][0]`, which a real adversarial
+    case (Phase 15's c4 recovery) proved lets an incomplete, newly-nominated instance silently
+    displace an already-complete one purely by raw model list order. `map_paired_requirement`'s
+    own instance-generation is already fully quantifier-agnostic (it never reads `instance_
+    quantifier` at all); only aggregation, already handled generically by `se.recompute_
+    requirement`, depends on which quantifier the child declares.
 
     `model_client`, threaded through to every mapper below, defaults to `None` everywhere -- every
     existing call site (including `e2e.py`) omits it and observes identical deterministic-only
@@ -616,12 +655,7 @@ def map_any_requirement(
                 "but no parent_requirement was supplied -- this must never silently fall through to a "
                 "mapper that ignores the parent relationship entirely."
             )
-        if requirement["instance_quantifier"] == "for_each_discovered_instance":
-            return map_paired_requirement(requirement, parent_requirement, candidate_units, model_client=model_client)
-        parent_context_bindings = _parent_context_binding_for_single_instance(requirement, parent_requirement)
-        return map_requirement(
-            requirement, candidate_units, parent_context_bindings=parent_context_bindings, model_client=model_client
-        )
+        return map_paired_requirement(requirement, parent_requirement, candidate_units, model_client=model_client)
     return map_requirement(requirement, candidate_units, model_client=model_client)
 
 

@@ -15,7 +15,20 @@ import unittest
 
 from experiments.ask_cli_revised import sufficiency_diagnostic as sd
 from experiments.ask_cli_revised import sufficiency_engine as se
+from experiments.ask_cli_revised import sufficiency_mapping as sm
 from experiments.ask_cli_revised import sufficiency_recovery_targets as srt
+
+
+def _propagate(parent_requirement: dict, role: str) -> dict:
+    """Phase 16 retired `sufficiency_mapping._parent_context_binding_for_single_instance` (the
+    bespoke `instances[0]`-only fallback) outright -- these tests exercise `compute_recovery_
+    targets`'s own dedup/redirect logic over an ALREADY-propagated structure, not the mapper's
+    eligibility/forking mechanics (covered separately in test_sufficiency_mapping.py), so they
+    just re-stamp the binding directly via the still-current `_propagated_provenance`, exactly
+    what the retired helper did internally for a single eligible instance."""
+    instance = parent_requirement["instances"][0]
+    binding = instance["role_bindings"][role]
+    return {role: {**binding, "provenance": sm._propagated_provenance(parent_requirement["id"], binding)}}
 
 
 def _filled(role, prop_id, text, *, method="deterministic_mapping", provenance_extra=None):
@@ -364,6 +377,48 @@ class ForEachDiscoveredInstanceTests(unittest.TestCase):
         targets = srt.compute_recovery_targets(_contract_with("x", req), {})
         self.assertTrue(any(t["search_child_id"] == "x" for t in targets.values()))
 
+    def test_parent_backed_for_each_with_an_incomplete_parent_defers_upstream(self):
+        """Phase 16 (matrix item 19): the RecoveryTarget layer's own `_first_instance_targets`
+        must agree with the mapper's `se.eligible_parent_instances` about whether a usable parent
+        exists -- a parent instance with the role FILLED but the INSTANCE itself incomplete is
+        exactly as "no source" as an empty parent (the `test_parent_backed_for_each_with_an_
+        empty_parent_defers_upstream` case above), never treated as discovered."""
+        parent_specs = {
+            "trait": se.new_role_spec("trait", "a named trait", "model_nomination_only"),
+            "relation": se.new_role_spec("relation", "relation", "achieved_outcome_predicate"),
+        }
+        parent_completion = se.new_role_completion(required_roles=["trait", "relation"])
+        parent_req = se.new_requirement(
+            "p#req", "atomic", parent_specs, parent_completion, "open_list", multi_instance=True
+        )
+        p_inst = se.new_instance("u1")
+        p_inst["role_bindings"]["trait"] = _filled("trait", "pp", "trait X", method="model_mapping")
+        p_inst["role_bindings"]["relation"] = _missing("relation")  # role filled, INSTANCE incomplete
+        parent_req["instances"] = [p_inst]
+        parent_req = se.recompute_requirement(parent_req)
+        self.assertFalse(parent_req["instances"][0]["complete"])
+
+        child_specs = {
+            "trait": se.new_role_spec("trait", "a named trait", "model_nomination_only"),
+            "scale": se.new_role_spec("scale", "a named scale", "named_instrument_lexicon"),
+        }
+        child_completion = se.new_role_completion(required_roles=["trait", "scale"])
+        child_req = se.new_requirement(
+            "c#req",
+            "relational",
+            child_specs,
+            child_completion,
+            "for_each_discovered_instance",
+            multi_instance=True,
+            parent_context_roles=["trait"],
+        )
+        child_req["instances"] = []
+        child_req = se.recompute_requirement(child_req)
+        mapped = {"p": se.new_contract("p", [parent_req]), "c": se.new_contract("c", [child_req])}
+        targets = srt.compute_recovery_targets(mapped, {"c": "p"})
+        self.assertFalse(any(t["search_child_id"] == "c" for t in targets.values()))
+        self.assertTrue(any(t["search_child_id"] == "p" for t in targets.values()))
+
     def test_parent_backed_for_each_with_an_empty_parent_defers_upstream(self):
         parent_specs = {"trait": se.new_role_spec("trait", "a named trait", "model_nomination_only")}
         parent_completion = se.new_role_completion(required_roles=["trait"])
@@ -546,8 +601,6 @@ class ProvisionalCorroborationTests(unittest.TestCase):
         self.assertEqual(scopes, {inst1["instance_key"], "i::other"})
 
     def test_multiple_descendants_sharing_one_upstream_dependency_deduplicate(self):
-        from experiments.ask_cli_revised import sufficiency_mapping as sm
-
         parent_specs = {"trait": se.new_role_spec("trait", "a named trait", "model_nomination_only")}
         parent_completion = se.new_role_completion(required_roles=["trait"])
         parent_req = se.new_requirement("p#req", "atomic", parent_specs, parent_completion, "exists")
@@ -556,7 +609,7 @@ class ProvisionalCorroborationTests(unittest.TestCase):
         parent_req["instances"] = [p_inst]
         parent_req = se.recompute_requirement(parent_req)
         parent_req = sd._stamp_model_dependency_origins(parent_req, "p")
-        propagated = sm._parent_context_binding_for_single_instance({"parent_context_roles": ["trait"]}, parent_req)
+        propagated = _propagate(parent_req, "trait")
 
         def _child(child_id):
             specs = {
@@ -588,8 +641,6 @@ class ProvisionalCorroborationTests(unittest.TestCase):
         self.assertEqual(set(redirected[0]["affected_descendants"]), {"p", "c1", "c2"})
 
     def test_two_hop_inherited_provisionality_redirects_to_the_true_origin(self):
-        from experiments.ask_cli_revised import sufficiency_mapping as sm
-
         grandparent_specs = {"trait": se.new_role_spec("trait", "a named trait", "model_nomination_only")}
         gp_completion = se.new_role_completion(required_roles=["trait"])
         gp_req = se.new_requirement("gp#req", "atomic", grandparent_specs, gp_completion, "exists")
@@ -599,7 +650,7 @@ class ProvisionalCorroborationTests(unittest.TestCase):
         gp_req = se.recompute_requirement(gp_req)
         gp_req = sd._stamp_model_dependency_origins(gp_req, "gp")
 
-        hop1 = sm._parent_context_binding_for_single_instance({"parent_context_roles": ["trait"]}, gp_req)
+        hop1 = _propagate(gp_req, "trait")
         parent_specs = {
             "trait": se.new_role_spec("trait", "a named trait", "model_nomination_only"),
             "other": se.new_role_spec("other", "other", "achieved_outcome_predicate"),
@@ -614,7 +665,7 @@ class ProvisionalCorroborationTests(unittest.TestCase):
         parent_req["instances"] = [p_inst]
         parent_req = se.recompute_requirement(parent_req)
 
-        hop2 = sm._parent_context_binding_for_single_instance({"parent_context_roles": ["trait"]}, parent_req)
+        hop2 = _propagate(parent_req, "trait")
         child_specs = {
             "trait": se.new_role_spec("trait", "a named trait", "model_nomination_only"),
             "scale": se.new_role_spec("scale", "a named scale", "named_instrument_lexicon"),
@@ -797,6 +848,182 @@ class BudgetAndGenericGapCoexistenceTests(unittest.TestCase):
         import inspect
 
         self.assertNotIn("gate", inspect.signature(srt.compute_recovery_targets).parameters)
+
+
+class MixedInstanceExistsRecoveryTests(unittest.TestCase):
+    """Phase 16 (brief §J / plan §10): once an `exists` requirement is already satisfied by a
+    DIFFERENT, complete instance, an incomplete sibling of the SAME requirement must not generate
+    its own `missing`/`partial`/`relationship_unverified` RecoveryTarget -- `exists` needs only
+    one complete instance, so a sibling's own gap is not a recovery obligation. The satisfying
+    instance's own corroboration obligation (if its completion is model-dependent) is unaffected.
+    Mirrors the real Phase-15 c4 shape exactly: RTPJ (region+relation filled, different
+    propositions -> relationship_unverified) alongside amygdala (region+relation, same
+    proposition -> complete, model-dependent)."""
+
+    def _requirement(self):
+        specs = {
+            "region": se.new_role_spec("region", "a specific NAMED brain area", "model_nomination_only"),
+            "relation": se.new_role_spec("relation", "relation", "achieved_outcome_predicate"),
+        }
+        completion = se.new_role_completion(required_roles=["region", "relation"])
+        return se.new_requirement("c4#req", "atomic", specs, completion, "exists")
+
+    def _incomplete_instance(self, key):
+        inst = se.new_instance(key)
+        inst["role_bindings"]["region"] = _filled("region", "p27", "RTPJ", method="model_mapping")
+        inst["role_bindings"]["relation"] = _filled("relation", "p11", "relation evidence")
+        return inst
+
+    def _complete_model_dependent_instance(self, key):
+        inst = se.new_instance(key)
+        inst["role_bindings"]["region"] = _filled("region", "p11", "amygdala", method="model_mapping")
+        inst["role_bindings"]["relation"] = _filled("relation", "p11", "relation evidence")
+        return inst
+
+    def test_incomplete_sibling_produces_no_target_once_exists_is_satisfied(self):
+        req = self._requirement()
+        req["instances"] = [self._incomplete_instance("rtpj"), self._complete_model_dependent_instance("amygdala")]
+        req = se.recompute_requirement(req)
+        self.assertEqual(req["state"], "filled")
+        self.assertFalse(req["instances"][0]["complete"])
+        self.assertTrue(req["instances"][1]["complete"])
+
+        targets = srt.compute_recovery_targets(_contract_with("c4", req), {})
+        reasons = {t["reason"] for t in targets.values()}
+        self.assertNotIn("relationship_unverified", reasons)
+        self.assertNotIn("missing", reasons)
+        self.assertNotIn("partial", reasons)
+        # the satisfying instance's own corroboration obligation is unaffected
+        self.assertIn("provisional_corroboration", reasons)
+        corroboration = next(t for t in targets.values() if t["reason"] == "provisional_corroboration")
+        self.assertEqual(corroboration["scope"], {"kind": "instance", "instance_key": "amygdala"})
+
+    def test_incomplete_sibling_still_produces_a_target_when_exists_is_not_yet_satisfied(self):
+        """The suppression is conditional on the requirement already being `filled` -- with NO
+        complete instance at all, the incomplete instance's own gap remains a real obligation."""
+        req = self._requirement()
+        req["instances"] = [self._incomplete_instance("rtpj")]
+        req = se.recompute_requirement(req)
+        self.assertNotEqual(req["state"], "filled")
+        targets = srt.compute_recovery_targets(_contract_with("c4", req), {})
+        self.assertTrue(any(t["reason"] == "relationship_unverified" for t in targets.values()))
+
+    def test_suppression_is_scoped_to_exists_never_for_each_discovered_instance(self):
+        """for_each_discovered_instance needs EVERY instance complete -- an incomplete sibling's
+        own gap must keep generating a target regardless of any OTHER instance's completeness."""
+        specs = {
+            "a": se.new_role_spec("a", "category a", "achieved_outcome_predicate"),
+            "b": se.new_role_spec("b", "category b", "achieved_outcome_predicate"),
+        }
+        completion = se.new_role_completion(required_roles=["a", "b"])
+        req = se.new_requirement(
+            "x#req", "relational", specs, completion, "for_each_discovered_instance", multi_instance=True
+        )
+        complete_inst = se.new_instance("u1")
+        complete_inst["role_bindings"]["a"] = _filled("a", "p1", "a1")
+        complete_inst["role_bindings"]["b"] = _filled("b", "p1", "b1")
+        incomplete_inst = se.new_instance("u2")
+        incomplete_inst["role_bindings"]["a"] = _filled("a", "p2", "a2")
+        incomplete_inst["role_bindings"]["b"] = _missing("b")
+        req["instances"] = [complete_inst, incomplete_inst]
+        req = se.recompute_requirement(req)
+        self.assertEqual(req["state"], "partially_filled")  # NOT "filled" -- for_each needs ALL complete
+        targets = srt.compute_recovery_targets(_contract_with("x", req), {})
+        self.assertTrue(any(t["scope"].get("instance_key") == "u2" for t in targets.values()))
+
+
+class RecoveryTargetMergeTests(unittest.TestCase):
+    """Phase 16 (brief §K / plan §9D): when two generation calls collapse to the same `target_id`,
+    `affected_descendants` AND `dependency_origins` are both unioned/deduplicated -- never
+    last-write-wins on either. Any OTHER field disagreeing for the same `target_id` fails loudly
+    (a genuine collision, which this session found no real trigger for -- so this is a defensive
+    guard, exercised directly here with hand-built targets rather than hunted for naturally)."""
+
+    def _base_target(self, **overrides):
+        payload = dict(
+            search_child_id="p",
+            trigger_child_id="c1",
+            requirement_id="p#req",
+            target_roles=["trait"],
+            reason="provisional_corroboration",
+            goal_mode="single_role",
+            scope={"kind": "none"},
+            category_descriptions=["a named trait"],
+            dependency_origins=[{"child_id": "p", "requirement_id": "p#req", "role": "trait", "instance_key": None}],
+        )
+        payload.update(overrides)
+        return srt.new_recovery_target(**payload)
+
+    def test_affected_descendants_union_deduplicated(self):
+        a = self._base_target(trigger_child_id="c1", affected_descendants=("c1",))
+        b = self._base_target(trigger_child_id="c2", affected_descendants=("c2",))
+        merged = srt._merge_recovery_target(a, b)
+        self.assertEqual(set(merged["affected_descendants"]), {"c1", "c2"})
+
+    def test_dependency_origins_union_deduplicated_not_last_write_wins(self):
+        origin_a = {"child_id": "gp", "requirement_id": "gp#req", "role": "trait", "instance_key": None}
+        origin_b = {"child_id": "gp2", "requirement_id": "gp2#req", "role": "trait", "instance_key": None}
+        a = self._base_target(dependency_origins=[origin_a])
+        b = self._base_target(dependency_origins=[origin_b])
+        merged = srt._merge_recovery_target(a, b)
+        self.assertEqual(len(merged["dependency_origins"]), 2)
+        self.assertIn(origin_a, merged["dependency_origins"])
+        self.assertIn(origin_b, merged["dependency_origins"])
+
+    def test_identical_dependency_origins_do_not_duplicate(self):
+        origin = {"child_id": "gp", "requirement_id": "gp#req", "role": "trait", "instance_key": None}
+        a = self._base_target(dependency_origins=[origin])
+        b = self._base_target(dependency_origins=[dict(origin)])
+        merged = srt._merge_recovery_target(a, b)
+        self.assertEqual(merged["dependency_origins"], [origin])
+
+    def test_genuine_disagreement_on_an_unmerged_field_raises(self):
+        a = self._base_target(category_descriptions=["a named trait"])
+        b = self._base_target(category_descriptions=["a DIFFERENT description"])
+        with self.assertRaises(ValueError):
+            srt._merge_recovery_target(a, b)
+
+    def test_end_to_end_merge_still_works_for_the_real_shared_upstream_shape(self):
+        """Regression: the pre-existing dedup/redirect behavior (ProvisionalCorroborationTests.
+        test_multiple_descendants_sharing_one_upstream_dependency_deduplicate) must still work
+        unchanged once the merge also unions dependency_origins."""
+        parent_specs = {"trait": se.new_role_spec("trait", "a named trait", "model_nomination_only")}
+        parent_completion = se.new_role_completion(required_roles=["trait"])
+        parent_req = se.new_requirement("p#req", "atomic", parent_specs, parent_completion, "exists")
+        p_inst = se.new_instance()
+        p_inst["role_bindings"]["trait"] = _filled("trait", "pp", "trait X", method="model_mapping")
+        parent_req["instances"] = [p_inst]
+        parent_req = se.recompute_requirement(parent_req)
+        parent_req = sd._stamp_model_dependency_origins(parent_req, "p")
+        propagated = _propagate(parent_req, "trait")
+
+        def _child(child_id):
+            specs = {
+                "trait": se.new_role_spec("trait", "a named trait", "model_nomination_only"),
+                "scale": se.new_role_spec("scale", "a named scale", "named_instrument_lexicon"),
+            }
+            completion = se.new_role_completion(required_roles=["trait", "scale"])
+            req = se.new_requirement(
+                f"{child_id}#req", "relational", specs, completion, "exists", parent_context_roles=["trait"]
+            )
+            inst = se.new_instance()
+            inst["role_bindings"]["trait"] = propagated["trait"]
+            inst["role_bindings"]["scale"] = _filled("scale", f"{child_id}p", "Scale")
+            req["instances"] = [inst]
+            return se.recompute_requirement(req)
+
+        mapped = {
+            "p": se.new_contract("p", [parent_req]),
+            "c1": se.new_contract("c1", [_child("c1")]),
+            "c2": se.new_contract("c2", [_child("c2")]),
+        }
+        targets = srt.compute_recovery_targets(mapped, {"c1": "p", "c2": "p"})
+        redirected = [t for t in targets.values() if t["search_child_id"] == "p"]
+        self.assertEqual(len(redirected), 1)
+        self.assertEqual(set(redirected[0]["affected_descendants"]), {"p", "c1", "c2"})
+        # all three contributing calls (p's own direct pass, c1's redirect, c2's redirect) point
+        # at the SAME single upstream origin -- deduplicated to exactly one entry, not tripled.
+        self.assertEqual(len(redirected[0]["dependency_origins"]), 1)
 
 
 class LeakageTests(unittest.TestCase):

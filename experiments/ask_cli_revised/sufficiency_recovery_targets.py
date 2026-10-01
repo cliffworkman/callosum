@@ -286,14 +286,15 @@ def _first_instance_targets(child_id: str, requirement: dict, parent_requirement
     `scope={"kind":"none"}` is correct: there is nothing yet to discriminate.
 
     A parent-backed `for_each_discovered_instance` child whose parent has discovered nothing
-    (no instance with a `filled` `parent_context_roles[0]` binding) emits NOTHING -- the real gap
-    is upstream, and the parent's own zero-instance target (generated the same way, one level up)
-    is the sole actionable one."""
+    ELIGIBLE (Phase 16: `se.eligible_parent_instances` -- role filled AND the supplying instance
+    itself `complete`, the SAME check `sufficiency_mapping.map_paired_requirement` uses, so the
+    RecoveryTarget layer can never disagree with the mapper about whether a usable parent exists)
+    emits NOTHING -- the real gap is upstream, and the parent's own zero/incomplete-instance
+    target (generated the same way, one level up) is the sole actionable one."""
     if requirement["instance_quantifier"] == "for_each_discovered_instance" and requirement["parent_context_roles"]:
         parent_role = requirement["parent_context_roles"][0]
-        parent_has_source = parent_requirement is not None and any(
-            inst["role_bindings"].get(parent_role, {}).get("state") == "filled"
-            for inst in parent_requirement["instances"]
+        parent_has_source = parent_requirement is not None and bool(
+            se.eligible_parent_instances(parent_requirement, parent_role)
         )
         if not parent_has_source:
             return []
@@ -473,6 +474,45 @@ def _resolve_parent_requirement(requirement, parent_of, child_id, mapped_contrac
 # -------------------------------------------------------------------------------------------
 
 
+_MERGE_BENIGN_FIELDS = frozenset({"affected_descendants", "dependency_origins", "trigger_child_id"})
+
+
+def _merge_recovery_target(existing: dict, new: dict) -> dict:
+    """Merges two `RecoveryTarget` dicts that share the same `target_id` -- which, by
+    `new_target_id`'s own construction, already guarantees identical `{search_child_id,
+    requirement_id, reason, goal_mode, target_roles, scope}`. `affected_descendants` and
+    `dependency_origins` are unioned/deduplicated (Phase 16, fixing a real gap: only
+    `affected_descendants` was ever merged before -- `dependency_origins` silently kept whichever
+    call happened to be seen first).
+
+    `trigger_child_id` is a REAL, confirmed disagreement found while implementing this exact fix
+    (not a hypothetical): the shared-upstream-dependency case (`ProvisionalCorroborationTests.
+    test_multiple_descendants_sharing_one_upstream_dependency_deduplicate`) has p's own direct
+    pass set `trigger_child_id="p"` while c1's/c2's redirected calls set it to themselves -- a
+    genuinely different value per call for the identical target_id, every time more than one
+    child triggers the same upstream obligation. It carries no information `affected_descendants`
+    (the full, unioned set) doesn't already carry more completely, so it is treated as benign,
+    pre-existing "first generation call wins" bookkeeping here, same as before this fix -- an
+    explicit, documented choice, not a silent one.
+
+    Every field OTHER than the three above is asserted identical; a real disagreement there would
+    mean two calls produced the same `target_id` from different underlying facts, which must be
+    surfaced loudly, never silently resolved by picking one."""
+    merged_descendants = tuple(sorted(set(existing["affected_descendants"]) | set(new["affected_descendants"])))
+    merged_origins = _dedupe_origins([*existing["dependency_origins"], *new["dependency_origins"]])
+    for key, value in existing.items():
+        if key in _MERGE_BENIGN_FIELDS:
+            continue
+        if value != new.get(key):
+            raise ValueError(
+                f"RecoveryTarget merge conflict for target_id={existing['target_id']!r}: field {key!r} "
+                f"disagrees ({value!r} != {new.get(key)!r}) -- two generation calls produced the same "
+                "target_id from different underlying facts; this must be investigated, never silently "
+                "resolved by picking one."
+            )
+    return {**existing, "affected_descendants": merged_descendants, "dependency_origins": merged_origins}
+
+
 def compute_recovery_targets(
     mapped_contract_by_child: dict, parent_of: dict, search_status_by_requirement: dict | None = None
 ) -> dict:
@@ -523,7 +563,20 @@ def compute_recovery_targets(
                 # see `_targets_for_instance`'s docstring for why (a `for_each_discovered_instance`/
                 # `at_least_n`/multi-instance `exists` requirement can be `partially_filled`
                 # overall while one of its own instances is already complete-but-model-dependent).
+                #
+                # Phase 16 exception, scoped to `exists` ONLY: once `exists` is ALREADY satisfied
+                # by some OTHER, complete instance, an incomplete SIBLING of the same requirement
+                # is not itself a recovery obligation -- `exists` needs only one complete instance,
+                # so the sibling's own gap never blocks completion (a real, previously-unexamined
+                # gap Phase 15's c4 result exposed: a model nominating >1 instance for an `exists`
+                # role must not spend bounded recovery budget chasing every extra candidate). The
+                # sibling's data remains fully visible in the map (never hidden, invariant #4);
+                # only ITS OWN `missing`/`partial`/`relationship_unverified` target is suppressed.
+                # The satisfying instance's own corroboration obligation (if model-dependent) is
+                # untouched -- it is `instance["complete"]`, so this branch never applies to it.
                 for instance in requirement["instances"]:
+                    if quantifier == "exists" and requirement["state"] == "filled" and not instance["complete"]:
+                        continue
                     generated.extend(
                         _targets_for_instance(
                             child_id, requirement, instance, requirement_owner_index, mapped_contract_by_child
@@ -532,11 +585,7 @@ def compute_recovery_targets(
 
             for target in generated:
                 existing = targets.get(target["target_id"])
-                if existing is None:
-                    targets[target["target_id"]] = target
-                else:
-                    merged = tuple(sorted(set(existing["affected_descendants"]) | set(target["affected_descendants"])))
-                    targets[target["target_id"]] = {**existing, "affected_descendants": merged}
+                targets[target["target_id"]] = target if existing is None else _merge_recovery_target(existing, target)
     return targets
 
 

@@ -61,22 +61,26 @@ class CounterfactualReplayTests(unittest.TestCase):
         self.assertEqual(c8["instance_count"], 4)
         c8_req = self.result["with_model"]["c8"]["requirements"][0]
         traits = {
-            inst["role_bindings"]["individual_difference_trait_or_construct"]["exact_text"] for inst in c8_req["instances"]
+            inst["role_bindings"]["individual_difference_trait_or_construct"]["exact_text"]
+            for inst in c8_req["instances"]
         }
         self.assertEqual(
             traits, {"IAT and EBQ", "just-world beliefs", "affective empathy", "less generosity in the DG"}
         )
 
-    def test_c8_to_c9_propagation_survives(self):
+    def test_c8_to_c9_propagation_now_correctly_withheld(self):
+        """Phase 16 (deliberate, documented change -- not this module's own counterfactual
+        concern): before Phase 16, this test was named `...propagation_survives` and asserted 4
+        paired c9 instances. c8's own 4 trait instances are each individually INCOMPLETE (per
+        `test_c8_survives_with_four_distinct_minimal_trait_referents` above,
+        `relationship_to_bias_manifestation` is evidence-limited on every one, in every phase,
+        including this counterfactual) -- under Phase 16's uniform eligibility rule
+        (`instance.complete`, not merely the inherited role being filled), NONE of them are
+        eligible to supply trusted parent context, so c9 correctly propagates ZERO instances.
+        This is the corrected behavior surviving, not propagation itself."""
         c9 = self.report["c9"]["c9#suff:trait-scale-pairing"]
-        self.assertEqual(c9["instance_count"], 4)
-        c9_req = self.result["with_model"]["c9"]["requirements"][0]
-        traits = {
-            inst["role_bindings"]["individual_difference_trait_or_construct"]["exact_text"] for inst in c9_req["instances"]
-        }
-        self.assertEqual(
-            traits, {"IAT and EBQ", "just-world beliefs", "affective empathy", "less generosity in the DG"}
-        )
+        self.assertEqual(c9["instance_count"], 0)
+        self.assertEqual(c9["state"], "missing")
 
     def test_anchor_dedup_still_collapses_the_duplicate_c8_propositions(self):
         """c8's own scripted fixture offers the SAME 4 texts from TWO propositions (p20 AND p9,

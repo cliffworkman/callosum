@@ -105,7 +105,6 @@ class DeterministicDetectorTests(unittest.TestCase):
         self.assertTrue(flags["correlational"])
 
     def test_magnitude_word_reports_direction_without_fabricating_a_sign(self):
-        spec = se.new_role_spec("d", "d", "direction_or_sign_pattern")
         word = sm._match_direction_word("Scores decreased significantly after the intervention.")
         self.assertEqual(word, "decreased")
         self.assertIsNone(sm._direction_sign(word))
@@ -134,23 +133,37 @@ class MapRequirementTests(unittest.TestCase):
         self.assertNotEqual(result["state"], "filled")
 
     def test_parent_context_alone_never_completes_a_requirement(self):
+        """Phase 16: `map_requirement`'s own bespoke `parent_context_bindings` fallback is retired
+        -- a parent-context requirement now always routes through `map_paired_requirement`
+        (see `MapAnyRequirementDispatchTests`/`ParentEligibilityForkingTests` below). This test's
+        original intent is unchanged: inheriting a role from an (eligible) parent must never, by
+        itself, complete a requirement whose OTHER role has no evidence."""
         specs = {
             "region": se.new_role_spec("region", "region", "model_nomination_only"),
             "behavior": se.new_role_spec("behavior", "behavior", "achieved_outcome_predicate"),
         }
         completion = se.new_role_completion(required_roles=["region", "behavior"])
         req = se.new_requirement("r#req", "relational", specs, completion, "exists", parent_context_roles=["region"])
-        parent_binding = se.new_role_binding(
+
+        parent_specs = {"region": se.new_role_spec("region", "region", "model_nomination_only")}
+        parent_completion = se.new_role_completion(required_roles=["region"])
+        parent_req = se.new_requirement("parent#req", "atomic", parent_specs, parent_completion, "exists")
+        parent_inst = se.new_instance()
+        parent_inst["role_bindings"]["region"] = se.new_role_binding(
             "region",
             state="filled",
             proposition_id="parent-p1",
             exact_text="amygdala",
-            provenance={"candidate_source": "parent_context", "detail": "", "model": None},
+            provenance={"candidate_source": "model_mapping", "detail": "", "model": "stub"},
         )
-        # even with the region pre-seeded from a parent, no behavior evidence in this child's own
-        # candidate units means the requirement stays incomplete.
+        parent_req["instances"] = [parent_inst]
+        parent_req = se.recompute_requirement(parent_req)
+        self.assertTrue(parent_req["instances"][0]["complete"])  # eligible: single required role, filled
+
+        # even with the region eligible from a COMPLETE parent instance, no behavior evidence in
+        # this child's own candidate units means the requirement stays incomplete.
         units = [_unit("U1", 1, "We administered the task to all participants.")]
-        result = sm.map_requirement(req, units, parent_context_bindings={"region": parent_binding})
+        result = sm.map_paired_requirement(req, parent_req, units)
         self.assertNotEqual(result["state"], "filled")
 
     def test_multi_instance_discovery_one_unit_per_instance(self):
@@ -201,7 +214,7 @@ class CardinalityMappingTests(unittest.TestCase):
 
 
 class PairedMappingTests(unittest.TestCase):
-    def _parent_requirement_with_one_discovered_trait(self):
+    def _parent_requirement_with_one_discovered_trait(self, *, relation_filled=True):
         specs = {
             "trait": se.new_role_spec("trait", "trait", "model_nomination_only"),
             "relation": se.new_role_spec("relation", "relation", "achieved_outcome_predicate"),
@@ -216,18 +229,33 @@ class PairedMappingTests(unittest.TestCase):
             exact_text="empathy",
             provenance={"candidate_source": "model_mapping", "detail": "", "model": "stub"},
         )
-        instance["role_bindings"]["relation"] = se.new_role_binding("relation", state="missing", reason="not_found")
+        if relation_filled:
+            # Phase 16: the parent instance must be COMPLETE to be eligible -- "relation" (the
+            # parent's OWN other required role) is filled too, from the same proposition so joint
+            # grounding trivially succeeds (same_proposition is the default verifier).
+            instance["role_bindings"]["relation"] = se.new_role_binding(
+                "relation",
+                state="filled",
+                proposition_id="p1",
+                exact_text="relates to the bias",
+                provenance={
+                    "candidate_source": "deterministic_mapping",
+                    "detail": "achieved_outcome_predicate",
+                    "model": None,
+                },
+            )
+        else:
+            instance["role_bindings"]["relation"] = se.new_role_binding("relation", state="missing", reason="not_found")
         parent["instances"] = [instance]
         return se.recompute_requirement(parent)
 
-    def test_pairing_scoped_to_parents_currently_discovered_instances(self):
-        parent = self._parent_requirement_with_one_discovered_trait()
+    def _child_req(self):
         specs = {
             "trait": se.new_role_spec("trait", "trait", "model_nomination_only"),
             "scale": se.new_role_spec("scale", "named scale", "named_instrument_lexicon"),
         }
         completion = se.new_role_completion(required_roles=["trait", "scale"])
-        req = se.new_requirement(
+        return se.new_requirement(
             "child#req",
             "relational",
             specs,
@@ -236,10 +264,33 @@ class PairedMappingTests(unittest.TestCase):
             multi_instance=True,
             parent_context_roles=["trait"],
         )
+
+    def test_pairing_scoped_to_parents_currently_discovered_instances(self):
+        """The parent instance is COMPLETE (Phase 16 eligibility: trait AND relation both
+        filled -- see `test_incomplete_parent_instance_with_filled_role_does_not_propagate` below
+        for the fixture this superseded). This test's own purpose is unchanged: pairing reads the
+        parent's CURRENT discovered-instance list, never a hardcoded stand-in."""
+        parent = self._parent_requirement_with_one_discovered_trait()
+        self.assertTrue(parent["instances"][0]["complete"])
         units = [_unit("U9", 2, "The Empathy Scale was used to assess trait empathy in participants.")]
-        result = sm.map_paired_requirement(req, parent, units)
+        result = sm.map_paired_requirement(self._child_req(), parent, units)
         self.assertEqual(len(result["instances"]), 1)
         self.assertEqual(result["state"], "filled")
+
+    def test_incomplete_parent_instance_with_filled_role_does_not_propagate(self):
+        """Phase 16: a deliberate behavior CHANGE, not a bug-workaround. Before Phase 16, this
+        exact fixture (trait filled, relation missing -- i.e. the parent instance itself is
+        INCOMPLETE) was asserted to propagate successfully. The engine's own documented rationale
+        for trusting `parent_context` ("already semantically established") cannot hold for an
+        instance the parent's own completion rule has not certified -- see sufficiency_engine.
+        eligible_parent_instances and the Phase-16 design notes. This locks in the corrected
+        behavior under its own explicit name."""
+        parent = self._parent_requirement_with_one_discovered_trait(relation_filled=False)
+        self.assertFalse(parent["instances"][0]["complete"])
+        units = [_unit("U9", 2, "The Empathy Scale was used to assess trait empathy in participants.")]
+        result = sm.map_paired_requirement(self._child_req(), parent, units)
+        self.assertEqual(result["instances"], [])
+        self.assertEqual(result["state"], "missing")
 
     def test_no_parent_discovered_instances_means_no_child_instances(self):
         specs = {
@@ -670,7 +721,11 @@ class ReformulatedNominationRepresentabilityTests(unittest.TestCase):
         client = _FakeModelClient({"u1-p": exact_text})
         result = sm.map_requirement(
             se.new_requirement(
-                "t#req", "atomic", {"x": self._role_spec(category)}, se.new_role_completion(required_roles=["x"]), "exists"
+                "t#req",
+                "atomic",
+                {"x": self._role_spec(category)},
+                se.new_role_completion(required_roles=["x"]),
+                "exists",
             ),
             units,
             model_client=client,
@@ -686,7 +741,11 @@ class ReformulatedNominationRepresentabilityTests(unittest.TestCase):
         client = _FakeModelClient({})  # scripted empty -- returns no nominations for any proposition
         result = sm.map_requirement(
             se.new_requirement(
-                "t#req", "atomic", {"x": self._role_spec(category)}, se.new_role_completion(required_roles=["x"]), "exists"
+                "t#req",
+                "atomic",
+                {"x": self._role_spec(category)},
+                se.new_role_completion(required_roles=["x"]),
+                "exists",
             ),
             units,
             model_client=client,
@@ -702,7 +761,9 @@ class ReformulatedNominationRepresentabilityTests(unittest.TestCase):
 
     def test_accept_intervention_mindfulness_training(self):
         self._accepts(
-            "a named intervention", "Participants completed mindfulness training over eight weeks.", "mindfulness training"
+            "a named intervention",
+            "Participants completed mindfulness training over eight weeks.",
+            "mindfulness training",
         )
 
     def test_accept_behavior_clause_shaped_participants_donated_less_money(self):
@@ -722,7 +783,11 @@ class ReformulatedNominationRepresentabilityTests(unittest.TestCase):
         )
 
     def test_accept_trait_anxiety(self):
-        self._accepts("a named individual-difference trait or construct", "We measured trait anxiety in all participants.", "trait anxiety")
+        self._accepts(
+            "a named individual-difference trait or construct",
+            "We measured trait anxiety in all participants.",
+            "trait anxiety",
+        )
 
     def test_accept_lowercase_common_noun_amygdala(self):
         """Direct regression for the Phase 8 forensic finding and the Phase 9 prompt's explicit
@@ -750,6 +815,354 @@ class ReformulatedNominationRepresentabilityTests(unittest.TestCase):
         self._declines(
             "a named individual-difference trait or construct", "Individual differences predicted the outcome."
         )
+
+
+class ParentEligibilityForkingTests(unittest.TestCase):
+    """Phase 16's full deterministic matrix (plan §13 / brief §M) for `map_paired_requirement`,
+    now the SOLE parent-context instance-generation path for every quantifier (`exists` and
+    `for_each_discovered_instance` alike -- `map_any_requirement` no longer branches on
+    quantifier for parent-context requirements)."""
+
+    def _parent_req(self, instances):
+        specs = {
+            "region": se.new_role_spec("region", "a specific NAMED brain area", "model_nomination_only"),
+            "relation": se.new_role_spec("relation", "relation", "achieved_outcome_predicate"),
+        }
+        completion = se.new_role_completion(required_roles=["region", "relation"])
+        req = se.new_requirement("c4#req", "atomic", specs, completion, "exists")
+        req["instances"] = instances
+        return se.recompute_requirement(req)
+
+    def _complete_instance(self, key, region_prop, region_text, *, relation_prop=None):
+        relation_prop = relation_prop or region_prop
+        inst = se.new_instance(key)
+        inst["role_bindings"]["region"] = se.new_role_binding(
+            "region",
+            state="filled",
+            proposition_id=region_prop,
+            exact_text=region_text,
+            provenance={
+                "candidate_source": "model_mapping",
+                "detail": "",
+                "model": "stub",
+                "supporting_proposition_ids": [region_prop],
+            },
+        )
+        inst["role_bindings"]["relation"] = se.new_role_binding(
+            "relation",
+            state="filled",
+            proposition_id=relation_prop,
+            exact_text="relation evidence",
+            provenance={
+                "candidate_source": "deterministic_mapping",
+                "detail": "achieved_outcome_predicate",
+                "model": None,
+            },
+        )
+        return inst
+
+    def _incomplete_instance(self, key, region_prop, region_text):
+        inst = se.new_instance(key)
+        inst["role_bindings"]["region"] = se.new_role_binding(
+            "region",
+            state="filled",
+            proposition_id=region_prop,
+            exact_text=region_text,
+            provenance={"candidate_source": "model_mapping", "detail": "", "model": "stub"},
+        )
+        inst["role_bindings"]["relation"] = se.new_role_binding(
+            "relation",
+            state="filled",
+            proposition_id="relation-other-proposition",
+            exact_text="relation evidence",
+            provenance={
+                "candidate_source": "deterministic_mapping",
+                "detail": "achieved_outcome_predicate",
+                "model": None,
+            },
+        )
+        return inst
+
+    def _child_req(self):
+        specs = {
+            "region": se.new_role_spec("region", "a specific NAMED brain area", "model_nomination_only"),
+            "behavior": se.new_role_spec("behavior", "an observed behavior", "achieved_outcome_predicate"),
+        }
+        completion = se.new_role_completion(required_roles=["region", "behavior"])
+        return se.new_requirement("c5#req", "relational", specs, completion, "exists", parent_context_roles=["region"])
+
+    def _no_match_units(self):
+        return [_unit("U1", 1, "We administered a plain survey to participants in a quiet room.")]
+
+    def _matching_units(self):
+        # Verified directly against attr.has_result_predicate -- "This produced a clear
+        # significant result." does NOT match; this exact phrase (already used elsewhere in this
+        # file) does.
+        return [_unit("U1", 1, "This finding was found to be significant.")]
+
+    def _region_texts(self, result):
+        return {inst["role_bindings"]["region"]["exact_text"] for inst in result["instances"]}
+
+    # 1. one complete parent instance -> existing behavior preserved.
+    def test_one_complete_parent_instance_propagates(self):
+        parent = self._parent_req([self._complete_instance("amygdala", "p11", "amygdala")])
+        result = sm.map_paired_requirement(self._child_req(), parent, self._matching_units())
+        self.assertEqual(len(result["instances"]), 1)
+        self.assertEqual(self._region_texts(result), {"amygdala"})
+        binding = result["instances"][0]["role_bindings"]["region"]
+        self.assertEqual(binding["provenance"]["candidate_source"], "parent_context")
+
+    # 3/4/13. incomplete+complete, reversed, and the real Phase-15 adversarial shape.
+    def test_incomplete_then_complete_only_complete_propagates(self):
+        parent = self._parent_req(
+            [self._incomplete_instance("rtpj", "p27", "RTPJ"), self._complete_instance("amygdala", "p11", "amygdala")]
+        )
+        self.assertFalse(parent["instances"][0]["complete"])
+        self.assertTrue(parent["instances"][1]["complete"])
+        result = sm.map_paired_requirement(self._child_req(), parent, self._matching_units())
+        self.assertEqual(self._region_texts(result), {"amygdala"})
+
+    def test_reversed_parent_order_produces_identical_semantic_result(self):
+        forward = self._parent_req(
+            [self._incomplete_instance("rtpj", "p27", "RTPJ"), self._complete_instance("amygdala", "p11", "amygdala")]
+        )
+        backward = self._parent_req(
+            [self._complete_instance("amygdala", "p11", "amygdala"), self._incomplete_instance("rtpj", "p27", "RTPJ")]
+        )
+        result_forward = sm.map_paired_requirement(self._child_req(), forward, self._matching_units())
+        result_backward = sm.map_paired_requirement(self._child_req(), backward, self._matching_units())
+        self.assertEqual(self._region_texts(result_forward), self._region_texts(result_backward))
+        self.assertEqual(result_forward["state"], result_backward["state"])
+
+    # 5. two complete, distinct parent instances -> both propagate.
+    def test_two_complete_distinct_parents_both_propagate(self):
+        parent = self._parent_req(
+            [self._complete_instance("amygdala", "p11", "amygdala"), self._complete_instance("rtpj", "p27", "RTPJ")]
+        )
+        result = sm.map_paired_requirement(self._child_req(), parent, self._matching_units())
+        self.assertEqual(len(result["instances"]), 2)
+        self.assertEqual(self._region_texts(result), {"amygdala", "RTPJ"})
+
+    # 6. two complete, same exact_text, DIFFERENT anchors -> never fuzzy-collapsed.
+    def test_two_complete_same_text_different_anchors_both_preserved(self):
+        parent = self._parent_req(
+            [
+                self._complete_instance("first", "p11", "amygdala"),
+                self._complete_instance("second", "p99", "amygdala", relation_prop="p99"),
+            ]
+        )
+        result = sm.map_paired_requirement(self._child_req(), parent, self._matching_units())
+        self.assertEqual(len(result["instances"]), 2)
+        prop_ids = {inst["role_bindings"]["region"]["proposition_id"] for inst in result["instances"]}
+        self.assertEqual(prop_ids, {"p11", "p99"})
+
+    # 7. complete model-dependent parent -> provenance preserved through the hop.
+    def test_model_dependent_complete_parent_preserves_provenance_through_propagation(self):
+        from experiments.ask_cli_revised import sufficiency_diagnostic as sd
+
+        parent = self._parent_req([self._complete_instance("amygdala", "p11", "amygdala")])
+        parent = sd._stamp_model_dependency_origins(parent, "c4")
+        result = sm.map_paired_requirement(self._child_req(), parent, self._matching_units())
+        binding = result["instances"][0]["role_bindings"]["region"]
+        self.assertTrue(binding["provenance"]["upstream_model_dependent"])
+        self.assertEqual(binding["provenance"]["source_lineage"], ["model_mapping", "parent_context"])
+        self.assertEqual(len(binding["provenance"]["model_dependency_origins"]), 1)
+        origin = binding["provenance"]["model_dependency_origins"][0]
+        self.assertEqual(origin["child_id"], "c4")
+        self.assertEqual(origin["instance_key"], "amygdala")
+
+    # 8. two-hop propagation preserves origin and multiplicity.
+    def test_two_hop_propagation_preserves_origin_and_multiplicity(self):
+        from experiments.ask_cli_revised import sufficiency_diagnostic as sd
+
+        grandparent = self._parent_req([self._complete_instance("amygdala", "p11", "amygdala")])
+        grandparent = sd._stamp_model_dependency_origins(grandparent, "c4")
+
+        parent_specs = {
+            "region": se.new_role_spec("region", "a specific NAMED brain area", "model_nomination_only"),
+            "behavior": se.new_role_spec("behavior", "an observed behavior", "achieved_outcome_predicate"),
+        }
+        parent_completion = se.new_role_completion(required_roles=["region", "behavior"])
+        parent_req = se.new_requirement(
+            "c5#req", "relational", parent_specs, parent_completion, "exists", parent_context_roles=["region"]
+        )
+        mapped_parent = sm.map_paired_requirement(parent_req, grandparent, self._matching_units())
+        mapped_parent = sd._stamp_model_dependency_origins(mapped_parent, "c5")
+        self.assertEqual(mapped_parent["state"], "filled")
+
+        grandchild_specs = {
+            "region": se.new_role_spec("region", "a specific NAMED brain area", "model_nomination_only"),
+            "attitude": se.new_role_spec("attitude", "a named attitude", "model_nomination_only"),
+        }
+        grandchild_completion = se.new_role_completion(required_roles=["region", "attitude"])
+        grandchild_req = se.new_requirement(
+            "c6#req", "relational", grandchild_specs, grandchild_completion, "exists", parent_context_roles=["region"]
+        )
+        result = sm.map_paired_requirement(grandchild_req, mapped_parent, self._no_match_units())
+        self.assertEqual(len(result["instances"]), 1)
+        binding = result["instances"][0]["role_bindings"]["region"]
+        self.assertTrue(binding["provenance"]["upstream_model_dependent"])
+        self.assertEqual(binding["provenance"]["source_lineage"], ["model_mapping", "parent_context", "parent_context"])
+        self.assertEqual(len(binding["provenance"]["model_dependency_origins"]), 1)
+        self.assertEqual(binding["provenance"]["model_dependency_origins"][0]["child_id"], "c4")
+
+    # 16/17. own-evidence-first: never duplicated once per eligible parent; falls back cleanly.
+    def test_two_eligible_parents_with_child_owned_evidence_no_duplicate_forks(self):
+        parent = self._parent_req(
+            [self._complete_instance("amygdala", "p11", "amygdala"), self._complete_instance("rtpj", "p27", "RTPJ")]
+        )
+        units = [_unit("U9", 9, "The insula was independently named in this own passage, producing a result.")]
+        client = _FakeModelClient({units[0]["proposition_ids"][0]: "insula"})
+        result = sm.map_paired_requirement(self._child_req(), parent, units, model_client=client)
+        # own evidence wins outright -- exactly one instance, never one per eligible parent.
+        self.assertEqual(len(result["instances"]), 1)
+        self.assertEqual(result["instances"][0]["role_bindings"]["region"]["exact_text"], "insula")
+        self.assertEqual(
+            result["instances"][0]["role_bindings"]["region"]["provenance"]["candidate_source"], "model_mapping"
+        )
+
+    def test_two_eligible_parents_zero_child_owned_evidence_produces_two_fallback_forks(self):
+        parent = self._parent_req(
+            [self._complete_instance("amygdala", "p11", "amygdala"), self._complete_instance("rtpj", "p27", "RTPJ")]
+        )
+        # no model_client at all -- own evidence for "region" (model_nomination_only) is always empty.
+        result = sm.map_paired_requirement(self._child_req(), parent, self._matching_units())
+        self.assertEqual(len(result["instances"]), 2)
+        self.assertEqual(self._region_texts(result), {"amygdala", "RTPJ"})
+
+    # Zero eligible parents -> parent context unavailable (no change from today; named explicitly).
+    def test_zero_eligible_parents_still_tests_the_childs_other_role_against_its_own_evidence(self):
+        """A real regression caught while re-verifying Phase 15 against this fix: for a NON-
+        for_each shape, zero eligible parents must NOT mean zero instances -- that would silently
+        skip testing this requirement's OTHER role(s) against the child's own evidence too. The
+        historical single-instance-fallback mapper always built exactly one base instance; this
+        preserves that exactly (one instance, parent role missing, OTHER role still evaluated)."""
+        parent = self._parent_req([self._incomplete_instance("rtpj", "p27", "RTPJ")])
+        result = sm.map_paired_requirement(self._child_req(), parent, self._matching_units())
+        self.assertEqual(len(result["instances"]), 1)
+        inst = result["instances"][0]
+        self.assertEqual(inst["role_bindings"]["region"]["state"], "missing")
+        self.assertEqual(inst["role_bindings"]["behavior"]["state"], "filled")  # still tried, still found
+        self.assertEqual(result["state"], "partially_filled")  # not "filled" -- region is missing
+
+    def test_zero_eligible_parents_and_zero_own_evidence_anywhere_is_one_missing_instance(self):
+        parent = self._parent_req([self._incomplete_instance("rtpj", "p27", "RTPJ")])
+        result = sm.map_paired_requirement(self._child_req(), parent, self._no_match_units())
+        self.assertEqual(len(result["instances"]), 1)
+        self.assertEqual(result["state"], "missing")
+
+    def test_real_phase15_recorded_nomination_end_to_end_c6_inherits_amygdala_only(self):
+        """The real recorded Phase-15 live nomination output (PHASE15_C4_SEMANTIC_CONSUMPTION_
+        RESULTS.md's own §J raw output, hardcoded here as a frozen historical literal -- no live
+        call, no dependency on any `.local/` artifact), run through the REAL pipeline end to end:
+        `nominate_with_model` -> c4's own forking (no parent) -> c6's propagation. Before Phase 16,
+        c6 inherited the RTPJ (c4's `instances[0]`, purely because the model listed it first in
+        its raw JSON); this locks in the corrected result: amygdala only, matching the module
+        docstring's §7 worked example exactly."""
+        real_raw_nominations = [
+            {"proposition_id": "p27", "exact_text": "a cortical region in the right temporo-parietal junction (RTPJ)"},
+            {"proposition_id": "p11", "exact_text": "the specific amygdala"},
+            {"proposition_id": "p2", "exact_text": "the specific amygdala"},
+        ]
+
+        class _RecordedPhase15Client:
+            model_name = "recorded-phase15-literal"
+
+            def nominate_sufficiency_role(self, *, category_description, candidates):
+                offered = {c["proposition_id"] for c in candidates}
+                return [n for n in real_raw_nominations if n["proposition_id"] in offered]
+
+        c4_specs = {
+            "region": se.new_role_spec("region", "a specific NAMED brain area", "model_nomination_only"),
+            "relation": se.new_role_spec(
+                "relation",
+                "evidence that the named region bears on the bias",
+                "achieved_outcome_predicate",
+                disqualifying_guards=["hedged"],
+            ),
+        }
+        c4_completion = se.new_role_completion(required_roles=["region", "relation"])
+        c4_req = se.new_requirement("c4#suff:specific-region", "atomic", c4_specs, c4_completion, "exists")
+        units = [
+            _unit(
+                "U_amygdala",
+                67,
+                "Across these levels of organization, the specific amygdala response to facial "
+                "anomalies correlated with stronger just-world beliefs.",
+                proposition_ids=["p11", "p2"],
+                # same physical anchor for both -- matches the real Phase-15 data exactly (p11/p2
+                # are the SAME passage, paper 67/chunk 34974/span e7), which is what makes
+                # nominate_with_model's own anchor-based dedup collapse them to one nomination.
+                proposition_anchor={"p11": (67, 34974, "e7"), "p2": (67, 34974, "e7")},
+            ),
+            _unit(
+                "U_rtpj",
+                74,
+                "fMRI studies have demonstrated a critical role for a cortical region in the right "
+                "temporo-parietal junction (RTPJ) in theory of mind.",
+                proposition_ids=["p27"],
+            ),
+        ]
+        c4_mapped = sm.map_requirement(c4_req, units, model_client=_RecordedPhase15Client())
+        self.assertEqual(len(c4_mapped["instances"]), 2)
+        self.assertEqual(c4_mapped["state"], "filled")
+
+        c6_mapped = sm.map_paired_requirement(self._child_req(), c4_mapped, self._no_match_units())
+        self.assertEqual(
+            {inst["role_bindings"]["region"]["exact_text"] for inst in c6_mapped["instances"]},
+            {"the specific amygdala"},
+        )
+
+        # Adversarial permutation, same real fixture: reverse c4's own instance list (simulating
+        # the model having listed amygdala before RTPJ) -- the corrected result must be identical.
+        reversed_c4 = {**c4_mapped, "instances": list(reversed(c4_mapped["instances"]))}
+        reversed_c6 = sm.map_paired_requirement(self._child_req(), reversed_c4, self._no_match_units())
+        self.assertEqual(
+            {inst["role_bindings"]["region"]["exact_text"] for inst in reversed_c6["instances"]},
+            {"the specific amygdala"},
+        )
+
+    def test_for_each_discovered_instance_with_zero_eligible_parents_is_still_zero_instances(self):
+        """The ONE shape where zero eligible parents genuinely means zero instances (unchanged
+        from before this fix) -- for_each's own semantics IS "one per discovered parent". Mirrors
+        the real c8 shape: trait filled, the OTHER required role (relation) missing -> the parent
+        instance is genuinely incomplete, not merely role-unfilled."""
+        parent_specs = {
+            "trait": se.new_role_spec("trait", "a named trait", "model_nomination_only"),
+            "relation": se.new_role_spec("relation", "relation", "achieved_outcome_predicate"),
+        }
+        parent_completion = se.new_role_completion(required_roles=["trait", "relation"])
+        parent_req = se.new_requirement("c8#req", "atomic", parent_specs, parent_completion, "exists")
+        incomplete = se.new_instance("i1")
+        incomplete["role_bindings"]["trait"] = se.new_role_binding(
+            "trait",
+            state="filled",
+            proposition_id="p1",
+            exact_text="empathy",
+            provenance={"candidate_source": "model_mapping", "detail": "", "model": "stub"},
+        )
+        incomplete["role_bindings"]["relation"] = se.new_role_binding("relation", state="missing", reason="not_found")
+        parent_req["instances"] = [incomplete]
+        parent_req = se.recompute_requirement(parent_req)
+        self.assertFalse(parent_req["instances"][0]["complete"])
+
+        child_specs = {
+            "trait": se.new_role_spec("trait", "a named trait", "model_nomination_only"),
+            "scale": se.new_role_spec("scale", "a named scale", "named_instrument_lexicon"),
+        }
+        child_completion = se.new_role_completion(required_roles=["trait", "scale"])
+        child_req = se.new_requirement(
+            "c9#req",
+            "relational",
+            child_specs,
+            child_completion,
+            "for_each_discovered_instance",
+            multi_instance=True,
+            parent_context_roles=["trait"],
+        )
+        result = sm.map_paired_requirement(child_req, parent_req, self._matching_units())
+        self.assertEqual(result["instances"], [])
+        self.assertEqual(result["state"], "missing")
 
 
 if __name__ == "__main__":

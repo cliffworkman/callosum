@@ -635,3 +635,74 @@ touched; v9 `combined_hash` unchanged:
 `9c72dc6a0180e95c55e68a009c366843b671684c19c6ae84ed254f3865305586`. No second live call, no
 recovery search, no contract or pin re-freeze. Full detail in
 `PHASE15_C4_SEMANTIC_CONSUMPTION_RESULTS.md`.
+
+---
+
+## Phase 16 — parent-context multiplicity and parent-instance eligibility (appended 2026-10-01; does not alter the rows above)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-10-01 | Evidence | Phase 15 live semantic-consumption experiment |
+| 2026-10-01 | Design direction | Cliff Workman + ChatGPT |
+| 2026-10-01 | Code trace, verification, implementation | Claude |
+
+**Evidence (Phase 15 live semantic-consumption experiment).** A target-scoped remap produced
+multiple parent instances and demonstrated that current positional parent-context propagation
+selects only `instances[0]`, allowing an incomplete newly-nominated parent instance to displace a
+complete existing parent instance downstream.
+
+**Design direction (Cliff Workman + ChatGPT).** Identified parent-instance eligibility,
+multiplicity preservation, and order invariance as prerequisites before production model-assisted
+sufficiency integration. Resolved Phase 16's own open design decision (left unresolved in the
+plan-mode design pass) as a uniform rule: a parent instance may supply `parent_context` only if
+the requested role binding is filled AND the instance itself is `complete`, applied identically
+across every quantifier shape (`exists` and `for_each_discovered_instance` alike, no special-
+casing for c9) -- `instance.complete` explicitly kept separate from stop-search certification, so
+a complete-but-model-dependent parent instance still propagates, with its model-dependence
+carried forward unchanged. Required that own-evidence-first never duplicate per eligible parent,
+that the existing paired-mapping machinery be generalized rather than forked into a second
+parallel implementation (unless it was found to carry quantifier-specific assumptions that made
+generalizing it unsafe), that the mixed-instance `exists` RecoveryTarget gap be closed in the
+same pass, and that the `dependency_origins` merge gap be fixed defensively without touching
+target identity absent a real collision.
+
+**Code trace, verification, implementation (Claude).** Traced every real v9 `parent_context_
+roles` use exhaustively (c4->c5, c4->c6, c8->c9 -- confirmed no others exist) and the complete
+parent-context call graph before writing any code. Implemented the shared `eligible_parent_
+instances` primitive in the domain-agnostic engine layer, used identically by the mapper and the
+RecoveryTarget layer so the two can never disagree about whether a usable parent exists. Found
+`map_paired_requirement` already fully quantifier-agnostic after instance generation (it never
+read `instance_quantifier` at all), so generalized it directly rather than forking a second
+implementation -- retiring `_parent_context_binding_for_single_instance` outright (confirmed zero
+remaining references anywhere) and collapsing `map_any_requirement`'s two parent-context branches
+into one. Proved order-invariance adversarially, not just by design, using the real recorded
+Phase-15 nomination output in both list orders: before this fix, reversing the model's own raw
+output order flips which region c6 inherits (RTPJ vs. amygdala) on identical underlying evidence;
+after, both orders resolve to amygdala only, locked in as a permanent regression test using the
+real nominations as a hardcoded literal (no live call, no `.local/` dependency). Found and fixed
+three real issues during implementation that the accepted design did not anticipate, each
+documented rather than silently absorbed: (1) own-evidence-first, applied unconditionally, breaks
+the real Phase 2/5/9 replay fixtures by introducing a genuinely new model-query shape for c9's
+own role that contradicts that child's own pre-existing, pre-Phase-16 design commitment to never
+independently re-discover traits -- scoped away from the `for_each_discovered_instance` quantifier
+specifically, on a domain-agnostic dispatch (the quantifier field), not a q_aib name check; (2) the
+accepted plan's own claim that "zero eligible parents means no change from today" was concretely
+wrong for the `exists` shape -- a literal zero-instance result silently also stops testing the
+requirement's OTHER role(s) against the child's own evidence, caught by the Phase-15 harness's own
+byte-identity verification gate, not by inspection, and fixed to build one base instance exactly
+as the retired code always did; (3) `trigger_child_id` is a real field that legitimately disagrees
+across two generation calls sharing one `target_id` (confirmed against the pre-existing shared-
+upstream-dependency test, not hypothetical) -- resolved as a third benign, already-superseded
+bookkeeping field rather than a target-identity change. Reproduced the real c8->c9 before/after
+(partially_filled/4 instances -> missing/0 instances, the Phase-12 inventory's own target count
+dropping from 24 to 20, exactly the four retired c9-owned targets) and the real Phase-15 c4/c5/c6
+before/after (c6 now inherits amygdala, not RTPJ, in both list orders) directly against real data,
+never assumed. Closed the companion mixed-instance `exists` RecoveryTarget gap and the
+`dependency_origins` merge gap in the same pass, both scoped narrowly and regression-tested.
+Updated two pre-existing tests' own real-data expectations with explicit, documented rationale
+(never silently) where the fix correctly overturned them. Full sufficiency family: 294 passed;
+full `experiments/ask_cli_revised/` tree: 2127 passed, 11 skipped, 2 failed (both pre-existing,
+reproduced identically against unmodified HEAD, unrelated to this phase). v9 `combined_hash`
+unchanged: `9c72dc6a0180e95c55e68a009c366843b671684c19c6ae84ed254f3865305586`. No live model call,
+no retrieval, no recovery execution, no contract or pin change, no production integration. Full
+detail in `PHASE16_PARENT_CONTEXT_ELIGIBILITY_RESULTS.md`.

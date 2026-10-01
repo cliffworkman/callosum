@@ -602,9 +602,7 @@ class TransitiveProvenanceTests(unittest.TestCase):
         a = self._propagated("model_mapping")
         self.assertEqual(a["provenance"]["candidate_source"], "parent_context")  # immediate identity preserved
         self.assertTrue(a["provenance"]["upstream_model_dependent"])
-        req = self._req(
-            "onehop#req", {"a": a, "b": _filled("b", "p2", "t2", method="deterministic_mapping")}
-        )
+        req = self._req("onehop#req", {"a": a, "b": _filled("b", "p2", "t2", method="deterministic_mapping")})
         self.assertEqual(req["state"], "filled")
         self.assertFalse(se.compute_stop_search_certified(req))
 
@@ -615,18 +613,14 @@ class TransitiveProvenanceTests(unittest.TestCase):
         self.assertTrue(hop2_provenance["upstream_model_dependent"])
         self.assertEqual(hop2_provenance["source_lineage"], ["model_mapping", "parent_context", "parent_context"])
         a = se.new_role_binding("a", state="filled", proposition_id="p1", exact_text="t", provenance=hop2_provenance)
-        req = self._req(
-            "twohop#req", {"a": a, "b": _filled("b", "p2", "t2", method="deterministic_mapping")}
-        )
+        req = self._req("twohop#req", {"a": a, "b": _filled("b", "p2", "t2", method="deterministic_mapping")})
         self.assertFalse(se.compute_stop_search_certified(req))
 
     # 4. fully deterministic parent_context ancestry -> can certify normally
     def test_fully_deterministic_ancestry_can_certify(self):
         a = self._propagated("deterministic_mapping")
         self.assertFalse(a["provenance"]["upstream_model_dependent"])
-        req = self._req(
-            "cleanancestry#req", {"a": a, "b": _filled("b", "p2", "t2", method="deterministic_mapping")}
-        )
+        req = self._req("cleanancestry#req", {"a": a, "b": _filled("b", "p2", "t2", method="deterministic_mapping")})
         self.assertEqual(req["state"], "filled")
         self.assertTrue(se.compute_stop_search_certified(req))
 
@@ -642,7 +636,10 @@ class TransitiveProvenanceTests(unittest.TestCase):
     def test_optional_propagated_model_dependent_binding_does_not_taint(self):
         a = _filled("a", "p1", "t", method="deterministic_mapping")  # the ONLY required role
         b = self._propagated("model_mapping")  # optional -- excluded from completion_roles
-        specs = {"a": se.new_role_spec("a", "a", "model_nomination_only"), "b": se.new_role_spec("b", "b", "model_nomination_only")}
+        specs = {
+            "a": se.new_role_spec("a", "a", "model_nomination_only"),
+            "b": se.new_role_spec("b", "b", "model_nomination_only"),
+        }
         completion = se.new_role_completion(required_roles=["a"], optional_roles=["b"])
         req = se.new_requirement("optprop#req", "atomic", specs, completion, "exists")
         inst = se.new_instance()
@@ -662,9 +659,7 @@ class TransitiveProvenanceTests(unittest.TestCase):
     # 8. structured ancestry survives serialization/copying/recomputation
     def test_structured_ancestry_survives_deepcopy_and_recomputation(self):
         a = self._propagated("model_mapping")
-        req = self._req(
-            "survive#req", {"a": a, "b": _filled("b", "p2", "t2", method="deterministic_mapping")}
-        )
+        req = self._req("survive#req", {"a": a, "b": _filled("b", "p2", "t2", method="deterministic_mapping")})
         copied = copy.deepcopy(req)
         recomputed = se.recompute_requirement(copied)
         binding = recomputed["instances"][0]["role_bindings"]["a"]
@@ -678,9 +673,7 @@ class TransitiveProvenanceTests(unittest.TestCase):
         check genuinely reads only the structured fields, never `detail`'s free text."""
         a = self._propagated("model_mapping")
         a["provenance"]["detail"] = "XXX totally mangled, unparseable, not even English XXX"
-        req = self._req(
-            "detailcorrupt#req", {"a": a, "b": _filled("b", "p2", "t2", method="deterministic_mapping")}
-        )
+        req = self._req("detailcorrupt#req", {"a": a, "b": _filled("b", "p2", "t2", method="deterministic_mapping")})
         self.assertFalse(se.compute_stop_search_certified(req))  # unchanged: still correctly provisional
         import inspect
 
@@ -708,13 +701,20 @@ class TransitiveProvenanceTests(unittest.TestCase):
         parent_req = se.new_requirement("p8#req", "atomic", parent_specs, parent_completion, "exists")
         parent_inst = se.new_instance()
         parent_inst["role_bindings"]["trait"] = se.new_role_binding(
-            "trait", state="filled", proposition_id="p9", exact_text="just-world beliefs",
+            "trait",
+            state="filled",
+            proposition_id="p9",
+            exact_text="just-world beliefs",
             provenance={"candidate_source": "model_mapping", "detail": "model_nomination_only", "model": "qwen3.5:9b"},
         )
         parent_req["instances"] = [parent_inst]
         parent_req = se.recompute_requirement(parent_req)
 
-        propagated = sm._parent_context_binding_for_single_instance({"parent_context_roles": ["trait"]}, parent_req)
+        # Phase 16 retired `_parent_context_binding_for_single_instance` (the bespoke
+        # `instances[0]`-only fallback); re-stamp directly via the still-current
+        # `_propagated_provenance`, exactly what that helper did internally for one instance.
+        parent_binding = parent_req["instances"][0]["role_bindings"]["trait"]
+        propagated = {"trait": {**parent_binding, "provenance": sm._propagated_provenance("p8#req", parent_binding)}}
 
         child_specs = {
             "trait": se.new_role_spec("trait", "trait", "model_nomination_only"),
@@ -725,8 +725,15 @@ class TransitiveProvenanceTests(unittest.TestCase):
         child_inst = se.new_instance()
         child_inst["role_bindings"]["trait"] = propagated["trait"]
         child_inst["role_bindings"]["scale"] = se.new_role_binding(
-            "scale", state="filled", proposition_id="p99", exact_text="Some Named Scale",
-            provenance={"candidate_source": "deterministic_mapping", "detail": "named_instrument_lexicon", "model": None},
+            "scale",
+            state="filled",
+            proposition_id="p99",
+            exact_text="Some Named Scale",
+            provenance={
+                "candidate_source": "deterministic_mapping",
+                "detail": "named_instrument_lexicon",
+                "model": None,
+            },
         )
         child_req["instances"] = [child_inst]
         child_req = se.recompute_requirement(child_req)
@@ -930,6 +937,97 @@ class FixtureG_OpenListHonestTermination(unittest.TestCase):
         self.assertFalse(se.compute_recovery_needed(req, status))
         # never silently promoted to "filled" just because recovery stopped
         self.assertEqual(req["state"], "partially_filled")
+
+
+class EligibleParentInstancesTests(unittest.TestCase):
+    """Phase 16: the shared parent-instance eligibility primitive -- role-filled AND
+    instance.complete, never positional, never conflated with stop-search certification."""
+
+    def _parent_requirement(self, instances):
+        specs = {
+            "region": se.new_role_spec("region", "a specific NAMED brain area", "model_nomination_only"),
+            "relation": se.new_role_spec("relation", "relation", "achieved_outcome_predicate"),
+        }
+        completion = se.new_role_completion(required_roles=["region", "relation"])
+        req = se.new_requirement("c4#req", "atomic", specs, completion, "exists")
+        req["instances"] = instances
+        return se.recompute_requirement(req)
+
+    def _instance(self, key, *, region_prop, relation_prop, region_text="amygdala", method="model_mapping"):
+        inst = se.new_instance(key)
+        inst["role_bindings"]["region"] = _filled("region", region_prop, region_text, method=method)
+        inst["role_bindings"]["relation"] = _filled("relation", relation_prop, "relation evidence")
+        return inst
+
+    def test_role_filled_but_instance_incomplete_is_not_eligible(self):
+        inst = se.new_instance("i1")
+        inst["role_bindings"]["region"] = _filled("region", "p1", "amygdala", method="model_mapping")
+        inst["role_bindings"]["relation"] = _missing("relation")
+        req = self._parent_requirement([inst])
+        self.assertFalse(req["instances"][0]["complete"])
+        self.assertEqual(se.eligible_parent_instances(req, "region"), [])
+
+    def test_complete_instance_with_role_filled_is_eligible(self):
+        inst = self._instance("i1", region_prop="p1", relation_prop="p1")
+        req = self._parent_requirement([inst])
+        self.assertTrue(req["instances"][0]["complete"])
+        eligible = se.eligible_parent_instances(req, "region")
+        self.assertEqual(len(eligible), 1)
+        self.assertEqual(eligible[0]["instance_key"], "i1")
+
+    def test_complete_instance_whose_requested_role_is_itself_missing_is_not_eligible(self):
+        """An instance can be complete via an ALTERNATIVE role group without the specific
+        requested parent_role ever being filled -- eligibility checks the role binding too, not
+        completeness alone."""
+        specs = {
+            "a": se.new_role_spec("a", "a", "achieved_outcome_predicate"),
+            "region": se.new_role_spec("region", "region", "model_nomination_only"),
+            "region_alt": se.new_role_spec("region_alt", "region alt", "model_nomination_only"),
+        }
+        completion = se.new_role_completion(required_roles=["a"], alternative_role_groups=[["region", "region_alt"]])
+        req = se.new_requirement("x#req", "atomic", specs, completion, "exists")
+        inst = se.new_instance("i1")
+        inst["role_bindings"]["a"] = _filled("a", "p1", "a result")
+        inst["role_bindings"]["region"] = _missing("region")
+        inst["role_bindings"]["region_alt"] = _filled("region_alt", "p1", "amygdala", method="model_mapping")
+        req["instances"] = [inst]
+        req = se.recompute_requirement(req)
+        self.assertTrue(req["instances"][0]["complete"])
+        self.assertEqual(se.eligible_parent_instances(req, "region"), [])
+
+    def test_complete_model_dependent_instance_is_eligible_not_gated_on_stop_search_certification(self):
+        """instance.complete is a SEPARATE axis from compute_stop_search_certified -- a complete
+        but model-dependent instance still propagates; its model-dependence is a provenance fact
+        for the CALLER to carry forward, never a reason to withhold eligibility here."""
+        inst = self._instance("i1", region_prop="p1", relation_prop="p1", method="model_mapping")
+        req = self._parent_requirement([inst])
+        self.assertTrue(req["instances"][0]["complete"])
+        self.assertFalse(se.compute_stop_search_certified(req))  # model-dependent fill, not certified
+        eligible = se.eligible_parent_instances(req, "region")
+        self.assertEqual(len(eligible), 1)
+
+    def test_multiple_eligible_returned_in_deterministic_instance_key_order_not_input_order(self):
+        inst_b = self._instance("b", region_prop="pb", relation_prop="pb")
+        inst_a = self._instance("a", region_prop="pa", relation_prop="pa")
+        req = self._parent_requirement([inst_b, inst_a])  # input order: b, a
+        eligible = se.eligible_parent_instances(req, "region")
+        self.assertEqual([i["instance_key"] for i in eligible], ["a", "b"])
+
+    def test_zero_instances_returns_empty_list(self):
+        req = self._parent_requirement([])
+        self.assertEqual(se.eligible_parent_instances(req, "region"), [])
+
+    def test_order_invariance_eligible_set_identical_regardless_of_input_permutation(self):
+        incomplete = se.new_instance("rtpj")
+        incomplete["role_bindings"]["region"] = _filled("region", "p27", "RTPJ", method="model_mapping")
+        incomplete["role_bindings"]["relation"] = _missing("relation")
+        complete = self._instance("amygdala", region_prop="p11", relation_prop="p11")
+        forward = self._parent_requirement([incomplete, complete])
+        backward = self._parent_requirement([complete, incomplete])
+        self.assertEqual(
+            [i["instance_key"] for i in se.eligible_parent_instances(forward, "region")],
+            [i["instance_key"] for i in se.eligible_parent_instances(backward, "region")],
+        )
 
 
 if __name__ == "__main__":

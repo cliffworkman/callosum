@@ -23,7 +23,17 @@ _EXPECTED_UNCHANGED_FROM_PHASE5 = {
     ("c6", "c6#suff:brain-attitude"): ("filled", 2),
     ("c6", "c6#suff:implicit-explicit-coverage"): ("partially_filled", 2),
     ("c8", "c8#suff:trait-construct"): ("partially_filled", 4),
-    ("c9", "c9#suff:trait-scale-pairing"): ("partially_filled", 4),
+    # Phase 16 (deliberate, documented change -- NOT the Phase-6 gate's own correction this file is
+    # otherwise locking in): c9 pairs against c8's own 4 discovered trait instances, but EVERY one
+    # of them is itself INCOMPLETE (trait filled, `relationship_to_bias_manifestation` missing --
+    # confirmed directly against this real data). Before Phase 16, `map_paired_requirement` paired
+    # against any instance whose role was merely FILLED, regardless of the instance's own
+    # completeness -- producing 4 premature "which scale measures this trait" obligations for
+    # traits whose bias-relevance c8 had not yet established. Phase 16 made `instance.complete`
+    # part of the eligibility contract uniformly (c4->c5/c6 and c8->c9 alike); with zero of c8's
+    # real instances eligible, c9 correctly has zero paired instances -- the real unresolved
+    # obligation is c8's own `relationship_to_bias_manifestation` role, already surfaced there.
+    ("c9", "c9#suff:trait-scale-pairing"): ("missing", 0),
     ("c10", "c10#suff:culture-existence"): ("missing", 1),
     ("c11", "c11#suff:culture-operationalization-pairing"): ("missing", 0),
     ("c12", "c12#suff:intervention-effectiveness"): ("partially_filled", 2),
@@ -68,7 +78,9 @@ class Phase5ReplayTests(unittest.TestCase):
         )
         # the vetoed text must not survive as any instance's own binding
         for inst in c2_req["instances"]:
-            self.assertNotEqual(inst["role_bindings"]["behavior_or_behavioral_measure"]["exact_text"], _VETOED_EXACT_TEXT)
+            self.assertNotEqual(
+                inst["role_bindings"]["behavior_or_behavioral_measure"]["exact_text"], _VETOED_EXACT_TEXT
+            )
 
     def test_c2_still_has_both_roles_individually_filled_on_each_surviving_instance(self):
         """The veto removes ONE candidate nomination; it does not touch the deterministic
@@ -85,7 +97,10 @@ class Phase5ReplayTests(unittest.TestCase):
         only pass (no model_client) must be identical to what Phase 2/3/4's own replays already
         established."""
         det = state_report(self.result["deterministic_only"])
-        self.assertEqual(det["c2"]["c2#suff:behavioral-manifestation"], {"state": "partially_filled", "instance_count": 1, "instance_keys": [None]})
+        self.assertEqual(
+            det["c2"]["c2#suff:behavioral-manifestation"],
+            {"state": "partially_filled", "instance_count": 1, "instance_keys": [None]},
+        )
         self.assertEqual(det["c1"]["c1#suff:neural-manifestation"]["state"], "partially_filled")
 
 
