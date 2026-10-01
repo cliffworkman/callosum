@@ -171,3 +171,39 @@ state change is architecturally correct, not merely the gate suppressing a role.
 child/requirement (c1, c3, c4, c5, c6 ×2, c8, c9, c10, c11, c12) matches Phase 5's own live v9
 result exactly. Extended the leakage suite with `SpecificityPromptLeakageTests` (3 tests) over the
 new prompt. v9 remains byte-identical throughout (hash unchanged); no live diagnostic was run.
+
+---
+
+## Phase 7 — live v9 two-key diagnostic, empirical validation (appended 2026-09-30; does not alter the rows above)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-09-30 | Pre-run gate review + experimental authorization | Cliff Workman |
+| 2026-09-30 | Live experimental execution, manual adjudication, and analysis | Claude |
+
+**Pre-run gate review + experimental authorization (Cliff Workman).** Reviewed the Phase 6
+two-key architecture and, after confirming an explicit 6-point mechanical pre-run gate (v9
+byte-identity, no v10, the nomination-then-confirmation call order, veto-only behavior, recovery
+disabled, leakage tests green), authorized exactly one live execution of the v9 model-assisted
+nomination diagnostic with the Phase 6 specificity-confirmation gate active — pre-registering
+seven numbered success criteria and a two-key manual adjudication protocol (nomination-stage
+correctness, validator-decision correctness, post-gate claim correctness, each classified
+independently) before any output was inspected.
+
+**Live experimental execution, manual adjudication, and analysis (Claude).** Ran the one
+authorized live replay (mechanically clean: 19 calls — 14 nomination + 5 specificity — 0
+failures, 0 grounding rejections, thinking confirmed OFF throughout), manually adjudicated all 11
+distinct specificity candidates across both stages independently, and reported the full
+comparison against Phase 2/Phase 5 in `PHASE7_LIVE_TWO_KEY_DIAGNOSTIC_RESULTS.md`. **Empirical
+result: the specificity gate did not fix Phase 5's false-fill case and introduced a severe,
+previously-unobserved new failure mode.** It accepted the one nomination it was built to veto
+(c2's circular claim — an incorrect accept), while incorrectly vetoing 8 of the remaining 10
+genuinely correct candidates across three unrelated roles and three unrelated children (amygdala
+×2, all four of c8's named traits, both of c6's EBQ anchor groups) — a systematic false-negative
+rate (73%) the authorization's own pre-registered criteria classify as disqualifying for recovery
+use. c8→c9 parent propagation collapsed from Phase 5's correct 4→4 to 0→0 as a direct downstream
+consequence. No code, prompt, or gate parameter was changed after observing this result, per the
+authorization's explicit constraint. Recommended **NOT READY FOR RECOVERY EXPERIMENTATION**, with
+the live validator's own directionally-inverted miscalibration flagged as the newly discovered
+issue warranting investigation before any further specificity-gate experimentation. Recovery was
+not enabled or run.
