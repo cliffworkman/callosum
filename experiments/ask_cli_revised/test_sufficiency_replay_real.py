@@ -24,6 +24,7 @@ from pathlib import Path
 from experiments.ask_cli_revised import sufficiency_authoring as sa
 from experiments.ask_cli_revised import sufficiency_diagnostic as sd
 from experiments.ask_cli_revised import sufficiency_engine as se
+from experiments.ask_cli_revised import sufficiency_recovery_targets as srt
 
 _DEFAULT_DIR = (
     Path(__file__).resolve().parents[2] / ".local" / "e2e-runs" / "q-aib-hierarchical-t5c-live-20260930" / "run"
@@ -66,7 +67,7 @@ class ElevenChildReplayTests(unittest.TestCase):
         cls.parent_of = _parent_of(cls.children)
         cls.mapped = sd.compute_diagnostic_sufficiency_map(cls.sealed, cls.contract, cls.parent_of)
         sd.compute_direction_and_effectiveness(cls.sealed, cls.mapped)
-        cls.recovery_candidates = sd.compute_recovery_candidates(cls.mapped)
+        cls.recovery_targets = srt.compute_recovery_targets(cls.mapped, cls.parent_of)
 
     def test_all_eleven_children_are_present_in_the_replay_none_dropped(self):
         self.assertEqual(set(self.mapped), set(ALL_ELEVEN_CHILDREN))
@@ -154,8 +155,6 @@ class ElevenChildReplayTests(unittest.TestCase):
         """Every role_binding's `guard` dict is exactly a passage_flags() output -- never
         recomputed, never used to universally exclude a candidate (only per-role, via
         disqualifying_guards, already exercised in test_sufficiency_mapping.py)."""
-        from experiments.ask_cli_revised import overview_evidence as oe
-
         for child_id in ALL_ELEVEN_CHILDREN:
             for req in self.mapped[child_id]["requirements"]:
                 for instance in req["instances"]:
@@ -193,13 +192,15 @@ class ElevenChildReplayTests(unittest.TestCase):
         after = sa.freeze(self.contract)["combined_hash"]
         self.assertEqual(before, after)
 
-    def test_report_recovery_candidates_honestly(self):
+    def test_report_recovery_targets_honestly(self):
         """What WOULD trigger recovery if the gate were enabled, reported for every child --
         never asserting a specific set, since that depends on the real evidence the mapping
-        actually found."""
-        for child_id, req_ids in self.recovery_candidates.items():
-            self.assertIn(child_id, ALL_ELEVEN_CHILDREN)
-            self.assertTrue(all(isinstance(r, str) for r in req_ids))
+        actually found. Each reported target is a real, well-formed RecoveryTarget (Phase 12)."""
+        for target in self.recovery_targets.values():
+            self.assertIn(target["search_child_id"], ALL_ELEVEN_CHILDREN)
+            self.assertIn(target["reason"], srt.REASONS)
+            self.assertIn(target["goal_mode"], srt.GOAL_MODES)
+            self.assertTrue(all(isinstance(r, str) for r in target["target_roles"]))
 
 
 @needs_real_run
@@ -214,7 +215,7 @@ class PrintedElevenChildReportTests(unittest.TestCase):
         parent_of = _parent_of(children)
         mapped = sd.compute_diagnostic_sufficiency_map(sealed, contract, parent_of)
         sd.compute_direction_and_effectiveness(sealed, mapped)
-        recovery = sd.compute_recovery_candidates(mapped)
+        recovery = srt.compute_recovery_targets(mapped, parent_of)
         print("\n\n=== q_aib 11-child sufficiency replay (deterministic-only, no model) ===")
         for child_id in ALL_ELEVEN_CHILDREN:
             for req in mapped[child_id]["requirements"]:
@@ -229,9 +230,14 @@ class PrintedElevenChildReportTests(unittest.TestCase):
                     print(f"    direction: {req['direction']}")
                 if req.get("effectiveness") is not None:
                     print(f"    effectiveness: {req['effectiveness']}")
-        print("\n--- would-trigger-recovery-if-enabled ---")
-        for child_id in ALL_ELEVEN_CHILDREN:
-            print(f"{child_id}: {recovery.get(child_id, [])}")
+        print("\n--- would-trigger-recovery-if-enabled (structured RecoveryTargets) ---")
+        for target in recovery.values():
+            print(
+                f"{target['target_id']}: search_child={target['search_child_id']} "
+                f"trigger_child={target['trigger_child_id']} requirement={target['requirement_id']} "
+                f"reason={target['reason']} goal_mode={target['goal_mode']} "
+                f"roles={target['target_roles']} scope={target['scope']}"
+            )
         self.assertTrue(True)
 
 

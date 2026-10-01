@@ -427,7 +427,7 @@ def map_requirement(
 
     if requirement["multi_instance"]:
         instances = build_multi_instances(candidate_units)
-        units_by_instance = {inst["instance_key"]: [u] for inst, u in zip(instances, candidate_units)}
+        units_by_instance = {inst["instance_key"]: [u] for inst, u in zip(instances, candidate_units, strict=True)}
     else:
         instances = [se.new_instance()]
         units_by_instance = {None: candidate_units}
@@ -498,7 +498,13 @@ def _propagated_provenance(parent_requirement_id: str, source_binding: dict) -> 
 
     Robust to a `source_binding` that never carried either new key (every deterministic/direct-
     model-mapping binding built before this phase, and every binding built elsewhere in this
-    codebase) -- `.get(...)` defaults degrade correctly to a plain first-hop computation."""
+    codebase) -- `.get(...)` defaults degrade correctly to a plain first-hop computation.
+
+    Phase 12 (recovery targeting) adds one more carried-forward field, `model_dependency_origins`
+    -- a pass-through only, never minted here: the ORIGINAL creation site
+    (`sufficiency_diagnostic._stamp_model_dependency_origins`) is the only place a new origin
+    record is ever appended; a propagation hop simply carries the list it was handed forward
+    unchanged, exactly like `source_lineage` above."""
     source_provenance = source_binding.get("provenance") or {}
     source_candidate_source = source_provenance.get("candidate_source")
     source_lineage = source_provenance.get("source_lineage") or (
@@ -513,6 +519,7 @@ def _propagated_provenance(parent_requirement_id: str, source_binding: dict) -> 
         "model": source_provenance.get("model"),
         "upstream_model_dependent": upstream_model_dependent,
         "source_lineage": [*source_lineage, "parent_context"],
+        "model_dependency_origins": list(source_provenance.get("model_dependency_origins") or []),
     }
 
 
@@ -616,26 +623,6 @@ def map_any_requirement(
             requirement, candidate_units, parent_context_bindings=parent_context_bindings, model_client=model_client
         )
     return map_requirement(requirement, candidate_units, model_client=model_client)
-
-
-def recovery_hint(requirement: dict) -> str:
-    """A short, benchmark-neutral phrase built ONLY from role `category_description`s -- never
-    from a requirement id (carries `RC-`/`c\\d+` provenance tokens) or a hidden qualification's
-    own stored text. Appended to the existing `qwen.recovery_query(obligation_note=...)` call so
-    a recovery attempt is steered toward the SPECIFIC missing thing, never a benchmark term."""
-    missing_roles: set[str] = set()
-    for instance in requirement["instances"] or [se.new_instance()]:
-        for role, binding in instance["role_bindings"].items():
-            if binding["state"] != "filled":
-                missing_roles.add(role)
-    if not missing_roles:
-        missing_roles = set(requirement["role_completion"]["required_roles"])
-    descriptions = [
-        requirement["role_specs"][role]["category_description"]
-        for role in sorted(missing_roles)
-        if role in requirement["role_specs"]
-    ]
-    return "; ".join(descriptions) or "additional supporting evidence"
 
 
 def map_direction(requirement: dict, grounding_units: list[dict]) -> dict | None:

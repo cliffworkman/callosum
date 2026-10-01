@@ -17,7 +17,7 @@ from pathlib import Path
 
 from experiments.ask_cli_revised import hierarchy_contract as hc
 from experiments.ask_cli_revised import sufficiency_authoring as sa
-from experiments.ask_cli_revised import sufficiency_mapping as sm
+from experiments.ask_cli_revised import sufficiency_recovery_targets as srt
 
 
 def _mentions_whole_word(term: str, text: str) -> bool:
@@ -113,15 +113,33 @@ class ProvenanceTokenGuardTests(unittest.TestCase):
 
     @needs_real_contract
     def test_recovery_hints_carry_no_provenance_tokens_and_no_hidden_terms(self):
+        """Phase 12: `sufficiency_mapping.recovery_hint` is retired --
+        `sufficiency_recovery_targets.recovery_query_hint` is the replacement, exercised here over
+        every real role across every real v9 requirement via directly-constructed targets (the raw
+        authored contract has no mapped instances to drive full `compute_recovery_targets`
+        generation; this proves the hint TEMPLATE is leakage-clean for every real category_
+        description it would ever actually be handed, which is what matters for this guarantee)."""
         children = _load_children_by_id()
         contract = sa.build_qaib_contract(children)
         for child_id, child_contract in contract.items():
             for req in child_contract["requirements"]:
-                hint = sm.recovery_hint(req)
-                self.assertEqual(hc.provenance_tokens(hint), [], f"{child_id}/{req['id']}")
-                self.assertFalse(hc.mentions_networks(hint), f"{child_id}/{req['id']}")
-                for term in _HIDDEN_BENCHMARK_TERMS:
-                    self.assertFalse(_mentions_whole_word(term, hint), f"{child_id}/{req['id']} leaked {term!r}")
+                for role, spec in req["role_specs"].items():
+                    target = srt.new_recovery_target(
+                        search_child_id=child_id,
+                        trigger_child_id=child_id,
+                        requirement_id=req["id"],
+                        target_roles=[role],
+                        reason="missing",
+                        goal_mode="single_role",
+                        scope={"kind": "none"},
+                        category_descriptions=[spec["category_description"]],
+                    )
+                    hint = srt.recovery_query_hint(target, contract)
+                    label = f"{child_id}/{req['id']}/{role}"
+                    self.assertEqual(hc.provenance_tokens(hint), [], label)
+                    self.assertFalse(hc.mentions_networks(hint), label)
+                    for term in _HIDDEN_BENCHMARK_TERMS:
+                        self.assertFalse(_mentions_whole_word(term, hint), f"{label} leaked {term!r}")
 
 
 class MutationInjectionTests(unittest.TestCase):
@@ -141,7 +159,7 @@ class MutationInjectionTests(unittest.TestCase):
 
 
 class HiddenQualificationIsolationTests(unittest.TestCase):
-    """recovery_hint() for c9's unfilled named-scale role must share no long token with
+    """The recovery hint for c9's own named-scale role must share no long token with
     c9#constraint:no-reask-traits' own stored text -- the hidden, machine-only constraint must
     never leak through even as a near-paraphrase."""
 
@@ -155,7 +173,18 @@ class HiddenQualificationIsolationTests(unittest.TestCase):
         self.assertIsNotNone(hidden_text, "fixture assumption: c9 carries this hidden qualification")
         contract = sa.build_qaib_contract(children)
         req = contract["c9"]["requirements"][0]
-        hint = sm.recovery_hint(req)
+        role = "named_scale_or_instrument"
+        target = srt.new_recovery_target(
+            search_child_id="c9",
+            trigger_child_id="c9",
+            requirement_id=req["id"],
+            target_roles=[role],
+            reason="missing",
+            goal_mode="single_role",
+            scope={"kind": "none"},
+            category_descriptions=[req["role_specs"][role]["category_description"]],
+        )
+        hint = srt.recovery_query_hint(target, contract)
         hint_tokens = {t for t in hint.lower().split() if len(t) >= 5}
         hidden_tokens = {t.strip(".,;") for t in hidden_text.lower().split() if len(t.strip(".,;")) >= 5}
         overlap = hint_tokens & hidden_tokens

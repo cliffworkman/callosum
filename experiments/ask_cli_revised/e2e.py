@@ -39,10 +39,9 @@ from experiments.ask_cli_revised import (
     provenance,
     retrieval,
     stages,
+    sufficiency_diagnostic,
+    sufficiency_recovery_targets,
 )
-from experiments.ask_cli_revised import sufficiency_diagnostic
-from experiments.ask_cli_revised import sufficiency_engine
-from experiments.ask_cli_revised import sufficiency_mapping
 from experiments.ask_cli_revised import topology as topo
 from experiments.ask_cli_revised.ledger_renderer import audit_final, render_answer
 from experiments.ask_cli_revised.qwen import QwenTasks
@@ -394,25 +393,43 @@ def execute(
         # Sufficiency-driven recovery gating (item (B)): OFF by default, and a wholly separate
         # opt-in from the diagnostic pass above -- a `judged_responsive`-but-incomplete child
         # additionally becomes a gap only when the caller has explicitly turned this on AND
-        # supplied a sufficiency contract. Each requirement's own recovery routing
-        # (`sufficiency_engine.compute_recovery_needed`) is evaluated against a fresh,
-        # budget-not-yet-exhausted SearchStatus here -- this run's own recovery round is the
-        # attempt that status describes; multi-round budget bookkeeping across repeated calls is
-        # left to a future increment, disclosed as a scope boundary, not built or claimed here.
+        # supplied a sufficiency contract. `sufficiency_recovery_targets.compute_recovery_targets`
+        # (Phase 12) replaces the earlier child-level boolean collapse Phase 11's own audit found
+        # sufficiency-blind: each distinct semantic search obligation -- a missing role, an
+        # unsatisfied alternative group, an unverified relationship, open_list breadth, an
+        # at_least_n deficit, or a provisional-fill corroboration (possibly redirected to its true
+        # upstream origin) -- becomes its own synthetic obligation row, with a role-aware hint in
+        # `display`/`note` instead of the generic coverage note. A structured target's own
+        # `field_id`/`subquestion_id` is its SEARCH OWNER's real child id (never a fresh per-target
+        # id) -- `cli._recover`'s own obligation-filtering needs that to resolve the right
+        # subquestion text (verified end to end: `gaps` carries no internal dedup by field_id, so
+        # several structured rows sharing one child's id execute as independent searches, each
+        # correctly accounted). Per-target identity instead rides the inert `_recovery_target_id`
+        # key, read back afterward for reporting, never consulted by `_recover` itself. A
+        # structured target is appended REGARDLESS of whether the generic pass already gapped the
+        # same child -- Phase 11 found the generic query itself sufficiency-blind, so "this child
+        # is already being searched generically" says nothing about whether this SPECIFIC role/
+        # instance/relationship obligation is being searched for; suppressing here would silently
+        # discard exactly the precision this mechanism exists to add.
+        # `compute_recovery_targets`'s own target_id-based dedup is this round's complete
+        # one-attempt-per-target budget; persisting attempts across REPEATED calls (a future
+        # multi-round increment) is left unbuilt here, the same disclosed scope boundary the prior
+        # boolean gate already carried.
         if sufficiency_recovery_gate_enabled and sufficiency_map_initial is not None:
-            already_gapped = {row["field_id"] for row in gaps}
-            for row in coverage_initial["obligations"]:
-                if row["field_id"] in already_gapped:
-                    continue
-                child_contract = sufficiency_map_initial.get(row["field_id"])
-                if child_contract is None:
-                    continue
-                needs_recovery = any(
-                    sufficiency_engine.compute_recovery_needed(req, sufficiency_engine.new_search_status(req["id"]))
-                    for req in child_contract["requirements"]
+            recovery_targets_initial = sufficiency_recovery_targets.compute_recovery_targets(
+                sufficiency_map_initial, sufficiency_parent_of or {}
+            )
+            for target in recovery_targets_initial.values():
+                hint = sufficiency_recovery_targets.recovery_query_hint(target, sufficiency_map_initial)
+                gaps.append(
+                    {
+                        "field_id": target["search_child_id"],
+                        "subquestion_id": target["search_child_id"],
+                        "display": hint,
+                        "note": hint,
+                        "_recovery_target_id": target["target_id"],
+                    }
                 )
-                if needs_recovery:
-                    gaps.append(row)
         if not coverage_initial["assessed"]:
             plan_record = {
                 "source": profile.P.kind,
@@ -498,8 +515,11 @@ def execute(
                 "wall_seconds": round(time.monotonic() - started, 3),
             }
         )
-    recovery_candidates = (
-        sufficiency_diagnostic.compute_recovery_candidates(sufficiency_map_final)
+    # Same primitive as the pre-round call above, re-run against the (possibly recovery-updated)
+    # final map -- one shared function, two call sites, never two independently-computed
+    # recovery-need checks (the prior design's own redundancy, closed by Phase 12).
+    recovery_targets_final = (
+        sufficiency_recovery_targets.compute_recovery_targets(sufficiency_map_final, sufficiency_parent_of or {})
         if sufficiency_map_final is not None
         else {}
     )
@@ -631,7 +651,11 @@ def execute(
         "child_overview_manifest": child_overview_manifest,  # Stage B: None for a non-hierarchical run
         "sufficiency_map_initial": sufficiency_map_initial,  # None unless a sufficiency_contract was supplied
         "sufficiency_map_final": sufficiency_map_final,
-        "sufficiency_recovery_candidates": recovery_candidates,  # what WOULD trigger recovery if the gate were on
+        # what WOULD trigger recovery if the gate were on -- structured RecoveryTargets (Phase 12),
+        # not the earlier child-level boolean shape; key renamed from the prior
+        # "sufficiency_recovery_candidates" since the shape itself changed (confirmed by grep: no
+        # consumer outside this file parses the old key/shape).
+        "sufficiency_recovery_targets": recovery_targets_final,
         "supervisor_records": {role: sup.records for role, sup in bound.supervisors.items()},
         "records_total": len(sink.all_records),
     }

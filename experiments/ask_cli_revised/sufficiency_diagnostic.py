@@ -128,13 +128,56 @@ def compute_diagnostic_sufficiency_map(
                         f"(parent_of={parent_of!r}, mapped so far={sorted(mapped)!r}) -- check role-name "
                         "agreement between the child and its parent, and that the parent was mapped first."
                     )
-            new_requirements.append(
-                sm.map_any_requirement(
-                    req, candidate_units, parent_requirement=parent_requirement, model_client=model_client
-                )
+            mapped_req = sm.map_any_requirement(
+                req, candidate_units, parent_requirement=parent_requirement, model_client=model_client
             )
+            new_requirements.append(_stamp_model_dependency_origins(mapped_req, child_id))
         mapped[child_id] = se.new_contract(child_id, new_requirements)
     return mapped
+
+
+def _stamp_model_dependency_origins(requirement: dict, child_id: str) -> dict:
+    """Pure; returns a NEW requirement. Stamps origin ONLY on a FRESH, un-propagated
+    `model_mapping` binding -- one with no existing `model_dependency_origins` -- naming its own
+    location (`{child_id, requirement_id, role, instance_key}`). A propagated `parent_context`
+    binding already carries its origin forward via `sufficiency_mapping._propagated_provenance`
+    and is left untouched here.
+
+    Called from THIS per-child loop (never from `sufficiency_mapping.py`, which is deliberately
+    child-agnostic -- see that module's own "zero question/domain-specific vocabulary" charter)
+    right after `map_any_requirement` returns, so each instance's FINAL `instance_key` is already
+    known (`_rederive_keys_if_forked` only assigns it after every role has been bound). Because
+    parent-less children are mapped (and thus stamped) first, a paired child's own
+    `_propagated_provenance` call reads an ALREADY-stamped parent binding -- no extra ordering
+    logic needed beyond the existing topological pass above.
+
+    `requirement_id` global uniqueness is NOT an engine invariant (`sufficiency_engine.
+    new_requirement`/`new_contract` validate nothing about it) -- `child_id` is therefore stamped
+    explicitly rather than reconstructed later from a naming convention."""
+    new_instances = []
+    for instance in requirement["instances"]:
+        bindings = dict(instance["role_bindings"])
+        changed = False
+        for role, binding in list(bindings.items()):
+            provenance = binding.get("provenance") or {}
+            if provenance.get("candidate_source") == "model_mapping" and not provenance.get("model_dependency_origins"):
+                bindings[role] = {
+                    **binding,
+                    "provenance": {
+                        **provenance,
+                        "model_dependency_origins": [
+                            {
+                                "child_id": child_id,
+                                "requirement_id": requirement["id"],
+                                "role": role,
+                                "instance_key": instance["instance_key"],
+                            }
+                        ],
+                    },
+                }
+                changed = True
+        new_instances.append({**instance, "role_bindings": bindings} if changed else instance)
+    return {**requirement, "instances": new_instances}
 
 
 def compute_direction_and_effectiveness(sealed: dict, mapped_contract_by_child: dict) -> None:
@@ -153,16 +196,7 @@ def compute_direction_and_effectiveness(sealed: dict, mapped_contract_by_child: 
                 req["effectiveness"] = sm.map_effectiveness(req, candidate_units)
 
 
-def compute_recovery_candidates(mapped_contract_by_child: dict) -> dict[str, list[str]]:
-    """`{child_id: [requirement_id, ...]}` for every requirement that WOULD trigger recovery
-    right now, under a fresh (budget-not-yet-exhausted) `SearchStatus` -- i.e. "what would
-    trigger recovery if the sufficiency-driven recovery gate were enabled", independent of
-    whether it actually is. Never mutates anything; a pure read over already-mapped
-    requirements."""
-    candidates: dict[str, list[str]] = {}
-    for child_id, contract in mapped_contract_by_child.items():
-        for req in contract["requirements"]:
-            status = se.new_search_status(req["id"])
-            if se.compute_recovery_needed(req, status):
-                candidates.setdefault(child_id, []).append(req["id"])
-    return candidates
+# `compute_recovery_candidates` (the child-level `{child_id: [requirement_id, ...]}` boolean
+# collapse Phase 11's own audit found sufficiency-blind) is retired -- replaced outright by
+# `sufficiency_recovery_targets.compute_recovery_targets`, which this module's own
+# `_stamp_model_dependency_origins` above directly feeds.

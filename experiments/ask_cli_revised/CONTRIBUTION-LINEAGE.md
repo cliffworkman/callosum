@@ -395,3 +395,108 @@ truly needs corroboration," which are semantic design choices, not mechanical pl
 reported rather than implemented a fix, per instruction. v9 remains byte-identical throughout
 (hash unchanged); no live model call was made in this phase; recovery was not enabled or run. Full
 detail in `PHASE11_ROLLBACK_AND_PROVENANCE_REPAIR_RESULTS.md`.
+
+---
+
+## Phase 12 — structured RecoveryTarget architecture, implemented (appended 2026-10-01; does not alter the rows above)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-10-01 | Evidence | Phase 11 recovery-targeting audit |
+| 2026-10-01 | Design direction | Cliff Workman + ChatGPT |
+| 2026-10-01 | Design (3 review rounds) + implementation | Claude |
+
+**Evidence (Phase 11 recovery-targeting audit).** Established by direct code trace that
+sufficiency-driven recovery collapses requirement-level semantic state to a child-level boolean
+and a generic obligation query; `recovery_hint` is dead production code; inherited provisionality
+cannot be redirected upstream; classified REDESIGN NEEDED.
+
+**Design direction (Cliff Workman + ChatGPT).** Proposed replacing child-level sufficiency
+recovery with structured RecoveryTargets that preserve role/reason/ownership, redirect inherited
+uncertainty to its originating obligation, avoid feeding untrusted model values back into search
+by default, deduplicate shared upstream recovery work, and use a bounded one-attempt policy for
+provisional fills. Three subsequent review rounds (not re-narrated here; see the session's own
+design record) progressively forced quantifier-, instance-, and alternative-group-aware
+granularity; a first-class `relationship_unverified` reason; a confidence-aware relationship-
+context rule; a hashed `target_id` carrying a `goal_mode` field; `child_id`-explicit (not
+convention-inferred) origin provenance; and an unconditional generic-gap/structured-target
+coexistence policy — each correction grounded in a direct re-read of the real engine code, not
+assumed.
+
+**Design + implementation (Claude).** Shipped the reviewed architecture, test-driven
+(`test_sufficiency_recovery_targets.py`, 38 tests) against the real codebase, with four further
+corrections surfaced only by building and running it — none anticipated in the design review
+itself:
+
+1. **Provisional corroboration is checked PER INSTANCE, never gated on the requirement's own
+   aggregate `state`.** The design review's own `state=="filled"` gate (mirroring
+   `compute_stop_search_certified`'s documented scope) turned out to silently defer — potentially
+   forever — corroboration for a `for_each_discovered_instance`/`at_least_n`/multi-instance
+   `exists` requirement's own already-complete-but-model-dependent instance whenever a SIBLING
+   instance was still incomplete (the real c9 shape: one pairing done, three still missing their
+   own scale). Fixed by dispatching per instance (`_targets_for_instance`), consulting
+   `sufficiency_engine._instance_completion_is_model_dependent` directly rather than the
+   whole-requirement aggregate.
+2. **Scoping follows the requirement's RUNTIME instance count, never the declared `multi_instance`
+   flag.** The real preserved Phase-5 replay surfaces a requirement (`c6#suff:brain-attitude`)
+   declared `multi_instance=False` whose own model-nomination forking (`sufficiency_mapping.
+   _fork_instances_over_role`) still produced two final, independently model-dependent instances.
+   Trusting the declared flag would have collapsed two genuinely distinct corroboration needs into
+   one target; fixed by scoping on `len(requirement["instances"])` directly.
+3. **Provisional-corroboration origin grouping keys by `(requirement_id, instance_key)`, never
+   `requirement_id` alone** — the same c6 shape exposed this: without the instance-key component,
+   its two independent nominations would have merged into one target, discarding one.
+4. **Relationship-context scaffolding needed a length bound.** The offline inventory (below) was
+   the first thing to surface this: `achieved_outcome_predicate`'s own detector deliberately
+   returns the WHOLE PASSAGE as `exact_text` ("a stated result is a property of the passage as a
+   whole"), which produced an unusably long, non-"short phrase" hint when offered as relationship
+   scaffolding (`c12`'s own `observed_effect_or_outcome` role). Fixed with a length bound
+   (`_MAX_CONTEXT_EXACT_TEXT_LENGTH = 80`), keyed on length rather than strategy name to stay
+   generic over any current or future `mapping_strategy`.
+
+**Shipped:** `sufficiency_recovery_targets.py` (new module: `new_recovery_target`/`new_target_id`
+— canonical-JSON SHA-256 identity over `{search_child_id, requirement_id, reason, goal_mode,
+target_roles, scope}`, excluding `trigger_child_id`/`affected_descendants`/the `at_least_n`
+deficit count by design; quantifier-aware generation for `exists`/`all_requested_categories`/
+`for_each_discovered_instance`/`at_least_n`/`open_list`; required-vs-alternative conjunctive/
+disjunctive semantics; zero-instance/first-instance discovery, including upstream deferral when a
+parent-backed `for_each_discovered_instance` child's parent has no source; the confidence-aware
+hint builder, dispatched on `goal_mode`). `sufficiency_diagnostic._stamp_model_dependency_origins`
+(new: stamps `{child_id, requirement_id, role, instance_key}` onto a fresh `model_mapping`
+binding, called from `compute_diagnostic_sufficiency_map`'s existing per-child loop — never from
+`sufficiency_mapping.py`, preserving that module's own child-agnostic charter).
+`sufficiency_mapping._propagated_provenance` gained one more carried-forward (never newly minted)
+field, `model_dependency_origins`. `compute_recovery_candidates`/`recovery_hint` deleted outright
+(confirmed by grep: no consumer outside this file parsed the old key/shape); their call sites and
+tests ported to `compute_recovery_targets`/`recovery_query_hint`, including the non-leakage
+guarantee. `e2e.py`'s sufficiency-extension block now generates targets via
+`compute_recovery_targets`, appends one synthetic `gaps` row per target (`field_id`/
+`subquestion_id` = the target's real search-owner child id, never a fresh per-target id; per-target
+identity rides an inert `_recovery_target_id` key `cli._recover` never reads) **unconditionally**
+— a structured target is never suppressed merely because the generic coverage pass already gapped
+the same child, since Phase 11 itself established the generic query is sufficiency-blind. Output
+key renamed `sufficiency_recovery_candidates` → `sufficiency_recovery_targets` (shape changed; no
+external consumer, confirmed by grep). Zero changes to `_recover`, `qwen.recovery_query`,
+`_process_hits`, retrieval, `compute_recovery_needed`, or `compute_stop_search_certified`.
+
+**Offline inventory (no live model call, no retrieval, no recovery execution):** Phase 5's own
+frozen recorded nominations (`sufficiency_phase5_replay.replay`, Cliff's already-frozen manual
+adjudication, not re-adjudicated) replayed through the current mapper/stamping pipeline
+(`sufficiency_recovery_targets_inventory.py`) produced **24 real RecoveryTargets**. Confirms,
+against real data rather than synthetic fixtures: `c9` does **not** redirect upstream — its own
+four discovered pairings each produce a local `partial` target for their own missing scale role,
+never a provisional-fill redirect to `c8` (the concrete doubt Cliff's own review round raised,
+confirmed rather than assumed); `c4→c6` **does** genuinely redirect (one merged target,
+`affected_descendants=["c4","c6"]`); `c6` independently exercises the real multi-instance-
+corroboration shape (two separate targets for two distinct model-nominated attitude measures);
+`c2` reproduces its own historically-documented `relationship_unverified` shape (two instances,
+each failing joint-grounding against a different proposition than its own manifestation evidence).
+
+**Regression:** `test_sufficiency_recovery_targets.py` 38/38; the full sufficiency-family suite
+(10 files) 245/245; the full `experiments/ask_cli_revised/` tree **2097 passed, 11 skipped, 2
+failed** — both failures confirmed pre-existing and unrelated by direct comparison against
+unmodified HEAD (a `hierarchy_contract.py` pin-drift failure in a file never touched this phase,
+and a `--preflight-only` readiness-code mismatch reproduced identically on baseline). v9
+`combined_hash` confirmed byte-identical throughout:
+`9c72dc6a0180e95c55e68a009c366843b671684c19c6ae84ed254f3865305586`. Recovery gate remained OFF
+throughout; no live model call, no retrieval, no recovery execution, no contract or v10 change.

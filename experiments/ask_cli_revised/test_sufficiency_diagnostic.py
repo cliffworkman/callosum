@@ -8,7 +8,7 @@ import unittest
 
 from experiments.ask_cli_revised import sufficiency_diagnostic as sd
 from experiments.ask_cli_revised import sufficiency_engine as se
-from experiments.ask_cli_revised import sufficiency_mapping as sm
+from experiments.ask_cli_revised import sufficiency_recovery_targets as srt
 
 
 def _sealed(propositions):
@@ -175,15 +175,20 @@ class ModelAssistedParentPropagationTests(unittest.TestCase):
         self.assertEqual(positional, keyword)
 
 
-class RecoveryCandidateReportingTests(unittest.TestCase):
-    def test_missing_requirement_is_a_recovery_candidate(self):
+class RecoveryTargetReportingTests(unittest.TestCase):
+    """`compute_recovery_candidates` is retired (Phase 12) -- `sufficiency_recovery_targets.
+    compute_recovery_targets` is the replacement primitive; see test_sufficiency_recovery_targets.py
+    for its own full generation test matrix. These two tests restate the ORIGINAL pair's intent
+    against the new API, not duplicate the new module's own suite."""
+
+    def test_missing_requirement_produces_a_recovery_target(self):
         sealed = _sealed([])
         contracts = _small_contract()
         mapped = sd.compute_diagnostic_sufficiency_map(sealed, contracts, parent_of={"c": "p"})
-        candidates = sd.compute_recovery_candidates(mapped)
-        self.assertIn("p8#req", candidates.get("p", []))
+        targets = srt.compute_recovery_targets(mapped, {"c": "p"})
+        self.assertTrue(any(t["requirement_id"] == "p8#req" for t in targets.values()))
 
-    def test_filled_requirement_is_not_a_recovery_candidate(self):
+    def test_filled_requirement_produces_no_recovery_target(self):
         specs = {"a": se.new_role_spec("a", "a", "achieved_outcome_predicate")}
         completion = se.new_role_completion(required_roles=["a"])
         req = se.new_requirement("x#req", "atomic", specs, completion, "exists")
@@ -198,8 +203,64 @@ class RecoveryCandidateReportingTests(unittest.TestCase):
         req["instances"] = [inst]
         req = se.recompute_requirement(req)
         mapped = {"x": se.new_contract("x", [req])}
-        candidates = sd.compute_recovery_candidates(mapped)
-        self.assertNotIn("x", candidates)
+        targets = srt.compute_recovery_targets(mapped, {})
+        self.assertEqual(targets, {})
+
+
+class StampModelDependencyOriginsTests(unittest.TestCase):
+    """`compute_diagnostic_sufficiency_map` now stamps `model_dependency_origins` onto every fresh
+    `model_mapping` binding via `_stamp_model_dependency_origins`, called in place inside the
+    per-child loop (round 3 §7's corrected stamping site)."""
+
+    def test_fresh_model_mapping_binding_is_stamped_with_its_own_location(self):
+        sealed = _sealed([_prop("p1", 1, "This finding showed empathy was strongly related to the outcome.", ["p"])])
+        mapped = sd.compute_diagnostic_sufficiency_map(
+            sealed, _small_contract(), parent_of={"c": "p"}, model_client=_FakeModelClient()
+        )
+        trait_binding = mapped["p"]["requirements"][0]["instances"][0]["role_bindings"]["trait"]
+        self.assertEqual(
+            trait_binding["provenance"]["model_dependency_origins"],
+            [
+                {
+                    "child_id": "p",
+                    "requirement_id": "p8#req",
+                    "role": "trait",
+                    "instance_key": mapped["p"]["requirements"][0]["instances"][0]["instance_key"],
+                }
+            ],
+        )
+
+    def test_propagated_binding_carries_the_stamped_origin_forward_not_a_fresh_one(self):
+        sealed = _sealed(
+            [
+                _prop("p1", 1, "This finding showed empathy was strongly related to the outcome.", ["p"]),
+                _prop("p2", 2, "The Empathy Scale was used to assess trait empathy in participants.", ["c"]),
+            ]
+        )
+        mapped = sd.compute_diagnostic_sufficiency_map(
+            sealed, _small_contract(), parent_of={"c": "p"}, model_client=_FakeModelClient()
+        )
+        child_trait_binding = mapped["c"]["requirements"][0]["instances"][0]["role_bindings"]["trait"]
+        self.assertEqual(child_trait_binding["provenance"]["candidate_source"], "parent_context")
+        origins = child_trait_binding["provenance"]["model_dependency_origins"]
+        self.assertEqual(len(origins), 1)
+        self.assertEqual(origins[0]["child_id"], "p")
+        self.assertEqual(origins[0]["requirement_id"], "p8#req")
+
+    def test_deterministic_binding_is_never_stamped(self):
+        sealed = _sealed([_prop("p1", 1, "This finding showed a strong relation to the outcome.", ["p"])])
+        mapped = sd.compute_diagnostic_sufficiency_map(sealed, _small_contract(), parent_of={"c": "p"})
+        relation_binding = mapped["p"]["requirements"][0]["instances"][0]["role_bindings"]["relation"]
+        self.assertEqual(relation_binding["provenance"].get("model_dependency_origins"), None)
+
+    def test_stamping_does_not_affect_the_frozen_contract_hash(self):
+        before = se.contract_hash(_small_contract()["p"])
+        sealed = _sealed([_prop("p1", 1, "This finding showed empathy was strongly related to the outcome.", ["p"])])
+        sd.compute_diagnostic_sufficiency_map(
+            sealed, _small_contract(), parent_of={"c": "p"}, model_client=_FakeModelClient()
+        )
+        after = se.contract_hash(_small_contract()["p"])
+        self.assertEqual(before, after)
 
 
 class DirectionAndEffectivenessPassTests(unittest.TestCase):
@@ -215,22 +276,6 @@ class DirectionAndEffectivenessPassTests(unittest.TestCase):
         sd.compute_direction_and_effectiveness(sealed, contracts)
         self.assertTrue(contracts["d"]["requirements"][0]["direction"]["reported"])
         self.assertIsNone(contracts["nd"]["requirements"][0]["effectiveness"])
-
-
-class RecoveryHintTests(unittest.TestCase):
-    def test_hint_uses_only_role_category_descriptions(self):
-        specs = {
-            "a": se.new_role_spec("a", "a named scale or instrument", "named_instrument_lexicon"),
-            "b": se.new_role_spec("b", "a trait or construct", "model_nomination_only"),
-        }
-        completion = se.new_role_completion(required_roles=["a", "b"])
-        req = se.new_requirement(
-            "c9#suff:pairing", "relational", specs, completion, "for_each_discovered_instance", multi_instance=True
-        )
-        hint = sm.recovery_hint(req)
-        self.assertIn("named scale or instrument", hint)
-        self.assertNotIn("c9#", hint)
-        self.assertNotIn("RC-", hint)
 
 
 if __name__ == "__main__":
