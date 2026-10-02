@@ -26,6 +26,13 @@ NO_RESPONSIVE_CLAIM = "no_responsive_claim"
 NOT_ASSESSED = "not_assessed"
 
 
+class SealingPrefixDriftError(RuntimeError):
+    """Phase 17 §C: the append-only prefix invariant (`_ledger`'s old pids keep referring to the
+    same physical records once recovery only ever appends) does not hold. This is a structural
+    assertion, not an ordinary mechanical-failure path -- it must never be discovered only after a
+    wasted C2 model call, so it is raised BEFORE one is made."""
+
+
 @dataclass
 class Supervisor:
     """One bound supervisory role. Every call goes through the execution-policy seam, exactly once."""
@@ -114,6 +121,35 @@ def _retrieved_for(subquestions: list[dict]) -> dict[str, str]:
 
 def _ledger(records: list[dict]) -> list[tuple[str, dict]]:
     return [(f"p{i}", r) for i, r in enumerate(source_verified(records), start=1)]
+
+
+def record_identity(record: dict) -> tuple:
+    """The canonical identity of a source-verified record (Phase 17 §D). Reuses, rather than
+    reinvents, the exact tuple `__main__._new_unique_verified` already established as "the
+    smallest exact identity that distinguishes [two records sharing a physical evidence anchor]"
+    -- this project's own existing precedent for the identical problem (two proposition records
+    CAN share a physical chunk/anchor; the claim text is what tells them apart), not a fresh
+    invention for this phase. `__main__.py` now delegates to this one copy."""
+    return (record["paper_id"], record["evidence_anchor_chunk_id"], record["proposition_text"].casefold())
+
+
+def verify_stable_prefix_and_new_pids(prior_sealed: dict, records: list[dict]) -> set[str]:
+    """Phase 17 §C: before any new-only coverage-audit call, prove the old, already-sealed
+    proposition prefix still names the same physical records -- recovery only ever appends to
+    the records list within one `execute()` call, so `_ledger`'s positional pids are a stable
+    prefix by construction, but that is an invariant to assert, never to assume blind. Returns
+    exactly the new suffix's proposition ids (what the coverage call is allowed to see) and raises
+    `SealingPrefixDriftError` -- fully BEFORE any model call -- if the prefix has drifted."""
+    current_ledger = _ledger(records)
+    prior_rows = prior_sealed["verified_propositions"]
+    if len(current_ledger) < len(prior_rows):
+        raise SealingPrefixDriftError(f"the ledger shrank from {len(prior_rows)} to {len(current_ledger)} propositions")
+    for (pid, record), prior_row in zip(current_ledger, prior_rows):  # noqa: B905 -- deliberately not
+        # strict: `current_ledger` is allowed (expected) to be LONGER than `prior_rows` -- that
+        # extra suffix is exactly the new evidence this function exists to return.
+        if pid != prior_row["proposition_id"] or record_identity(record) != record_identity(prior_row):
+            raise SealingPrefixDriftError(f"{pid} no longer identifies the record it did when prior_sealed was built")
+    return {pid for pid, _ in current_ledger[len(prior_rows) :]}
 
 
 def _proposition_rows(records: list[dict], subquestions: list[dict], *, with_quote: bool) -> list[dict]:
@@ -223,8 +259,20 @@ def run_coverage_audit(
     subquestions: list[dict],
     records: list[dict],
     authority: dict,
+    classify_pids: set[str] | None = None,
 ) -> dict:
-    """The model coverage audit over the whole ledger (frozen Task-B contract); this result is the authority."""
+    """The model coverage audit (frozen Task-B contract); this result is the authority.
+
+    Phase 17 §A/§G: `classify_pids=None` (the default) is byte-identical to the original
+    whole-ledger behavior -- every existing call site is unaffected. When given, it restricts the
+    model-FACING candidate proposition list to exactly that subset (recovery's own new-only
+    locality, §F) while `obligations`/`subquestions` stay the FULL set regardless -- a newly
+    recovered proposition remains fully, legitimately classifiable against any obligation,
+    including one other than whatever triggered its search (§G: never narrowed to a
+    triggering-child/search-owner/descendant scope). Proposition ids are still minted from the
+    FULL `records` list (`_ledger` is untouched) -- only which rows are shown to the model changes,
+    never how pids are numbered, so a restricted call's new propositions keep their real,
+    globally-stable suffix ids (e.g. "p27"), never reminted from "p1"."""
     ledger = _ledger(records)
     ids = [o["field_id"] for o in obligations]
     if not ledger:  # nothing to audit; the frozen schema cannot express an empty proposition enum
@@ -236,7 +284,17 @@ def run_coverage_audit(
             "outcome": None,
             "skipped_reason": "empty_ledger",
         }
-    props = _proposition_rows(records, subquestions, with_quote=True)
+    props_all = _proposition_rows(records, subquestions, with_quote=True)
+    props = props_all if classify_pids is None else [p for p in props_all if p["proposition_id"] in classify_pids]
+    if not props:  # classify_pids named no row in the ledger (e.g. a no-new-evidence round): nothing to ask
+        rows = [_obligation_row(sq, NO_RESPONSIVE_CLAIM, [], 0) for sq in subquestions]
+        return {
+            "authority": authority,
+            "assessed": True,
+            "obligations": rows,
+            "outcome": None,
+            "skipped_reason": "empty_ledger",
+        }
     prompt = sp.render_coverage(question, obligations, props)
     schema = sp.schema_coverage(ids, [p["proposition_id"] for p in props])
     result = supervisor.call("coverage_audit", prompt, schema)
@@ -314,17 +372,80 @@ def _evidence_span_rows(paper_id: int, span: dict) -> list[dict]:
 
 
 def seal(
-    contract: dict, subquestions: list[dict], records: list[dict], evidence_packets: list[dict], coverage: dict
+    contract: dict,
+    subquestions: list[dict],
+    records: list[dict],
+    evidence_packets: list[dict],
+    coverage: dict,
+    *,
+    prior_sealed: dict | None = None,
 ) -> dict:
-    """The sealed ledger: source-verified claims, the final attachments and per-item states, and the source spans."""
-    attached: dict[str, list[str]] = {}
+    """The sealed ledger: source-verified claims, the final attachments and per-item states, and the source spans.
+
+    Phase 17 §A/§B/§F: `prior_sealed=None` (the default) is byte-identical to the original
+    behavior. When given, every proposition already present in `prior_sealed` keeps its
+    `responsive_obligation_ids` byte-for-byte -- recovery is evidence ADDITION, never
+    re-adjudication of unchanged old evidence (§F, the append-only invariant); only propositions
+    absent from `prior_sealed` (the new suffix `coverage` was actually asked to classify) take
+    their attachment from `coverage`'s own fresh result. `record_identity` guards every reused old
+    attachment against silently landing on a different physical record (§D); `_ledger`'s positional
+    stability within one `execute()` call is asserted by `verify_stable_prefix_and_new_pids`
+    BEFORE this function is ever called with a restricted `coverage`, so this is a second,
+    redundant check here, not the only one.
+
+    `obligation_states`/`coverage_assessed`/`coverage_outcome`/`coverage_authority` are then
+    re-derived from that SAME merged attachment map -- a truthful CUMULATIVE view, never
+    "new-only evidence added nothing to item X" misread as "item X lacks support" (§B's own
+    example) -- when the new-only `coverage` call succeeded; or inherited unchanged from
+    `prior_sealed` when it mechanically failed, since old evidence's own already-assessed
+    cumulative judgment must survive a failed attempt to add more (§H)."""
+    fresh_attached: dict[str, list[str]] = {}
     for row in coverage["obligations"]:
         for pid in row["proposition_ids"]:
-            attached.setdefault(pid, []).append(row["field_id"])
+            fresh_attached.setdefault(pid, []).append(row["field_id"])
+
+    prior_by_pid: dict[str, dict] = {}
+    if prior_sealed is not None:
+        prior_by_pid = {row["proposition_id"]: row for row in prior_sealed["verified_propositions"]}
+
+    ledger = _ledger(records)
+    merged_attached: dict[str, list[str]] = {}
     verified = []
-    for pid, record in _ledger(records):
-        verified.append({"proposition_id": pid, **record, "responsive_obligation_ids": attached.get(pid, [])})
-    states = coverage["obligations"]
+    for pid, record in ledger:
+        if pid in prior_by_pid:
+            prior_row = prior_by_pid[pid]
+            if record_identity(record) != record_identity(prior_row):
+                raise SealingPrefixDriftError(f"{pid} no longer identifies the record it did in prior_sealed")
+            ids = prior_row["responsive_obligation_ids"]  # byte-for-byte preserved, never reclassified
+        else:
+            ids = fresh_attached.get(pid, [])  # freshly classified this round (empty if not asked/not responsive)
+        merged_attached[pid] = ids
+        verified.append({"proposition_id": pid, **record, "responsive_obligation_ids": ids})
+
+    if prior_sealed is None:
+        states = coverage["obligations"]
+        coverage_assessed = coverage["assessed"]
+        coverage_outcome = coverage.get("outcome")
+        coverage_authority = coverage["authority"]
+    elif not coverage["assessed"]:
+        # The new-only classification attempt failed mechanically; the cumulative ledger's own
+        # already-assessed judgment stands exactly as it was (§H) -- a failed attempt to add more
+        # evidence must never retroactively unassess what was already truthfully assessed.
+        states = prior_sealed["obligation_states"]
+        coverage_assessed = prior_sealed["coverage_assessed"]
+        coverage_outcome = prior_sealed["coverage_outcome"]
+        coverage_authority = prior_sealed["coverage_authority"]
+    else:
+        order = {pid: i for i, (pid, _) in enumerate(ledger)}
+        states = []
+        for sq in subquestions:
+            fid = sq["obligations"][0]["field_id"]
+            supported = sorted((pid for pid, ids in merged_attached.items() if fid in ids), key=order.get)
+            states.append(_obligation_row(sq, JUDGED_RESPONSIVE if supported else NO_RESPONSIVE_CLAIM, supported, 0))
+        coverage_assessed = True
+        coverage_outcome = None
+        coverage_authority = coverage["authority"]
+
     sealed = {
         "request_contract": contract,
         "subquestions": subquestions,
@@ -335,9 +456,9 @@ def seal(
             for span in packet["candidate_spans"]
             for row in _evidence_span_rows(packet["paper_id"], span)
         ],
-        "coverage_authority": coverage["authority"],
-        "coverage_assessed": coverage["assessed"],
-        "coverage_outcome": coverage.get("outcome"),
+        "coverage_authority": coverage_authority,
+        "coverage_assessed": coverage_assessed,
+        "coverage_outcome": coverage_outcome,
         "obligation_states": states,
         "coverage": {
             "original_request": {

@@ -336,9 +336,12 @@ def execute(
                 bound.supervisors["R"], question=question, obligations=obligations, records=sink.all_records
             )
 
-    def coverage(name: str) -> dict:
+    def coverage(name: str, *, classify_pids: set[str] | None = None) -> dict:
         with stage(name, "C"):
             if profile.C.kind == "det":
+                # det_coverage has no analogous re-sealing drift: it only ever reads each record's
+                # own `obligation_ids`, and R (`run_responsiveness`) already skips already-mapped
+                # records -- an old record's attachment is append-only-stable for free, upstream.
                 return stages.det_coverage(subquestions, sink.all_records, authority=_authority(profile))
             return stages.run_coverage_audit(
                 bound.supervisors["C"],
@@ -347,6 +350,7 @@ def execute(
                 subquestions=subquestions,
                 records=sink.all_records,
                 authority=_authority(profile),
+                classify_pids=classify_pids,
             )
 
     trace.write_json("01_request_contract.json", contract)
@@ -361,6 +365,11 @@ def execute(
                 entry["detail"] = detail
         responsiveness("R1")
         coverage_initial = coverage("C1")
+        # Phase 17 §C/§E: a cheap, exact snapshot of the ledger AS OF C1 -- a plain list copy, no
+        # seal() call yet (records are append-only/stable before this point, so a shallow copy is
+        # sufficient; the actual `seal()` build is deferred into the recovery branch below, where
+        # it is only paid when a round genuinely adds new source-verified evidence).
+        pre_recovery_records = list(sink.all_records)
 
         # Diagnostic semantic answer-sufficiency (§ "Production activation / gating strategy",
         # item (A)): always computed, deterministic-only, whenever a frozen SufficiencyContract
@@ -464,6 +473,7 @@ def execute(
         planned_search = [g["field_id"] for g in gaps if plan.get(g["field_id"]) in cli._SEARCH_ACTIONS]
         recovery_log: list[dict] = []
         coverage_final = coverage_initial
+        sealed_initial = None  # Phase 17 §E: set only when a round genuinely adds new evidence
         if planned_search:
             before = len(stages.source_verified(sink.all_records))
             with stage("W2", "W"):
@@ -479,7 +489,19 @@ def execute(
                 )
             if len(stages.source_verified(sink.all_records)) > before:
                 responsiveness("R2")
-                coverage_final = coverage("C2")
+                # Phase 17 §A/§C/§E: strict append-only C2 sealing. `sealed_initial` is C1's own
+                # ledger, sealed purely/locally (no model call) from the EXACT pre-recovery
+                # snapshot; `verify_stable_prefix_and_new_pids` proves the old pids still name the
+                # same physical records and returns exactly the new suffix BEFORE any C2 model
+                # call is made (fails closed, not after a wasted call); C2 then classifies only
+                # that new suffix against the FULL obligation set (never narrowed to the
+                # triggering child -- §G), and the final `seal()` below merges old-preserved +
+                # new-classified into one cumulative ledger.
+                sealed_initial = stages.seal(
+                    contract, subquestions, pre_recovery_records, sink.evidence_packets, coverage_initial
+                )
+                new_pids = stages.verify_stable_prefix_and_new_pids(sealed_initial, sink.all_records)
+                coverage_final = coverage("C2", classify_pids=new_pids)
             else:
                 if "R" in bound.supervisors:
                     skip("R2", "no_new_source_verified_evidence")
@@ -489,7 +511,9 @@ def execute(
         elif plan_record["state"] == "no_answer":
             skip("W2", "recovery_plan_no_answer")
 
-    sealed = stages.seal(contract, subquestions, sink.all_records, sink.evidence_packets, coverage_final)
+    sealed = stages.seal(
+        contract, subquestions, sink.all_records, sink.evidence_packets, coverage_final, prior_sealed=sealed_initial
+    )
     sealed_hash = hashlib.sha256(json.dumps(sealed, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
 
     sufficiency_map_final = sufficiency_map_initial

@@ -276,10 +276,17 @@ class ModelCoverageTopologyTests(unittest.TestCase):
         self.assertNotIn("R", self.shared.kinds() + self.isolated.kinds())
 
     def test_the_model_c_is_the_authority_and_the_manifest_names_it(self):
+        # Phase 17 (append-only C2 sealing): `coverage_final` is now this ROUND's own
+        # new-pids-only classification -- s3-o1's p1 attachment is OLD evidence, byte-for-byte
+        # preserved from C1, never re-asked of C2 (the fixed drift this phase closes). The
+        # scripted "C" handler's canned ["s3-o1": "p1"] answer is accordingly out of C2's own
+        # (narrower) schema enum and fails closed as not_assessed for this round -- expected, not
+        # a regression. The canonical, CUMULATIVE per-item truth is `sealed["obligation_states"]`.
         result = self.h.run()
         self.assertEqual(result["coverage_final"]["authority"], {"kind": "model", "role": "C", "model": "phi4:14b"})
-        final = {row["field_id"]: row for row in result["coverage_final"]["obligations"]}
-        self.assertEqual(final["s3-o1"]["proposition_ids"], ["p1"])
+        cumulative = {row["field_id"]: row for row in result["sealed"]["obligation_states"]}
+        self.assertEqual(cumulative["s3-o1"]["proposition_ids"], ["p1"])
+        self.assertEqual(cumulative["s3-o1"]["state"], "judged_responsive")
 
     def test_c_and_p_use_their_own_bound_models_and_the_p_call_is_the_recovery_planning_stage(self):
         self.h.run()

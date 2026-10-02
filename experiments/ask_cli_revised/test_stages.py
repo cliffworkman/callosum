@@ -310,5 +310,336 @@ class SealTests(unittest.TestCase):
         self.assertEqual(len(sealed["evidence_spans"]), 2)
 
 
+# ---- Phase 17: C2 re-sealing stability / locality (append-only sealing) -----------------------------------------
+
+PACKET_11 = {"paper_id": 7, "candidate_spans": [{"chunk_id": 11, "span_id": "e1", "text": "A quote."}]}
+PACKET_21 = {"paper_id": 7, "candidate_spans": [{"chunk_id": 21, "span_id": "e1", "text": "Another quote."}]}
+
+
+class CoverageClassifyPidsTests(unittest.TestCase):
+    """§A/§G: `classify_pids` restricts the model-facing candidate list, never the obligation set."""
+
+    def audit(self, answer, records, classify_pids):
+        supervisor = FakeSupervisor(answer, role="C")
+        result = stages.run_coverage_audit(
+            supervisor, question=QUESTION, obligations=OBLIGATIONS, subquestions=SUBQUESTIONS,
+            records=records, authority={"kind": "model", "role": "C"}, classify_pids=classify_pids,
+        )  # fmt: skip
+        return result, supervisor
+
+    def test_classify_pids_restricts_the_model_facing_list_but_keeps_the_full_obligation_set(self):
+        records = [rec(), rec(sid="s4", claim="Other.", chunk=12)]
+        _, supervisor = self.audit(COVERAGE_OK, records, classify_pids={"p1"})
+        prompt = supervisor.calls[0]["prompt"]
+        self.assertIn("p1:", prompt)
+        self.assertNotIn("p2:", prompt)  # p2 is old evidence -- excluded from the model-facing list
+        # obligations/items passed to the model are the FULL set regardless (never narrowed to a
+        # triggering child, a RecoveryTarget owner, or any descendant scope -- §G).
+        for ob in IDS:
+            self.assertIn(ob, prompt)
+
+    def test_a_new_proposition_can_map_to_several_obligations_including_a_non_triggering_one(self):
+        records = [rec(sid="s3"), rec(sid="s4", claim="New evidence.", chunk=99)]
+        answer = {
+            "rationale": "x",
+            "coverage": {
+                **{ob: {"status": "unresolved", "supporting_proposition_ids": []} for ob in IDS},
+                "s3-o1": {"status": "responsive_support", "supporting_proposition_ids": ["p2"]},
+                "s4-o1": {"status": "responsive_support", "supporting_proposition_ids": ["p2"]},
+            },
+        }
+        result, _ = self.audit(answer, records, classify_pids={"p2"})
+        by_ob = {o["field_id"]: o for o in result["obligations"]}
+        self.assertEqual(by_ob["s3-o1"]["proposition_ids"], ["p2"])  # not the search-owner child...
+        self.assertEqual(by_ob["s4-o1"]["proposition_ids"], ["p2"])  # ...equally legitimate on its own evidence
+
+    def test_classify_pids_naming_no_ledger_row_is_a_no_op_that_makes_no_model_call(self):
+        records = [rec()]
+        result, supervisor = self.audit(COVERAGE_OK, records, classify_pids=set())
+        self.assertEqual(supervisor.calls, [])  # a no-new-evidence round: never asks the model anything
+        self.assertTrue(all(o["state"] == "no_responsive_claim" for o in result["obligations"]))
+        self.assertTrue(result["assessed"])
+
+    def test_pids_are_minted_from_the_full_ledger_never_reminted_for_a_restricted_call(self):
+        records = [rec(), rec(sid="s4", claim="Other.", chunk=12), rec(sid="s5", claim="New.", chunk=21)]
+        _, supervisor = self.audit(COVERAGE_OK, records, classify_pids={"p3"})
+        self.assertIn("p3:", supervisor.calls[0]["prompt"])  # real suffix id, not a reminted "p1"
+
+
+class PrefixStabilityTests(unittest.TestCase):
+    """§C/§D: the pre-C2 fail-closed guard, asserted BEFORE any model call is possible."""
+
+    def test_returns_exactly_the_new_suffix_when_the_old_prefix_is_unchanged(self):
+        prior_records = [rec(), rec(sid="s4", claim="Other.", chunk=12)]
+        coverage = stages.det_coverage(SUBQUESTIONS, prior_records, authority={"kind": "det", "role": "R"})
+        prior_sealed = stages.seal(CONTRACT, SUBQUESTIONS, prior_records, [], coverage)
+        grown = prior_records + [rec(sid="s5", claim="New.", chunk=21)]
+        new_pids = stages.verify_stable_prefix_and_new_pids(prior_sealed, grown)
+        self.assertEqual(new_pids, {"p3"})
+
+    def test_a_record_identity_change_on_an_old_pid_raises_before_any_model_call_is_possible(self):
+        prior_records = [rec()]
+        coverage = stages.det_coverage(SUBQUESTIONS, prior_records, authority={})
+        prior_sealed = stages.seal(CONTRACT, SUBQUESTIONS, prior_records, [], coverage)
+        corrupted = [rec(claim="A DIFFERENT claim now occupies p1.")]  # same pid, different identity
+        with self.assertRaises(stages.SealingPrefixDriftError):
+            stages.verify_stable_prefix_and_new_pids(prior_sealed, corrupted)
+        # the guard itself never touches a Supervisor at all -- structurally, a caller that checks
+        # this BEFORE building a FakeSupervisor (as e2e.py's wiring does) cannot reach a model call.
+
+    def test_a_shrunk_ledger_raises_rather_than_silently_truncating(self):
+        prior_records = [rec(), rec(sid="s4", claim="Other.", chunk=12)]
+        coverage = stages.det_coverage(SUBQUESTIONS, prior_records, authority={})
+        prior_sealed = stages.seal(CONTRACT, SUBQUESTIONS, prior_records, [], coverage)
+        with self.assertRaises(stages.SealingPrefixDriftError):
+            stages.verify_stable_prefix_and_new_pids(prior_sealed, prior_records[:1])
+
+
+class RecordIdentityTests(unittest.TestCase):
+    """§D: two records sharing a physical evidence anchor must not be conflated by identity."""
+
+    def test_shared_anchor_distinct_claim_text_are_different_identities(self):
+        shared_anchor = rec(claim="Claim A.", chunk=11)
+        other_claim_same_anchor = rec(claim="Claim B.", chunk=11)
+        self.assertNotEqual(stages.record_identity(shared_anchor), stages.record_identity(other_claim_same_anchor))
+
+    def test_same_paper_anchor_and_claim_text_case_insensitively_is_the_same_identity(self):
+        a = rec(claim="Amyloid burden was higher.")
+        b = rec(claim="AMYLOID BURDEN WAS HIGHER.")
+        self.assertEqual(stages.record_identity(a), stages.record_identity(b))
+
+
+class AppendOnlySealTests(unittest.TestCase):
+    """§A/§B/§F: old attachments survive a recovery round byte-for-byte; only new ones are fresh."""
+
+    def seal_initial(self, records):
+        coverage = stages.det_coverage(SUBQUESTIONS, records, authority={"kind": "det", "role": "R"})
+        return stages.seal(CONTRACT, SUBQUESTIONS, records, [PACKET_11], coverage)
+
+    def test_old_attachments_are_preserved_byte_for_byte_and_new_ones_are_freshly_classified(self):
+        prior_records = [rec(mapping_state="mapped", obligation_ids=["s3-o1"])]
+        prior_sealed = self.seal_initial(prior_records)
+        grown = prior_records + [rec(sid="s4", claim="New evidence.", chunk=21)]
+        new_only_answer = {
+            "rationale": "x",
+            "coverage": {
+                **{ob: {"status": "unresolved", "supporting_proposition_ids": []} for ob in IDS},
+                "s4-o1": {"status": "responsive_support", "supporting_proposition_ids": ["p2"]},
+            },
+        }
+        new_pids = stages.verify_stable_prefix_and_new_pids(prior_sealed, grown)
+        self.assertEqual(new_pids, {"p2"})
+        result = stages.run_coverage_audit(
+            FakeSupervisor(new_only_answer, role="C"), question=QUESTION, obligations=OBLIGATIONS,
+            subquestions=SUBQUESTIONS, records=grown, authority={"kind": "model", "role": "C"},
+            classify_pids=new_pids,
+        )  # fmt: skip
+        sealed = stages.seal(CONTRACT, SUBQUESTIONS, grown, [PACKET_11, PACKET_21], result, prior_sealed=prior_sealed)
+        rows = {r["proposition_id"]: r for r in sealed["verified_propositions"]}
+        self.assertEqual(rows["p1"]["responsive_obligation_ids"], ["s3-o1"])  # byte-for-byte preserved
+        self.assertEqual(rows["p2"]["responsive_obligation_ids"], ["s4-o1"])  # freshly classified
+        cumulative = {o["field_id"]: o for o in sealed["obligation_states"]}
+        self.assertEqual(cumulative["s3-o1"]["proposition_ids"], ["p1"])  # old support still visible
+        self.assertEqual(cumulative["s4-o1"]["proposition_ids"], ["p2"])  # new support now visible
+
+    def test_a_mechanically_failed_new_only_call_leaves_the_prior_cumulative_state_untouched(self):
+        prior_records = [rec(mapping_state="mapped", obligation_ids=["s3-o1"])]
+        prior_sealed = self.seal_initial(prior_records)
+        grown = prior_records + [rec(sid="s4", claim="New evidence.", chunk=21)]
+        failed = stages.run_coverage_audit(
+            FakeSupervisor(None, role="C"), question=QUESTION, obligations=OBLIGATIONS, subquestions=SUBQUESTIONS,
+            records=grown, authority={"kind": "model", "role": "C"}, classify_pids={"p2"},
+        )  # fmt: skip
+        self.assertFalse(failed["assessed"])
+        sealed = stages.seal(CONTRACT, SUBQUESTIONS, grown, [PACKET_11, PACKET_21], failed, prior_sealed=prior_sealed)
+        self.assertEqual(sealed["coverage_assessed"], prior_sealed["coverage_assessed"])  # inherited, not erased
+        self.assertEqual(sealed["obligation_states"], prior_sealed["obligation_states"])  # byte-for-byte
+        rows = {r["proposition_id"]: r for r in sealed["verified_propositions"]}
+        self.assertEqual(rows["p1"]["responsive_obligation_ids"], ["s3-o1"])  # old evidence untouched
+        self.assertEqual(rows["p2"]["responsive_obligation_ids"], [])  # new evidence inspectable, unattached
+
+    def test_a_new_proposition_judged_non_responsive_stays_inspectable_with_no_attachment(self):
+        prior_records = [rec(mapping_state="mapped", obligation_ids=["s3-o1"])]
+        prior_sealed = self.seal_initial(prior_records)
+        grown = prior_records + [rec(sid="s4", claim="Unrelated evidence.", chunk=21)]
+        new_pids = stages.verify_stable_prefix_and_new_pids(prior_sealed, grown)
+        not_responsive = {
+            "rationale": "x",
+            "coverage": {ob: {"status": "unresolved", "supporting_proposition_ids": []} for ob in IDS},
+        }
+        cov = stages.run_coverage_audit(
+            FakeSupervisor(not_responsive, role="C"), question=QUESTION, obligations=OBLIGATIONS,
+            subquestions=SUBQUESTIONS, records=grown, authority={"kind": "model", "role": "C"},
+            classify_pids=new_pids,
+        )  # fmt: skip
+        sealed = stages.seal(CONTRACT, SUBQUESTIONS, grown, [PACKET_11, PACKET_21], cov, prior_sealed=prior_sealed)
+        rows = {r["proposition_id"]: r for r in sealed["verified_propositions"]}
+        self.assertIn("p2", rows)  # inspectable -- never dropped from the ledger
+        self.assertEqual(rows["p2"]["responsive_obligation_ids"], [])
+        # Downstream exclusion from any child's candidate pool is pre-existing, unchanged
+        # `sufficiency_diagnostic.units_by_child` behavior (it already skips empty attachments);
+        # not re-tested here.
+
+    def test_two_new_propositions_are_each_classified_exactly_once_in_one_coverage_call(self):
+        prior_records = [rec(mapping_state="mapped", obligation_ids=["s3-o1"])]
+        prior_sealed = self.seal_initial(prior_records)
+        grown = prior_records + [
+            rec(sid="s4", claim="New evidence one.", chunk=21),
+            rec(sid="s5", claim="New evidence two.", chunk=31),
+        ]
+        new_pids = stages.verify_stable_prefix_and_new_pids(prior_sealed, grown)
+        self.assertEqual(new_pids, {"p2", "p3"})
+        answer = {
+            "rationale": "x",
+            "coverage": {
+                **{ob: {"status": "unresolved", "supporting_proposition_ids": []} for ob in IDS},
+                "s4-o1": {"status": "responsive_support", "supporting_proposition_ids": ["p2"]},
+                "s5-o1": {"status": "responsive_support", "supporting_proposition_ids": ["p3"]},
+            },
+        }
+        supervisor = FakeSupervisor(answer, role="C")
+        cov = stages.run_coverage_audit(
+            supervisor, question=QUESTION, obligations=OBLIGATIONS, subquestions=SUBQUESTIONS, records=grown,
+            authority={"kind": "model", "role": "C"}, classify_pids=new_pids,
+        )  # fmt: skip
+        self.assertEqual(len(supervisor.calls), 1)  # one call classifies both new propositions
+        sealed = stages.seal(CONTRACT, SUBQUESTIONS, grown, [PACKET_11, PACKET_21], cov, prior_sealed=prior_sealed)
+        rows = {r["proposition_id"]: r for r in sealed["verified_propositions"]}
+        self.assertEqual(rows["p2"]["responsive_obligation_ids"], ["s4-o1"])
+        self.assertEqual(rows["p3"]["responsive_obligation_ids"], ["s5-o1"])
+
+    def test_a_duplicate_of_existing_evidence_never_consumes_a_pid_or_enters_new_pids(self):
+        prior_records = [rec(mapping_state="mapped", obligation_ids=["s3-o1"])]
+        prior_sealed = self.seal_initial(prior_records)
+        grown = prior_records + [
+            rec(sid="s4", claim="New evidence.", chunk=21),
+            rec(sid="s4", claim="New evidence.", chunk=21, duplicate=True),  # a rediscovery of the same evidence
+        ]
+        new_pids = stages.verify_stable_prefix_and_new_pids(prior_sealed, grown)
+        self.assertEqual(new_pids, {"p2"})  # the duplicate row is filtered out before pid-minting, not a "p3"
+
+    def test_a_record_identity_mismatch_against_prior_sealed_raises_inside_seal_too(self):
+        prior_records = [rec()]
+        prior_sealed = self.seal_initial(prior_records)
+        corrupted = [rec(claim="A different claim now sits at p1.")]
+        empty_coverage = {"authority": {}, "assessed": True, "obligations": [], "outcome": None}
+        with self.assertRaises(stages.SealingPrefixDriftError):
+            stages.seal(CONTRACT, SUBQUESTIONS, corrupted, [], empty_coverage, prior_sealed=prior_sealed)
+
+    def test_two_recovery_rounds_never_reclassify_a_round_one_sealed_proposition(self):
+        round0 = [rec(mapping_state="mapped", obligation_ids=["s3-o1"])]
+        sealed0 = self.seal_initial(round0)
+        round1 = round0 + [rec(sid="s4", claim="Round one evidence.", chunk=21)]
+        round1_new = stages.verify_stable_prefix_and_new_pids(sealed0, round1)
+        self.assertEqual(round1_new, {"p2"})
+        cov1 = stages.run_coverage_audit(
+            FakeSupervisor(
+                {
+                    "rationale": "x",
+                    "coverage": {
+                        **{ob: {"status": "unresolved", "supporting_proposition_ids": []} for ob in IDS},
+                        "s4-o1": {"status": "responsive_support", "supporting_proposition_ids": ["p2"]},
+                    },
+                },
+                role="C",
+            ),
+            question=QUESTION, obligations=OBLIGATIONS, subquestions=SUBQUESTIONS, records=round1,
+            authority={"kind": "model", "role": "C"}, classify_pids=round1_new,
+        )  # fmt: skip
+        sealed1 = stages.seal(CONTRACT, SUBQUESTIONS, round1, [PACKET_11, PACKET_21], cov1, prior_sealed=sealed0)
+
+        round2 = round1 + [rec(sid="s5", claim="Round two evidence.", chunk=31)]
+        round2_new = stages.verify_stable_prefix_and_new_pids(sealed1, round2)
+        self.assertEqual(round2_new, {"p3"})  # p1/p2 are both now a stable, un-reclassifiable prefix
+        cov2 = stages.run_coverage_audit(
+            FakeSupervisor(
+                {
+                    "rationale": "x",
+                    "coverage": {
+                        **{ob: {"status": "unresolved", "supporting_proposition_ids": []} for ob in IDS},
+                        "s5-o1": {"status": "responsive_support", "supporting_proposition_ids": ["p3"]},
+                    },
+                },
+                role="C",
+            ),
+            question=QUESTION, obligations=OBLIGATIONS, subquestions=SUBQUESTIONS, records=round2,
+            authority={"kind": "model", "role": "C"}, classify_pids=round2_new,
+        )  # fmt: skip
+        sealed2 = stages.seal(CONTRACT, SUBQUESTIONS, round2, [PACKET_11, PACKET_21], cov2, prior_sealed=sealed1)
+        rows = {r["proposition_id"]: r for r in sealed2["verified_propositions"]}
+        self.assertEqual(rows["p1"]["responsive_obligation_ids"], ["s3-o1"])  # round 0, untouched by rounds 1+2
+        self.assertEqual(rows["p2"]["responsive_obligation_ids"], ["s4-o1"])  # round 1, untouched by round 2
+        self.assertEqual(rows["p3"]["responsive_obligation_ids"], ["s5-o1"])  # round 2, freshly classified
+
+
+class SameLedgerRerunDriftTests(unittest.TestCase):
+    """§15: real, independently-measured evidence that a repeated whole-ledger coverage call can
+    disagree with itself over an UNCHANGED ledger (no new evidence at all) -- this audit's own
+    finding, hardcoded as a permanent regression fixture rather than left to a live `.local/`
+    dependency (the Phase-16 precedent: a real recorded disagreement, baked in as a literal). The
+    real pattern (from a preserved live run, `q-aib-hierarchical-t5c-live-20260930`): re-running
+    whole-ledger coverage over the SAME 26 propositions reassigned p1 (c1->c2), p3 (c2->c3), p16
+    (c5->c3+c5), p22/p23 (c11->[], lost entirely), and p26 ([]->c9, gained from nothing) -- gain
+    AND loss, with zero new evidence. Append-only sealing must make this impossible by construction
+    once there is nothing new to classify, regardless of why a repeated classifier disagrees."""
+
+    def test_a_whole_ledger_rerun_with_a_different_answer_drifts_without_prior_sealed(self):
+        records = [rec(sid="s3"), rec(sid="s4", claim="Other.", chunk=12)]
+        first = {
+            "rationale": "x",
+            "coverage": {
+                **{ob: {"status": "unresolved", "supporting_proposition_ids": []} for ob in IDS},
+                "s3-o1": {"status": "responsive_support", "supporting_proposition_ids": ["p1"]},
+            },
+        }
+        second = {  # the SAME ledger, a genuinely different model judgment: p1 moved to s4-o1
+            "rationale": "x",
+            "coverage": {
+                **{ob: {"status": "unresolved", "supporting_proposition_ids": []} for ob in IDS},
+                "s4-o1": {"status": "responsive_support", "supporting_proposition_ids": ["p1"]},
+            },
+        }
+        cov1 = stages.run_coverage_audit(
+            FakeSupervisor(first, role="C"), question=QUESTION, obligations=OBLIGATIONS, subquestions=SUBQUESTIONS,
+            records=records, authority={"kind": "model", "role": "C"},
+        )  # fmt: skip
+        cov2 = stages.run_coverage_audit(
+            FakeSupervisor(second, role="C"), question=QUESTION, obligations=OBLIGATIONS, subquestions=SUBQUESTIONS,
+            records=records, authority={"kind": "model", "role": "C"},
+        )  # fmt: skip
+        # Without prior_sealed, seal() has no way to know these two calls disagree about the SAME
+        # unchanged p1 -- this is the pre-Phase-17 hazard the whole design exists to close off.
+        sealed1 = stages.seal(CONTRACT, SUBQUESTIONS, records, [], cov1)
+        sealed2 = stages.seal(CONTRACT, SUBQUESTIONS, records, [], cov2)
+        rows1 = {r["proposition_id"]: r["responsive_obligation_ids"] for r in sealed1["verified_propositions"]}
+        rows2 = {r["proposition_id"]: r["responsive_obligation_ids"] for r in sealed2["verified_propositions"]}
+        self.assertNotEqual(rows1["p1"], rows2["p1"])  # the drift this phase exists to eliminate
+
+    def test_a_genuinely_no_new_evidence_round_cannot_drift_under_the_real_e2e_gate(self):
+        # Mirrors e2e.py's own gate exactly: coverage_final stays `coverage_initial` (never a
+        # second call at all) whenever recovery added no new source-verified evidence -- so a
+        # same-ledger rerun disagreement is structurally impossible on that path, regardless of
+        # why a repeated classifier might disagree (§15: ordinary nondeterminism, context/batch
+        # sensitivity, or something else -- the mechanism does not matter once C2 is never called).
+        records = [rec(sid="s3"), rec(sid="s4", claim="Other.", chunk=12)]
+        coverage_initial = stages.run_coverage_audit(
+            FakeSupervisor({"rationale": "x", "coverage": {
+                **{ob: {"status": "unresolved", "supporting_proposition_ids": []} for ob in IDS},
+                "s3-o1": {"status": "responsive_support", "supporting_proposition_ids": ["p1"]},
+            }}, role="C"),
+            question=QUESTION, obligations=OBLIGATIONS, subquestions=SUBQUESTIONS,
+            records=records, authority={"kind": "model", "role": "C"},
+        )  # fmt: skip
+        before = len(stages.source_verified(records))
+        after = len(stages.source_verified(records))  # no W2 append happened
+        coverage_final = coverage_initial if not (after > before) else None
+        self.assertIs(coverage_final, coverage_initial)
+        sealed = stages.seal(CONTRACT, SUBQUESTIONS, records, [], coverage_final)
+        self.assertEqual(
+            {r["proposition_id"]: r["responsive_obligation_ids"] for r in sealed["verified_propositions"]}["p1"],
+            ["s3-o1"],
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

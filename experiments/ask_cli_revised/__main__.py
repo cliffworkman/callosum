@@ -22,7 +22,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from experiments.ask_cli_revised import coverage as coverage_mod  # noqa: E402
-from experiments.ask_cli_revised import discovery, retrieval, synthesis  # noqa: E402
+from experiments.ask_cli_revised import discovery, retrieval, stages, synthesis  # noqa: E402
 from experiments.ask_cli_revised.propositions import marshal_and_verify, _candidate_spans  # noqa: E402
 from experiments.ask_cli_revised.question import BENCHMARK_QUESTION  # noqa: E402
 from experiments.ask_cli_revised.qwen import QwenTasks  # noqa: E402
@@ -424,17 +424,19 @@ def _new_unique_verified(all_records: list[dict], since_index: int) -> int:
     propositions.jsonl/verifications.jsonl -- shows it and what it duplicates); callers decide what
     counts as authoritative via ``effective_records`` in ``run()``. Never called by the initial
     pass -- ``_process_hits`` itself is not modified, so first-pass behavior is unchanged by
-    construction, not merely because its return value used to go unused."""
+    construction, not merely because its return value used to go unused.
 
-    def identity(record: dict) -> tuple:
-        return (record["paper_id"], record["evidence_anchor_chunk_id"], record["proposition_text"].casefold())
+    Phase 17 §D: the identity tuple itself now lives once, in ``stages.record_identity`` --
+    reused unmodified by the new C2 append-only prefix guard, which needed the exact same
+    "what makes two records the same" answer and found this precedent rather than inventing a
+    second one."""
 
-    seen = {identity(r) for r in all_records[:since_index] if r["verification"]["status"] == "verified"}
+    seen = {stages.record_identity(r) for r in all_records[:since_index] if r["verification"]["status"] == "verified"}
     new_unique = 0
     for record in all_records[since_index:]:
         if record["verification"]["status"] != "verified":
             continue
-        key = identity(record)
+        key = stages.record_identity(record)
         if key in seen:
             record["provenance"]["duplicate_of_existing_evidence"] = True
             continue

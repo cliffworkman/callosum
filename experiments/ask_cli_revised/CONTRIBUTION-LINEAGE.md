@@ -706,3 +706,68 @@ reproduced identically against unmodified HEAD, unrelated to this phase). v9 `co
 unchanged: `9c72dc6a0180e95c55e68a009c366843b671684c19c6ae84ed254f3865305586`. No live model call,
 no retrieval, no recovery execution, no contract or pin change, no production integration. Full
 detail in `PHASE16_PARENT_CONTEXT_ELIGIBILITY_RESULTS.md`.
+
+---
+
+## Phase 17 — C2 re-sealing stability / locality (appended 2026-10-01; does not alter the rows above)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-10-01 | Evidence | Phase 15 semantic-consumption preflight |
+| 2026-10-01 | Design direction | Cliff Workman + ChatGPT |
+| 2026-10-01 | Design / audit | Claude |
+| 2026-10-01 | Implementation, verification, real-artifact replay | Claude |
+
+**Evidence (Phase 15 semantic-consumption preflight).** Re-running C2 coverage sealing over a
+broadened ledger changed responsive-obligation assignments on unchanged pre-existing
+propositions, perturbing unrelated candidate pools and direction/effectiveness metadata.
+
+**Design direction (Cliff Workman + ChatGPT).** Framed recovery sealing as an incremental
+evidence-addition problem and established strict append-only old-proposition semantics with
+NEW-propositions x FULL-obligations classification.
+
+**Design / audit (Claude).** Traced the exact `run_coverage_audit`/`seal()` call graph (no field
+named `responsive_obligation_ids` exists in the coverage-audit wire protocol itself — it is
+synthesized once, by `seal()`, by inverting the obligation->proposition map; `seal()` was a pure
+function with no "previous ledger" input, rebuilding every proposition's attachment from scratch
+on every call). Independently reproduced the same class of drift, including proposition **loss**
+(not only gain), in a second, unrelated preserved run (`q-aib-hierarchical-t5c-live-20260930`) --
+new evidence this audit surfaced, not previously documented. Separated the Phase-15 direction/
+effectiveness drift into two distinct mechanisms (old-proposition reclassification, which this
+phase's design closes; unit-level pool-order sensitivity from a genuinely new proposition sharing
+a dedup unit with an old one, which it does not) and showed only the first is in scope. Designed
+the backward-compatible `classify_pids`/`prior_sealed` extension to the two existing primitives,
+confirmed compatible with the frozen Task-B prompt with zero wording changes, requiring no new
+persisted schema and no change to any other call site.
+
+**Implementation, verification, real-artifact replay (Claude).** Implemented exactly the accepted
+two-primitive design: `run_coverage_audit(..., classify_pids=None)` and `seal(..., prior_sealed=
+None)`, both backward-compatible defaults. Resolved the accepted plan's one named STOP condition
+(whole-ledger `coverage_assessed`/`obligation_states`/`coverage_authority` truthfulness) by
+re-deriving those fields from the merged attachment map rather than inventing new schema, exactly
+as the plan's own escape hatch allowed. Added the pre-C2 fail-closed prefix guard
+(`verify_stable_prefix_and_new_pids`) and the shared `record_identity` helper, reusing rather than
+reinventing the exact tuple `__main__._new_unique_verified` already established for the identical
+"two records can share a physical anchor" problem (confirmed by reading the existing code first,
+not assumed) -- `__main__.py` now delegates to the one copy. Running the real test suite (not
+static inspection) surfaced a real, concrete instance of the hazard the accepted design's own
+Section B anticipated, in a previously-passing test whose fixture encoded the pre-fix (full-reseal)
+assumption; updated it with explicit, documented rationale (the Phase-16 precedent), verified live
+against unmodified HEAD that the change in behavior was this phase's own and not a second,
+unrelated bug. Built an offline counterfactual replay (`phase17_c2_sealing_stability_replay.py`)
+against the real preserved `q-aib-hierarchical-t5c-live-20260930` C1 artifacts and Phase 13's own
+real recovered proposition text, proving byte-for-byte preservation across all 26 real
+propositions plus correct new attachment for the recovered one -- disclosed exactly what this
+replay does and does not claim to reproduce bit-for-bit against the Phase-15 report's own
+narration, rather than overclaiming. Baked the independently-found same-ledger drift instance into
+a permanent hardcoded-literal regression fixture (the Phase-16 lineage precedent) rather than a
+live `.local/` dependency. `test_stages.py`: 39/39 (21 pre-existing unchanged + 18 new). Full
+`experiments/ask_cli_revised/` tree: 2145 passed, 11 skipped, 2 failed (both pre-existing,
+reproduced identically against unmodified HEAD via direct `git stash` comparison, unrelated to
+this phase -- `MainOrderingTests::test_preflight_only_...` and
+`RealPinsTests::test_the_generated_pin_candidate_verifies_the_preserved_artifacts`). `ruff check`
+clean on every new/touched line; `ruff format` applied only to the two wholly-new files, leaving
+pre-existing unformatted spots elsewhere untouched. v9 `combined_hash` unchanged:
+`9c72dc6a0180e95c55e68a009c366843b671684c19c6ae84ed254f3865305586`. No live model call, no
+retrieval, no recovery execution, no contract or pin change, no production integration. Full
+detail in `PHASE17_C2_SEALING_STABILITY_RESULTS.md`.
