@@ -771,3 +771,42 @@ pre-existing unformatted spots elsewhere untouched. v9 `combined_hash` unchanged
 `9c72dc6a0180e95c55e68a009c366843b671684c19c6ae84ed254f3865305586`. No live model call, no
 retrieval, no recovery execution, no contract or pin change, no production integration. Full
 detail in `PHASE17_C2_SEALING_STABILITY_RESULTS.md`.
+
+---
+
+## Phase 18 — direction/effectiveness instance-grounded semantics (appended 2026-10-01; does not alter the rows above)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-10-01 | Evidence | Phase 17 C2 sealing audit |
+| 2026-10-01 | Design direction | Cliff Workman + ChatGPT |
+| 2026-10-01 | Audit / design | Claude |
+
+**Evidence (Phase 17 C2 sealing audit).** After proposition-level sealing was stabilized, a
+distinct derived-unit defect remained: newly appended evidence can alter unit membership/pool
+position, while direction/effectiveness consumers select the first matching unit, making results
+order-sensitive despite stable proposition assignments.
+
+**Design direction (Cliff Workman + ChatGPT).** Reframed the next problem from mere deterministic
+ordering to semantic grounding: direction/effectiveness must be tied to the relationship/
+intervention instance they describe before any deterministic serialization rule is applied.
+
+**Audit / design (Claude).** Traced the full producer/consumer call graph from source and found the
+real defect was not where first suspected: `build_units`'s dedup/merge is semantically sound and
+retains full proposition-level identity; the actual gap is that `units_by_child`/`compute_
+direction_and_effectiveness` pool a whole child's evidence undifferentiated by instance, so a
+multi-instance requirement's single requirement-level scalar silently reflects whichever instance's
+evidence sits earliest in ledger order -- confirmed live via a synthetic reproduction against the
+real, unmodified engine (not preserved real artifacts, which are absent from this worktree), which
+also confirmed an unrelated earlier proposition can hijack the value outright. Derived an
+instance-level evidence support-set rule entirely from already-existing fields -- `_support_set`
+and the same `candidate_source != "parent_context"` filter `recompute_instance` already uses for
+completeness -- rather than inventing a second support concept, and specified an instance-grounded,
+multi-value observation representation (reusing the existing per-observation assessment shape
+unchanged) with a strictly derived, complete-instances-only requirement-level consensus/
+heterogeneity view. Documented, without expanding, a real pre-existing conflation of statistical
+non-significance with intervention failure in the effectiveness extractor. Confirmed the frozen v9
+contract needs no change (the frozen and per-run contract objects are already categorically
+separate and never hashed together). No engine code was changed, no live model call was made, no
+retrieval ran, no recovery executed, no contract or pin change. Full detail in
+`PHASE18_DIRECTION_EFFECTIVENESS_SEMANTICS_RESULTS.md`.
