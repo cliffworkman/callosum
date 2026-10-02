@@ -218,6 +218,19 @@ class QwenTasks:
     config: object  # ManagedProviderConfig
     trace: TraceWriter
 
+    @property
+    def model_name(self) -> str | None:
+        """Phase 20b (audit §4): the active W binding's own effective model identifier, for
+        Phase-19 nomination-receipt provenance (`sufficiency_mapping._bind_role_candidates` reads
+        `getattr(model_client, "model_name", None)`). Confirmed by direct inspection of BOTH
+        `self.config` shapes `bind()` ever constructs -- never guessed: `backends.NativeWorker.model`
+        (the ollama-native path) and `app.backend.llm.managed_local.ManagedProviderConfig.model`
+        (the managed-local path) use the IDENTICAL field name, so one generic `getattr` covers both
+        without needing to branch on which `self.config` happens to be. `None` only if some future
+        third config shape omits `.model` entirely -- callers must treat that as "no model identity
+        available", never paper over it with a guessed value."""
+        return getattr(self.config, "model", None)
+
     def _call_native(self, *, prompt: str, output_cap: int, json_schema: dict | None) -> _CallResult:
         """An Ollama-native worker: one call through the execution-policy seam at the task's own small cap."""
         if json_schema is None:

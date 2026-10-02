@@ -9,12 +9,14 @@ import json
 import re
 import tempfile
 import unittest
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from experiments.ask_cli_revised import e2e, sufficiency_diagnostic, sufficiency_freeze, sufficiency_recovery_targets
 from experiments.ask_cli_revised import hierarchy_contract as hc
+from experiments.ask_cli_revised import sufficiency_model_scope as mscope
 from experiments.ask_cli_revised import topology as topo
 from experiments.ask_cli_revised.hierarchy_test_support import (
     CHILD_IDS,
@@ -304,6 +306,316 @@ class SufficiencyIntegrationTests(unittest.TestCase):
         self.assertEqual(result["sufficiency_recovery_targets"], {})
 
 
+class FakeQwenNomination:
+    """A minimal duck-typed model_client -- exactly `sufficiency_mapping.nominate_with_model`'s own
+    sanctioned fake-client shape (Phase 19's audit: "every one of the ~10 existing live/recorded/
+    replay/fake client implementations needed zero modification"). Deliberately bypasses QwenTasks/
+    ScriptedClient/execution_policy entirely -- this tests execute()'s OWN wiring (does it construct
+    model_client/nomination_context correctly, does U2 really make zero fresh calls, is a binding's
+    provenance correct), not the real transport stack, which is exercised elsewhere (test_backends.py,
+    the Phase 10 live diagnostic) and unchanged by this phase."""
+
+    def __init__(self, *, model_name="qwen3.5:9b", raise_always=False):
+        self.model_name = model_name
+        self.calls: list[dict] = []
+        self._raise_always = raise_always
+
+    def nominate_sufficiency_role(self, *, category_description, candidates):
+        self.calls.append({"category_description": category_description, "candidates": list(candidates)})
+        if self._raise_always:
+            raise RuntimeError("synthetic transport failure")
+        if not candidates:
+            return []
+        first = candidates[0]
+        return [{"proposition_id": first["proposition_id"], "exact_text": first["passage"][:15]}]
+
+
+@needs_artifacts
+class ModelAssistIntegrationTests(unittest.TestCase):
+    """Phase 20b: production initial model-assisted sufficiency wiring, feature-gated off by
+    default. Real frozen v9 contract + real hierarchy parent map (same fixtures as Phase 20a's own
+    `SufficiencyIntegrationTests`), a fake (never real) nomination client injected directly as
+    `bound.qwen` after a real `e2e.bind()` call (so `bound.supervisors` -- R/C/P -- are built
+    normally; only the nomination seam is faked). No live model call anywhere in this class.
+
+    Profile choice: `topo.WAVE1["T0"].W` is `managed_local` with `think=None` (not `False`) --
+    `_resolve_qwen`'s own underlying config carries no `think` field at all, so `think` is simply
+    never consulted for that kind; `None` is correctly treated as "not verified False" and refused
+    by `_sufficiency_u1_context`'s own fail-closed check. A `replace()`'d copy with `W.think=False`
+    is used everywhere assistance is meant to succeed -- the structure (legacy P -> SEARCH actions
+    for every unresolved gap -> both U1 AND U2 fire) is what exercises the full lifecycle this class
+    tests; `topo.WAVE1["T5"]` (model-based P, `p_preserve`) never plans a SEARCH action at all, so it
+    never reaches U2 -- confirmed empirically before writing these tests, not assumed.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.contract = hc.load_contract(BENCHMARK_QUESTION, pins=None)
+        cls.contract_by_child = sufficiency_freeze.load_verified()
+        cls.parent_of = hc.parent_of(cls.contract)
+        cls.assist_profile = replace(topo.WAVE1["T0"], W=replace(topo.WAVE1["T0"].W, think=False))
+
+    def _bound_with_fake_qwen(self, profile, h, fake_qwen):
+        real_bound = e2e.bind(
+            profile, rt=h.rt, clients=h.clients, trace=h.trace, managed_chat=lambda config: h.clients["shared"]
+        )
+        return e2e.Bound(qwen=fake_qwen, supervisors=real_bound.supervisors)
+
+    def _run(self, *, profile=None, fake_qwen=None, assist=True, **kwargs):
+        profile = profile or self.assist_profile
+        fake_qwen = fake_qwen if fake_qwen is not None else FakeQwenNomination()
+        shared = ScriptedClient(r=r_by_claim({CLAIM_C5: ["c5"], CLAIM_C4: ["c4"], CLAIM_C12: ["c12"]}))
+        h = HierHarness(profile, self.contract, initial=INITIAL, recovery=[], clients={"shared": shared})
+        self.addCleanup(h.close)
+        bound = self._bound_with_fake_qwen(profile, h, fake_qwen)
+        with (
+            patch.object(e2e, "_initial_pass", h._initial_pass),
+            patch.object(e2e, "_recover_round", h._recover_round),
+        ):
+            result = e2e.execute(
+                rt=h.rt,
+                profile=profile,
+                contract=h.contract,
+                trace=h.trace,
+                guard=h.guard,
+                bound=bound,
+                sufficiency_contract=self.contract_by_child,
+                sufficiency_parent_of=self.parent_of,
+                sufficiency_model_assist_enabled=assist,
+                **kwargs,
+            )
+        return result, fake_qwen, h
+
+    # ---- enablement / preflight ---------------------------------------------------------------
+
+    def test_default_off_preserves_phase_20a_behavior_exactly(self):
+        shared = ScriptedClient(r=r_by_claim({CLAIM_C5: ["c5"], CLAIM_C4: ["c4"], CLAIM_C12: ["c12"]}))
+        h = HierHarness(topo.WAVE1["T0"], self.contract, initial=INITIAL, recovery=[], clients={"shared": shared})
+        self.addCleanup(h.close)
+        off = h.run(sufficiency_contract=self.contract_by_child, sufficiency_parent_of=self.parent_of)
+        self.assertIsNone(off["sufficiency_model_assist"])
+        for contract in off["sufficiency_map_initial"].values():
+            for req in contract["requirements"]:
+                for instance in req["instances"]:
+                    for binding in instance["role_bindings"].values():
+                        prov = binding.get("provenance") or {}
+                        self.assertNotEqual(prov.get("candidate_source"), "model_mapping")
+
+    def test_enabled_without_a_sufficiency_contract_is_refused(self):
+        shared = ScriptedClient(r=r_by_claim({}))
+        h = HierHarness(self.assist_profile, self.contract, initial=[], recovery=[], clients={"shared": shared})
+        self.addCleanup(h.close)
+        with self.assertRaises(e2e.SufficiencyModelAssistRefused) as ctx:
+            h.run(sufficiency_model_assist_enabled=True)  # no sufficiency_contract supplied
+        self.assertIn("no sufficiency contract is active", str(ctx.exception))
+
+    def test_a_thinking_enabled_w_binding_is_refused_before_any_call(self):
+        shared = ScriptedClient(r=r_by_claim({}))
+        h = HierHarness(topo.WAVE1["T0"], self.contract, initial=[], recovery=[], clients={"shared": shared})
+        self.addCleanup(h.close)
+        with self.assertRaises(e2e.SufficiencyModelAssistRefused) as ctx:
+            h.run(
+                sufficiency_contract=self.contract_by_child,
+                sufficiency_parent_of=self.parent_of,
+                sufficiency_model_assist_enabled=True,
+            )  # T0's own W.think is None, never explicitly False
+        self.assertIn("thinking setting", str(ctx.exception))
+        self.assertEqual(shared.calls, [])  # refused before W1 ever touches the (fake) client
+
+    def test_missing_model_name_is_refused_not_silently_provenance_none(self):
+        shared = ScriptedClient(r=r_by_claim({}))
+        h = HierHarness(self.assist_profile, self.contract, initial=[], recovery=[], clients={"shared": shared})
+        self.addCleanup(h.close)
+        bound = self._bound_with_fake_qwen(self.assist_profile, h, FakeQwenNomination(model_name=None))
+        with self.assertRaises(e2e.SufficiencyModelAssistRefused) as ctx:
+            with (
+                patch.object(e2e, "_initial_pass", h._initial_pass),
+                patch.object(e2e, "_recover_round", h._recover_round),
+            ):
+                e2e.execute(
+                    rt=h.rt, profile=self.assist_profile, contract=h.contract, trace=h.trace, guard=h.guard,
+                    bound=bound,
+                    sufficiency_contract=self.contract_by_child, sufficiency_parent_of=self.parent_of,
+                    sufficiency_model_assist_enabled=True,
+                )  # fmt: skip
+        self.assertIn("model_name", str(ctx.exception))
+
+    def test_a_non_hierarchical_run_may_not_combine_the_flag_without_hierarchy(self):
+        with self.assertRaises(ValueError) as ctx:
+            e2e.run_topology(
+                "T5", "lld",
+                db_path="x", library_frozen="y", out_dir="z", git_root=".",
+                scored=False, hierarchy=False, sufficiency_model_assist=True,
+            )  # fmt: skip
+        self.assertIn("--sufficiency-model-assist requires --hierarchy", str(ctx.exception))
+
+    # ---- the mandatory nomination-context invariant --------------------------------------------
+
+    def test_model_client_and_nomination_context_are_always_constructed_together(self):
+        """The researcher decision this phase opened with, proven directly against the one
+        function that enforces it: `_sufficiency_u1_context` either returns BOTH a real client and
+        a real Phase-19 context, or raises -- there is no path that returns one without the other."""
+        client, context = e2e._sufficiency_u1_context(
+            self.assist_profile, e2e.Bound(qwen=FakeQwenNomination(), supervisors={})
+        )
+        self.assertIsNotNone(client)
+        self.assertIsNotNone(context)
+        self.assertEqual(context["policy"], mscope.all_eligible_policy())
+
+    def test_disabled_path_never_constructs_a_context_at_all(self):
+        result, fake, _ = self._run(assist=False)
+        self.assertEqual(fake.calls, [])
+        self.assertIsNone(result["sufficiency_model_assist"])
+
+    # ---- U1: ALL_ELIGIBLE, demand-driven -------------------------------------------------------
+
+    def test_u1_uses_all_eligible_and_is_demand_driven_not_a_precall_of_every_scope(self):
+        result, fake, _ = self._run()
+        summary = result["sufficiency_model_assist"]["initial"]
+        self.assertTrue(summary["enabled"])
+        # Confirmed empirically: 11 of the frozen v9 contract's 15 declared scopes are actually
+        # reached under these real claims; 5 have real candidates (one physical call each), 6 have
+        # none (zero calls, `fresh_no_candidates`) -- never a pre-call of all 15 inventory scopes.
+        self.assertEqual(summary["scopes_reached"], 11)
+        self.assertEqual(summary["by_status"], {"fresh": 5, "fresh_no_candidates": 6})
+        self.assertEqual(len(fake.calls), 5)
+
+    def test_a_real_nomination_produces_a_correctly_provenanced_filled_binding(self):
+        result, _, _ = self._run()
+        c5 = result["sufficiency_map_initial"]["c5"]
+        req = next(r for r in c5["requirements"] if r["id"] == "c5#suff:brain-behavior")
+        self.assertEqual(req["state"], "filled")
+        for role in ("named_brain_region_or_network", "behavior_or_behavioral_measure"):
+            binding = req["instances"][0]["role_bindings"][role]
+            prov = binding["provenance"]
+            self.assertEqual(prov["candidate_source"], "model_mapping")
+            self.assertEqual(prov["model"], "qwen3.5:9b")
+
+    def test_direction_effectiveness_annotation_still_runs_over_a_model_filled_instance(self):
+        """Phase 18 remains closed and unmodified (confirmed by `git diff --stat`); this is the
+        audit's own requested integration assertion that the SAME annotation pass still reaches an
+        instance whose completion is model-dependent, producing the correctly-shaped diagnostic
+        metadata (never skipped, never erroring) even when no direction word happens to appear in
+        this fake's own (non-semantic) synthetic `exact_text`."""
+        result, _, _ = self._run()
+        req = next(
+            r for r in result["sufficiency_map_initial"]["c5"]["requirements"] if r["id"] == "c5#suff:brain-behavior"
+        )
+        self.assertIn("direction_observations", req["instances"][0])
+        self.assertIn("direction_summary", req)
+        self.assertEqual(req["direction_summary"]["complete_instance_keys"], [None])
+
+    def test_u1_stage_uses_the_shared_w_residency_stage_accounting(self):
+        """Audit §11: brought under the SAME mechanism every other bound.qwen call uses -- never a
+        hardcoded `swap_seconds: 0.0` fiction for a pass that actually touched the model."""
+        result, _, _ = self._run()
+        u1 = next(s for s in result["stage_log"] if s["stage"] == "U1")
+        self.assertEqual(u1["role"], "W")
+        self.assertEqual(u1["binding"]["model"], "callosum-managed-local")
+        self.assertIn("scopes_reached", u1["detail"])
+
+    def test_zero_candidate_scope_makes_zero_calls(self):
+        result, fake, _ = self._run()
+        offered = {tuple(c["proposition_id"] for c in call["candidates"]) for call in fake.calls}
+        self.assertNotIn((), offered)  # no call was EVER made with an empty candidate list
+
+    # ---- mechanical failure never crashes the run ----------------------------------------------
+
+    def test_a_mechanical_nomination_failure_does_not_crash_the_run(self):
+        result, fake, h = self._run(fake_qwen=FakeQwenNomination(raise_always=True))
+        self.assertTrue(fake.calls)  # it really was invoked
+        c5 = result["sufficiency_map_initial"]["c5"]
+        req = next(r for r in c5["requirements"] if r["id"] == "c5#suff:brain-behavior")
+        for role in ("named_brain_region_or_network", "behavior_or_behavioral_measure"):
+            self.assertEqual(req["instances"][0]["role_bindings"][role]["state"], "missing")
+        self.assertIsNotNone(result["final_audit"])  # the run completed to a rendered answer
+        summary = result["sufficiency_model_assist"]["initial"]
+        self.assertIn("fresh_failed_no_valid_prior", summary["by_status"])
+
+    # ---- U2: held fixed, zero fresh calls -------------------------------------------------------
+
+    def test_u2_fires_and_makes_zero_fresh_calls(self):
+        result, fake, _ = self._run()
+        self.assertIn("U2", [s["stage"] for s in result["stage_log"]])
+        final_summary = result["sufficiency_model_assist"]["final"]
+        self.assertTrue(final_summary["enabled"])
+        self.assertEqual(final_summary["scopes_reached"], 11)
+        self.assertEqual(final_summary["by_status"], {"held_fixed_replay": 11})
+        self.assertEqual(len(fake.calls), 5)  # identical to U1 alone -- U2 added exactly zero
+
+    def test_u2_replays_the_exact_u1_binding_held_fixed(self):
+        result, _, _ = self._run()
+        initial_binding = result["sufficiency_map_initial"]["c5"]["requirements"][0]["instances"][0]["role_bindings"][
+            "named_brain_region_or_network"
+        ]
+        final_binding = result["sufficiency_map_final"]["c5"]["requirements"][0]["instances"][0]["role_bindings"][
+            "named_brain_region_or_network"
+        ]
+        self.assertEqual(initial_binding["exact_text"], final_binding["exact_text"])
+        self.assertEqual(final_binding["provenance"]["candidate_source"], "model_mapping")
+
+    def test_u2_never_wrapped_in_the_w_residency_stage(self):
+        """Audit §11's own stated constraint: replaying already-known receipts must never incur a
+        W residency swap -- U2's own stage_log entry is built manually, never via `stage("U2","W")`."""
+        result, _, _ = self._run()
+        u2 = next(s for s in result["stage_log"] if s["stage"] == "U2")
+        self.assertEqual(u2["swap_seconds"], 0.0)
+        self.assertEqual(u2["binding"]["kind"], "sufficiency_model_assist_held_fixed")
+        self.assertEqual(u2["binding"]["model"], "qwen3.5:9b")
+
+    def test_u1_receipt_snapshot_is_independent_of_the_live_u1_context(self):
+        """Audit §9: U2 must never be able to mutate the authoritative U1 receipt record. Proven
+        directly against the snapshot helper's own real output, not merely trusted."""
+        client, context = e2e._sufficiency_u1_context(
+            self.assist_profile, e2e.Bound(qwen=FakeQwenNomination(), supervisors={})
+        )
+        scope = mscope.new_model_nomination_scope("c4", "req", "role")
+        mscope.resolve_nomination(
+            scope, candidate_rows=[], category_description="x", model_name="m",
+            make_fresh_call=lambda: [], nomination_context=context,
+        )  # fmt: skip
+        snapshot = dict(context["in_pass_receipts"])
+        context["in_pass_receipts"]["intruder"] = {"injected": True}
+        self.assertNotIn("intruder", snapshot)
+
+    # ---- recovery gate stays separate ------------------------------------------------------------
+
+    def test_model_assist_on_with_recovery_gate_off_still_maps_but_injects_no_recovery_targets(self):
+        """`sufficiency_recovery_targets` in the result is always COMPUTED once a map exists
+        (unconditionally, at the end of execute() -- unrelated to the gate); the gate controls only
+        whether those rows are additionally INJECTED as synthetic search gaps. Observed via the
+        scripted harness's own `recover_calls[0]["gaps"]` -- a sufficiency-derived target appends
+        its owning child id again even when the generic pass already gapped it (by design, per
+        execute()'s own comment), so gate ON must search a STRICTLY LARGER gap list than gate OFF,
+        given the same real model-mapped structure (confirmed non-trivial: c12/c4 are only
+        `partially_filled`, exactly the shape that yields a real recovery target)."""
+        off, _, h_off = self._run(sufficiency_recovery_gate_enabled=False)
+        on, _, h_on = self._run(sufficiency_recovery_gate_enabled=True)
+        self.assertTrue(off["sufficiency_model_assist"]["initial"]["enabled"])
+        self.assertTrue(on["sufficiency_recovery_targets"])  # real targets exist to (not) inject
+        self.assertEqual(off["sufficiency_recovery_targets"], on["sufficiency_recovery_targets"])
+        gaps_off = h_off.recover_calls[0]["gaps"]
+        gaps_on = h_on.recover_calls[0]["gaps"]
+        self.assertEqual(len(gaps_off), len(set(gaps_off)))  # no duplicates when the gate is off
+        self.assertGreater(len(gaps_on), len(gaps_off))  # the gate injects additional target rows
+
+    # ---- persistence -----------------------------------------------------------------------------
+
+    def test_the_receipt_artifact_round_trips_with_no_hidden_reasoning(self):
+        result, fake, h = self._run()
+        path = h.trace.dir / "18_sufficiency_model_assist.json"
+        self.assertTrue(path.is_file())
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        self.assertTrue(payload["enabled"])
+        self.assertEqual(payload["model_name"], "qwen3.5:9b")
+        self.assertIs(payload["think"], False)
+        self.assertEqual(len(payload["initial"]), 11)
+        self.assertEqual(len(payload["final"]), 11)
+        blob = json.dumps(payload).lower()
+        for forbidden in ("thinking", "reasoning", "raw_text", "chain_of_thought"):
+            self.assertNotIn(forbidden, blob)
+
+
 @needs_artifacts
 class HierarchyModelCoverageTests(unittest.TestCase):
     @classmethod
@@ -553,7 +865,13 @@ class RunTopologySufficiencyWiringTests(unittest.TestCase):
         manifest = self.go()
         self.assertEqual(
             manifest["sufficiency"],
-            {"contract_supplied": True, "mapped_children": sorted(sufficiency_freeze.load_verified())},
+            {
+                "contract_supplied": True,
+                "mapped_children": sorted(sufficiency_freeze.load_verified()),
+                # Phase 20b's own additive key -- None whenever model assistance never ran, exactly
+                # as it never does in this (default-off) test.
+                "model_assist": None,
+            },
         )
 
     def test_an_unverifiable_frozen_artifact_fails_the_run_loudly_not_silently(self):
@@ -592,6 +910,24 @@ class CommandLineTests(unittest.TestCase):
             self.parse(*base, "--question", "lld")
         with self.assertRaises(SystemExit):
             self.parse(*base, "--question", "aib", "--smoke", "--smoke-seed", "s.json")
+
+    def test_sufficiency_model_assist_is_off_by_default(self):
+        args = self.parse("--profile", "T0", "--question", "aib", "--db", "d", "--out", "o")
+        self.assertFalse(args.sufficiency_model_assist)
+
+    def test_sufficiency_model_assist_requires_hierarchy(self):
+        with self.assertRaises(SystemExit):
+            self.parse(
+                "--profile", "T5", "--question", "aib", "--db", "d", "--out", "o", "--sufficiency-model-assist"
+            )  # fmt: skip
+
+    def test_sufficiency_model_assist_is_accepted_with_hierarchy(self):
+        args = self.parse(
+            "--profile", "T5", "--question", "aib", "--db", "d", "--out", "o",
+            "--hierarchy", "--sufficiency-model-assist",
+        )  # fmt: skip
+        self.assertTrue(args.sufficiency_model_assist)
+        self.assertTrue(args.hierarchy)
 
     def test_preflight_only_needs_the_hierarchy_flag_and_needs_no_run_arguments(self):
         with self.assertRaises(SystemExit):

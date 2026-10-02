@@ -43,6 +43,7 @@ from experiments.ask_cli_revised import (
     sufficiency_freeze,
     sufficiency_recovery_targets,
 )
+from experiments.ask_cli_revised import sufficiency_model_scope as mscope
 from experiments.ask_cli_revised import topology as topo
 from experiments.ask_cli_revised.ledger_renderer import audit_final, render_answer
 from experiments.ask_cli_revised.qwen import QwenTasks
@@ -275,6 +276,69 @@ def _binding_record(binding: topo.Binding) -> dict:
     return {"kind": binding.kind, "model": binding.model, "endpoint": binding.endpoint, "think": binding.think}
 
 
+# ---- Phase 20b: production initial model-assisted sufficiency wiring, feature-gated off --------------------------------
+
+
+class SufficiencyModelAssistRefused(RuntimeError):
+    """`--sufficiency-model-assist` was requested but a required precondition failed. Mirrors
+    `AuthorizationRefused`/`HierarchyRejected`'s fail-closed convention: no silent fallback from an
+    EXPLICITLY requested model-assisted path to deterministic-only mapping, and no silent
+    degradation of its preconditions (a thinking-enabled W binding, an unresolvable model identity,
+    no active sufficiency contract at all)."""
+
+
+def _sufficiency_u1_context(profile: topo.Profile, bound: Bound) -> tuple[object, dict]:
+    """Phase 20b's ONE enforcement point for the mandatory nomination-context invariant (the
+    researcher decision this phase opened with): production model assistance may never run
+    through a bare `model_client` -- this function always constructs `model_client` and
+    `nomination_context` TOGETHER, so no caller below it can produce one without the other merely
+    by omission. Raises `SufficiencyModelAssistRefused` before any call if the active W binding
+    cannot safely support nomination:
+
+    - thinking must be exactly `False`. Nomination's output cap is a small, fixed
+      `_NOMINATION_OUTPUT_TOKENS` (`qwen.py`) with no per-call override anywhere in this codebase;
+      a thinking-enabled worker would silently starve every nomination call before it ever emits a
+      parseable answer (the Phase-20 audit's own §5 finding) -- never mutated, never silently
+      disabled, just refused up front with a clear configuration error.
+    - the resolved `model_client` (the SAME `bound.qwen` the W role already uses for claim
+      formation -- confirmed by direct inspection of `bind()`, never a second nomination worker or
+      a separate Qwen lifecycle) must expose a non-empty `model_name` (`qwen.QwenTasks.model_name`),
+      so a receipt's provenance is never silently `None` merely because the adapter failed to
+      expose an already-known identity.
+
+    `all_eligible_policy()` is this function's own fixed U1 policy -- every structurally eligible
+    scope may attempt one fresh call this pass, demand-driven by the mapper exactly as Phase 19
+    already proved (nothing here pre-calls every inventory scope)."""
+    if profile.W.think is not False:
+        raise SufficiencyModelAssistRefused(
+            "--sufficiency-model-assist requires the active W binding's thinking setting to be "
+            f"exactly False (current: {profile.W.think!r}); nomination's fixed-size output cap has "
+            "no per-call thinking override, and a thinking-enabled worker would silently starve "
+            "every nomination call before it could emit a parseable answer"
+        )
+    model_client = bound.qwen
+    model_name = getattr(model_client, "model_name", None)
+    if not model_name:
+        raise SufficiencyModelAssistRefused(
+            "--sufficiency-model-assist requires the active W binding's client to expose a "
+            "resolvable model_name, but none was found"
+        )
+    return model_client, mscope.new_nomination_context(mscope.all_eligible_policy())
+
+
+def _nomination_pass_summary(nomination_context: dict | None) -> dict:
+    """Internal run diagnostics only (audit §14) -- never user-facing prose, never raw model text:
+    `new_nomination_receipt` carries no chain-of-thought/raw-scratch field to begin with, so this
+    is satisfied by construction, not an extra redaction step here."""
+    if nomination_context is None:
+        return {"enabled": False}
+    receipts = list(nomination_context["in_pass_receipts"].values())
+    by_status: dict[str, int] = {}
+    for receipt in receipts:
+        by_status[receipt["status"]] = by_status.get(receipt["status"], 0) + 1
+    return {"enabled": True, "scopes_reached": len(receipts), "by_status": by_status}
+
+
 def execute(
     *,
     rt,
@@ -289,6 +353,7 @@ def execute(
     sufficiency_contract: dict | None = None,
     sufficiency_parent_of: dict | None = None,
     sufficiency_recovery_gate_enabled: bool = False,
+    sufficiency_model_assist_enabled: bool = False,
 ) -> dict:
     if "S" in bound.supervisors and entail is None:
         # Fail closed before any stage, trace file or model call: an overview is never shown unscreened.
@@ -301,6 +366,22 @@ def execute(
             raise ValueError(
                 "a hierarchical run may not slice its children or seed its claims (that would silently drop or replace approved children)"
             )
+    # Phase 20b: validated and (when valid) constructed BEFORE any stage, trace file, or model call
+    # -- the same fail-closed posture as the two checks immediately above. No silent fallback from
+    # an explicitly requested model-assisted path to deterministic-only mapping: every precondition
+    # is checked exactly once, here, never re-derived or silently skipped later. `sufficiency_
+    # u1_model_client`/`sufficiency_u1_context` stay (None, None) -- byte-identical to every
+    # pre-Phase-20b caller -- unless assistance is both requested and safe to run.
+    sufficiency_u1_model_client = None
+    sufficiency_u1_context = None
+    if sufficiency_model_assist_enabled:
+        if sufficiency_contract is None:
+            raise SufficiencyModelAssistRefused(
+                "--sufficiency-model-assist was requested but no sufficiency contract is active "
+                "for this run (sufficiency_contract is None) -- there is no deterministic "
+                "sufficiency mapping for a model to assist"
+            )
+        sufficiency_u1_model_client, sufficiency_u1_context = _sufficiency_u1_context(profile, bound)
     subquestions = request_subquestions(contract)
     obligations = [sq["obligations"][0] for sq in subquestions]
     question = contract["original_question"]
@@ -378,24 +459,49 @@ def execute(
         # Inert for every profile/run that does not pass `sufficiency_contract` (every existing
         # call site): `sufficiency_map_initial` stays None and nothing below this block executes.
         sufficiency_map_initial = None
+        sufficiency_u1_receipts_snapshot = None
         if sufficiency_contract is not None and contract.get("version") == hierarchy_contract.HIER_VERSION:
-            started = time.monotonic()
             early_sealed = stages.seal(
                 contract, subquestions, sink.all_records, sink.evidence_packets, coverage_initial
             )
-            sufficiency_map_initial = sufficiency_diagnostic.compute_diagnostic_sufficiency_map(
-                early_sealed, sufficiency_contract, sufficiency_parent_of or {}
-            )
-            sufficiency_diagnostic.compute_direction_and_effectiveness(early_sealed, sufficiency_map_initial)
-            stage_log.append(
-                {
-                    "stage": "U1",
-                    "role": "U",
-                    "binding": {"kind": "deterministic_sufficiency_mapping", "model": None},
-                    "swap_seconds": 0.0,
-                    "wall_seconds": round(time.monotonic() - started, 3),
-                }
-            )
+            if sufficiency_u1_model_client is not None:
+                # Model-assisted U1: brought under the SAME W-role residency/stage accounting as
+                # every other bound.qwen call in this function (audit §11) -- compute_diagnostic_
+                # sufficiency_map may make zero to several physical nomination calls internally
+                # (Phase-19's own resolve_nomination decides exactly how many), the same "one
+                # stage() bounds a variable-count-of-calls phase" shape W1/W2 already use for the
+                # retrieval rounds. Never reproduces any of Phase-19's own scope/fingerprint/
+                # memoization/failure-fallback logic here.
+                with stage("U1", "W") as entry:
+                    sufficiency_map_initial = sufficiency_diagnostic.compute_diagnostic_sufficiency_map(
+                        early_sealed,
+                        sufficiency_contract,
+                        sufficiency_parent_of or {},
+                        model_client=sufficiency_u1_model_client,
+                        nomination_context=sufficiency_u1_context,
+                    )
+                    sufficiency_diagnostic.compute_direction_and_effectiveness(early_sealed, sufficiency_map_initial)
+                    entry["detail"] = _nomination_pass_summary(sufficiency_u1_context)
+            else:
+                started = time.monotonic()
+                sufficiency_map_initial = sufficiency_diagnostic.compute_diagnostic_sufficiency_map(
+                    early_sealed, sufficiency_contract, sufficiency_parent_of or {}
+                )
+                sufficiency_diagnostic.compute_direction_and_effectiveness(early_sealed, sufficiency_map_initial)
+                stage_log.append(
+                    {
+                        "stage": "U1",
+                        "role": "U",
+                        "binding": {"kind": "deterministic_sufficiency_mapping", "model": None},
+                        "swap_seconds": 0.0,
+                        "wall_seconds": round(time.monotonic() - started, 3),
+                    }
+                )
+            # Phase 20b §9: an explicit, immutable snapshot -- never the live, still-mutable U1
+            # context object itself -- so a later U2 pass can hold these decisions fixed without
+            # any possibility of mutating the authoritative U1 receipt record.
+            if sufficiency_u1_context is not None:
+                sufficiency_u1_receipts_snapshot = dict(sufficiency_u1_context["in_pass_receipts"])
 
         gaps = [row for row in coverage_initial["obligations"] if row["state"] != stages.JUDGED_RESPONSIVE]
         if smoke.get("max_recovery_gaps"):
@@ -518,6 +624,7 @@ def execute(
     sealed_hash = hashlib.sha256(json.dumps(sealed, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
 
     sufficiency_map_final = sufficiency_map_initial
+    sufficiency_u2_context = None  # stays None unless the block below actually recomputes U2
     if (
         sufficiency_contract is not None
         and contract.get("version") == hierarchy_contract.HIER_VERSION
@@ -527,19 +634,47 @@ def execute(
         # R2/C2 gate exactly, e2e.py's own `if len(...) > before:` check above) -- otherwise the
         # initial map is already the final one and re-running would be wasted, identical work.
         started = time.monotonic()
+        if sufficiency_u1_model_client is not None:
+            # Phase 20b §8/§9 -- load-bearing: U2 holds every U1 model-assisted decision FIXED.
+            # `exact_scope_set_policy(set())` is an EMPTY fresh-authorization set, never
+            # ALL_ELIGIBLE -- no model_nomination_only scope may make a fresh call here, no matter
+            # how the recovery round changed the candidate pool; each such scope instead replays
+            # its own U1 receipt from the immutable snapshot (if still admissible under Phase-19's
+            # own `_prior_receipt_is_admissible`) or resolves missing. Deterministic-strategy roles
+            # never consult a nomination_context at all and recompute normally from the rebuilt
+            # `sealed` ledger. This is the deliberate, disclosed bridge to Phase 22, which will
+            # later substitute the exact RecoveryTarget-derived scope set for this empty one,
+            # reusing this exact context shape unchanged.
+            sufficiency_u2_context = mscope.new_nomination_context(
+                mscope.exact_scope_set_policy(set()), prior_receipts=sufficiency_u1_receipts_snapshot
+            )
         sufficiency_map_final = sufficiency_diagnostic.compute_diagnostic_sufficiency_map(
-            sealed, sufficiency_contract, sufficiency_parent_of or {}
+            sealed,
+            sufficiency_contract,
+            sufficiency_parent_of or {},
+            model_client=sufficiency_u1_model_client,
+            nomination_context=sufficiency_u2_context,
         )
         sufficiency_diagnostic.compute_direction_and_effectiveness(sealed, sufficiency_map_final)
-        stage_log.append(
-            {
-                "stage": "U2",
-                "role": "U",
-                "binding": {"kind": "deterministic_sufficiency_mapping", "model": None},
-                "swap_seconds": 0.0,
-                "wall_seconds": round(time.monotonic() - started, 3),
-            }
-        )
+        u2_entry = {
+            "stage": "U2",
+            "role": "U",
+            # Deliberately NEVER wrapped in stage("U2", "W"): U2 is held-fixed by construction and
+            # must make zero fresh model calls (audit §8/§11) -- incurring a W residency swap
+            # merely to replay already-known receipts would be pure waste with no corresponding
+            # model work to account for. Still honestly labelled (never falsely "deterministic")
+            # when model-assisted bindings are actually being replayed into it.
+            "binding": (
+                {"kind": "deterministic_sufficiency_mapping", "model": None}
+                if sufficiency_u1_model_client is None
+                else {"kind": "sufficiency_model_assist_held_fixed", "model": sufficiency_u1_model_client.model_name}
+            ),
+            "swap_seconds": 0.0,
+            "wall_seconds": round(time.monotonic() - started, 3),
+        }
+        if sufficiency_u2_context is not None:
+            u2_entry["detail"] = _nomination_pass_summary(sufficiency_u2_context)
+        stage_log.append(u2_entry)
     # Same primitive as the pre-round call above, re-run against the (possibly recovery-updated)
     # final map -- one shared function, two call sites, never two independently-computed
     # recovery-need checks (the prior design's own redundancy, closed by Phase 12).
@@ -630,6 +765,28 @@ def execute(
         trace.write_json("17_sufficiency_map.initial.json", sufficiency_map_initial)
     if sufficiency_map_final is not None:
         trace.write_json("17_sufficiency_map.json", sufficiency_map_final)
+    if sufficiency_u1_context is not None:
+        # Phase 20b §13: the next non-colliding artifact number after Phase 20a's own "17_*" pair.
+        # Structured, inspectable fields only (scope/model/fingerprint/candidates/accepted/status
+        # -- exactly `new_nomination_receipt`'s own shape, which carries no chain-of-thought or raw
+        # model text to begin with). `final` is `null` whenever U2 never ran (no recovery activity)
+        # or ran fully held-fixed with no context of its own (never reached here, since a context
+        # is only ever absent when model assistance itself is off, which this whole block is
+        # already gated on) -- in Phase 20b it is always present once U2 actually recomputes.
+        trace.write_json(
+            "18_sufficiency_model_assist.json",
+            {
+                "enabled": True,
+                "model_name": sufficiency_u1_model_client.model_name,
+                "think": profile.W.think,
+                "initial": list(sufficiency_u1_context["in_pass_receipts"].values()),
+                "final": (
+                    list(sufficiency_u2_context["in_pass_receipts"].values())
+                    if sufficiency_u2_context is not None
+                    else None
+                ),
+            },
+        )
     trace.write_json("13_recovery_plan.json", {**plan_record, "unresolved_items": [g["field_id"] for g in gaps]})
     trace.write_json("13_gap_recovery.json", recovery_log)
     trace.write_json("11_verified_ledger.json", {**sealed, "sealed_hash": sealed_hash})
@@ -681,6 +838,20 @@ def execute(
         # "sufficiency_recovery_candidates" since the shape itself changed (confirmed by grep: no
         # consumer outside this file parses the old key/shape).
         "sufficiency_recovery_targets": recovery_targets_final,
+        # Phase 20b: internal run diagnostics only (audit §14) -- never user-facing prose. `None`
+        # unless model assistance actually ran (byte-identical absence to every pre-Phase-20b
+        # caller, including Phase 20a's own deterministic-only path).
+        "sufficiency_model_assist": (
+            {
+                "enabled": True,
+                "model_name": sufficiency_u1_model_client.model_name,
+                "think": profile.W.think,
+                "initial": _nomination_pass_summary(sufficiency_u1_context),
+                "final": _nomination_pass_summary(sufficiency_u2_context),
+            }
+            if sufficiency_u1_model_client is not None
+            else None
+        ),
         "supervisor_records": {role: sup.records for role, sup in bound.supervisors.items()},
         "records_total": len(sink.all_records),
     }
@@ -764,6 +935,7 @@ def run_topology(
     hierarchy_loader=None,
     authorization_checker=None,
     sufficiency_loader=_default_sufficiency_loader,
+    sufficiency_model_assist: bool = False,
     git_state_fn=provenance.git_state,
     verify_library=library_copy.verify,
     verify_contracts=e2e_contracts.verify_frozen,
@@ -776,6 +948,12 @@ def run_topology(
     if scored and (smoke_limits or smoke_seed):
         raise ValueError("a scored run may not carry smoke limits or a seeded ledger")
     # A hierarchical run is verified and gated FIRST: nothing below (git, library, models, runtime, trace directory) runs until it passes.
+    if sufficiency_model_assist and not hierarchy:
+        # Phase 20b §2/§21: validated here too, independently of parse_args' own `--hierarchy`
+        # combo check -- run_topology() is a real, directly-callable unit (every *RefusalTests
+        # class in this file calls it without going through the CLI parser at all), so it must
+        # not depend on the CLI layer alone to enforce its own preconditions.
+        raise ValueError("--sufficiency-model-assist requires --hierarchy")
     hier_contract = None
     if hierarchy:
         if question_key != "aib":
@@ -800,8 +978,10 @@ def run_topology(
     # sufficiency_parent_of simply weren't sourced or threaded through. Sourced ONLY for a
     # hierarchical run (sufficiency is a hierarchy-specific concept today, exactly like `contract`
     # itself); a non-hierarchical run's behavior is completely unchanged (both stay None, same as
-    # before this phase). No model_client/nomination_context is constructed anywhere here or
-    # passed to execute() -- that is Phase 20b, deliberately not this one.
+    # before this phase). `sufficiency_model_assist` (Phase 20b) is a bare bool threaded straight
+    # into execute() unchanged -- run_topology() never constructs a model_client or
+    # nomination_context itself; execute()'s own `_sufficiency_u1_context` is the single
+    # enforcement point for that invariant, regardless of which caller reaches it.
     sufficiency_contract = sufficiency_parent_of = None
     if hierarchy:
         sufficiency_contract, sufficiency_parent_of = sufficiency_loader(contract)
@@ -848,6 +1028,7 @@ def run_topology(
                     # the local NLI scorer the run already uses for claim verification; screens the overview's statements
                     entail=rt.verifier.support_scorer.support_and_contradiction_many if profile.S.kind != "off" else None,
                     sufficiency_contract=sufficiency_contract, sufficiency_parent_of=sufficiency_parent_of,
+                    sufficiency_model_assist_enabled=sufficiency_model_assist,
                 )  # fmt: skip
         except Exception as exc:
             trace.write_json("RUN_FAILED.json", {"error_type": type(exc).__name__, "message": str(exc)[:500]})
@@ -920,6 +1101,11 @@ def run_topology(
         manifest["sufficiency"] = {
             "contract_supplied": sufficiency_contract is not None,
             "mapped_children": sorted(result["sufficiency_map_initial"] or {}),
+            # Phase 20b: None whenever model assistance didn't run -- byte-identical to Phase 20a's
+            # own shape otherwise. The full per-scope receipts are the separate
+            # "18_sufficiency_model_assist.json" trace artifact; this is only the thin summary
+            # _nomination_pass_summary already computed inside execute() itself.
+            "model_assist": result.get("sufficiency_model_assist"),
         }
     if result.get("overview") is not None:
         manifest["overview"] = overview.manifest_record(result["overview"])
@@ -967,6 +1153,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--experiment-authorization", help="authorization JSON for a live hierarchical run (see EXPERIMENT_GATE.md)"
     )
+    parser.add_argument(
+        "--sufficiency-model-assist",
+        action="store_true",
+        help=(
+            "with --hierarchy: model-assisted initial sufficiency mapping through the Phase-19 "
+            "nomination infrastructure (bound.qwen, ALL_ELIGIBLE U1 / held-fixed U2). Default off; "
+            "requires the active W binding's thinking to be exactly False"
+        ),
+    )
     args = parser.parse_args(argv)
     if args.smoke_seed and not args.smoke:
         parser.error("--smoke-seed requires --smoke")
@@ -976,6 +1171,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error("--hierarchy is only approved for --question aib")
     if args.hierarchy and args.smoke_seed:
         parser.error("--smoke-seed cannot be combined with --hierarchy (it would replace approved children)")
+    if args.sufficiency_model_assist and not args.hierarchy:
+        parser.error("--sufficiency-model-assist requires --hierarchy")
     if not args.preflight_only:
         missing = [f"--{name}" for name in ("profile", "question", "db", "out") if getattr(args, name) is None]
         if missing:
@@ -1027,6 +1224,7 @@ def main(argv: list[str] | None = None) -> int:
         smoke_seed=args.smoke_seed,
         hierarchy=args.hierarchy,
         experiment_authorization=args.experiment_authorization,
+        sufficiency_model_assist=args.sufficiency_model_assist,
         sampler=sampler,
     )
     if manifest.get("blocked"):

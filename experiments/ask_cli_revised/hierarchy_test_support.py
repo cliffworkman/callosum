@@ -89,6 +89,7 @@ class HierHarness(Harness):
         sufficiency_contract=None,
         sufficiency_parent_of=None,
         sufficiency_recovery_gate_enabled=False,
+        sufficiency_model_assist_enabled=False,
     ):
         # entail=None matches execute()'s own default -- every existing caller that never passed it
         # (no S role bound in its profile) is unaffected; a caller binding an Overview-enabled profile
@@ -122,6 +123,7 @@ class HierHarness(Harness):
                 sufficiency_contract=sufficiency_contract,
                 sufficiency_parent_of=sufficiency_parent_of,
                 sufficiency_recovery_gate_enabled=sufficiency_recovery_gate_enabled,
+                sufficiency_model_assist_enabled=sufficiency_model_assist_enabled,
             )
 
 

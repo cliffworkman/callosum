@@ -307,6 +307,58 @@ class ResolveNominationTests(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertEqual(second, third)
 
+    def test_zero_candidates_makes_zero_physical_calls_and_reports_fresh_no_candidates(self):
+        """Phase 20b §A: the model is never invoked merely to receive an empty answer."""
+        calls = []
+        ctx = self._context(mscope.all_eligible_policy())
+        scope = mscope.new_model_nomination_scope("c4", "req", "role")
+        accepted, status = mscope.resolve_nomination(
+            scope,
+            candidate_rows=[],
+            category_description="x",
+            model_name="m",
+            make_fresh_call=lambda: calls.append(1) or [],
+            nomination_context=ctx,
+        )
+        self.assertEqual(calls, [])
+        self.assertEqual(status, "fresh_no_candidates")
+        self.assertEqual(accepted, [])
+        self.assertEqual(ctx["in_pass_receipts"][scope]["candidates_offered"], [])
+
+    def test_nonempty_candidates_with_a_successful_empty_response_is_plain_fresh(self):
+        """Phase 20b §B: distinguishable from §A only by `candidates_offered`'s own length, never
+        by `status` alone being mistaken for a transport failure or a skipped call."""
+        ctx = self._context(mscope.all_eligible_policy())
+        scope = mscope.new_model_nomination_scope("c4", "req", "role")
+        accepted, status = mscope.resolve_nomination(
+            scope,
+            candidate_rows=_rows(),
+            category_description="x",
+            model_name="m",
+            make_fresh_call=lambda: [],
+            nomination_context=ctx,
+        )
+        self.assertEqual(status, "fresh")
+        self.assertEqual(accepted, [])
+        self.assertEqual(len(ctx["in_pass_receipts"][scope]["candidates_offered"]), 1)
+
+    def test_an_unauthorized_scope_ignores_candidate_count_entirely(self):
+        """`fresh_no_candidates` is scoped strictly to the fresh-call branch -- a held-fixed scope
+        with zero current candidates still reports its ordinary held-fixed status, never
+        `fresh_no_candidates` (which would misleadingly imply a fresh call was even considered)."""
+        scope = mscope.new_model_nomination_scope("c4", "req", "role")
+        ctx = self._context(mscope.exact_scope_set_policy(set()))
+        accepted, status = mscope.resolve_nomination(
+            scope,
+            candidate_rows=[],
+            category_description="x",
+            model_name="m",
+            make_fresh_call=lambda: (_ for _ in ()).throw(AssertionError("must not be called")),
+            nomination_context=ctx,
+        )
+        self.assertEqual(status, "held_fixed_no_valid_prior")
+        self.assertEqual(accepted, [])
+
     def test_same_scope_different_request_fingerprint_fails_loudly(self):
         ctx = self._context(mscope.all_eligible_policy())
         scope = mscope.new_model_nomination_scope("c4", "req", "role")

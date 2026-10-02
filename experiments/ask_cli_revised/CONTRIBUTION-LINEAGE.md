@@ -997,3 +997,60 @@ HEAD before this phase touched anything. v9 `combined_hash` reconfirmed unchange
 `load_verified()` call recomputes and checks it live, never trusting a cached value):
 `9c72dc6a0180e95c55e68a009c366843b671684c19c6ae84ed254f3865305586`. Full detail in
 `PHASE20A_DETERMINISTIC_SUFFICIENCY_INTEGRATION_RESULTS.md`.
+
+---
+
+## Phase 20b — production initial model-assisted sufficiency wiring, feature-gated off (appended 2026-10-02; does not alter the rows above)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-10-02 | Evidence | Phase 20a deterministic sufficiency integration |
+| 2026-10-02 | Design direction | Cliff Workman |
+| 2026-10-02 | Audit, design, implementation, verification | Claude |
+
+**Evidence (Phase 20a deterministic sufficiency integration).** Made the already-built
+deterministic sufficiency-mapping block inside `execute()` reachable through `run_topology()`/
+`main()` for the first time, proven equal to calling the mapper directly on the same sealed ledger,
+with `model_client`/`nomination_context` both staying `None` throughout.
+
+**Design direction (Cliff Workman).** Authorized Phase 20b strictly as the initial-pass
+model-assisted path, feature-gated off by default, no live call -- with one load-bearing
+requirement stated explicitly up front: a later recomputation of the sufficiency map after
+recovery activity must hold every model-assisted decision from the initial pass FIXED (an empty
+fresh-authorization scope set replaying only the initial pass's own receipts), never silently
+reverting to deterministic-only (which would erase them) and never re-authorizing fresh calls
+across the whole eligible scope set again -- the deliberate, disclosed bridge to a future
+target-scoped remap phase, not built here.
+
+**Audit, design, implementation, verification (Claude).** Resolved every open design question by
+direct code inspection before writing anything: confirmed `bound.qwen` -- the same `QwenTasks` the
+W role already uses for claim formation -- already satisfies the raw nomination protocol with zero
+changes needed; found, by reading both real config shapes `bind()` constructs, that `backends.
+NativeWorker.model` and `app.backend.llm.managed_local.ManagedProviderConfig.model` share one field
+name, letting one generic `QwenTasks.model_name` property cover both without guessing; found that
+`ManagedProviderConfig` carries no `think` field at all, so `think=None` there is correctly treated
+as unverified (never silently equated with `False`); and found a real, narrow Phase-19 bookkeeping
+gap (an authorized-but-empty-candidate scope was indistinguishable from a physically-called,
+legitimately-empty one by `status` alone) fixed as an additive `fresh_no_candidates` status, never
+touching the raw wire protocol or any existing status's meaning.
+
+Built `_sufficiency_u1_context` as the single enforcement point for the mandatory
+model_client+nomination_context pairing, called once at the very top of `execute()` -- before any
+stage, trace file, or model call -- validating thinking=False and a resolvable model identity
+before constructing anything. Brought U1 under the SAME W-role `stage()`/`ResidencyGuard`
+accounting every other `bound.qwen` call already uses, confirming (rather than assuming) that the
+existing abstraction needed zero changes to express "one named phase, a variable number of calls."
+Built U2's held-fixed policy exactly as directed -- `exact_scope_set_policy(set())` plus an
+explicit, independent snapshot of U1's own receipts -- and proved, against a real end-to-end run
+with a fake nomination client over the real frozen v9 contract, that U2 makes EXACTLY ZERO
+additional physical calls while correctly replaying every held-fixed binding; deliberately never
+wrapped U2 in the residency `stage()` mechanism, so replaying already-known receipts incurs no
+model-swap cost. Proved the current-direct-equals-current-integrated release invariant extends
+cleanly to the model-assisted case using the same real-fixture technique Phase 20a established,
+rather than a historical Phase-5 byte comparison. 28 new tests (3 + 3 + 19 + 3 across four files,
+pytest-collected counts); full `experiments/ask_cli_revised` regression: 2301 passed, 11 skipped,
+2 failed -- 2273 + 28 = 2301 exactly, the 2 failures being the identical pre-existing pin-drift pair
+every prior phase since Phase 16 has already documented, reconfirmed present on the clean Phase-20a
+commit itself. v9 `combined_hash` reconfirmed unchanged:
+`9c72dc6a0180e95c55e68a009c366843b671684c19c6ae84ed254f3865305586`. No live model call anywhere in
+this phase. Full detail in `PHASE20B_INITIAL_MODEL_ASSIST_INTEGRATION_RESULTS.md`.

@@ -189,9 +189,19 @@ def resolve_nomination(
     """The single Phase-19 orchestration checkpoint (audit §G/§19): decides whether `scope` may
     make a fresh call this pass, whether an in-pass or prior-pass receipt should be reused
     instead, and records the outcome. Returns `(accepted_nominations, status)` where `status` is
-    one of `fresh` / `memoized_in_pass` / `held_fixed_replay` / `held_fixed_no_valid_prior` /
-    `fresh_failed_fallback_to_prior` / `fresh_failed_no_valid_prior` (audit §O's required
-    distinctions).
+    one of `fresh` / `fresh_no_candidates` / `memoized_in_pass` / `held_fixed_replay` /
+    `held_fixed_no_valid_prior` / `fresh_failed_fallback_to_prior` / `fresh_failed_no_valid_prior`
+    (audit §O's required distinctions; `fresh_no_candidates` added by the Phase-20 audit's §6/§8/§12
+    finding, below).
+
+    `fresh_no_candidates` (Phase 20b): when `scope` IS authorized for a fresh call but
+    `candidate_rows` is empty, `make_fresh_call` is never invoked at all -- there is nothing to
+    offer the model. Checked BEFORE `make_fresh_call`, not merely trusted to self-report an empty
+    result, so this is mechanically distinguishable from "a physical call was made and legitimately
+    returned nothing" (`fresh`, `accepted=[]`) without needing to inspect `candidates_offered`'s own
+    length. Scoped strictly to the fresh-call branch: a HELD-FIXED scope's status is unaffected by
+    the current candidate count (its own `candidates_offered` is still recorded for inspectability,
+    but authorization and prior-receipt validity never depend on it).
 
     `make_fresh_call` is a zero-argument callable the CALLER binds to its own live/recorded/fake
     model client (e.g. `lambda: nominate_with_model(role_spec, units, model_client)`) -- this
@@ -231,11 +241,14 @@ def resolve_nomination(
 
     policy = nomination_context["policy"]
     if is_authorized_for_fresh_call(policy, scope):
-        try:
-            accepted = make_fresh_call()
-            status = "fresh"
-        except Exception:
-            accepted, status = _fallback_after_mechanical_failure(scope, nomination_context, validate_prior_receipt)
+        if not candidate_rows:
+            accepted, status = [], "fresh_no_candidates"
+        else:
+            try:
+                accepted = make_fresh_call()
+                status = "fresh"
+            except Exception:
+                accepted, status = _fallback_after_mechanical_failure(scope, nomination_context, validate_prior_receipt)
     else:
         prior = nomination_context["prior_receipts"].get(scope)
         if _receipt_is_valid(prior, validate_prior_receipt):

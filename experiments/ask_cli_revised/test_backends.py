@@ -116,6 +116,11 @@ class NativeWorkerTests(unittest.TestCase):
         trace = FakeTrace()
         return QwenTasks(worker, trace), client, trace
 
+    def test_model_name_reads_the_native_worker_s_own_model_field(self):
+        """Phase 20b §4/§5: confirmed by direct inspection, never guessed -- NativeWorker.model."""
+        task, _, _ = self.tasks(native_record('{"action":"accept"}'))
+        self.assertEqual(task.model_name, "qwen3.5:9b")
+
     def test_a_worker_call_runs_through_the_seam_with_the_task_cap_and_thinking_off(self):
         task, client, trace = self.tasks(native_record('{"action":"accept"}'))
         decision = task.context_gate(packet_text="A complete finding.", subquestion="Which?")
@@ -137,6 +142,23 @@ class NativeWorkerTests(unittest.TestCase):
         task, _, _ = self.tasks(native_record("{}"))
         with self.assertRaises(ValueError):
             task._call(prompt="p", output_cap=48)
+
+
+class ModelNameTests(unittest.TestCase):
+    """Phase 20b §4/§5: QwenTasks.model_name, confirmed against BOTH real config shapes `bind()`
+    ever constructs -- never a third, hypothetical shape invented just for this test."""
+
+    def test_the_managed_local_path_reads_the_same_model_field_name(self):
+        """`app.backend.llm.managed_local.ManagedProviderConfig.model` -- a SimpleNamespace stands
+        in for the real (many-required-field) config here since the property only ever reads one
+        attribute off it, generically; a real ManagedProviderConfig is exercised end to end by
+        `ManagedLocalChatTests` above, which never constructs a QwenTasks at all."""
+        task = QwenTasks(SimpleNamespace(model="callosum-managed-local"), FakeTrace())
+        self.assertEqual(task.model_name, "callosum-managed-local")
+
+    def test_a_config_with_no_model_attribute_reports_none_not_a_guess(self):
+        task = QwenTasks(SimpleNamespace(), FakeTrace())
+        self.assertIsNone(task.model_name)
 
 
 class FakeResidentClient:
