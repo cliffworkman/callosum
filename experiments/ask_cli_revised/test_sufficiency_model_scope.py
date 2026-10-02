@@ -323,7 +323,8 @@ class ResolveNominationTests(unittest.TestCase):
         self.assertEqual(calls, [])
         self.assertEqual(status, "fresh_no_candidates")
         self.assertEqual(accepted, [])
-        self.assertEqual(ctx["in_pass_receipts"][scope]["candidates_offered"], [])
+        key = mscope.new_model_nomination_key(scope)
+        self.assertEqual(ctx["in_pass_receipts"][key]["candidates_offered"], [])
 
     def test_nonempty_candidates_with_a_successful_empty_response_is_plain_fresh(self):
         """Phase 20b §B: distinguishable from §A only by `candidates_offered`'s own length, never
@@ -340,7 +341,8 @@ class ResolveNominationTests(unittest.TestCase):
         )
         self.assertEqual(status, "fresh")
         self.assertEqual(accepted, [])
-        self.assertEqual(len(ctx["in_pass_receipts"][scope]["candidates_offered"]), 1)
+        key = mscope.new_model_nomination_key(scope)
+        self.assertEqual(len(ctx["in_pass_receipts"][key]["candidates_offered"]), 1)
 
     def test_an_unauthorized_scope_ignores_candidate_count_entirely(self):
         """`fresh_no_candidates` is scoped strictly to the fresh-call branch -- a held-fixed scope
@@ -450,7 +452,8 @@ class ResolveNominationTests(unittest.TestCase):
             accepted=prior_accepted,
             status="fresh",
         )
-        ctx = self._context(mscope.exact_scope_set_policy([target]), prior_receipts={sibling: prior_receipt})
+        sibling_key = mscope.new_model_nomination_key(sibling)
+        ctx = self._context(mscope.exact_scope_set_policy([target]), prior_receipts={sibling_key: prior_receipt})
 
         calls = []
         accepted, status = mscope.resolve_nomination(
@@ -477,7 +480,8 @@ class ResolveNominationTests(unittest.TestCase):
             accepted=[{"proposition_id": "stale", "exact_text": "x", "supporting_proposition_ids": ["stale"]}],
             status="fresh",
         )
-        ctx = self._context(mscope.exact_scope_set_policy([target]), prior_receipts={sibling: prior_receipt})
+        sibling_key = mscope.new_model_nomination_key(sibling)
+        ctx = self._context(mscope.exact_scope_set_policy([target]), prior_receipts={sibling_key: prior_receipt})
 
         accepted, status = mscope.resolve_nomination(
             sibling,
@@ -502,7 +506,8 @@ class ResolveNominationTests(unittest.TestCase):
             accepted=prior_accepted,
             status="fresh",
         )
-        ctx = self._context(mscope.all_eligible_policy(), prior_receipts={target: prior_receipt})
+        target_key = mscope.new_model_nomination_key(target)
+        ctx = self._context(mscope.all_eligible_policy(), prior_receipts={target_key: prior_receipt})
 
         def raises():
             raise RuntimeError("transport failed")
@@ -591,11 +596,218 @@ class ResolveNominationTests(unittest.TestCase):
             make_fresh_call=lambda: [{"proposition_id": "p0", "exact_text": "x", "supporting_proposition_ids": ["p0"]}],
             nomination_context=ctx,
         )
-        receipt = ctx["in_pass_receipts"][target]
+        receipt = ctx["in_pass_receipts"][mscope.new_model_nomination_key(target)]
         self.assertEqual(receipt["scope"], target)
+        self.assertEqual(receipt["request_context"], None)
         self.assertEqual(receipt["model_name"], "m")
         self.assertEqual(receipt["status"], "fresh")
         self.assertEqual(receipt["accepted"][0]["proposition_id"], "p0")
+
+
+class RequestContextTests(unittest.TestCase):
+    """Phase 19b: the composite `(scope, request_context)` memoization key, isolated from the
+    full mapper (that integration lives in `test_sufficiency_mapping.py`/
+    `test_sufficiency_phase19b_real_v9_replay.py`) -- pure `resolve_nomination` behavior only."""
+
+    def _context(self, policy, prior_receipts=None):
+        return mscope.new_nomination_context(policy, prior_receipts=prior_receipts)
+
+    def test_same_scope_different_contexts_both_legitimate_no_mismatch(self):
+        """Test matrix #3/#5: two different request_contexts under one scope never collide, even
+        with genuinely different requests -- no RequestFingerprintMismatch."""
+        scope = mscope.new_model_nomination_scope("c12", "req", "intervention")
+        ctx = self._context(mscope.all_eligible_policy())
+        calls = []
+
+        def fresh(tag):
+            def _call():
+                calls.append(tag)
+                return [{"proposition_id": tag, "exact_text": tag, "supporting_proposition_ids": [tag]}]
+
+            return _call
+
+        accepted_a, status_a = mscope.resolve_nomination(
+            scope,
+            request_context="U1",
+            candidate_rows=[{"proposition_id": "pA", "passage": "A"}],
+            category_description="x",
+            model_name="m",
+            make_fresh_call=fresh("A"),
+            nomination_context=ctx,
+        )
+        accepted_b, status_b = mscope.resolve_nomination(
+            scope,
+            request_context="U5",
+            candidate_rows=[{"proposition_id": "pB", "passage": "B"}],
+            category_description="x",
+            model_name="m",
+            make_fresh_call=fresh("B"),
+            nomination_context=ctx,
+        )
+        self.assertEqual(status_a, "fresh")
+        self.assertEqual(status_b, "fresh")
+        self.assertEqual(calls, ["A", "B"])  # both physically called -- independent slots
+        self.assertNotEqual(accepted_a, accepted_b)
+
+    def test_same_composite_key_different_fingerprint_within_one_pass_raises(self):
+        """Test matrix #4: the mismatch exception survives, narrowed to the composite key -- this
+        is still genuine same-slot drift, never legitimate partitioning."""
+        scope = mscope.new_model_nomination_scope("c12", "req", "intervention")
+        ctx = self._context(mscope.all_eligible_policy())
+        mscope.resolve_nomination(
+            scope,
+            request_context="U1",
+            candidate_rows=[{"proposition_id": "pA", "passage": "A"}],
+            category_description="x",
+            model_name="m",
+            make_fresh_call=lambda: [],
+            nomination_context=ctx,
+        )
+        with self.assertRaises(mscope.RequestFingerprintMismatch):
+            mscope.resolve_nomination(
+                scope,
+                request_context="U1",  # SAME composite key
+                candidate_rows=[{"proposition_id": "pZ", "passage": "different"}],  # DIFFERENT request
+                category_description="x",
+                model_name="m",
+                make_fresh_call=lambda: [],
+                nomination_context=ctx,
+            )
+
+    def test_repeated_resolution_of_one_request_context_still_memoizes(self):
+        """Test matrix #2: same scope + same non-None context + same request -> memoized, exactly
+        like the None-context case Phase 19 already proved."""
+        scope = mscope.new_model_nomination_scope("c12", "req", "intervention")
+        ctx = self._context(mscope.all_eligible_policy())
+        calls = []
+
+        def fresh():
+            calls.append(1)
+            return [{"proposition_id": "p0", "exact_text": "x", "supporting_proposition_ids": ["p0"]}]
+
+        rows = [{"proposition_id": "p0", "passage": "x"}]
+        first, first_status = mscope.resolve_nomination(
+            scope, request_context="U1", candidate_rows=rows, category_description="x",
+            model_name="m", make_fresh_call=fresh, nomination_context=ctx,
+        )  # fmt: skip
+        second, second_status = mscope.resolve_nomination(
+            scope, request_context="U1", candidate_rows=rows, category_description="x",
+            model_name="m", make_fresh_call=fresh, nomination_context=ctx,
+        )  # fmt: skip
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(first_status, "fresh")
+        self.assertEqual(second_status, "memoized_in_pass")
+        self.assertEqual(first, second)
+
+    def test_order_of_resolution_does_not_change_the_set_of_keys_or_results(self):
+        """Test matrix #10/#11/#14: resolving U5 before U1 produces the identical set of composite
+        keys, fingerprints, and accepted results as resolving U1 before U5."""
+        scope = mscope.new_model_nomination_scope("c12", "req", "intervention")
+
+        def run(order):
+            ctx = self._context(mscope.all_eligible_policy())
+            rows = {
+                "U1": [{"proposition_id": "p1", "passage": "one"}],
+                "U5": [{"proposition_id": "p5", "passage": "five"}],
+            }
+            results = {}
+            for unit in order:
+                results[unit] = mscope.resolve_nomination(
+                    scope,
+                    request_context=unit,
+                    candidate_rows=rows[unit],
+                    category_description="x",
+                    model_name="m",
+                    make_fresh_call=lambda u=unit: [
+                        {
+                            "proposition_id": rows[u][0]["proposition_id"],
+                            "exact_text": u,
+                            "supporting_proposition_ids": [rows[u][0]["proposition_id"]],
+                        }
+                    ],
+                    nomination_context=ctx,
+                )
+            return set(ctx["in_pass_receipts"]), results
+
+        keys_forward, results_forward = run(["U1", "U5"])
+        keys_reversed, results_reversed = run(["U5", "U1"])
+        self.assertEqual(keys_forward, keys_reversed)
+        self.assertEqual(results_forward, results_reversed)
+
+    def test_empty_candidate_request_does_not_suppress_a_sibling_nonempty_request(self):
+        """Test matrix #15: request A (zero candidates) and request B (nonempty) under one scope
+        are fully independent."""
+        scope = mscope.new_model_nomination_scope("c12", "req", "intervention")
+        ctx = self._context(mscope.all_eligible_policy())
+        accepted_a, status_a = mscope.resolve_nomination(
+            scope, request_context="U1", candidate_rows=[], category_description="x",
+            model_name="m", make_fresh_call=lambda: (_ for _ in ()).throw(AssertionError("must not be called")),
+            nomination_context=ctx,
+        )  # fmt: skip
+        accepted_b, status_b = mscope.resolve_nomination(
+            scope, request_context="U5", candidate_rows=[{"proposition_id": "p5", "passage": "five"}],
+            category_description="x", model_name="m",
+            make_fresh_call=lambda: [{"proposition_id": "p5", "exact_text": "five", "supporting_proposition_ids": ["p5"]}],
+            nomination_context=ctx,
+        )  # fmt: skip
+        self.assertEqual(status_a, "fresh_no_candidates")
+        self.assertEqual(accepted_a, [])
+        self.assertEqual(status_b, "fresh")
+        self.assertEqual(accepted_b[0]["proposition_id"], "p5")
+
+    def test_mechanical_failure_on_one_request_does_not_poison_a_sibling_request(self):
+        """Test matrix #16: request A raises, request B (different context, same scope) still
+        succeeds normally -- failure isolation is per composite key, never per scope."""
+        scope = mscope.new_model_nomination_scope("c12", "req", "intervention")
+        ctx = self._context(mscope.all_eligible_policy())
+
+        def raises():
+            raise RuntimeError("transport failed")
+
+        accepted_a, status_a = mscope.resolve_nomination(
+            scope, request_context="U1", candidate_rows=[{"proposition_id": "p1", "passage": "one"}],
+            category_description="x", model_name="m", make_fresh_call=raises, nomination_context=ctx,
+        )  # fmt: skip
+        accepted_b, status_b = mscope.resolve_nomination(
+            scope, request_context="U5", candidate_rows=[{"proposition_id": "p5", "passage": "five"}],
+            category_description="x", model_name="m",
+            make_fresh_call=lambda: [{"proposition_id": "p5", "exact_text": "five", "supporting_proposition_ids": ["p5"]}],
+            nomination_context=ctx,
+        )  # fmt: skip
+        self.assertEqual(status_a, "fresh_failed_no_valid_prior")
+        self.assertEqual(accepted_a, [])
+        self.assertEqual(status_b, "fresh")
+        self.assertNotEqual(accepted_b, accepted_a)
+
+    def test_u2_new_post_recovery_context_gets_no_prior_receipt_and_zero_fresh_call(self):
+        """Test matrix #19: a held-fixed scope reached for a request_context that never existed in
+        U1's own receipts (a brand-new unit discovered by recovery) gets no nomination and makes
+        no physical call -- it must never borrow a sibling context's receipt."""
+        scope = mscope.new_model_nomination_scope("c12", "req", "intervention")
+        u1_receipt = mscope.new_nomination_receipt(
+            scope,
+            request_context="U1",
+            model_name="m",
+            request_fingerprint="irrelevant",
+            candidates_offered=[],
+            accepted=[{"proposition_id": "p1", "exact_text": "one", "supporting_proposition_ids": ["p1"]}],
+            status="fresh",
+        )
+        prior_receipts = {mscope.new_model_nomination_key(scope, "U1"): u1_receipt}
+        u2_ctx = self._context(mscope.exact_scope_set_policy(set()), prior_receipts=prior_receipts)
+
+        accepted, status = mscope.resolve_nomination(
+            scope,
+            request_context="U9",  # a brand-new unit U1's own receipt never named
+            candidate_rows=[{"proposition_id": "p9", "passage": "nine"}],
+            category_description="x",
+            model_name="m",
+            make_fresh_call=lambda: (_ for _ in ()).throw(AssertionError("U2 must never fresh-call")),
+            validate_prior_receipt=lambda receipt: True,
+            nomination_context=u2_ctx,
+        )
+        self.assertEqual(status, "held_fixed_no_valid_prior")
+        self.assertEqual(accepted, [])
 
 
 class NominationReceiptTests(unittest.TestCase):
@@ -611,8 +823,17 @@ class NominationReceiptTests(unittest.TestCase):
         )
         self.assertEqual(
             set(receipt),
-            {"scope", "model_name", "request_fingerprint", "candidates_offered", "accepted", "status"},
+            {
+                "scope",
+                "request_context",
+                "model_name",
+                "request_fingerprint",
+                "candidates_offered",
+                "accepted",
+                "status",
+            },
         )
+        self.assertIsNone(receipt["request_context"])  # default, byte-identical to pre-Phase-19b
 
     def test_receipt_is_upstream_of_binding_construction_never_a_stored_binding(self):
         """Audit §I: a receipt's `accepted` items are `nominate_with_model`'s own pre-binding

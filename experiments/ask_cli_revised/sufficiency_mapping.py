@@ -316,6 +316,7 @@ def _bind_role_candidates(
     child_id: str | None = None,
     requirement_id: str | None = None,
     nomination_context: dict | None = None,
+    request_context: str | None = None,
 ) -> list[dict]:
     """0+ FILLED role bindings for this role from these units. A deterministic-strategy role can
     only ever produce 0 or 1 candidate here (the first admissible unit whose detector matches,
@@ -333,7 +334,15 @@ def _bind_role_candidates(
     replay, mechanical-failure fallback -- see that module). `child_id`/`requirement_id` then
     become REQUIRED (a missing one raises, rather than silently running unauthorized) -- this is
     the one integration checkpoint the whole Phase-19 seam lives behind; no scope comparison
-    exists anywhere else in this module."""
+    exists anywhere else in this module.
+
+    Phase 19b: `request_context` (optional, default `None`) is passed straight through to
+    `resolve_nomination` unchanged -- this function makes no decision based on it, it only relays
+    the caller's own pre-fork `root_key` (`map_requirement`'s loop variable) so that two legitimate
+    requests sharing one authorization scope (`build_multi_instances`-partitioned units, e.g. real
+    q_aib c12) get independent receipt slots instead of colliding. Every caller that omits it (the
+    overwhelming majority -- any non-multi-instance requirement) observes `request_context=None`,
+    byte-identical to before this phase."""
     role = role_spec["role"]
     for unit in units:
         if not is_admissible(role_spec, unit.get("flags", {})):
@@ -377,6 +386,7 @@ def _bind_role_candidates(
             scope = mscope.new_model_nomination_scope(child_id, requirement_id, role)
             nominations, receipt_status = mscope.resolve_nomination(
                 scope,
+                request_context=request_context,
                 candidate_rows=_candidate_rows_for_role(role_spec, units),
                 category_description=role_spec["category_description"],
                 model_name=model_name,
@@ -445,6 +455,7 @@ def _fork_instances_over_role(
     child_id: str | None = None,
     requirement_id: str | None = None,
     nomination_context: dict | None = None,
+    request_context: str | None = None,
 ) -> list[dict]:
     """Extends each of `forks` (a list of in-progress `Instance` dicts, initially length 1) with a
     binding for `role`. When `_bind_role_candidates` returns MORE THAN ONE grounded candidate for
@@ -463,7 +474,13 @@ def _fork_instances_over_role(
     own-evidence-vs-parent-context dispatch for the ONE role that can legitimately inherit a
     parent value now happens once, at a higher level, in `map_paired_requirement` itself (never
     once per non-parent-context role, which never had anything to fall back to anyway). A role
-    with zero candidates here is simply `missing`."""
+    with zero candidates here is simply `missing`.
+
+    Phase 19b: `request_context` (optional, default `None`) is relayed unchanged to every
+    `_bind_role_candidates` call for every fork -- it is the CALLER's own pre-fork `root_key`, the
+    same value for every fork of one original instance (forking happens strictly after
+    `request_context` is fixed), which is exactly what keeps role-fork-duplicate requests
+    collapsing to one physical call (they all share the same `(scope, request_context)` key)."""
     next_forks: list[dict] = []
     for forked in forks:
         candidates = _bind_role_candidates(
@@ -473,6 +490,7 @@ def _fork_instances_over_role(
             child_id=child_id,
             requirement_id=requirement_id,
             nomination_context=nomination_context,
+            request_context=request_context,
         )
         if not candidates:
             missing = se.new_role_binding(role, state="missing", reason="not_found")
@@ -519,6 +537,18 @@ def map_requirement(
     this requirement's own identity, so only `child_id` is new here. Omitted entirely (the
     pre-Phase-19 default), this function's behavior is unchanged.
 
+    Phase 19b: `root_key` (this function's own pre-existing per-instance loop variable -- `None`
+    for a `multi_instance=False` requirement, one real candidate unit's own `unit_id` per iteration
+    for a `build_multi_instances`-partitioned one) is passed to every role's own
+    `_fork_instances_over_role` call as `request_context`. This is the exact, already-computed
+    value the Phase-21-preflight audit found was missing: for a partitioned requirement, each
+    outer-loop iteration legitimately offers a DIFFERENT, disjoint candidate pool to the SAME
+    `(child_id, requirement_id, role)` authorization scope (real q_aib c12: two units, two
+    requests) -- `request_context` is what lets `resolve_nomination` give each its own receipt slot
+    instead of raising `RequestFingerprintMismatch`. For a non-partitioned requirement, every
+    iteration already shares the same `root_key=None`, so this is a no-op there -- byte-identical
+    to the pre-Phase-19b behavior.
+
     Returns a NEW requirement dict with `instances` populated and `state`/`reason` recomputed.
     """
     role_specs = requirement["role_specs"]
@@ -546,6 +576,7 @@ def map_requirement(
                 child_id=child_id,
                 requirement_id=requirement_id,
                 nomination_context=nomination_context,
+                request_context=root_key,
             )
         all_instances.extend(_rederive_keys_if_forked(forks, root_key))
 

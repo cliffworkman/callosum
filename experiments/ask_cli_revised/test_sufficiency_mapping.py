@@ -1358,7 +1358,9 @@ class BindRoleCandidatesScopingTests(unittest.TestCase):
             accepted=prior_accepted,
             status="fresh",
         )
-        ctx = mscope.new_nomination_context(mscope.all_eligible_policy(), prior_receipts={scope: prior_receipt})
+        ctx = mscope.new_nomination_context(
+            mscope.all_eligible_policy(), prior_receipts={mscope.new_model_nomination_key(scope): prior_receipt}
+        )
         result = sm._bind_role_candidates(
             self._role_spec(),
             units,
@@ -1397,7 +1399,9 @@ class BindRoleCandidatesScopingTests(unittest.TestCase):
             accepted=stale_accepted,
             status="fresh",
         )
-        ctx = mscope.new_nomination_context(mscope.all_eligible_policy(), prior_receipts={scope: prior_receipt})
+        ctx = mscope.new_nomination_context(
+            mscope.all_eligible_policy(), prior_receipts={mscope.new_model_nomination_key(scope): prior_receipt}
+        )
         result = sm._bind_role_candidates(
             self._role_spec(),
             units,
@@ -1483,7 +1487,8 @@ class BindRoleCandidatesScopingTests(unittest.TestCase):
             status="fresh",
         )
         ctx = mscope.new_nomination_context(
-            mscope.exact_scope_set_policy([scope]), prior_receipts={scope: prior_receipt}
+            mscope.exact_scope_set_policy([scope]),
+            prior_receipts={mscope.new_model_nomination_key(scope): prior_receipt},
         )
         client = _FakeModelClient(
             {
@@ -1531,7 +1536,8 @@ class BindRoleCandidatesScopingTests(unittest.TestCase):
             status="fresh",
         )
         ctx = mscope.new_nomination_context(
-            mscope.exact_scope_set_policy([other_target]), prior_receipts={scope: prior_receipt}
+            mscope.exact_scope_set_policy([other_target]),
+            prior_receipts={mscope.new_model_nomination_key(scope): prior_receipt},
         )
         client = _FakeModelClient(
             {
@@ -1658,6 +1664,129 @@ class MapRequirementPhase19ForkMemoizationTests(unittest.TestCase):
             ]
 
         self.assertEqual(_strip(legacy_result), _strip(memoized_result))
+
+
+class MapRequirementPhase19bMultiInstancePartitionTests(unittest.TestCase):
+    """The Phase-21-preflight finding, reproduced synthetically (never by excluding the real c12
+    case, which lives in `test_sufficiency_phase19b_real_v9_replay.py`): a `multi_instance=True`,
+    no-parent-context requirement with ≥2 real candidate units offers a DIFFERENT, disjoint
+    candidate pool to the SAME `(child_id, requirement_id, role)` authorization scope once per
+    unit (`build_multi_instances`). Before Phase 19b this raised `RequestFingerprintMismatch`
+    before even reaching the second unit; `request_context` (the per-unit `root_key`) now gives
+    each its own receipt slot."""
+
+    def test_single_model_role_two_units_shape_matches_real_c8(self):
+        """c8's own shape: ONE model_nomination_only role, `open_list`, no parent context --
+        currently dormant in real v9 evidence (only 1 real unit today) but structurally identical
+        to c12's crash-prone shape the moment a second unit exists."""
+        specs = {
+            "individual_difference_trait_or_construct": se.new_role_spec(
+                "individual_difference_trait_or_construct", "a named trait or construct", "model_nomination_only"
+            )
+        }
+        completion = se.new_role_completion(required_roles=["individual_difference_trait_or_construct"])
+        req = se.new_requirement("c8#req", "atomic", specs, completion, "open_list", multi_instance=True)
+        units = [
+            _unit("U1", 1, "Participants completed the empathy quotient scale."),
+            _unit("U2", 2, "The researchers also measured disgust sensitivity in this sample."),
+        ]
+        client = _FakeModelClient(
+            {units[0]["proposition_ids"][0]: "empathy", units[1]["proposition_ids"][0]: "disgust sensitivity"}
+        )
+        ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
+
+        # Before Phase 19b: RequestFingerprintMismatch here. Now: completes cleanly.
+        result = sm.map_requirement(req, units, model_client=client, child_id="c8", nomination_context=ctx)
+
+        self.assertEqual(len(result["instances"]), 2)
+        texts = {
+            i["role_bindings"]["individual_difference_trait_or_construct"]["exact_text"] for i in result["instances"]
+        }
+        self.assertEqual(texts, {"empathy", "disgust sensitivity"})
+        keys = [
+            k for k in ctx["in_pass_receipts"] if k[0] == ("c8", "c8#req", "individual_difference_trait_or_construct")
+        ]
+        self.assertEqual({k[1] for k in keys}, {"U1", "U2"})
+        self.assertEqual(len(client.calls), 2)  # one physical call per unit, never zero, never more
+
+    def test_two_model_roles_two_units_shape_matches_real_c11_and_c12(self):
+        """c11/c12's own shape: TWO model_nomination_only roles on one multi_instance requirement
+        with no parent context -- real q_aib c12 is the confirmed-crashing case this fix targets."""
+        specs = {
+            "intervention": se.new_role_spec("intervention", "a named intervention", "model_nomination_only"),
+            "target_manifestation": se.new_role_spec(
+                "target_manifestation", "what it targeted", "model_nomination_only"
+            ),
+        }
+        completion = se.new_role_completion(required_roles=["intervention", "target_manifestation"])
+        req = se.new_requirement("c12#req", "relational", specs, completion, "exists", multi_instance=True)
+        units = [
+            _unit("U1", 1, "A mindfulness training reduced implicit bias scores."),
+            _unit("U5", 2, "Perspective-taking exercises reduced explicit prejudice."),
+        ]
+        pid1, pid5 = units[0]["proposition_ids"][0], units[1]["proposition_ids"][0]
+
+        class _TwoUnitClient:
+            model_name = "fake-c12-shape"
+
+            def __init__(self):
+                self.calls: list[dict] = []
+
+            def nominate_sufficiency_role(self, *, category_description, candidates):
+                self.calls.append({"category_description": category_description, "candidates": candidates})
+                (candidate,) = candidates  # exactly one admissible candidate per unit-scoped call
+                scripted = {
+                    (pid1, "a named intervention"): "mindfulness training",
+                    (pid1, "what it targeted"): "implicit bias",
+                    (pid5, "a named intervention"): "perspective-taking exercises",
+                    (pid5, "what it targeted"): "explicit prejudice",
+                }
+                text = scripted[(candidate["proposition_id"], category_description)]
+                return [{"proposition_id": candidate["proposition_id"], "exact_text": text}]
+
+        client = _TwoUnitClient()
+        ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
+        result = sm.map_requirement(req, units, model_client=client, child_id="c12", nomination_context=ctx)
+
+        self.assertEqual(len(result["instances"]), 2)
+        self.assertEqual(len(client.calls), 4)  # 2 roles x 2 units, never collapsed, never crashed
+        u1_keys = [k for k in ctx["in_pass_receipts"] if k[0][0] == "c12" and k[1] == "U1"]
+        u5_keys = [k for k in ctx["in_pass_receipts"] if k[0][0] == "c12" and k[1] == "U5"]
+        self.assertEqual(len(u1_keys), 2)
+        self.assertEqual(len(u5_keys), 2)
+        # receipt A (U1's intervention) must never equal receipt B (U5's intervention)
+        intervention_u1 = ctx["in_pass_receipts"][(("c12", "c12#req", "intervention"), "U1")]
+        intervention_u5 = ctx["in_pass_receipts"][(("c12", "c12#req", "intervention"), "U5")]
+        self.assertNotEqual(intervention_u1["accepted"], intervention_u5["accepted"])
+
+    def test_u2_held_fixed_rebuild_of_the_synthetic_two_unit_shape_makes_zero_fresh_calls(self):
+        specs = {
+            "individual_difference_trait_or_construct": se.new_role_spec(
+                "individual_difference_trait_or_construct", "a named trait or construct", "model_nomination_only"
+            )
+        }
+        completion = se.new_role_completion(required_roles=["individual_difference_trait_or_construct"])
+        req = se.new_requirement("c8#req", "atomic", specs, completion, "open_list", multi_instance=True)
+        units = [
+            _unit("U1", 1, "Participants completed the empathy quotient scale."),
+            _unit("U2", 2, "The researchers also measured disgust sensitivity in this sample."),
+        ]
+        client = _FakeModelClient(
+            {units[0]["proposition_ids"][0]: "empathy", units[1]["proposition_ids"][0]: "disgust sensitivity"}
+        )
+        u1_ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
+        sm.map_requirement(req, units, model_client=client, child_id="c8", nomination_context=u1_ctx)
+        self.assertEqual(len(client.calls), 2)
+
+        u1_snapshot = dict(u1_ctx["in_pass_receipts"])
+        u2_ctx = mscope.new_nomination_context(mscope.exact_scope_set_policy(set()), prior_receipts=u1_snapshot)
+        result = sm.map_requirement(req, units, model_client=client, child_id="c8", nomination_context=u2_ctx)
+
+        self.assertEqual(len(client.calls), 2, "U2 must make zero additional physical calls")
+        texts = {
+            i["role_bindings"]["individual_difference_trait_or_construct"]["exact_text"] for i in result["instances"]
+        }
+        self.assertEqual(texts, {"empathy", "disgust sensitivity"})  # both held-fixed bindings replayed correctly
 
 
 class MapAnyRequirementPhase19ChildIdThreadingTests(unittest.TestCase):

@@ -50,6 +50,32 @@ def new_model_nomination_scope(child_id: str, requirement_id: str, role: str) ->
     return (child_id, requirement_id, role)
 
 
+def new_model_nomination_key(
+    scope: tuple[str, str, str], request_context: str | None = None
+) -> tuple[tuple[str, str, str], str | None]:
+    """Phase 19b: the MEMOIZATION/receipt key, a strictly separate concept from `scope` itself.
+
+    `scope` = `(child_id, requirement_id, role)` answers "may this semantic role make a fresh
+    model request at all, under the current policy" -- AUTHORIZATION, unchanged from Phase 19,
+    never touched by this function.
+
+    `request_context` answers "which instance-local evidence partition, within an authorized
+    scope, is THIS particular invocation about" -- it is the mapper's own already-computed
+    PRE-FORK `root_key` (`sufficiency_mapping.map_requirement`'s own loop variable): `None` for
+    every requirement `build_multi_instances` never partitions, or a candidate unit's own
+    `unit_id` for one it does. Never the FINAL, rederived `instance_key`
+    (`sufficiency_engine.derive_instance_key`) -- that value changes across a role's own forks
+    specifically to keep genuinely-different bound content from colliding, which would destroy
+    the role-fork deduplication Phase 19 already proved necessary (the Phase-21-preflight audit's
+    own finding). Never a binding index, candidate order, category_description, or a request
+    fingerprint -- none of those may ever decide identity, only content equivalence.
+
+    ONE canonical constructor so this composite key is never hand-assembled ad hoc at a call site;
+    every receipt store in this module (`in_pass_receipts`, `prior_receipts`) is keyed by this
+    exact tuple shape."""
+    return (scope, request_context)
+
+
 def enumerate_model_nomination_scopes(contract_by_child: dict) -> list[tuple[str, str, str]]:
     """Every scope in `contract_by_child` (`{child_id: SufficiencyContract}`, frozen or mapped --
     both carry the same `role_specs`, since mapping never alters them) whose role is eligible for
@@ -89,11 +115,17 @@ def request_fingerprint(category_description: str, candidate_rows: list[dict]) -
 
 
 class RequestFingerprintMismatch(Exception):
-    """Raised when the SAME semantic scope is resolved twice within one mapping pass with two
-    DIFFERENT model-facing requests. This falsifies the Phase-19 audit's own "(child_id,
-    requirement_id, role) implies one request" assumption for the current mapper -- it must never
-    be silently papered over (never reuse a receipt built from a different request; never make a
-    quiet second call while treating the scope as already resolved)."""
+    """Raised when the SAME (authorization scope, request context) memoization key is resolved
+    twice within one mapping pass with two DIFFERENT model-facing requests. Phase 19b narrows this
+    from Phase 19's own original "(child_id, requirement_id, role) implies one request" assumption
+    -- the Phase-21 preflight falsified that for `multi_instance=True`, no-parent-context
+    requirements (`build_multi_instances` partitions one authorization scope's candidates across
+    several real evidence units, e.g. real q_aib c12: two units, two legitimately different
+    requests, same scope). The memoization KEY now includes `request_context` (see
+    `new_model_nomination_key`), so two different request contexts under one scope never collide
+    here at all; this exception still fires, and must still never be silently papered over, when
+    the SAME (scope, request_context) pair sees two different requests within one pass -- that
+    remains a genuine same-slot drift, never a legitimate partitioning."""
 
 
 # ---------------------------------------------------------------------------------------------
@@ -133,14 +165,21 @@ def is_authorized_for_fresh_call(policy: dict, scope: tuple[str, str, str]) -> b
 def new_nomination_receipt(
     scope: tuple[str, str, str],
     *,
+    request_context: str | None = None,
     model_name,
     request_fingerprint: str,
     candidates_offered: list[dict],
     accepted: list[dict],
     status: str,
 ) -> dict:
+    """Phase 19b adds `request_context` (default `None`, matching every pre-Phase-19b caller and
+    every non-partitioned requirement byte-identically) alongside the unchanged existing fields.
+    Still upstream of binding construction -- never a mapped instance, role binding,
+    RecoveryTarget, or final `instance_key` (those stay exactly where `sufficiency_mapping.py`/
+    `sufficiency_engine.py` already build them)."""
     return {
         "scope": scope,
+        "request_context": request_context,
         "model_name": model_name,
         "request_fingerprint": request_fingerprint,
         "candidates_offered": list(candidates_offered),
@@ -152,8 +191,11 @@ def new_nomination_receipt(
 def new_nomination_context(policy: dict, *, prior_receipts: dict | None = None) -> dict:
     """One per mapping pass. `in_pass_receipts` is mutated by `resolve_nomination` as the pass
     runs (the in-pass memoization store, audit §J); `prior_receipts` is supplied once by the
-    caller and never mutated here -- it is the held-fixed/failure-fallback source (audit §L/§M/§N),
-    keyed by the exact same scope tuples a fresh `prior_receipts.get(scope)` lookup expects."""
+    caller and never mutated here -- it is the held-fixed/failure-fallback source (audit §L/§M/§N).
+    Phase 19b: both are keyed by the composite `new_model_nomination_key(scope, request_context)`
+    tuple, not by bare `scope` -- a caller building `prior_receipts` from a prior pass's own
+    `in_pass_receipts` (e.g. `e2e.py`'s U1->U2 snapshot) already has the right key shape for free,
+    since that dict was itself built the same way."""
     return {"policy": policy, "in_pass_receipts": {}, "prior_receipts": dict(prior_receipts or {})}
 
 
@@ -168,9 +210,9 @@ def _receipt_is_valid(receipt: dict | None, validate_prior_receipt) -> bool:
 
 
 def _fallback_after_mechanical_failure(
-    scope: tuple[str, str, str], nomination_context: dict, validate_prior_receipt
+    key: tuple, nomination_context: dict, validate_prior_receipt
 ) -> tuple[list[dict], str]:
-    prior = nomination_context["prior_receipts"].get(scope)
+    prior = nomination_context["prior_receipts"].get(key)
     if _receipt_is_valid(prior, validate_prior_receipt):
         return list(prior["accepted"]), "fresh_failed_fallback_to_prior"
     return [], "fresh_failed_no_valid_prior"
@@ -179,6 +221,7 @@ def _fallback_after_mechanical_failure(
 def resolve_nomination(
     scope: tuple[str, str, str] | None,
     *,
+    request_context: str | None = None,
     candidate_rows: list[dict],
     category_description: str,
     model_name,
@@ -186,13 +229,25 @@ def resolve_nomination(
     nomination_context: dict | None,
     validate_prior_receipt=None,
 ) -> tuple[list[dict], str]:
-    """The single Phase-19 orchestration checkpoint (audit §G/§19): decides whether `scope` may
-    make a fresh call this pass, whether an in-pass or prior-pass receipt should be reused
-    instead, and records the outcome. Returns `(accepted_nominations, status)` where `status` is
-    one of `fresh` / `fresh_no_candidates` / `memoized_in_pass` / `held_fixed_replay` /
-    `held_fixed_no_valid_prior` / `fresh_failed_fallback_to_prior` / `fresh_failed_no_valid_prior`
-    (audit §O's required distinctions; `fresh_no_candidates` added by the Phase-20 audit's §6/§8/§12
-    finding, below).
+    """The single Phase-19 orchestration checkpoint (audit §G/§19, request-identity corrected in
+    Phase 19b): decides whether `scope` may make a fresh call this pass, whether an in-pass or
+    prior-pass receipt should be reused instead, and records the outcome. Returns
+    `(accepted_nominations, status)` where `status` is one of `fresh` / `fresh_no_candidates` /
+    `memoized_in_pass` / `held_fixed_replay` / `held_fixed_no_valid_prior` /
+    `fresh_failed_fallback_to_prior` / `fresh_failed_no_valid_prior` (audit §O's required
+    distinctions; `fresh_no_candidates` added by the Phase-20 audit's §6/§8/§12 finding).
+
+    `request_context` (Phase 19b, default `None`): the mapper's own pre-fork `root_key` --
+    distinguishes several legitimate model-facing requests that share one AUTHORIZATION `scope`
+    (the Phase-21-preflight finding: `build_multi_instances` partitions a `multi_instance=True`,
+    no-parent-context requirement's real candidate units across several instances, each reaching
+    the SAME `(child_id, requirement_id, role)` scope with a DIFFERENT, disjoint candidate pool --
+    real q_aib c12 is the confirmed example, two units, two legitimate requests). AUTHORIZATION
+    (`is_authorized_for_fresh_call`) is decided on `scope` ALONE, exactly as Phase 19 built it --
+    `request_context` never enters that decision, only which receipt SLOT this invocation reads
+    from or writes to. Every pre-Phase-19b caller omits it, giving every non-partitioned
+    requirement the identical `None` context for its one-and-only request -- byte-identical
+    behavior to before this phase.
 
     `fresh_no_candidates` (Phase 20b): when `scope` IS authorized for a fresh call but
     `candidate_rows` is empty, `make_fresh_call` is never invoked at all -- there is nothing to
@@ -208,7 +263,9 @@ def resolve_nomination(
     function never imports or knows about `sufficiency_mapping.nominate_with_model` itself,
     keeping this module one-directionally dependency-free of it (audit §19/§G). A mechanical
     failure from `make_fresh_call` (any raised exception) is caught here, never propagated --
-    the model-nomination mapper must never crash on a transport failure (audit §N).
+    the model-nomination mapper must never crash on a transport failure (audit §N), and is isolated
+    to THIS request slot alone -- it can never poison a sibling request_context's own receipt under
+    the same scope.
 
     `nomination_context` and `scope` are both REQUIRED. This function is reached only once a
     caller has explicitly opted into Phase-19 scoping; the legacy, context-free path lives
@@ -225,17 +282,20 @@ def resolve_nomination(
     if scope is None:
         raise ValueError("resolve_nomination requires a scope when a nomination_context is supplied")
 
+    key = new_model_nomination_key(scope, request_context)
     fingerprint = request_fingerprint(category_description, candidate_rows)
     in_pass = nomination_context["in_pass_receipts"]
 
-    if scope in in_pass:
-        existing = in_pass[scope]
+    if key in in_pass:
+        existing = in_pass[key]
         if existing["request_fingerprint"] != fingerprint:
             raise RequestFingerprintMismatch(
-                f"scope {scope!r} was already resolved earlier in this mapping pass with a "
-                f"different model-facing request (fingerprint {existing['request_fingerprint']!r} "
-                f"!= {fingerprint!r}) -- this falsifies the assumption that one scope implies one "
-                "equivalent request under the current mapper; investigate before proceeding."
+                f"(scope={scope!r}, request_context={request_context!r}) was already resolved "
+                f"earlier in this mapping pass with a different model-facing request (fingerprint "
+                f"{existing['request_fingerprint']!r} != {fingerprint!r}) -- this is genuine "
+                "same-slot drift within one memoization key, not legitimate multi-instance "
+                "partitioning (which gets its own distinct request_context); investigate before "
+                "proceeding."
             )
         return list(existing["accepted"]), "memoized_in_pass"
 
@@ -248,16 +308,17 @@ def resolve_nomination(
                 accepted = make_fresh_call()
                 status = "fresh"
             except Exception:
-                accepted, status = _fallback_after_mechanical_failure(scope, nomination_context, validate_prior_receipt)
+                accepted, status = _fallback_after_mechanical_failure(key, nomination_context, validate_prior_receipt)
     else:
-        prior = nomination_context["prior_receipts"].get(scope)
+        prior = nomination_context["prior_receipts"].get(key)
         if _receipt_is_valid(prior, validate_prior_receipt):
             accepted, status = list(prior["accepted"]), "held_fixed_replay"
         else:
             accepted, status = [], "held_fixed_no_valid_prior"
 
-    in_pass[scope] = new_nomination_receipt(
+    in_pass[key] = new_nomination_receipt(
         scope,
+        request_context=request_context,
         model_name=model_name,
         request_fingerprint=fingerprint,
         candidates_offered=candidate_rows,

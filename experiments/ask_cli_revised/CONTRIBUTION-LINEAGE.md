@@ -1054,3 +1054,70 @@ every prior phase since Phase 16 has already documented, reconfirmed present on 
 commit itself. v9 `combined_hash` reconfirmed unchanged:
 `9c72dc6a0180e95c55e68a009c366843b671684c19c6ae84ed254f3865305586`. No live model call anywhere in
 this phase. Full detail in `PHASE20B_INITIAL_MODEL_ASSIST_INTEGRATION_RESULTS.md`.
+
+---
+
+## Phase 19b — multiple model requests under one authorization scope (appended 2026-10-02; does not alter the rows above)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-10-02 | Evidence | Phase-21 preflight dry-run (a fake client against the real preserved q_aib evidence, never live) |
+| 2026-10-02 | Design direction | Cliff Workman |
+| 2026-10-02 | Audit, design, implementation, verification | Claude |
+
+**Evidence (Phase-21 preflight dry-run).** Attempting the Phase-21 live-validation harness's own
+dry run -- the exact production call chain, a fake client, zero network -- against the real
+preserved 2026-09-30 T5C sealed ledger surfaced a genuine `RequestFingerprintMismatch` crash on
+real `c12` before any live call was authorized to run. The preflight did exactly what it was built
+to do: it caught a real Phase-19 infrastructure gap before it could burn a live-call budget on a
+crash rather than a result.
+
+**Design direction (Cliff Workman).** On being shown the preflight finding, declined both offered
+shortcuts -- excluding c12 from the contract, and running a partial 10-child live validation --
+and directed a full repair first: fix the newly-discovered Phase-19 request-multiplicity gap, then
+restart Phase 21 from a clean, full-contract state with the original one-run/no-retry rule intact.
+Separately resolved the one open design fork from the audit: defer linking the new request-context
+identity into `model_dependency_origins` to a future Phase 22, reasoning that `RecoveryTarget`
+already carries a different, post-fork instance identity and that the real linkage deserves a
+design informed by actual post-recovery behavior rather than a speculative addition now.
+
+**Audit, design, implementation, verification (Claude).** Traced the crash to its exact root cause
+by direct code reading rather than pattern-matching the symptom: `build_multi_instances` partitions
+a `multi_instance=True`, no-parent-context requirement's real candidate units into one provisional
+instance per unit, and `map_requirement`'s per-instance loop offers each instance's own disjoint
+candidate pool to the identical `(child_id, requirement_id, role)` authorization scope --
+`resolve_nomination`'s fingerprint check, keyed only by scope, correctly read the second request as
+a contradictory re-resolution of an already-memoized key. Confirmed the shape was real (not a
+fake-client artifact) by independently verifying `c12`'s own two real units in the preserved ledger,
+and found the identical latent shape, not yet triggered by real evidence volume, in `c8` and `c11`.
+
+Designed the fix as a narrowing, not a redesign: separated the authorization-scope question
+("is a call for this role/requirement/child permitted") from a new request-context question ("is
+this the same physical request as a prior one, or a disjoint sibling"), keyed memoization on the
+composite `(scope, request_context)`, and deliberately chose the caller's own already-computed
+pre-fork `root_key` as `request_context` rather than the tempting alternative -- the final,
+rederived `instance_key` -- after tracing that the rederived key changes across role-forks within
+one instance and would have silently broken the existing role-fork deduplication mechanism if used
+instead. Implemented the fix confined to exactly two production files
+(`sufficiency_model_scope.py`, `sufficiency_mapping.py`); left `model_dependency_origins` untouched
+exactly as directed, pinning that with an explicit regression assertion rather than merely an
+absence of changes.
+
+Verified the fix against the real evidence the bug was found on: a new mandatory release-gate test
+file replays the real frozen v9 contract and the real preserved T5C sealed ledger across all 11
+children with no exclusions, no crash, and the real `c12` producing exactly its two expected
+isolated request-contexts with no cross-contamination between them; a held-fixed U2 rebuild makes
+zero fresh calls. Found and fixed a real bug in a new test fixture (not production code) while
+building synthetic c8/c11-shaped coverage: `canonical_text_contains`'s case sensitivity silently
+defeated one scripted nomination whose text didn't match its passage's sentence-initial
+capitalization, corrected by rewording the fixture rather than touching the (correct) production
+grounding gate. 21 new tests (7 request-context unit tests + 3 synthetic c8/c11-shaped partition
+tests + 11 real-evidence release-gate tests, each count collected via `pytest --collect-only`);
+full `experiments/ask_cli_revised` regression: 2322 passed, 11 skipped, 2 failed -- 2301 + 21 = 2322
+exactly, the 2 failures being the identical pre-existing pin-drift pair every phase since Phase 16
+has documented, independently reconfirmed present on the clean, committed Phase-20b HEAD (`304ad5ad`) by stashing
+this phase's entire working-tree diff and re-running both tests against it directly. v9
+`combined_hash` reconfirmed unchanged:
+`9c72dc6a0180e95c55e68a009c366843b671684c19c6ae84ed254f3865305586`. No live model call anywhere in
+this phase; Phase 21's authorization remains unused and its status is unchanged -- not started, not
+failed. Full detail in `PHASE19B_MULTI_REQUEST_SCOPE_RESULTS.md`.
