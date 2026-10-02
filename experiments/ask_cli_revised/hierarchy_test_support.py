@@ -80,11 +80,24 @@ class HierHarness(Harness):
         super().__init__(profile, **kwargs)
         self.contract = contract
 
-    def run(self, smoke_limits=None, seed_pass=None, entail=None):
+    def run(
+        self,
+        smoke_limits=None,
+        seed_pass=None,
+        entail=None,
+        *,
+        sufficiency_contract=None,
+        sufficiency_parent_of=None,
+        sufficiency_recovery_gate_enabled=False,
+    ):
         # entail=None matches execute()'s own default -- every existing caller that never passed it
         # (no S role bound in its profile) is unaffected; a caller binding an Overview-enabled profile
         # (e.g. CHILD_OVERVIEW_PROFILES["T5C"]) now has a way to supply one, the same as OverviewHarness
-        # already does for the flat case.
+        # already does for the flat case. sufficiency_contract/sufficiency_parent_of/
+        # sufficiency_recovery_gate_enabled (Phase 20a) default exactly like execute()'s own
+        # parameters -- every existing caller that never passes them observes byte-identical
+        # behavior; this is the seam test_hierarchy_e2e.py's sufficiency-integration tests use to
+        # exercise execute()'s already-built sufficiency block without going through run_topology().
         bound = e2e.bind(
             self.profile,
             rt=self.rt,
@@ -106,6 +119,9 @@ class HierHarness(Harness):
                 smoke_limits=smoke_limits,
                 seed_pass=seed_pass,
                 entail=entail,
+                sufficiency_contract=sufficiency_contract,
+                sufficiency_parent_of=sufficiency_parent_of,
+                sufficiency_recovery_gate_enabled=sufficiency_recovery_gate_enabled,
             )
 
 

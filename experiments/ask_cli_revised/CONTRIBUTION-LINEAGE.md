@@ -916,3 +916,84 @@ unrelated by `git diff --stat` showing zero changes to the files that failure co
 `combined_hash` confirmed unchanged: `9c72dc6a0180e95c55e68a009c366843b671684c19c6ae84ed254f3865305586`.
 `e2e.py` untouched -- no live model call, no retrieval, no recovery execution, no contract or pin
 change, no production integration. Full detail in `PHASE19_MODEL_SCOPING_RESULTS.md`.
+
+---
+
+## Phase 20a — deterministic sufficiency mapping reachable through run_topology()/main() (appended 2026-10-02; does not alter the rows above)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-10-02 | Evidence | Phase 19 robust model-scoping implementation |
+| 2026-10-02 | Design direction | Cliff Workman + ChatGPT |
+| 2026-10-02 | Design direction | Cliff Workman + ChatGPT |
+| 2026-10-02 | Audit, design, implementation, verification | Claude |
+
+**Evidence (Phase 19 robust model-scoping implementation).** Established identity-safe per-scope
+nomination, request-equivalence guards, normalized receipts, in-pass call deduplication,
+held-fixed replay, and failure-safe authorization while deliberately leaving production model
+calls disabled.
+
+**Design direction (Cliff Workman + ChatGPT).** Required production model-assisted mapping to
+always run through a nomination context when a model client is present, so the Phase-19 safety/
+cost invariants cannot be bypassed by a bare-client execution path.
+
+**Design direction (Cliff Workman + ChatGPT).** Split production integration after the Phase-20
+audit discovered that the deterministic sufficiency subsystem itself had never been reachable from
+`run_topology`/`main`; required deterministic end-to-end activation and current-code equivalence
+proof before any model-assisted production wiring.
+
+**Audit, design, implementation, verification (Claude).** The Phase 20 audit (Plan Mode, read-only;
+`~/.claude/plans/pasted-content-id-d898-new-architectura-serialized-coral.md`, outside this repo)
+traced `execute()`'s two existing `sufficiency_contract=`/`sufficiency_parent_of=`/`model_client=`/
+`nomination_context=` call sites and found, by direct code reading, that `run_topology()` --
+the function `main()` actually calls -- never supplied either of the first two at all, and a
+repo-wide search for the literal `sufficiency_contract=` call pattern found zero matches anywhere,
+production or test: even Phase 1-18's deterministic-only sufficiency map had never run inside a
+real `execute()`/`run_topology()` invocation, live or in CI, before this phase. Phase 20a closes
+exactly that integration gap, deterministic-only.
+
+Resolved the audit's one open mechanical question (where a real run sources its frozen contract
+and parent map) by source inspection before writing any code: `hierarchy_contract.parent_of`
+(new) is a thin, generic projection of the already-loaded hierarchy contract's own
+`child["parent"]` field -- the identical source `assert_executable` already treats as the parent
+relationship's sole authority -- never a second, independently-maintained topology map.
+`sufficiency_freeze.load_verified` (new) is the reader half of this module's existing
+writer-only `write_frozen`/`FROZEN_PATH` convention: it verifies each child's `frozen_view` against
+its own recorded per-child hash, the whole file's `combined_hash`, and a new sibling
+`REVIEW_PATH` human-review record naming that exact hash (mirroring `hierarchy_contract.py`'s own
+pin/review gate, adapted to this module's simpler, already-established review-file shape) --
+returning `None` (never raising) only when no frozen artifact exists at all for a question, and
+raising `SufficiencyContractRejected` for every other failure, so an existing-but-unverifiable
+artifact is never silently treated as absent. `run_topology()` gained one new injectable
+`sufficiency_loader` parameter (`_default_sufficiency_loader` by default), following the exact
+dependency-injection convention its six other `*_loader`/`verify_*`/`*_factory` parameters already
+use, called only for a hierarchical run and threaded straight into the unmodified `execute()` call.
+No new CLI flag, no try/except added around the sufficiency block, no `stage()`/residency
+accounting added, no `QwenTasks.model_name` property added, and no `model_client`/
+`nomination_context` constructed or passed anywhere -- all five explicitly deferred to Phase 20b
+per the authorizing brief.
+
+Proved, rather than assumed, that the integrated path equals the direct deterministic path: a new
+`SufficiencyIntegrationTests` class runs the real, committed, human-reviewed v9 contract through
+the real hierarchical `execute()` orchestration (via the existing `HierHarness`, now accepting
+`sufficiency_contract=`/`sufficiency_parent_of=`/`sufficiency_recovery_gate_enabled=`) and asserts
+the result equals calling `compute_diagnostic_sufficiency_map`/`compute_direction_and_
+effectiveness` directly on the same resulting sealed ledger -- the brief's own authoritative
+current-code-equivalence invariant, deliberately never compared against historical Phase 2/5/9/10
+outputs (a different, no-longer-current mapper state) as a release gate. A second new
+`RunTopologySufficiencyWiringTests` class proves `run_topology()` itself -- not just `execute()`,
+which already accepted these kwargs before this phase -- sources and threads them correctly
+(including that a non-hierarchical run never sources anything, an injected `sufficiency_loader`
+is honored, and an unverifiable frozen artifact fails the run loudly rather than being swallowed
+into a silent absence), via a spy that delegates to the real `execute()` rather than replacing it,
+so `run_topology()`'s own real trace-writing and manifest-building post-processing is exercised
+for real. 22 new tests (2 `parent_of` + 8 `load_verified` + 6 `SufficiencyIntegrationTests` +
+6 `RunTopologySufficiencyWiringTests`, each count collected via `pytest --collect-only`, not
+estimated), covering the same ground the brief's own illustrative test matrix named for a
+deterministic-only phase. Full `experiments/ask_cli_revised` regression: 2273 passed, 11 skipped,
+2 failed -- 2251 + 22 = 2273 exactly, and the 2 failures are the identical pre-existing pin-drift
+pair Phase 16/17/18/19 already documented, independently reconfirmed present on unmodified base
+HEAD before this phase touched anything. v9 `combined_hash` reconfirmed unchanged (every
+`load_verified()` call recomputes and checks it live, never trusting a cached value):
+`9c72dc6a0180e95c55e68a009c366843b671684c19c6ae84ed254f3865305586`. Full detail in
+`PHASE20A_DETERMINISTIC_SUFFICIENCY_INTEGRATION_RESULTS.md`.

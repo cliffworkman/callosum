@@ -10,9 +10,10 @@ import re
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from experiments.ask_cli_revised import e2e
+from experiments.ask_cli_revised import e2e, sufficiency_diagnostic, sufficiency_freeze, sufficiency_recovery_targets
 from experiments.ask_cli_revised import hierarchy_contract as hc
 from experiments.ask_cli_revised import topology as topo
 from experiments.ask_cli_revised.hierarchy_test_support import (
@@ -217,6 +218,93 @@ class HierarchyExecuteTests(unittest.TestCase):
 
 
 @needs_artifacts
+class SufficiencyIntegrationTests(unittest.TestCase):
+    """Phase 20a: proves the deterministic sufficiency-mapping block inside execute() --
+    structurally complete since an earlier phase (`sufficiency_contract=`/`sufficiency_parent_of=`
+    kwargs, both threaded all the way to the model-nomination checkpoint) but never once exercised
+    by any test in this suite -- reaches EXACTLY the same result through the real orchestration
+    path every other test in this file drives as calling `compute_diagnostic_sufficiency_map`/
+    `compute_direction_and_effectiveness` directly on the resulting sealed ledger. Uses the REAL,
+    committed, human-reviewed v9 sufficiency contract (`sufficiency_freeze.load_verified`) and the
+    REAL hierarchy's own parent map (`hierarchy_contract.parent_of`) -- never a synthetic fixture --
+    so this is also the first exercise of either of those two Phase-20a functions against genuine
+    orchestration output rather than only unit-level literals."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.contract = hc.load_contract(BENCHMARK_QUESTION, pins=None)
+        cls.contract_by_child = sufficiency_freeze.load_verified()
+        cls.parent_of = hc.parent_of(cls.contract)
+
+    def _run(self, **kwargs):
+        shared = ScriptedClient(r=r_by_claim({CLAIM_C5: ["c5"], CLAIM_C4: ["c4"], CLAIM_C12: ["c12"]}))
+        h = HierHarness(topo.WAVE1["T0"], self.contract, initial=INITIAL, recovery=[], clients={"shared": shared})
+        self.addCleanup(h.close)
+        result = h.run(sufficiency_contract=self.contract_by_child, sufficiency_parent_of=self.parent_of, **kwargs)
+        return result
+
+    def test_the_real_frozen_contract_and_the_real_hierarchy_agree_on_every_child(self):
+        self.assertIsNotNone(self.contract_by_child)
+        self.assertEqual(set(self.contract_by_child), set(CHILD_IDS))
+        self.assertEqual(set(self.parent_of), set(CHILD_IDS))
+
+    def test_execute_reaches_sufficiency_mapping_with_zero_model_assistance(self):
+        """Phase 20a's own invariant (section E): `HierHarness.run()` never threads a
+        `model_client`/`nomination_context` unless explicitly asked, and this test never asks --
+        so no binding anywhere in the result can be model-sourced; there is no model to have
+        produced one."""
+        result = self._run()
+        self.assertIsNotNone(result["sufficiency_map_initial"])
+        self.assertEqual(set(result["sufficiency_map_initial"]), set(CHILD_IDS))
+        for contract in result["sufficiency_map_initial"].values():
+            for req in contract["requirements"]:
+                for instance in req["instances"]:
+                    for binding in instance["role_bindings"].values():
+                        prov = binding.get("provenance") or {}
+                        self.assertNotEqual(prov.get("candidate_source"), "model_mapping")
+
+    def test_the_integrated_run_matches_calling_the_deterministic_mapper_directly(self):
+        """The audit's own authoritative equivalence invariant: for the SAME sealed ledger, the
+        SAME frozen contract, and the SAME parent map, the integrated run_topology()/execute() path
+        must equal calling `compute_diagnostic_sufficiency_map` + `compute_direction_and_
+        effectiveness` directly -- never merely agree with a historical, differently-coded phase."""
+        result = self._run()
+        direct = sufficiency_diagnostic.compute_diagnostic_sufficiency_map(
+            result["sealed"], self.contract_by_child, self.parent_of
+        )
+        sufficiency_diagnostic.compute_direction_and_effectiveness(result["sealed"], direct)
+        self.assertEqual(direct, result["sufficiency_map_final"])
+
+    def test_recovery_targets_are_reachable_under_their_own_existing_gate(self):
+        """`sufficiency_recovery_gate_enabled` is a separate opt-in from mapping reachability
+        (section K) -- exercised explicitly here, never implied merely because mapping ran."""
+        result = self._run(sufficiency_recovery_gate_enabled=True)
+        self.assertIsInstance(result["sufficiency_recovery_targets"], dict)
+        direct_targets = sufficiency_recovery_targets.compute_recovery_targets(
+            result["sufficiency_map_final"], self.parent_of
+        )
+        self.assertEqual(set(direct_targets), set(result["sufficiency_recovery_targets"]))
+
+    def test_the_recovery_gate_never_changes_the_mapping_result(self):
+        """The gate changes only whether recovery-target rows are additionally synthesized into
+        `gaps` -- it must never change what `sufficiency_map_initial` itself contains."""
+        off = self._run(sufficiency_recovery_gate_enabled=False)
+        on = self._run(sufficiency_recovery_gate_enabled=True)
+        self.assertEqual(off["sufficiency_map_initial"], on["sufficiency_map_initial"])
+
+    def test_omitting_the_sufficiency_contract_reproduces_pre_phase_20a_behavior_exactly(self):
+        """The one guarantee this phase must never break: every existing caller that never passes
+        `sufficiency_contract` observes byte-identical (here: structurally None) behavior."""
+        shared = ScriptedClient(r=r_by_claim({CLAIM_C5: ["c5"]}))
+        h = HierHarness(topo.WAVE1["T0"], self.contract, initial=INITIAL, recovery=[], clients={"shared": shared})
+        self.addCleanup(h.close)
+        result = h.run()
+        self.assertIsNone(result["sufficiency_map_initial"])
+        self.assertIsNone(result["sufficiency_map_final"])
+        self.assertEqual(result["sufficiency_recovery_targets"], {})
+
+
+@needs_artifacts
 class HierarchyModelCoverageTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -365,6 +453,120 @@ class RunTopologyRefusalTests(unittest.TestCase):
                 self.go(hierarchy_loader=loader, **kwargs)
         loader.assert_not_called()
         self.assert_nothing_touched()
+
+
+@needs_artifacts
+class RunTopologySufficiencyWiringTests(unittest.TestCase):
+    """Phase 20a: proves `run_topology()` ITSELF -- not just `execute()`, which already accepted
+    these kwargs before this phase -- sources and threads `sufficiency_contract`/
+    `sufficiency_parent_of`. Before this phase, a repo-wide search for `sufficiency_contract=`
+    found zero call sites anywhere, production or test; this is the first. Fully fakes the
+    runtime/client/retrieval layer (the same pattern `test_e2e_run.GuardedRunEndToEndTests` already
+    uses for a flat question: real `_initial_pass`/`_recover_round` are patched to add nothing,
+    everything else about `execute()` runs for real) so this needs no real database, model, or
+    network, while still exercising the genuine end-to-end write/report path `run_topology()`'s own
+    post-processing depends on -- a `side_effect` spy records exactly what `execute()` was called
+    with, then delegates to the real function rather than replacing it outright."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        self.contract = hc.load_contract(BENCHMARK_QUESTION, pins=None)
+        self.captured = {}
+        self.shared = ScriptedClient()
+        self._real_execute = e2e.execute
+
+    def _no_op_initial_pass(self, conn, *, rt, qwen, subquestions, sink, trace):
+        pass
+
+    def _no_op_recover_round(self, conn, *, rt, qwen, subquestions, gaps, plan, sink, trace):
+        return []
+
+    def _spy_execute(self, **kwargs):
+        self.captured = kwargs
+        return self._real_execute(**kwargs)
+
+    def _build(self, db, **kwargs):
+        return SimpleNamespace(
+            engine=SimpleNamespace(connect=lambda: contextlib.nullcontext(MagicMock())),
+            qwen_config="QWEN-CONFIG",
+            close=lambda: None,
+        )
+
+    def go(self, *, question="aib", hierarchy=True, hierarchy_loader=None, **kwargs):
+        with (
+            patch.object(e2e, "execute", side_effect=self._spy_execute),
+            patch.object(e2e, "_initial_pass", self._no_op_initial_pass),
+            patch.object(e2e, "_recover_round", self._no_op_recover_round),
+        ):
+            return e2e.run_topology(
+                "T0",
+                question,
+                db_path=self.root / "l.sqlite",
+                library_frozen=self.root / "l.json",
+                out_dir=self.root / "out",
+                git_root=self.root,
+                scored=False,
+                hierarchy=hierarchy,
+                hierarchy_loader=hierarchy_loader or (lambda question: self.contract),
+                authorization_checker=lambda auth, question: None,
+                git_state_fn=lambda r: {"sha": "x", "branch": "b", "dirty_paths": []},
+                verify_library=lambda db, frozen: {"sha256": "same"},
+                verify_contracts=lambda: None,
+                runtime_factory=self._build,
+                client_factory=lambda url: self.shared,
+                managed_chat=lambda config: self.shared,
+                **kwargs,
+            )
+
+    def test_run_topology_sources_the_real_frozen_contract_and_the_real_parent_map(self):
+        self.go()
+        self.assertEqual(self.captured["sufficiency_contract"], sufficiency_freeze.load_verified())
+        self.assertEqual(self.captured["sufficiency_parent_of"], hc.parent_of(self.contract))
+
+    def test_model_client_and_nomination_context_are_never_passed_by_run_topology(self):
+        """Phase 20a's own hard boundary (section E): execute() must receive model_client=None,
+        nomination_context=None EXACTLY -- proven here as "run_topology never supplies either
+        kwarg at all", which binds to execute()'s own None defaults identically to passing None
+        explicitly, without this phase inventing a reason to pass them explicitly."""
+        self.go()
+        self.assertNotIn("model_client", self.captured)
+        self.assertNotIn("nomination_context", self.captured)
+
+    def test_a_non_hierarchical_run_never_sources_a_sufficiency_contract(self):
+        loader = MagicMock()
+        self.go(question="lld", hierarchy=False, hierarchy_loader=None, sufficiency_loader=loader)
+        loader.assert_not_called()
+        self.assertIsNone(self.captured["sufficiency_contract"])
+        self.assertIsNone(self.captured["sufficiency_parent_of"])
+
+    def test_an_injected_sufficiency_loader_overrides_the_default_and_receives_the_loaded_contract(self):
+        sentinel_children, sentinel_parents = {"c1": {"child_id": "c1", "requirements": []}}, {"c1": "R"}
+        loader = MagicMock(return_value=(sentinel_children, sentinel_parents))
+        self.go(sufficiency_loader=loader)
+        loader.assert_called_once_with(self.contract)
+        self.assertEqual(self.captured["sufficiency_contract"], sentinel_children)
+        self.assertEqual(self.captured["sufficiency_parent_of"], sentinel_parents)
+
+    def test_the_manifest_records_a_thin_sufficiency_presence_summary(self):
+        manifest = self.go()
+        self.assertEqual(
+            manifest["sufficiency"],
+            {"contract_supplied": True, "mapped_children": sorted(sufficiency_freeze.load_verified())},
+        )
+
+    def test_an_unverifiable_frozen_artifact_fails_the_run_loudly_not_silently(self):
+        """A tampered/unreviewed-but-PRESENT frozen artifact must never be silently treated as
+        absent -- that is the one distinction `sufficiency_freeze.load_verified` exists to draw
+        (section C: the frozen contract is authoritative, never quietly bypassed)."""
+
+        def rejecting(contract):
+            raise sufficiency_freeze.SufficiencyContractRejected(["synthetic: tampered for this test"])
+
+        with self.assertRaises(sufficiency_freeze.SufficiencyContractRejected):
+            self.go(sufficiency_loader=rejecting)
+        self.assertEqual(self.captured, {})  # execute() itself must never have been reached
 
 
 class CommandLineTests(unittest.TestCase):

@@ -97,6 +97,21 @@ class RealHierarchyTests(unittest.TestCase):
         self.assertEqual([b["id"] for b in self.h["background"]], ["S1"])
         self.assertNotIn("S1", self.child)
 
+    def test_parent_of_reads_exactly_each_childs_own_parent_field(self):
+        """Phase 20a: `parent_of` must be a pure, structural projection of the already-loaded
+        contract -- never a second, independently-maintained copy of the topology."""
+        parent_of = hc.parent_of(self.contract)
+        self.assertEqual(set(parent_of), set(IDS))
+        for cid in IDS:
+            self.assertEqual(parent_of[cid], self.child[cid]["parent"])
+        # At least one real, non-root parent relationship exists in this fixture -- proves the
+        # function isn't vacuously returning "R" for everything.
+        self.assertTrue(any(parent != "R" for parent in parent_of.values()))
+
+    def test_parent_of_rejects_a_non_hierarchy_contract_exactly_like_assert_executable(self):
+        with self.assertRaises(hc.HierarchyRejected):
+            hc.parent_of({"version": "not-the-hierarchy-version"})
+
     def test_approved_wordings_equal_the_approval_hashes_and_keep_their_provenance(self):
         approvals = {
             a["child_id"]: a for a in json.loads(hc.DEFAULT_PATHS["approvals"].read_text(encoding="utf-8"))["approvals"]

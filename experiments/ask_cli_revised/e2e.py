@@ -40,6 +40,7 @@ from experiments.ask_cli_revised import (
     retrieval,
     stages,
     sufficiency_diagnostic,
+    sufficiency_freeze,
     sufficiency_recovery_targets,
 )
 from experiments.ask_cli_revised import topology as topo
@@ -726,6 +727,27 @@ def _versions(clients: dict) -> dict:
     return versions
 
 
+def _default_sufficiency_loader(contract: dict) -> tuple[dict | None, dict | None]:
+    """Phase 20a's default ``sufficiency_loader``: sources the frozen, human-reviewed sufficiency
+    contract (``sufficiency_freeze.load_verified``) and derives its parent map structurally from
+    this exact hierarchy contract's own ``child["parent"]`` field (``hierarchy_contract.
+    parent_of``) -- one source of truth for each, never a second, independently-maintained copy.
+
+    Returns ``(None, None)`` when no sufficiency contract has been authored/frozen for this
+    question at all (today, every question except q_aib) -- a benign absence, not an error:
+    ``execute()`` already treats ``sufficiency_contract=None`` as "deterministic sufficiency
+    mapping is simply not run for this question", exactly as before Phase 20a existed. An
+    existing-but-unverifiable frozen artifact (a tampered hash, a missing/mismatched review) is
+    NOT swallowed here -- ``sufficiency_freeze.load_verified`` raises
+    ``SufficiencyContractRejected``, which propagates and fails the run loudly, the same
+    fail-closed posture every other contract/pin/authorization check in this module already has.
+    """
+    contract_by_child = sufficiency_freeze.load_verified()
+    if contract_by_child is None:
+        return None, None
+    return contract_by_child, hierarchy_contract.parent_of(contract)
+
+
 def run_topology(
     profile_name: str,
     question_key: str,
@@ -741,6 +763,7 @@ def run_topology(
     experiment_authorization=None,
     hierarchy_loader=None,
     authorization_checker=None,
+    sufficiency_loader=_default_sufficiency_loader,
     git_state_fn=provenance.git_state,
     verify_library=library_copy.verify,
     verify_contracts=e2e_contracts.verify_frozen,
@@ -772,6 +795,16 @@ def run_topology(
     library_before = verify_library(db_path, library_frozen)
 
     contract = hier_contract if hierarchy else build_request_contract(question)
+    # Phase 20a: the deterministic sufficiency-mapping block inside execute() has existed since an
+    # earlier phase but was never reachable from this real topology path -- sufficiency_contract/
+    # sufficiency_parent_of simply weren't sourced or threaded through. Sourced ONLY for a
+    # hierarchical run (sufficiency is a hierarchy-specific concept today, exactly like `contract`
+    # itself); a non-hierarchical run's behavior is completely unchanged (both stay None, same as
+    # before this phase). No model_client/nomination_context is constructed anywhere here or
+    # passed to execute() -- that is Phase 20b, deliberately not this one.
+    sufficiency_contract = sufficiency_parent_of = None
+    if hierarchy:
+        sufficiency_contract, sufficiency_parent_of = sufficiency_loader(contract)
     trace = TraceWriter(out_dir)
     trace.write_json(
         "00_question.json", {"question_key": effective_key, "question": question, "hash": contract["question_hash"]}
@@ -814,6 +847,7 @@ def run_topology(
                     smoke_limits=smoke_limits, seed_pass=seed_pass,
                     # the local NLI scorer the run already uses for claim verification; screens the overview's statements
                     entail=rt.verifier.support_scorer.support_and_contradiction_many if profile.S.kind != "off" else None,
+                    sufficiency_contract=sufficiency_contract, sufficiency_parent_of=sufficiency_parent_of,
                 )  # fmt: skip
         except Exception as exc:
             trace.write_json("RUN_FAILED.json", {"error_type": type(exc).__name__, "message": str(exc)[:500]})
@@ -879,6 +913,14 @@ def run_topology(
     if hierarchy:
         manifest["request_kind"] = contract["version"]
         manifest["hierarchy"] = hierarchy_contract.manifest_record(contract)
+        # Phase 20a: a thin presence/coverage summary only -- the full map is already the separate
+        # "17_sufficiency_map.initial.json"/"17_sufficiency_map.json" trace artifacts execute()
+        # itself writes (unchanged by this phase); duplicating the whole map into the manifest too
+        # would be unrelated scope this phase doesn't need.
+        manifest["sufficiency"] = {
+            "contract_supplied": sufficiency_contract is not None,
+            "mapped_children": sorted(result["sufficiency_map_initial"] or {}),
+        }
     if result.get("overview") is not None:
         manifest["overview"] = overview.manifest_record(result["overview"])
     trace.write_json("15_run_manifest.json", manifest)

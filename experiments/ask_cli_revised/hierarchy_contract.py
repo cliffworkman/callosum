@@ -288,6 +288,19 @@ def _hierarchy(contract) -> dict:
     return hier
 
 
+def parent_of(contract: dict) -> dict[str, str]:
+    """``{child_id: parent_child_id}`` (a root child's own value is the literal ``"R"``), read
+    directly from this approved contract's own ``child["parent"]`` field -- the one source of
+    truth a sufficiency-mapping caller's own ``parent_of`` parameter is documented to come from
+    (see ``sufficiency_diagnostic.compute_diagnostic_sufficiency_map``'s docstring: "read from the
+    SAME approved hierarchy contract's own child['parent'] field -- never invented here"). Never
+    re-derived from requirement-id text or a second, independently-maintained topology map --
+    `assert_executable` already treats this same field as the parent relationship's sole source of
+    truth (it cross-checks every non-root `parent` resolves to a real child id)."""
+    hier = _hierarchy(contract)
+    return {c["child_id"]: c["parent"] for c in hier["children"]}
+
+
 # ---- reading the four inputs ----------------------------------------------------------------------------------------
 
 
@@ -957,6 +970,8 @@ HUMAN_REVIEW_STATEMENT = (
 )
 SUPERSEDED_NOTE = "brain networks: an optional, researcher-selected future scope expansion (D10); not asked by this run"
 ITEM_DISCLAIMER = "A judged-responsive claim addresses this item as a whole; fulfilment of the individual obligations it owns is not assessed by this run."
+
+
 def build_child_sealed_ledger(sealed: dict, child_id: str) -> dict:
     """Stage B (child Overview, 2026-09-29 authorization): a per-child sealed ledger, filtered from a
     hierarchical run's own full sealed ledger, ready for exactly one `overview.build_overview()` call.
