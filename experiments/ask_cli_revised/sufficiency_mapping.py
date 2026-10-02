@@ -659,44 +659,67 @@ def map_any_requirement(
     return map_requirement(requirement, candidate_units, model_client=model_client)
 
 
-def map_direction(requirement: dict, grounding_units: list[dict]) -> dict | None:
-    """Populates `direction` (only when the contract declares one) from the SAME units that
-    grounded a complete instance -- never a substitute for role completion, and never inferred
-    from `causal_cues`/`correlational` (a correlational finding can report a perfectly clear
-    direction with zero causal language)."""
+def find_direction_observations(requirement: dict, grounding_units: list[dict]) -> list[dict]:
+    """ALL grounded direction observations from `grounding_units` (Phase 18 -- replaces the former
+    `map_direction`, which returned only the first whole-child-pool match; that first-match-wins
+    shape was the actual bug this phase exists to fix, so it is not preserved even as a wrapper).
+    One observation per matching PHYSICAL unit, never per proposition-id alias: several admissible
+    proposition ids pointing at the same deduplicated passage must not manufacture fake
+    corroboration -- the lexicographically-smallest remaining proposition id on the unit is used
+    as each observation's deterministic representative. `grounding_units` must already be scoped
+    to exactly the evidence admissible for whatever instance/relationship is being annotated (see
+    `sufficiency_engine.relationship_witness_support_ids` and `sufficiency_diagnostic.
+    compute_direction_and_effectiveness`'s instance-scoped unit construction) -- this function
+    performs no instance scoping of its own, and never stops at the first match. Never a
+    substitute for role completion, and never inferred from `causal_cues`/`correlational` (a
+    correlational finding can report a perfectly clear direction with zero causal language)."""
     if requirement.get("direction") is None:
-        return None
+        return []
+    observations = []
     for unit in grounding_units:
         word = _match_direction_word(unit["passage"])
         if word is None:
             continue
-        proposition_id = unit["proposition_ids"][0] if unit.get("proposition_ids") else None
-        return se.new_direction_assessment(
-            reported=True,
-            sign=_direction_sign(word),
-            required_sign=requirement["direction"].get("required_sign"),
-            causal_language_present=bool(unit.get("flags", {}).get("causal_cues")),
-            proposition_id=proposition_id,
-            exact_text=word,
+        proposition_ids = unit.get("proposition_ids") or []
+        proposition_id = min(proposition_ids) if proposition_ids else None
+        observations.append(
+            se.new_direction_assessment(
+                reported=True,
+                sign=_direction_sign(word),
+                required_sign=requirement["direction"].get("required_sign"),
+                causal_language_present=bool(unit.get("flags", {}).get("causal_cues")),
+                proposition_id=proposition_id,
+                exact_text=word,
+            )
         )
-    return se.new_direction_assessment(required_sign=requirement["direction"].get("required_sign"))
+    return observations
 
 
-def map_effectiveness(requirement: dict, grounding_units: list[dict]) -> dict | None:
-    """Populates `effectiveness` (only when declared): `outcome_reported` is TRUE even for a
-    definitive null/failed result -- only genuinely speculative/attempt-only language (guarded
-    by the `observed_effect_or_outcome`-shaped role's own `disqualifying_guards`, typically
-    `hedged` but never `absence_statement`) leaves it False. `conclusion` is populated only once
-    an outcome is reported, and is never inferred from a numeric sign."""
+def find_effectiveness_observations(requirement: dict, grounding_units: list[dict]) -> list[dict]:
+    """ALL grounded effectiveness observations (Phase 18 -- replaces the former
+    `map_effectiveness`'s first-match-wins shape; see `find_direction_observations`'s docstring for
+    the shared one-observation-per-physical-unit / instance-scoping contract this function follows
+    identically). `outcome_reported` is TRUE even for a definitive null/failed result -- only
+    genuinely speculative/attempt-only language (guarded by the `observed_effect_or_outcome`-shaped
+    role's own `disqualifying_guards`, typically `hedged` but never `absence_statement`) leaves it
+    False. `conclusion` is populated only once an outcome is reported, and is never inferred from a
+    numeric sign."""
     if requirement.get("effectiveness") is None:
-        return None
+        return []
+    observations = []
     for unit in grounding_units:
         if not attr.has_result_predicate(unit["passage"]):
             continue
-        proposition_id = unit["proposition_ids"][0] if unit.get("proposition_ids") else None
+        proposition_ids = unit.get("proposition_ids") or []
+        proposition_id = min(proposition_ids) if proposition_ids else None
         negated = bool(unit.get("flags", {}).get("negated")) or bool(unit.get("flags", {}).get("absence_statement"))
         conclusion = "not_supported" if negated else "supported"
-        return se.new_effectiveness_assessment(
-            outcome_reported=True, conclusion=conclusion, proposition_id=proposition_id, exact_text=unit["passage"]
+        observations.append(
+            se.new_effectiveness_assessment(
+                outcome_reported=True,
+                conclusion=conclusion,
+                proposition_id=proposition_id,
+                exact_text=unit["passage"],
+            )
         )
-    return se.new_effectiveness_assessment()
+    return observations

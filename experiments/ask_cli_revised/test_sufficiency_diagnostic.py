@@ -264,18 +264,26 @@ class StampModelDependencyOriginsTests(unittest.TestCase):
 
 
 class DirectionAndEffectivenessPassTests(unittest.TestCase):
-    def test_populates_direction_in_place_only_when_declared(self):
+    def test_computes_direction_summary_only_when_declared_leaves_authored_template_untouched(self):
+        """Phase 18: the authored `direction`/`effectiveness` declaration/template on the
+        requirement is a fixed intent marker, never mutated into a found value anymore (directive
+        J) -- the actual per-run result lives on instances and the derived `direction_summary`/
+        `effectiveness_summary`. This replaces the pre-Phase-18 assertion that `req["direction"]`
+        itself got mutated in place, which is exactly the behavior this phase retires."""
         specs = {"a": se.new_role_spec("a", "a", "model_nomination_only")}
         completion = se.new_role_completion(required_roles=["a"])
         req_with = se.new_requirement(
             "d#req", "relational", specs, completion, "exists", direction=se.new_direction_assessment()
         )
         req_without = se.new_requirement("nd#req", "atomic", specs, completion, "exists")
+        template_before = dict(req_with["direction"])
         contracts = {"d": se.new_contract("d", [req_with]), "nd": se.new_contract("nd", [req_without])}
         sealed = _sealed([_prop("p1", 1, "This shows a positive association overall.", ["d", "nd"])])
         sd.compute_direction_and_effectiveness(sealed, contracts)
-        self.assertTrue(contracts["d"]["requirements"][0]["direction"]["reported"])
+        self.assertEqual(contracts["d"]["requirements"][0]["direction"], template_before)
+        self.assertIn("direction_summary", contracts["d"]["requirements"][0])
         self.assertIsNone(contracts["nd"]["requirements"][0]["effectiveness"])
+        self.assertIsNone(contracts["nd"]["requirements"][0]["effectiveness_summary"])
 
 
 if __name__ == "__main__":

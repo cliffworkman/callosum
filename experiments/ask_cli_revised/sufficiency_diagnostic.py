@@ -180,20 +180,71 @@ def _stamp_model_dependency_origins(requirement: dict, child_id: str) -> dict:
     return {**requirement, "instances": new_instances}
 
 
+def _instance_scoped_units(units_for_child: list[dict], unit_by_proposition: dict, witness_ids: set) -> list[dict]:
+    """One shallow copy per UNIQUE physical unit touched by `witness_ids`, with `proposition_ids`
+    narrowed to exactly the witness ids that unit actually contains (Phase 18) -- the unit's own
+    `passage`/physical evidence fields pass through unchanged. A unit with no admissible overlap is
+    dropped entirely, never included with an empty id list (never "include the whole unit because
+    SOME id in it was admissible" -- a deduplicated unit can carry proposition ids that are NOT
+    admissible for this instance, and those must not be allowed to supply this instance's own
+    `proposition_id` provenance). Deterministically ordered by `unit_id` so the returned list --
+    and every downstream observation set -- is order-invariant regardless of `witness_ids`' own
+    iteration order or the per-child pool's own build order."""
+    admissible_by_unit_id: dict[str, set] = {}
+    unit_by_unit_id: dict[str, dict] = {}
+    for pid in witness_ids:
+        unit = unit_by_proposition.get(pid)
+        if unit is None:
+            continue
+        admissible_by_unit_id.setdefault(unit["unit_id"], set()).add(pid)
+        unit_by_unit_id[unit["unit_id"]] = unit
+    scoped = [{**unit_by_unit_id[uid], "proposition_ids": sorted(ids)} for uid, ids in admissible_by_unit_id.items()]
+    scoped.sort(key=lambda u: u["unit_id"])
+    return scoped
+
+
 def compute_direction_and_effectiveness(sealed: dict, mapped_contract_by_child: dict) -> None:
-    """Populates `direction`/`effectiveness` on every already-mapped requirement that declares
-    one, scanning the same per-child candidate units. Mutates the requirement dicts IN PLACE
-    (they are freshly built by `compute_diagnostic_sufficiency_map`, never the frozen contract
-    Layer B authored) -- kept as a separate pass so the base role-completion mapping above stays
-    simple and testable on its own."""
+    """Populates INSTANCE-level `direction_observations`/`effectiveness_observations` (Phase 18)
+    on every instance of an already-mapped requirement that declares a `direction`/`effectiveness`
+    template -- replaced from scratch every call, never append-accumulated (idempotent) -- using
+    ONLY evidence that actually witnesses THAT instance's own jointly-grounded relationship
+    (`sufficiency_engine.relationship_witness_support_ids`), never the whole child's undifferentiated
+    pool (the Phase 17/18 defect: a requirement-level first-match scan could be hijacked by
+    unrelated same-child evidence, or silently reflect whichever of a multi-instance requirement's
+    instances happened to sit earliest in ledger order). Computed for EVERY instance regardless of
+    completeness -- diagnostic metadata on a partial instance is still useful and visible -- but the
+    derived `direction_summary`/`effectiveness_summary` requirement-level VIEW
+    (`sufficiency_engine.summarize_observations`) is computed from COMPLETE instances only. The
+    authored `direction`/`effectiveness` declaration/template on the requirement itself is NEVER
+    touched here -- it stays exactly whatever `sufficiency_authoring`/`sufficiency_engine.
+    new_requirement` set it to; the summary is a strictly separate, runtime-only key. Mutates the
+    requirement/instance dicts IN PLACE (they are freshly built by `compute_diagnostic_sufficiency_
+    map`, never the frozen contract Layer B authored) -- kept as a separate pass so the base
+    role-completion mapping above stays simple and testable on its own."""
     by_child = units_by_child(sealed)
     for child_id, contract in mapped_contract_by_child.items():
-        candidate_units = by_child.get(child_id, [])
+        units_for_child = by_child.get(child_id, [])
+        unit_by_proposition = {pid: unit for unit in units_for_child for pid in unit["proposition_ids"]}
         for req in contract["requirements"]:
-            if req.get("direction") is not None:
-                req["direction"] = sm.map_direction(req, candidate_units)
-            if req.get("effectiveness") is not None:
-                req["effectiveness"] = sm.map_effectiveness(req, candidate_units)
+            has_direction = req.get("direction") is not None
+            has_effectiveness = req.get("effectiveness") is not None
+            if not has_direction and not has_effectiveness:
+                continue
+            for instance in req["instances"]:
+                witness_ids = se.relationship_witness_support_ids(
+                    req["role_completion"], instance["role_bindings"], req["relationship_verifiers"]
+                )
+                instance_units = _instance_scoped_units(units_for_child, unit_by_proposition, witness_ids)
+                if has_direction:
+                    instance["direction_observations"] = sm.find_direction_observations(req, instance_units)
+                if has_effectiveness:
+                    instance["effectiveness_observations"] = sm.find_effectiveness_observations(req, instance_units)
+            if has_direction:
+                req["direction_summary"] = se.summarize_observations(req["instances"], "direction_observations", "sign")
+            if has_effectiveness:
+                req["effectiveness_summary"] = se.summarize_observations(
+                    req["instances"], "effectiveness_observations", "conclusion"
+                )
 
 
 # `compute_recovery_candidates` (the child-level `{child_id: [requirement_id, ...]}` boolean

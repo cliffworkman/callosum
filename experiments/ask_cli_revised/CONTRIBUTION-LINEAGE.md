@@ -781,6 +781,8 @@ detail in `PHASE17_C2_SEALING_STABILITY_RESULTS.md`.
 | 2026-10-01 | Evidence | Phase 17 C2 sealing audit |
 | 2026-10-01 | Design direction | Cliff Workman + ChatGPT |
 | 2026-10-01 | Audit / design | Claude |
+| 2026-10-02 | Implementation direction / refinement | Cliff Workman |
+| 2026-10-02 | Implementation, verification | Claude |
 
 **Evidence (Phase 17 C2 sealing audit).** After proposition-level sealing was stabilized, a
 distinct derived-unit defect remained: newly appended evidence can alter unit membership/pool
@@ -810,3 +812,38 @@ contract needs no change (the frozen and per-run contract objects are already ca
 separate and never hashed together). No engine code was changed, no live model call was made, no
 retrieval ran, no recovery executed, no contract or pin change. Full detail in
 `PHASE18_DIRECTION_EFFECTIVENESS_SEMANTICS_RESULTS.md`.
+
+**Implementation direction / refinement (Cliff Workman).** Accepted the instance-grounded,
+multi-observation architecture OTR and made two corrections to the audit's own draft authoritative
+before implementation: (1) the instance evidence-support set must be the actual joint-grounding
+WITNESS (the shared proposition `same_proposition` itself establishes) when 2+ own-evidence roles
+require joint grounding, never a naive union of each role's independent support, since a proposition
+supporting only one ingredient role must not be allowed to annotate the relationship it doesn't
+itself establish; (2) within-instance conflict and across-instance heterogeneity must stay fully
+orthogonal facts in the requirement-level summary, never collapsed into one "heterogeneous" fallback
+enum whenever an instance happens to be internally conflicted.
+
+**Implementation, verification (Claude).** Implemented both refinements exactly as specified:
+`sufficiency_engine.relationship_witness_support_ids` (new) computes the shared-proposition
+intersection for 2+ own-evidence roles rather than their union, verified empirically (not assumed)
+that the current pipeline can never reach the ambiguous non-proposition-witness case (no call site
+anywhere constructs a `context["attachment_pieces"]`), and `summarize_observations` (new) exposes
+`has_within_instance_conflict`/`has_across_instance_heterogeneity` as independent booleans with a
+`consensus_value` that is null whenever either is true. `map_direction`/`map_effectiveness`'s
+first-match-wins shape -- the actual bug this phase exists to fix -- was deleted outright rather than
+kept as a compatibility wrapper, replaced by `find_direction_observations`/
+`find_effectiveness_observations` (all admissible matches, one per physical evidence unit, never per
+proposition-id alias). The authored `direction`/`effectiveness` template is never mutated again; the
+real per-run result lives on each instance and a derived, runtime-only `direction_summary`/
+`effectiveness_summary`. TDD throughout: the 33-test behavior suite
+(`test_sufficiency_direction_effectiveness.py`) was written and watched fail for the right reason
+before any production code changed; 5 existing tests whose assertions depended on the exact
+first-match/in-place-mutation behavior this phase retires were then updated with documented
+rationale (the Phase-17 precedent), not silently left stale. `recompute_instance`'s own pre-existing
+own-evidence-role filter was extracted into a shared, reusable helper with proven zero behavior
+change. Full regression: 2178 passed, 11 skipped, 2 failed (the identical pre-existing pin-drift
+pair Phase 17 already documented, confirmed unrelated by direct inspection of exactly which files
+that hash covers -- none touched by this phase). v9 `combined_hash` confirmed unchanged:
+`9c72dc6a0180e95c55e68a009c366843b671684c19c6ae84ed254f3865305586`. No live model call, no
+retrieval, no recovery execution, no contract or pin change, no production integration. Full detail
+in `PHASE18_DIRECTION_EFFECTIVENESS_IMPLEMENTATION_RESULTS.md`.

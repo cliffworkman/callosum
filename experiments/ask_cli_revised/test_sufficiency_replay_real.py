@@ -123,17 +123,18 @@ class ElevenChildReplayTests(unittest.TestCase):
                             self.assertFalse(instance["complete"], f"{child_id}/{req['id']}/{instance['instance_key']}")
 
     def test_direction_is_never_confused_with_causal_language(self):
+        """Phase 18: the authored `req["direction"]` template is never mutated anymore (it stays
+        the fixed intent marker `sufficiency_authoring` set) -- the real, per-run found values now
+        live on each instance's own `direction_observations`. Updated to read from there rather
+        than the now-static template, which would otherwise make this assertion vacuous."""
         for child_id in ("c5", "c6"):
             for req in self.mapped[child_id]["requirements"]:
-                direction = req.get("direction")
-                if direction is None:
+                if req.get("direction") is None:
                     continue
-                if direction["reported"] is False:
-                    self.assertEqual(
-                        req.get("reason") in (None,) or True, True
-                    )  # reachable; no crash on the honest path
-                # causal_language_present is an independent fact either way
-                self.assertIsInstance(direction["causal_language_present"], bool)
+                for instance in req["instances"]:
+                    for obs in instance["direction_observations"]:
+                        # causal_language_present is an independent fact either way
+                        self.assertIsInstance(obs["causal_language_present"], bool)
 
     def test_c1_and_c2_carry_no_direction_field_at_all(self):
         for child_id in ("c1", "c2"):
@@ -173,10 +174,18 @@ class ElevenChildReplayTests(unittest.TestCase):
                             self.assertTrue(expected_keys.issubset(binding["guard"].keys()) or binding["guard"] == {})
 
     def test_c12_effectiveness_never_a_signed_direction(self):
+        """Phase 18: `req["effectiveness"]` is the never-mutated authored template; the real
+        per-instance/per-run conclusions now live on `instances[*]["effectiveness_observations"]`
+        and the derived `effectiveness_summary"]["observed_values"]`."""
         req = self.mapped["c12"]["requirements"][0]
         self.assertIsNone(req["direction"])
-        self.assertIsNotNone(req["effectiveness"])
-        self.assertIn(req["effectiveness"]["conclusion"], (None, "supported", "not_supported", "mixed"))
+        self.assertIsNotNone(req["effectiveness"])  # the authored template marker remains present
+        self.assertIn("effectiveness_summary", req)
+        for instance in req["instances"]:
+            for obs in instance["effectiveness_observations"]:
+                self.assertIn(obs["conclusion"], (None, "supported", "not_supported", "mixed"))
+        for value in req["effectiveness_summary"]["observed_values"]:
+            self.assertIn(value, ("supported", "not_supported", "mixed"))
 
     def test_c1_vs_c4_do_not_force_duplicate_specificity(self):
         c1_req = self.mapped["c1"]["requirements"][0]
@@ -227,9 +236,15 @@ class PrintedElevenChildReportTests(unittest.TestCase):
                         f"    - {instance['instance_key']!r}: complete={instance['complete']} roles={roles} reason={instance['reason']}"
                     )
                 if req.get("direction") is not None:
-                    print(f"    direction: {req['direction']}")
+                    print(f"    direction_summary: {req['direction_summary']}")
+                    for instance in req["instances"]:
+                        if instance["direction_observations"]:
+                            print(f"      {instance['instance_key']!r}: {instance['direction_observations']}")
                 if req.get("effectiveness") is not None:
-                    print(f"    effectiveness: {req['effectiveness']}")
+                    print(f"    effectiveness_summary: {req['effectiveness_summary']}")
+                    for instance in req["instances"]:
+                        if instance["effectiveness_observations"]:
+                            print(f"      {instance['instance_key']!r}: {instance['effectiveness_observations']}")
         print("\n--- would-trigger-recovery-if-enabled (structured RecoveryTargets) ---")
         for target in recovery.values():
             print(

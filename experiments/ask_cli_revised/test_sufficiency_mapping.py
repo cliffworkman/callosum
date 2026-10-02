@@ -362,42 +362,50 @@ class MapAnyRequirementDispatchTests(unittest.TestCase):
 
 
 class DirectionAndEffectivenessMappingTests(unittest.TestCase):
-    def test_map_direction_returns_none_when_not_declared(self):
+    """Phase 18 deliberately renamed/reshaped `map_direction`/`map_effectiveness` (a single
+    first-whole-child-pool-match scalar -- the actual bug this phase exists to fix) into
+    `find_direction_observations`/`find_effectiveness_observations` (ALL matches from an
+    already-instance-scoped unit list, as a list). These tests are updated to the new plural
+    contract with the same underlying scenarios, not silently left pointing at a deleted function
+    (the Phase-17 precedent for a deliberately-updated test)."""
+
+    def test_find_direction_observations_returns_empty_list_when_not_declared(self):
         specs = {"a": se.new_role_spec("a", "a", "model_nomination_only")}
         completion = se.new_role_completion(required_roles=["a"])
         req = se.new_requirement("d#req", "relational", specs, completion, "exists")
-        self.assertIsNone(sm.map_direction(req, []))
+        self.assertEqual(sm.find_direction_observations(req, []), [])
 
-    def test_map_direction_honest_when_relationship_established_but_no_sign_reported(self):
+    def test_find_direction_observations_honest_when_relationship_established_but_no_sign_reported(self):
         specs = {"a": se.new_role_spec("a", "a", "model_nomination_only")}
         completion = se.new_role_completion(required_roles=["a"])
         req = se.new_requirement(
             "d#req", "relational", specs, completion, "exists", direction=se.new_direction_assessment()
         )
         units = [_unit("U1", 1, "A relationship was observed between the two measures.")]
-        result = sm.map_direction(req, units)
-        self.assertFalse(result["reported"])
+        result = sm.find_direction_observations(req, units)
+        self.assertEqual(result, [])  # no direction-stem word present -- never a fabricated observation
 
-    def test_map_effectiveness_null_result_is_reported_and_not_supported(self):
+    def test_find_effectiveness_observations_null_result_is_reported_and_not_supported(self):
         specs = {"a": se.new_role_spec("a", "a", "model_nomination_only")}
         completion = se.new_role_completion(required_roles=["a"])
         req = se.new_requirement(
             "e#req", "relational", specs, completion, "exists", effectiveness=se.new_effectiveness_assessment()
         )
         units = [_unit("U1", 1, "No significant effect on bias scores was observed for this intervention.")]
-        result = sm.map_effectiveness(req, units)
-        self.assertTrue(result["outcome_reported"])
-        self.assertEqual(result["conclusion"], "not_supported")
+        result = sm.find_effectiveness_observations(req, units)
+        self.assertEqual(len(result), 1)
+        self.assertTrue(result[0]["outcome_reported"])
+        self.assertEqual(result[0]["conclusion"], "not_supported")
 
-    def test_map_effectiveness_attempt_only_language_leaves_outcome_unreported(self):
+    def test_find_effectiveness_observations_attempt_only_language_leaves_outcome_unreported(self):
         specs = {"a": se.new_role_spec("a", "a", "model_nomination_only")}
         completion = se.new_role_completion(required_roles=["a"])
         req = se.new_requirement(
             "e#req", "relational", specs, completion, "exists", effectiveness=se.new_effectiveness_assessment()
         )
         units = [_unit("U1", 1, "This intervention might potentially help reduce the bias in future work.")]
-        result = sm.map_effectiveness(req, units)
-        self.assertFalse(result["outcome_reported"])
+        result = sm.find_effectiveness_observations(req, units)
+        self.assertEqual(result, [])  # no result predicate matched -- never a fabricated observation
 
 
 class _FakeModelClient:

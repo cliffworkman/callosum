@@ -198,6 +198,13 @@ def new_instance(instance_key: str | None = None) -> dict:
         "complete": False,
         "state": "missing",
         "reason": None,
+        # Phase 18: instance-grounded, multi-observation direction/effectiveness (replaced from
+        # scratch by `sufficiency_diagnostic.compute_direction_and_effectiveness`, never appended
+        # to). Always present, even on a requirement that never declares either field -- they just
+        # stay empty forever for such a requirement, matching the uniform-default-shape house style
+        # (`role_bindings`/`complete` are unconditionally present too).
+        "direction_observations": [],
+        "effectiveness_observations": [],
     }
 
 
@@ -244,6 +251,12 @@ def new_requirement(
         "parent_context_roles": list(parent_context_roles),
         "direction": direction,
         "effectiveness": effectiveness,
+        # Phase 18: runtime-only DERIVED views over instance-level observations (never a second
+        # source of truth, never mutated into the authored `direction`/`effectiveness` template
+        # above -- see `sufficiency_engine.summarize_observations` /
+        # `sufficiency_diagnostic.compute_direction_and_effectiveness`).
+        "direction_summary": None,
+        "effectiveness_summary": None,
         "empty_result_semantically_allowed": bool(empty_result_semantically_allowed),
         "source_wording_span": source_wording_span,
         "state": "missing",
@@ -259,7 +272,7 @@ def new_contract(child_id: str, requirements: list[dict]) -> dict:
 # Frozen contract vs. per-run search state (never mixed; never hashed together)
 # ---------------------------------------------------------------------------------------------
 
-_RUNTIME_ONLY_KEYS = frozenset({"instances", "state", "reason"})
+_RUNTIME_ONLY_KEYS = frozenset({"instances", "state", "reason", "direction_summary", "effectiveness_summary"})
 
 
 def frozen_view(contract: dict) -> dict:
@@ -425,6 +438,107 @@ def _joint_grounded(
     return False
 
 
+def own_evidence_roles(role_completion: dict, bindings: dict) -> list[str]:
+    """Every role (from `completion_roles`) whose binding is `filled` and NOT itself
+    `parent_context`-sourced -- the exact filter `recompute_instance` applies before its own
+    joint-grounding check, extracted here (Phase 18) so other consumers (`relationship_witness_
+    support_ids` below) reuse the identical semantics rather than re-deriving a second, driftable
+    copy. A pure function of `bindings`; does not depend on whether the instance is complete."""
+    roles_in_play = completion_roles(role_completion)
+    return [
+        r
+        for r in roles_in_play
+        if bindings.get(r, {}).get("state") == "filled"
+        and bindings[r].get("provenance", {}).get("candidate_source") != "parent_context"
+    ]
+
+
+def relationship_witness_support_ids(
+    role_completion: dict, bindings: dict, relationship_verifiers: list[str], *, context: dict | None = None
+) -> set[str]:
+    """The proposition ids that actually WITNESS this instance's own-evidence relationship, for
+    annotating direction/effectiveness (Phase 18) -- never a naive union of every own-evidence
+    role's own support. A parent-context binding never contributes: it supplies trusted background
+    identity (e.g. which brain region a relationship concerns), never evidence this child itself
+    retrieved for the relationship's own valence/outcome.
+
+    0 own-evidence roles: empty (nothing to annotate with).
+    Exactly 1: that role's own `_support_set` -- no joint-grounding question arises.
+    2+: completion already required them to be JOINTLY grounded (the same `_joint_grounded` check
+    `recompute_instance` runs) -- the witness is the proposition-level intersection
+    `_verify_same_proposition` itself computes, never the union of each role's independent support.
+    A proposition that merely supports ONE ingredient role, without being the shared proposition
+    that ties the relationship together, must not be allowed to supply the relationship's own
+    direction/effectiveness (the adversarial case: role A's support is {p1,p2}, role B's is
+    {p1,p3}; only p1 -- the shared witness -- is admissible; p2/p3 are not, even though each
+    independently supports one role). If 2+ own-evidence roles were jointly grounded through a
+    verifier that establishes no single shared proposition (`contract_directed_links`, link-based,
+    not proposition-based -- unreachable in the current pipeline since no real call site ever
+    supplies `context["attachment_pieces"]`, confirmed by direct grep), this returns empty rather
+    than guessing or falling back to union: there is no proposition-level witness to annotate
+    with."""
+    roles = own_evidence_roles(role_completion, bindings)
+    if not roles:
+        return set()
+    support_sets = [_support_set(bindings[r]) for r in roles]
+    if len(roles) == 1:
+        return support_sets[0]
+    if any(not s for s in support_sets):
+        return set()
+    return set.intersection(*support_sets)
+
+
+def _observation_sort_key(key):
+    # `instance_key` may be `None` (an unforked single instance) -- sort None after every real
+    # string key rather than raising `TypeError` on a mixed None/str comparison.
+    return (key is None, key)
+
+
+def summarize_observations(instances: list[dict], obs_key: str, value_key: str) -> dict:
+    """A DERIVED VIEW only (Phase 18) -- never a second source of truth -- over COMPLETE
+    instances' own `obs_key` observation lists (`"direction_observations"` /
+    `"effectiveness_observations"`), reading `value_key` (`"sign"` / `"conclusion"`) from each.
+    Within-instance conflict and across-instance heterogeneity are kept fully orthogonal facts,
+    never collapsed into one "heterogeneous" fallback enum: a single internally-conflicted
+    instance is NOT, by itself, across-instance heterogeneity, and both can co-occur. An
+    INCOMPLETE instance never contributes here (Phase 16's own established principle: a partially-
+    established candidate instance stays visible as diagnostic metadata without being promoted
+    into a trusted downstream semantic conclusion) -- its own `obs_key` list, if any, is computed
+    and stored on the instance regardless, just excluded from this summary."""
+    complete = [i for i in instances if i["complete"]]
+    complete_keys = sorted((i["instance_key"] for i in complete), key=_observation_sort_key)
+    with_obs: list = []
+    missing: list = []
+    conflicted: list = []
+    resolved_values: dict = {}
+    for inst in complete:
+        key = inst["instance_key"]
+        values = {o[value_key] for o in inst.get(obs_key, []) if o.get(value_key) is not None}
+        if not values:
+            missing.append(key)
+            continue
+        with_obs.append(key)
+        if len(values) == 1:
+            resolved_values[key] = next(iter(values))
+        else:
+            conflicted.append(key)
+    resolved = list(resolved_values.values())
+    observed_values = sorted(set(resolved))
+    has_conflict = bool(conflicted)
+    has_heterogeneity = len(set(resolved)) > 1
+    consensus_value = observed_values[0] if len(observed_values) == 1 and not has_conflict else None
+    return {
+        "observed_values": observed_values,
+        "consensus_value": consensus_value,
+        "has_within_instance_conflict": has_conflict,
+        "has_across_instance_heterogeneity": has_heterogeneity,
+        "complete_instance_keys": complete_keys,
+        "instance_keys_with_observations": sorted(with_obs, key=_observation_sort_key),
+        "instance_keys_missing_observations": sorted(missing, key=_observation_sort_key),
+        "conflicted_instance_keys": sorted(conflicted, key=_observation_sort_key),
+    }
+
+
 # ---------------------------------------------------------------------------------------------
 # State computation -- pure, dispatched by role_completion + instance_quantifier only
 # ---------------------------------------------------------------------------------------------
@@ -449,7 +563,6 @@ def recompute_instance(
 
     roles_in_play = completion_roles(role_completion)
     if complete:
-        filled_roles = [r for r in roles_in_play if filled(r)]
         # Parent-context roles are trusted as background context, not evidence this child itself
         # retrieved -- they can never by themselves complete an instance (a required/alternative
         # role check already enforces that), and they structurally cannot share a proposition
@@ -458,12 +571,8 @@ def recompute_instance(
         # own-evidence role paired with trusted parent context needs nothing further to link, but
         # two or more OWN roles must still be shown to co-occur in evidence that ties them
         # together -- never independently true from unrelated propositions.
-        own_evidence_roles = [
-            r for r in filled_roles if bindings[r].get("provenance", {}).get("candidate_source") != "parent_context"
-        ]
-        if len(own_evidence_roles) >= 2 and not _joint_grounded(
-            bindings, own_evidence_roles, relationship_verifiers, context=context
-        ):
+        own_roles = own_evidence_roles(role_completion, bindings)
+        if len(own_roles) >= 2 and not _joint_grounded(bindings, own_roles, relationship_verifiers, context=context):
             complete = False
 
     any_ambiguous = any(bindings.get(r, {}).get("state") == "ambiguous" for r in roles_in_play)
