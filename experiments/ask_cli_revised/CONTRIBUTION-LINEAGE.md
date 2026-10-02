@@ -1121,3 +1121,61 @@ this phase's entire working-tree diff and re-running both tests against it direc
 `9c72dc6a0180e95c55e68a009c366843b671684c19c6ae84ed254f3865305586`. No live model call anywhere in
 this phase; Phase 21's authorization remains unused and its status is unchanged -- not started, not
 failed. Full detail in `PHASE19B_MULTI_REQUEST_SCOPE_RESULTS.md`.
+
+---
+
+## Phase 21 (restart) — one bounded, production-shaped live initial model-assisted sufficiency validation (appended 2026-10-02; does not alter the rows above)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-10-02 | Evidence | Phase 19b (commit `23a7f164`), the repair this restart depended on |
+| 2026-10-02 | Design direction | Cliff Workman |
+| 2026-10-02 | Preflight, execution, adjudication | Claude |
+
+**Evidence (Phase 19b).** Repaired the real Phase-19 request-multiplicity gap the original Phase-21
+preflight discovered on real `c12`, making a full, non-excluded live validation possible for the
+first time.
+
+**Design direction (Cliff Workman).** Authorized the Phase-21 restart from a clean, full-contract
+state with the original one-run/no-retry rule intact: full q_aib only (no exclusions, c12 required),
+the real production-shaped path only (no parallel mapper), one mechanically-re-derived fresh-call cap
+computed before any live call (explicitly declining to reuse the stale Phase-19 declared-scope count
+of 15 now that Phase 19b's composite key makes it an incorrect upper bound), a mandatory offline
+re-verification of the Phase-20b U2 held-fixed rule under the corrected composite key before any
+network use, compute-but-never-execute RecoveryTargets, and strict separation of infrastructure
+correctness from scientific nomination quality in the adjudication.
+
+**Preflight, execution, adjudication (Claude).** Verified the Section-0 offline assertion both by
+direct code reading and by re-running the two already-committed Phase-19b tests covering exactly
+that case, rather than merely trusting the earlier hand-back's own prose summary of it. Mechanically
+re-derived the fresh-call cap in-process, immediately before authorization, by running the real
+unmodified `compute_diagnostic_sufficiency_map` with a counting-only fake client against the real
+contract and real preserved evidence (14 nonempty request keys, not 15) -- confirming live that
+Phase 19b's own documented reasoning (c12's real two-context split plus two fully-unreached declared
+scopes) nets to a *lower*, not higher, real call cost than the naive scope count implied. Found and
+fixed one real, non-consuming harness bug before any network touch: the dirty-tree preflight check
+didn't tolerate its own untracked existence, which the brief's own authoritative-state section
+explicitly named as expected -- fixed narrowly in the harness itself, confirmed non-consuming since
+the abort occurred before any client construction.
+
+Executed the one authorized live run: 14 physical nomination calls against `qwen3.5:9b` (think=False)
+on the real preserved q_aib evidence, 70.328s wall, zero mechanical failures; a held-fixed U2 replay
+immediately after made zero additional calls, replaying all 14 receipts correctly. Validated `c12`'s
+real two-request-context shape live for the first time -- `U1`/`U5` reached independently, zero
+cross-contamination, no `RequestFingerprintMismatch` -- confirming the exact bug Phase 19b fixed is
+fixed under real model output, not only under fakes. Traced the raw model trace against each
+receipt's post-grounding `accepted` list to confirm every dedup/collapse decision was correct (four
+concrete cases checked by hand against the raw JSON, including one case correctly refusing to merge
+identical text across two different physical anchors). Found parent-context propagation exercised
+live for the first time, confirmed `candidate_source`/`model_dependency_origins`/
+`upstream_model_dependent` all correct, and confirmed `compute_stop_search_certified` correctly
+withholds certification from every `filled` model-dependent requirement. Computed (never executed) 19
+RecoveryTargets, 5 of them `provisional_corroboration` with correctly-populated `dependency_origins`
+-- real Phase-22 empirical input. Performed scientific adjudication of all 11 accepted nominations
+separately from infrastructure correctness (6 correct, 3 ambiguous, 2 incorrect), surfacing two of
+the brief's own predicted historical failure modes on real live output for the first time (a vague
+existence-statement nominated as a named entity; same-anchor paraphrase duplication) plus one
+additional mild cross-role semantic stretch. Zero production code changed throughout (confirmed
+before and after the run: `git diff --stat HEAD -- '*.py'` excluding the harness itself stayed
+empty). Infrastructure verdict: PASS. Full detail in
+`PHASE21_LIVE_INITIAL_MODEL_ASSIST_VALIDATION_RESULTS.md`.

@@ -1,0 +1,225 @@
+{
+  "authorized_at": "2026-10-02T19:59:46.263241+00:00",
+  "authorized_by": "Cliff Workman",
+  "brief_confirmed": true,
+  "declared_semantic_scopes": [
+    [
+      "c1",
+      "c1#suff:neural-manifestation",
+      "neural_measure_or_modality"
+    ],
+    [
+      "c1",
+      "c1#suff:neural-manifestation",
+      "brain_region_or_network"
+    ],
+    [
+      "c10",
+      "c10#suff:culture-existence",
+      "named_culture_or_population"
+    ],
+    [
+      "c11",
+      "c11#suff:culture-operationalization-pairing",
+      "culture_or_population"
+    ],
+    [
+      "c11",
+      "c11#suff:culture-operationalization-pairing",
+      "operationalization_or_measure"
+    ],
+    [
+      "c12",
+      "c12#suff:intervention-effectiveness",
+      "intervention"
+    ],
+    [
+      "c12",
+      "c12#suff:intervention-effectiveness",
+      "target_manifestation"
+    ],
+    [
+      "c2",
+      "c2#suff:behavioral-manifestation",
+      "behavior_or_behavioral_measure"
+    ],
+    [
+      "c4",
+      "c4#suff:specific-region",
+      "named_brain_region_or_network"
+    ],
+    [
+      "c5",
+      "c5#suff:brain-behavior",
+      "named_brain_region_or_network"
+    ],
+    [
+      "c5",
+      "c5#suff:brain-behavior",
+      "behavior_or_behavioral_measure"
+    ],
+    [
+      "c6",
+      "c6#suff:brain-attitude",
+      "named_brain_region_or_network"
+    ],
+    [
+      "c6",
+      "c6#suff:brain-attitude",
+      "attitude_type_or_measure"
+    ],
+    [
+      "c8",
+      "c8#suff:trait-construct",
+      "individual_difference_trait_or_construct"
+    ],
+    [
+      "c9",
+      "c9#suff:trait-scale-pairing",
+      "individual_difference_trait_or_construct"
+    ]
+  ],
+  "declared_semantic_scopes_count": 15,
+  "derived_nonempty_request_keys": [
+    [
+      [
+        "c1",
+        "c1#suff:neural-manifestation",
+        "neural_measure_or_modality"
+      ],
+      null
+    ],
+    [
+      [
+        "c1",
+        "c1#suff:neural-manifestation",
+        "brain_region_or_network"
+      ],
+      null
+    ],
+    [
+      [
+        "c10",
+        "c10#suff:culture-existence",
+        "named_culture_or_population"
+      ],
+      null
+    ],
+    [
+      [
+        "c12",
+        "c12#suff:intervention-effectiveness",
+        "intervention"
+      ],
+      "U1"
+    ],
+    [
+      [
+        "c12",
+        "c12#suff:intervention-effectiveness",
+        "target_manifestation"
+      ],
+      "U1"
+    ],
+    [
+      [
+        "c12",
+        "c12#suff:intervention-effectiveness",
+        "intervention"
+      ],
+      "U5"
+    ],
+    [
+      [
+        "c12",
+        "c12#suff:intervention-effectiveness",
+        "target_manifestation"
+      ],
+      "U5"
+    ],
+    [
+      [
+        "c2",
+        "c2#suff:behavioral-manifestation",
+        "behavior_or_behavioral_measure"
+      ],
+      null
+    ],
+    [
+      [
+        "c4",
+        "c4#suff:specific-region",
+        "named_brain_region_or_network"
+      ],
+      null
+    ],
+    [
+      [
+        "c8",
+        "c8#suff:trait-construct",
+        "individual_difference_trait_or_construct"
+      ],
+      "U6"
+    ],
+    [
+      [
+        "c5",
+        "c5#suff:brain-behavior",
+        "named_brain_region_or_network"
+      ],
+      null
+    ],
+    [
+      [
+        "c5",
+        "c5#suff:brain-behavior",
+        "behavior_or_behavioral_measure"
+      ],
+      null
+    ],
+    [
+      [
+        "c6",
+        "c6#suff:brain-attitude",
+        "named_brain_region_or_network"
+      ],
+      null
+    ],
+    [
+      [
+        "c6",
+        "c6#suff:brain-attitude",
+        "attitude_type_or_measure"
+      ],
+      null
+    ]
+  ],
+  "derived_nonempty_request_keys_count": 14,
+  "experiment_id": "q_aib_phase21_live_u1_model_assist_validation_20261002_restart",
+  "feature_flag": "sufficiency_model_assist_enabled=True (direct production function call)",
+  "head": "23a7f164c132e4aa060ee2d499c1e7dc28255297",
+  "max_fresh_u1_calls": 14,
+  "max_fresh_u1_calls_derivation": "mechanically derived offline (candidate construction only, no live call) by running the real compute_diagnostic_sufficiency_map against the real frozen v9 contract and the real preserved sealed evidence with a counting-only fake client; NOT the stale Phase-19 declared-scope count of 15, which Phase 19b's composite (scope, request_context) key makes an incorrect upper bound on physical calls",
+  "max_fresh_u2_calls": 0,
+  "model_name": "qwen3.5:9b",
+  "no_retry": true,
+  "phase": 21,
+  "phase_19b_commit": "23a7f164c132e4aa060ee2d499c1e7dc28255297",
+  "phase_20a_commit": "b928d1406e928863b034d4ff4c62885a4f6dd124",
+  "phase_20b_commit": "304ad5ad99475f76d91e109164d7cff933b30ff4",
+  "preserved_ledger_path": ".local\\e2e-runs\\q-aib-hierarchical-t5c-live-20260930\\run\\11_verified_ledger.json",
+  "preserved_ledger_sha256": "2e52a10c6af90a32551349109f1efbfb7ab996d3dea0d45336db6d77e230c1be",
+  "profile": "T5",
+  "purpose": "bounded production-shaped live U1 sufficiency-nomination validation",
+  "question": "aib",
+  "question_sha256s": [
+    "6e037bab4baad2c0b4427a1c73c6e1720296292b3be36189cd9cf02436e57030"
+  ],
+  "restart": true,
+  "scope_note": "Hierarchy content loaded via pins=None (disclosed pin-drift bypass, not a review bypass of the sufficiency contract itself, which IS fully hash+review verified). Real sealed evidence reused from the preserved 2026-09-30 T5C live run's own verified ledger (confirmed byte-identical question_hash/hierarchy integrity to the hierarchy loaded for this run) rather than freshly retrieved, since a hierarchical execute() cannot be seeded and this keeps the live footprint exclusively to nomination.",
+  "sufficiency_recovery_gate": "OFF (not exercised in this phase)",
+  "think": false,
+  "u1_policy": "all_eligible_policy()",
+  "u2_policy": "exact_scope_set_policy(set()) with U1 receipts as prior_receipts (held fixed)",
+  "v9_combined_hash": "9c72dc6a0180e95c55e68a009c366843b671684c19c6ae84ed254f3865305586"
+}
