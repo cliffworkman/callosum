@@ -787,6 +787,18 @@ prose as authority.
 
 ## 25. Required Review Questions
 
+### Browser capture response ownership
+
+Capture admission and PDF processing must keep the event loop responsive while performing
+blocking database, extraction, provider or local-model work. Await a worker and serialize capture
+mutations so concurrent retries preserve idempotency and content deduplication. Own upload files
+until that worker completes. Metadata admission commits and publishes its update before optional
+indexing; response-owned background indexing reuses the app's existing model/vector store and
+publishes completion. Do not detach work beyond the server's graceful request shutdown.
+An unverified provisional PDF needs no embedding inference. Preserve all existing identity and
+scientific semantics. Fault-injected scheduling tests establish these orderings separately from
+hardware click-to-queue benchmarks; never substitute them for real browser acceptance.
+
 Before merging a change that adds or modifies local-model or cloud-model backend work, answer:
 
 1. What is the user-visible critical path?

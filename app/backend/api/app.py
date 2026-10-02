@@ -13,6 +13,7 @@ from html import escape
 from pathlib import Path
 from threading import Lock
 
+from anyio import Lock as AsyncLock
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
@@ -230,6 +231,7 @@ def create_app(
     api = FastAPI(title="Callosum Local API", version="0.1.0", lifespan=lifespan)
     api.state.engine = engine
     api.state.capture_updates = CaptureUpdates()
+    api.state.capture_work_lock = AsyncLock()  # Serialize capture mutations without blocking the event loop.
     api.state.db_url = resolved_db_url
     api.state.frontend_path = resolved_frontend_path
     api.state.summary_jobs = JobStore()

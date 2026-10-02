@@ -36,7 +36,7 @@ export const RESULT_DISPLAY = {
   direct_pdf_unsupported: {
     badge: "!",
     color: "#b35900",
-    title: "Callosum couldn't read this PDF directly from the tab. Try it from a page listing instead.",
+    title: "Callosum couldn't read this page or PDF. Nothing was added. Open the original document and try again.",
   },
   // 2026-09-16: this key is now reached only as a DEGRADED fallback -- when the follow-up PDF-upload
   // call (which decides the real outcome: queued / attachment_blocked / promoted) never got a
@@ -97,7 +97,7 @@ if (typeof chrome !== "undefined" && chrome.action) {
   });
 }
 
-async function handleCapture(tab) {
+export async function handleCapture(tab) {
   render("capturing");
   if (!tab || !tab.id || !tab.url) {
     render("failed");
@@ -114,12 +114,13 @@ async function handleCapture(tab) {
   let envelope;
   let pdfBuffer = null;
 
-  if (looksLikePdfUrl(tab.url)) {
-    pdfBuffer = await fetchDirectPdfBytes(tab.url);
-    if (!pdfBuffer) {
-      render("direct_pdf_unsupported");
-      return;
-    }
+  const document = await fetchActiveDocument(tab.url);
+  if (document.kind === "unavailable") {
+    render("direct_pdf_unsupported");
+    return;
+  }
+  if (document.kind === "pdf") {
+    pdfBuffer = document.buffer;
     envelope = buildDirectPdfEnvelope(tab);
   } else {
     let extracted;
@@ -128,9 +129,14 @@ async function handleCapture(tab) {
         target: { tabId: tab.id },
         func: extractPageMetadata,
       });
-      extracted = injection && injection.result ? injection.result : {};
+      if (!injection || !injection.result) {
+        render("direct_pdf_unsupported");
+        return;
+      }
+      extracted = injection.result;
     } catch {
-      extracted = {};
+      render("direct_pdf_unsupported");
+      return;
     }
     envelope = buildGenericEnvelope(tab, extracted);
   }
@@ -234,16 +240,55 @@ export function looksLikePdfUrl(url) {
   }
 }
 
-async function fetchDirectPdfBytes(url) {
+// A URL suffix is only a hint. Publishers also serve PDFs from /article/file or
+// signed download endpoints. Never admit a PDF-viewer's title as HTML metadata
+// merely because its URL lacks .pdf or its content could not be read.
+export async function fetchActiveDocument(url, {
+  fetchImpl = fetch, maxBytes = 80 * 1024 * 1024, timeoutMs = 60_000,
+} = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let reader;
   try {
-    const response = await fetch(url);
-    if (!response.ok) return null;
-    const buffer = await response.arrayBuffer();
-    const head = new Uint8Array(buffer.slice(0, 5));
-    if (head.length < 5 || String.fromCharCode(...head) !== "%PDF-") return null;
-    return buffer;
+    const parsed = new URL(url);
+    if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password) {
+      return { kind: "unavailable" };
+    }
+    const response = await fetchImpl(url, { signal: controller.signal });
+    if (!response.ok || !response.body) return { kind: "unavailable" };
+    const type = (response.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+    const declared = Number(response.headers.get("content-length"));
+    if (declared > maxBytes) return { kind: "unavailable" };
+    const pdfHint = looksLikePdfUrl(url) || type === "application/pdf";
+    const htmlType = type === "text/html" || type === "application/xhtml+xml";
+    reader = response.body.getReader();
+    const chunks = [];
+    const head = new Uint8Array(5);
+    let total = 0;
+    let pdf = false;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (total + value.length > maxBytes) return { kind: "unavailable" };
+      if (total < 5) head.set(value.subarray(0, 5 - total), total);
+      total += value.length;
+      if (total >= 5 && !pdf) {
+        pdf = String.fromCharCode(...head) === "%PDF-";
+        if (!pdf) return { kind: htmlType && !pdfHint ? "html" : "unavailable" };
+      }
+      chunks.push(value);
+    }
+    if (!pdf) return { kind: "unavailable" };
+    const bytes = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
+    return { kind: "pdf", buffer: bytes.buffer };
   } catch {
-    return null;
+    return { kind: "unavailable" };
+  } finally {
+    clearTimeout(timer);
+    if (reader) reader.cancel().catch(() => {});
+    controller.abort();
   }
 }
 

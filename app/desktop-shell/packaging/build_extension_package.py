@@ -42,7 +42,7 @@ DEFAULT_OUT_DIR = PROJECT_ROOT / ".local" / "extension-package"
 RUNTIME_FILES = ("manifest.json", "background.js")
 RUNTIME_ICON_DIR = "icons"
 # Known, deliberately-not-shipped entries (top-level names): documentation, tests, and the dev tooling.
-EXCLUDED = ("README.md", "background.test.mjs", "dev")
+EXCLUDED = ("README.md", "background.test.mjs", "capture_document.test.mjs", "dev")
 # Never allowed in a package, wherever they appear (signing / private-key material).
 FORBIDDEN_SUFFIXES = (".pem", ".key", ".crx", ".p12", ".pfx")
 TEXT_SUFFIXES = (".json", ".js", ".mjs", ".html", ".css")

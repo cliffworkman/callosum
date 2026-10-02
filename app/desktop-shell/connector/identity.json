@@ -11,7 +11,7 @@
   "distribution_model": "Separate Chrome Web Store and Edge Add-ons submissions share a keyless store package. Record each genuinely assigned ID at store registration. The manual preview is a separate, public-key-pinned identity; it is never uploaded as the store package.",
   "preview_extension_id": "afmdgjbnfijcidfemekgbmagnhekfefj",
   "preview_extension_public_key_base64": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsFLskxN7CYe4Ps2MwcKY35HBpNIdRRbYi48oswSpFVgqdU12ZxUBdZnVK9xHHWodywEiYCpIO7AXSz7kilNru7Z9/Tbp0YNce78CVhUQKpltY4kVz8I6b7ilEQJ63Z3T7Lzn1WHTY/kWsEmppKCNViPfyQtDnqL8vZ/A6LujMj4llCEc0KyIoU3l9IZFXwCxdWPF7oofYBiXmW0uuEDTEsG+MKcf9pVPn245R6ivdAM1i6YzVT4vLkBS9LkUYP9xnQJgPapZUvpDCyv7KcIvrp/ZF9d77H8JV3UtOEKmUFkSwGoZ/3RjGt6bsyEKTSv0WrvvcTicC87r93UjLgMXvwIDAQAB",
-  "preview_extension_version": "0.1.1",
+  "preview_extension_version": "0.1.2",
   "release_channel": "manual_preview",
   "released": false,
   "_preview_comment": "Dedicated manual-preview public identity. Private key never persisted. Not a store ID or development identity. Normal packaged host; explicit local opt-in required.",

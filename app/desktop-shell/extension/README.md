@@ -29,13 +29,14 @@ bibliographic matching — a DOI beats a scraped title, always.
 
 ## Direct PDF is an empirical capability, not a promise
 
-When the active tab's own URL looks like a PDF, the click handler (not a lazily-woken service
-worker — the `activeTab` grant only covers the gesture-triggered turn) fetches that exact URL and
-checks for the `%PDF-` magic bytes before treating it as a direct-PDF capture. If that fetch or
-check fails, the extension reports a stable "couldn't read this PDF" state rather than falling back
-to running the HTML metadata extractor against whatever the response actually was, and rather than
-requesting a broader permission to force it to work. The real observed Edge/Chromium behavior for
-this path is what it is; this is documented, not routed around.
+On the explicit click, the handler fetches the active HTTP(S) tab's own URL under its existing
+`activeTab` grant. A `.pdf` suffix is only a hint: publisher `/article/file` URLs are recognized
+from `%PDF-` bytes too. The fetch is bounded to 60 seconds and 80 MiB, including streamed responses
+without Content-Length. MIME-identified HTML takes generic DOM extraction; ambiguous or inaccessible
+content fails closed without admitting a PDF-viewer filename as metadata. The unused HTML body is
+cancelled after classification. No broader permission or publisher-specific URL rewrite is used.
+This is still an empirical browser capability: Node tests establish classification and limits,
+not real packaged Chrome/Edge permission or transfer behavior.
 
 ## Store package (Chrome Web Store + Microsoft Edge Add-ons)
 

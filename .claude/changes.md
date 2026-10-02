@@ -10,6 +10,14 @@ are the design diary; this is the chronological "what & why" record.
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
 
+## 2026-10-01 — Publisher PDF classification and responsive capture (local only)
+- **Evidence/lineage:** Cliff's genuine Windows Chrome clicks created four PDF-viewer-title metadata records with no attachment or Import Queue. Cody supplied the checksum-correct original PLOS URL but missed suffix-only PDF detection; preserved snapshots establish the generic admission path. First-click logs show model loading before acknowledgement, consistent with the observed health timeout; an exact original stack/timing span was not captured.
+- **Change:** classify only the clicked active document, requiring PDF magic with bounded fetch/stream size/time; only identified HTML may use generic extraction. Preview becomes 0.1.2 with the same dedicated identity and verified package inventory. No permissions, production IDs, runtime or app version change.
+- **Scheduling:** blocking admission and PDF processing use awaited workers in a serialized capture lane. Supplementary metadata indexing runs after the committed response, reusing the app-owned model; notifications cover admission and indexing. Same-key retries and concurrent same-content PDFs remain idempotent.
+- **Coverage:** real Ioannidis bytes, HTML/mislabeled/unknown/inaccessible/oversize/stalled responses, real handler with mocked browser APIs, concurrent admission/uploads, blocked model/PDF work with live health, cleanup, failure notification and the existing capture/DOI/trust/package suites. Simulated tests do not establish packaged Windows acceptance.
+- **Help sync:** added manual-preview setup, update/reload, connection, unreadable-document and DOI-review guidance to the served help corpus; unrelated historical help drift was not rewritten.
+- **Recovery:** preserve the installed f241f9aa QA state and its four failed rows; build a separately identified candidate through existing NSIS packaging. No push, merge, tag or publication. Revert this local commit to undo the correction.
+
 ## 2026-10-01 — Windows preview native-host path correction (local only)
 - **Cause/evidence:** Cliff's real Chrome connection failed after Prepare. The manifest/registry used a Tauri verbatim Windows path; Cody reproduced cmd.exe failing to launch that exact executable path while the ordinary path returned a valid native message. The actual Chrome launch branch remains untraced.
 - **Change:** simplify safe Windows resource paths before deriving both native-host manifest executable and registry path. Reuse the already-locked dunce 1.0.5 library; reject unsafe-to-simplify and unsupported namespace paths explicitly. Preserve NSIS's ordinary-path ownership comparison, exact extension origin policy and pairing boundaries.

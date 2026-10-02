@@ -38,15 +38,17 @@ If step 3 fails after step 2 succeeded, the paper exists with no attachment and 
 
 from __future__ import annotations
 
+import logging
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from uuid import uuid4
 
 import fitz
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import Engine
+from starlette.concurrency import run_in_threadpool
 
 from app.backend.acquisition.fetch import MAX_OA_PDF_BYTES, library_dir
 from app.backend.api.access_control import RateLimiter, _bearer
@@ -78,6 +80,7 @@ from app.backend.persistence.sqlite_retry import run_write
 from integrations.crossref import CrossrefClient
 
 router = APIRouter()
+_log = logging.getLogger(__name__)
 
 # The envelope is metadata only — generous for a long abstract and 500 authors, far below anything
 # that makes parsing expensive. Enforced by STREAMING (see `_read_bounded_body`), not by trusting a
@@ -211,6 +214,7 @@ def open_capture_session(
 @router.post("/capture/item", response_model=CaptureResult)
 async def capture_item(
     request: Request,
+    background_tasks: BackgroundTasks,
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     engine: Engine = Depends(get_engine),
     _boundary: None = Depends(require_capture_boundary),
@@ -235,6 +239,16 @@ async def capture_item(
     except ValueError:
         raise HTTPException(status_code=422, detail="Capture envelope is not valid JSON.") from None
 
+    async with request.app.state.capture_work_lock:
+        return await run_in_threadpool(_admit_capture, request, engine, envelope, idempotency_key, background_tasks)
+
+
+def _admit_capture(request, engine, envelope, idempotency_key, background_tasks) -> CaptureResult:
+    # Recheck after acquiring the mutation lane: concurrent same-key retries must
+    # observe the first committed result, including while the worker is yielding.
+    remembered = idempotency.remembered(idempotency_key)
+    if remembered is not None:
+        return CaptureResult(**remembered)
     # Fall back to a default CrossrefClient when app.state has none (it is only set when injected —
     # e.g. in tests); mirrors acquisition.py's add_paper_by_doi_endpoint and paper_enrich._crossref.
     # Without this, the running app's app.state.crossref_client is None and every DOI-bearing capture
@@ -244,15 +258,11 @@ async def capture_item(
     crossref_client = request.app.state.crossref_client or CrossrefClient()
     outcome: AdmissionOutcome = run_write(engine, lambda conn: admit(conn, envelope, crossref_client=crossref_client))
 
-    # Post-admission indexing invariant: a captured paper is searchable like any other admission, and
-    # an embedding failure never fails an honest metadata import.
+    # Admission is already committed. The response owns this worker task:
+    # Starlette/Uvicorn await it before lifespan teardown; no detached task survives
+    # model/database shutdown. A cold model must not delay acknowledgement or health.
     if outcome.created and outcome.paper_id is not None:
-        ensure_paper_indexed(
-            engine,
-            outcome.paper_id,
-            model=_embedding_model(request.app),
-            vector_store=_vector_store(request.app),
-        )
+        background_tasks.add_task(_index_capture, request.app, engine, outcome.paper_id)
 
     capture_id: str | None = None
     if outcome.pdf_accepted and outcome.paper_id is not None:
@@ -285,6 +295,15 @@ async def capture_item(
     return result
 
 
+def _index_capture(app, engine, paper_id) -> None:
+    try:
+        ensure_paper_indexed(engine, paper_id, model=_embedding_model(app), vector_store=_vector_store(app))
+    except Exception:
+        _log.warning("Browser capture metadata indexing unavailable for paper %s", paper_id, exc_info=True)
+    finally:
+        app.state.capture_updates.changed()
+
+
 @router.post("/capture/item/{capture_id}/pdf", response_model=CaptureResult)
 async def capture_pdf(
     capture_id: str,
@@ -302,6 +321,18 @@ async def capture_pdf(
     Eligibility was already decided at ``/capture/item``; this route only honors it. Re-posting for a
     capture that already attached replays the outcome rather than attaching twice.
     """
+    if not is_canonical_id(capture_id) or capture_id not in _pending:
+        raise HTTPException(status_code=404, detail="Unknown or expired capture.")
+    temp_path = Path(tempfile.gettempdir()) / f"callosum-capture-{uuid4().hex}.pdf"
+    try:
+        total = await _stream_to_file(request, temp_path, MAX_OA_PDF_BYTES, "Captured PDF")
+        async with request.app.state.capture_work_lock:
+            return await run_in_threadpool(_process_capture_pdf, capture_id, request, engine, temp_path, total)
+    finally:
+        temp_path.unlink(missing_ok=True)
+
+
+def _process_capture_pdf(capture_id, request, engine, temp_path, total) -> CaptureResult:
     # network string -> syntactically a Callosum ID -> lookup key -> server-owned pending object. A malformed id is
     # answered exactly like an unknown one; nothing below reads `capture_id` again.
     pending = _pending.get(capture_id) if is_canonical_id(capture_id) else None
@@ -320,82 +351,77 @@ async def capture_pdf(
     if pending.provisional_result is not None:
         return _provisional_capture_result(minted_id, pending.provisional_result)
 
-    temp_path = Path(tempfile.gettempdir()) / f"callosum-capture-{uuid4().hex}.pdf"
+    # Validate from BYTES, never by handing PyMuPDF the path — the same way `download_oa_pdf`
+    # does it. On Windows, `fitz.open(path)` on a malformed file leaves the OS handle open even
+    # though the call raises, so the `finally` cleanup below then dies with PermissionError and
+    # leaks the temp file. Reading is bounded by the same cap the transfer already enforced.
+    # Found by `test_pdf_upload_rejects_a_malformed_pdf`.
+    data = temp_path.read_bytes()
+    if total < 5 or not data.startswith(b"%PDF-"):
+        raise HTTPException(status_code=422, detail="The captured bytes are not a PDF.")
     try:
-        total = await _stream_to_file(request, temp_path, MAX_OA_PDF_BYTES, "Captured PDF")
-        # Validate from BYTES, never by handing PyMuPDF the path — the same way `download_oa_pdf`
-        # does it. On Windows, `fitz.open(path)` on a malformed file leaves the OS handle open even
-        # though the call raises, so the `finally` cleanup below then dies with PermissionError and
-        # leaks the temp file. Reading is bounded by the same cap the transfer already enforced.
-        # Found by `test_pdf_upload_rejects_a_malformed_pdf`.
-        data = temp_path.read_bytes()
-        if total < 5 or not data.startswith(b"%PDF-"):
-            raise HTTPException(status_code=422, detail="The captured bytes are not a PDF.")
-        try:
-            document = fitz.open(stream=data, filetype="pdf")
-            page_count = document.page_count
-            document.close()
-        except Exception:
-            raise HTTPException(status_code=422, detail="The captured PDF could not be opened.") from None
-        if page_count < 1:
-            raise HTTPException(status_code=422, detail="The captured PDF has no pages.")
+        document = fitz.open(stream=data, filetype="pdf")
+        page_count = document.page_count
+        document.close()
+    except Exception:
+        raise HTTPException(status_code=422, detail="The captured PDF could not be opened.") from None
+    if page_count < 1:
+        raise HTTPException(status_code=422, detail="The captured PDF has no pages.")
 
-        if pending.paper_id is None:
-            # No paper was admitted at /capture/item -- preserve the bytes first, identify
-            # opportunistically. ingest_provisional_pdf owns its own durable file placement (the
-            # Import Queue), so the streamed temp file is discarded either way by the `finally` below.
-            result = ingest_provisional_pdf(
-                engine,
-                capture_event_id=minted_id,
-                validated_pdf_bytes=data,
-                library_root=library_dir(),
-                source_url=pending.source_url,
-                captured_at_client=pending.captured_at_client,
-                original_filename=pending.original_filename,
-                producer_kind=pending.producer_kind,
-                crossref_client=request.app.state.crossref_client or CrossrefClient(),
+    if pending.paper_id is None:
+        # No paper was admitted at /capture/item -- preserve the bytes first, identify
+        # opportunistically. ingest_provisional_pdf owns its own durable file placement (the
+        # Import Queue), so the streamed temp file is discarded either way by the `finally` below.
+        result = ingest_provisional_pdf(
+            engine,
+            capture_event_id=minted_id,
+            validated_pdf_bytes=data,
+            library_root=library_dir(),
+            source_url=pending.source_url,
+            captured_at_client=pending.captured_at_client,
+            original_filename=pending.original_filename,
+            producer_kind=pending.producer_kind,
+            crossref_client=request.app.state.crossref_client or CrossrefClient(),
+            vector_store=_vector_store(request.app),
+            embedding_model=_embedding_model(request.app),
+        )
+        pending.provisional_result = result
+        request.app.state.capture_updates.changed()
+        return _provisional_capture_result(minted_id, result)
+
+    managed_root = library_dir()
+    managed_root.mkdir(parents=True, exist_ok=True)
+    managed_path = managed_capture_pdf_path(managed_root, minted_id)  # named from the server-minted id only
+    import shutil
+
+    shutil.move(str(temp_path), str(managed_path))
+    try:
+        run_write(
+            engine,
+            lambda conn: attach_pdf_to_paper(
+                conn,
+                pending.paper_id,
+                managed_path,
+                storage_mode="managed",
+                original_path=str(managed_path),
+                import_source=CAPTURE_SOURCE,
                 vector_store=_vector_store(request.app),
                 embedding_model=_embedding_model(request.app),
-            )
-            pending.provisional_result = result
-            request.app.state.capture_updates.changed()
-            return _provisional_capture_result(minted_id, result)
-
-        managed_root = library_dir()
-        managed_root.mkdir(parents=True, exist_ok=True)
-        managed_path = managed_capture_pdf_path(managed_root, minted_id)  # named from the server-minted id only
-        import shutil
-
-        shutil.move(str(temp_path), str(managed_path))
-        try:
-            run_write(
-                engine,
-                lambda conn: attach_pdf_to_paper(
-                    conn,
-                    pending.paper_id,
-                    managed_path,
-                    storage_mode="managed",
-                    original_path=str(managed_path),
-                    import_source=CAPTURE_SOURCE,
-                    vector_store=_vector_store(request.app),
-                    embedding_model=_embedding_model(request.app),
-                ),
-            )
-        except Exception:
-            managed_path.unlink(missing_ok=True)
-            raise
-        pending.attached = True
-        request.app.state.capture_updates.changed()
-        return CaptureResult(
-            status=pending.status,
-            capture_id=minted_id,
-            paper_id=pending.paper_id,
-            created=pending.created,
-            pdf_accepted=True,
-            pdf_reason=PDF_OK,
+            ),
         )
-    finally:
-        temp_path.unlink(missing_ok=True)
+    except Exception:
+        managed_path.unlink(missing_ok=True)
+        raise
+    pending.attached = True
+    request.app.state.capture_updates.changed()
+    return CaptureResult(
+        status=pending.status,
+        capture_id=minted_id,
+        paper_id=pending.paper_id,
+        created=pending.created,
+        pdf_accepted=True,
+        pdf_reason=PDF_OK,
+    )
 
 
 async def _read_bounded_body(request: Request, cap: int, label: str) -> bytes:

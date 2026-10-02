@@ -86,6 +86,16 @@ For a fuller Mendeley migration than a metadata-only BibTeX/RIS file, use Zotero
 
 Zotero documents that this carries the personal library's data, files, and folder structure into Zotero. It cannot directly import Mendeley group libraries; copy those items into a collection in your personal Mendeley library first. This route also does not convert citations already embedded by **Mendeley Cite** in Word documents. Callosum does not read or decrypt Mendeley's protected local database.
 
+<!-- section: browser-capture -->
+## Browser Capture early access
+In the desktop app, open **Settings → Integrations → Browser Capture** and choose **Enable early access**, then **Prepare extension**. This is a manual Developer mode preview, not a browser-store installation. Follow the instructions for your browser, load the exact prepared folder, and check its extension ID. After an app update, prepare the extension again and **Reload** it on your browser's Extensions page.
+
+To test the connection, click **Verify connection** in Callosum, then in the extension's options within 60 seconds. A successful check records that moment; it does not continuously monitor the connection. Preparing or opening the folder alone does not establish a connection.
+
+Open the page or PDF you want and click the extension once. PDFs can have publisher download URLs without a `.pdf` ending. If Callosum cannot read the active document, nothing is added; open the original document and try again. A PDF whose identity needs review appears in **Import Queue**. An observed DOI is a suggestion, not a verified identity: choose **Review DOI → Look up**, inspect the scholarly preview, and confirm only if it identifies your paper. Lookup alone does not add the paper to your Library. After confirmation, PDF processing may take time; return to the Library to see the finished paper.
+
+To leave the preview, **Turn off early access** in Settings and remove the extension in your browser. Previously captured papers are kept.
+
 <!-- section: scanning-a-folder -->
 ## Watched folders (scanning for PDFs)
 Your **library folder is watched by default** — it's pinned at the top of the **+ Add → Watched folders…** dialog as the "always watched" default (you can't remove it). Drop a PDF into it and Callosum picks it up on its own (see below). To watch additional folders, open that dialog, type a folder's path or click **Browse…**, then click **Add + Scan**. (The library folder is where Callosum keeps acquired PDFs; set a custom location with the `CALLOSUM_LIBRARY_DIR` environment variable.)

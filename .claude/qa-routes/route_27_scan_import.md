@@ -95,4 +95,22 @@ exception, token or local path may appear in the review copy; all remain saved f
 
 ## Deposit
 
+### Extensionless publisher PDF and responsive capture
+
+Use an isolated packaged desktop Library and the original Ioannidis fixture served at
+`https://journals.plos.org/plosmedicine/article/file?id=10.1371/journal.pmed.0020124&type=printable`.
+Verify its SHA-256 against the fixture before acceptance. With preview 0.1.2 prepared and
+reloaded in Chrome, make one genuine capture click. Record click/upload/queue-commit/UI
+times; require no refresh and no title-only `PLME0208_696-701.indd` Library admission.
+Pause before lookup and again before confirmation to preserve provisional state and
+zero canonical papers. Continue through the DOI review regression above only after
+those checkpoints. Do not count Node mocks or TestClient requests as hardware acceptance.
+
+Automated scheduling regressions deliberately block admission or metadata indexing while
+checking live health, response completion, committed notifications and same-key replay.
+Concurrent real-fixture uploads must store one provisional artifact and two encounters,
+with no model inference or canonical paper. Test HTML, unknown MIME, invalid PDF,
+oversize bytes, fetch/body timeout, stream cleanup and inaccessible-document refusal.
+Existing failed acceptance rows and parked user data must not be silently removed.
+
 Write `.claude/qa-inbox/<RUN_ID>/route_27_scan_import.md` + `screenshots/` (see `_TEMPLATE.md`).
