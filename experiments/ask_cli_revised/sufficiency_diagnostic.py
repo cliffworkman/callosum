@@ -75,7 +75,12 @@ def units_by_child(sealed: dict) -> dict[str, list[dict]]:
 
 
 def compute_diagnostic_sufficiency_map(
-    sealed: dict, contract_by_child: dict, parent_of: dict, *, model_client=None
+    sealed: dict,
+    contract_by_child: dict,
+    parent_of: dict,
+    *,
+    model_client=None,
+    nomination_context: dict | None = None,
 ) -> dict:
     """`contract_by_child`: `{child_id: SufficiencyContract}` (Layer B's frozen instance, e.g.
     `sufficiency_authoring.build_qaib_contract(...)`). `parent_of`: `{child_id: parent_child_id}`,
@@ -94,7 +99,16 @@ def compute_diagnostic_sufficiency_map(
     own discovered instances are available by the time a paired child needs them (q_aib's own
     hierarchy is exactly two levels deep, so one ordering pass suffices; a deeper future
     hierarchy would need a topological sort here, not built since q_aib doesn't require it).
-    """
+
+    `nomination_context` (Phase 19, default `None`, matching every existing caller including
+    `e2e.py`): `child_id` is already this loop's own variable -- the one piece of identity a
+    `requirement` dict never carries on its own (confirmed directly against `sufficiency_engine.
+    new_requirement`'s return shape; only its owning `SufficiencyContract` does, via `new_contract`).
+    Passing it straight into `map_any_requirement` is what lets the model-nomination checkpoint
+    several calls deeper construct a real `(child_id, requirement_id, role)` scope, never one
+    parsed back out of `requirement['id']`'s own `"childid#..."` naming convention (which is an
+    authoring convention, not a structural guarantee). Omitted entirely, this function's
+    behavior is unchanged."""
     by_child = units_by_child(sealed)
     mapped: dict[str, dict] = {}
     child_ids = list(contract_by_child)
@@ -129,7 +143,12 @@ def compute_diagnostic_sufficiency_map(
                         "agreement between the child and its parent, and that the parent was mapped first."
                     )
             mapped_req = sm.map_any_requirement(
-                req, candidate_units, parent_requirement=parent_requirement, model_client=model_client
+                req,
+                candidate_units,
+                parent_requirement=parent_requirement,
+                model_client=model_client,
+                child_id=child_id,
+                nomination_context=nomination_context,
             )
             new_requirements.append(_stamp_model_dependency_origins(mapped_req, child_id))
         mapped[child_id] = se.new_contract(child_id, new_requirements)

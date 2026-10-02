@@ -8,6 +8,7 @@ import unittest
 
 from experiments.ask_cli_revised import sufficiency_diagnostic as sd
 from experiments.ask_cli_revised import sufficiency_engine as se
+from experiments.ask_cli_revised import sufficiency_model_scope as mscope
 from experiments.ask_cli_revised import sufficiency_recovery_targets as srt
 
 
@@ -173,6 +174,164 @@ class ModelAssistedParentPropagationTests(unittest.TestCase):
         positional = sd.compute_diagnostic_sufficiency_map(sealed, _small_contract(), {"c": "p"})
         keyword = sd.compute_diagnostic_sufficiency_map(sealed, _small_contract(), parent_of={"c": "p"})
         self.assertEqual(positional, keyword)
+
+
+class ComputeDiagnosticSufficiencyMapPhase19ScopingTests(unittest.TestCase):
+    """`child_id` is a per-child LOOP VARIABLE in `compute_diagnostic_sufficiency_map` -- never a
+    field on an individual requirement dict (confirmed directly against `sufficiency_engine.
+    new_requirement`'s own return shape during the Phase-19 audit). These tests prove it reaches
+    the real model-nomination scope end-to-end through this module's own per-child loop, not only
+    through a hand-threaded unit test in `test_sufficiency_mapping.py`."""
+
+    def _sealed_and_contract(self):
+        sealed = _sealed(
+            [
+                _prop("p1", 1, "This finding showed empathy was strongly related to the outcome.", ["p"]),
+                _prop("p2", 2, "The Empathy Scale was used to assess trait empathy in participants.", ["c"]),
+            ]
+        )
+        return sealed, _small_contract()
+
+    def test_all_eligible_policy_produces_the_same_bindings_as_the_legacy_call_plus_a_status_tag(self):
+        sealed, contracts = self._sealed_and_contract()
+        legacy = sd.compute_diagnostic_sufficiency_map(
+            sealed, contracts, parent_of={"c": "p"}, model_client=_FakeModelClient()
+        )
+        ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
+        scoped = sd.compute_diagnostic_sufficiency_map(
+            sealed, contracts, parent_of={"c": "p"}, model_client=_FakeModelClient(), nomination_context=ctx
+        )
+        legacy_trait = legacy["p"]["requirements"][0]["instances"][0]["role_bindings"]["trait"]
+        scoped_trait = scoped["p"]["requirements"][0]["instances"][0]["role_bindings"]["trait"]
+        self.assertEqual(legacy_trait["exact_text"], scoped_trait["exact_text"])
+        self.assertNotIn("nomination_receipt_status", legacy_trait["provenance"])
+        self.assertEqual(scoped_trait["provenance"]["nomination_receipt_status"], "fresh")
+
+    def test_exact_scope_set_authorizes_only_the_named_childs_scope(self):
+        """Two independent model_nomination_only scopes exist here: parent `p`'s own `trait`
+        role, and (if it had its own independent model role) a sibling child's. We authorize only
+        the PARENT's scope and confirm the parent is freshly nominated while an unrelated,
+        unauthorized scope on a second, unrelated child is held fixed with no model call."""
+        sealed, contracts = self._sealed_and_contract()
+        # A second, wholly independent child with its own model_nomination_only role and its OWN
+        # parent-less requirement -- proves the per-child loop threads the correct child_id for
+        # EACH child, not just a single hard-coded one.
+        other_specs = {"widget": se.new_role_spec("widget", "a widget", "model_nomination_only")}
+        other_completion = se.new_role_completion(required_roles=["widget"])
+        other_req = se.new_requirement("other#req", "atomic", other_specs, other_completion, "exists")
+        contracts["other"] = se.new_contract("other", [other_req])
+        sealed["verified_propositions"].append(
+            _prop("p3", 3, "A gadget was independently observed in this study.", ["other"])
+        )
+        sealed["evidence_spans"].append(
+            {
+                "paper_id": 3,
+                "chunk_id": 1,
+                "span_id": "e1",
+                "text": "A gadget was independently observed in this study.",
+            }
+        )
+
+        parent_scope = mscope.new_model_nomination_scope("p", "p8#req", "trait")
+        ctx = mscope.new_nomination_context(mscope.exact_scope_set_policy([parent_scope]))
+
+        class _TrackingClient(_FakeModelClient):
+            def __init__(self):
+                self.calls = []
+
+            def nominate_sufficiency_role(self, *, category_description, candidates):
+                self.calls.append(category_description)
+                return super().nominate_sufficiency_role(
+                    category_description=category_description, candidates=candidates
+                )
+
+        client = _TrackingClient()
+        mapped = sd.compute_diagnostic_sufficiency_map(
+            sealed, contracts, parent_of={"c": "p"}, model_client=client, nomination_context=ctx
+        )
+
+        self.assertEqual(
+            mapped["p"]["requirements"][0]["instances"][0]["role_bindings"]["trait"]["provenance"][
+                "nomination_receipt_status"
+            ],
+            "fresh",
+        )
+        self.assertEqual(
+            mapped["other"]["requirements"][0]["instances"][0]["role_bindings"]["widget"]["state"], "missing"
+        )
+        self.assertEqual(client.calls, ["trait"], "the unauthorized 'other' child's scope must never reach the model")
+
+    def test_without_nomination_context_behavior_is_completely_unaffected(self):
+        """Confirms the production (e2e.py-shaped) call path -- model_client=None, no context at
+        all -- is byte-identical to pre-Phase-19, proving Scope A's non-regression promise at the
+        orchestration layer, not only inside sufficiency_mapping.py."""
+        sealed, contracts = self._sealed_and_contract()
+        before = sd.compute_diagnostic_sufficiency_map(sealed, contracts, parent_of={"c": "p"})
+        after = sd.compute_diagnostic_sufficiency_map(sealed, contracts, parent_of={"c": "p"}, nomination_context=None)
+        self.assertEqual(before, after)
+
+    def test_model_dependency_origins_still_stamped_on_a_fresh_phase19_binding(self):
+        """Test #31: `_stamp_model_dependency_origins` reads `provenance.get("candidate_source")`/
+        `.get("model_dependency_origins")` only -- adding `nomination_receipt_status` alongside
+        those must not interfere with origin stamping."""
+        sealed, contracts = self._sealed_and_contract()
+        ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
+        mapped = sd.compute_diagnostic_sufficiency_map(
+            sealed, contracts, parent_of={"c": "p"}, model_client=_FakeModelClient(), nomination_context=ctx
+        )
+        trait_binding = mapped["p"]["requirements"][0]["instances"][0]["role_bindings"]["trait"]
+        origins = trait_binding["provenance"]["model_dependency_origins"]
+        self.assertEqual(len(origins), 1)
+        self.assertEqual(origins[0]["child_id"], "p")
+        self.assertEqual(origins[0]["requirement_id"], "p8#req")
+        self.assertEqual(origins[0]["role"], "trait")
+        self.assertEqual(trait_binding["provenance"]["nomination_receipt_status"], "fresh")
+
+    def test_same_ledger_and_replayed_receipts_produce_an_identical_mapped_tree(self):
+        """Test #32: a second pass that holds EVERY scope fixed on the first pass's own recorded
+        receipts (rather than making any fresh call) must reproduce the identical mapped tree --
+        the stateless-rebuild + receipt-replay design is round-trip stable."""
+        sealed, contracts = self._sealed_and_contract()
+        first_ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
+        first = sd.compute_diagnostic_sufficiency_map(
+            sealed, contracts, parent_of={"c": "p"}, model_client=_FakeModelClient(), nomination_context=first_ctx
+        )
+
+        class _ShouldNeverBeCalledClient:
+            model_name = "should-not-be-called"
+
+            def nominate_sufficiency_role(self, *, category_description, candidates):
+                raise AssertionError("a fully held-fixed second pass must never call the model")
+
+        second_ctx = mscope.new_nomination_context(
+            mscope.exact_scope_set_policy([]), prior_receipts=first_ctx["in_pass_receipts"]
+        )
+        second = sd.compute_diagnostic_sufficiency_map(
+            sealed,
+            contracts,
+            parent_of={"c": "p"},
+            model_client=_ShouldNeverBeCalledClient(),
+            nomination_context=second_ctx,
+        )
+
+        def _strip_receipt_status(mapped):
+            out = {}
+            for child_id, contract in mapped.items():
+                out[child_id] = []
+                for req in contract["requirements"]:
+                    for inst in req["instances"]:
+                        row = {}
+                        for role, binding in inst["role_bindings"].items():
+                            row[role] = {k: v for k, v in binding.items() if k != "provenance"}
+                        out[child_id].append(row)
+            return out
+
+        # Bindings match exactly except the diagnostic-only status tag ("fresh" vs "held_fixed_replay").
+        self.assertEqual(_strip_receipt_status(first), _strip_receipt_status(second))
+        first_trait = first["p"]["requirements"][0]["instances"][0]["role_bindings"]["trait"]
+        second_trait = second["p"]["requirements"][0]["instances"][0]["role_bindings"]["trait"]
+        self.assertEqual(first_trait["provenance"]["nomination_receipt_status"], "fresh")
+        self.assertEqual(second_trait["provenance"]["nomination_receipt_status"], "held_fixed_replay")
 
 
 class RecoveryTargetReportingTests(unittest.TestCase):

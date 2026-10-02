@@ -1173,5 +1173,565 @@ class ParentEligibilityForkingTests(unittest.TestCase):
         self.assertEqual(result["state"], "missing")
 
 
+# ---------------------------------------------------------------------------------------------
+# Phase 19: robust model-nomination scoping + nomination-receipt integration. The legacy
+# (context-free) path above this point is left completely untouched -- every test below opts in
+# explicitly via a `nomination_context`, never changing default behavior for an existing caller.
+# ---------------------------------------------------------------------------------------------
+
+from experiments.ask_cli_revised import sufficiency_model_scope as mscope  # noqa: E402
+
+
+class CandidateRowsForRoleTests(unittest.TestCase):
+    """`_candidate_rows_for_role` is a pure extraction from `nominate_with_model`'s own inline
+    logic (audit §4/§10) -- it must build EXACTLY the rows the model is shown, so a fingerprint
+    computed from it is trustworthy."""
+
+    def _role_spec(self, **kwargs):
+        return se.new_role_spec("r", "a role", "model_nomination_only", **kwargs)
+
+    def test_one_row_per_admissible_proposition_id(self):
+        units = [_unit("u1", 1, "The amygdala showed increased activity.", proposition_ids=["p1", "p2"])]
+        rows = sm._candidate_rows_for_role(self._role_spec(), units)
+        self.assertEqual({r["proposition_id"] for r in rows}, {"p1", "p2"})
+        self.assertTrue(all(r["passage"] == units[0]["passage"] for r in rows))
+
+    def test_inadmissible_unit_contributes_no_rows(self):
+        units = [_unit("u1", 1, "might involve the amygdala")]
+        role_spec = self._role_spec(disqualifying_guards=["hedged"])
+        self.assertEqual(sm._candidate_rows_for_role(role_spec, units), [])
+
+    def test_matches_what_nominate_with_model_actually_offers(self):
+        units = [_unit("u1", 1, "The amygdala showed increased activity.", proposition_ids=["p1", "p2"])]
+        client = _FakeModelClient()
+        role_spec = self._role_spec()
+        sm.nominate_with_model(role_spec, units, client)
+        offered_ids = {c["proposition_id"] for c in client.calls[0]["candidates"]}
+        row_ids = {r["proposition_id"] for r in sm._candidate_rows_for_role(role_spec, units)}
+        self.assertEqual(offered_ids, row_ids)
+
+
+class BindRoleCandidatesScopingTests(unittest.TestCase):
+    """`_bind_role_candidates` is the one integration checkpoint (audit §19) -- scope threading,
+    authorization, memoization, and failure fallback all land here, never scattered elsewhere."""
+
+    def _role_spec(self, **kwargs):
+        return se.new_role_spec(
+            "named_brain_region_or_network", "a specific named brain area", "model_nomination_only", **kwargs
+        )
+
+    def test_with_no_nomination_context_behavior_is_byte_identical_to_pre_phase_19(self):
+        units = [_unit("u1", 1, "The amygdala showed increased activity.")]
+        client = _FakeModelClient({units[0]["proposition_ids"][0]: "amygdala"})
+        no_scope = sm._bind_role_candidates(self._role_spec(), units, model_client=client)
+        client2 = _FakeModelClient({units[0]["proposition_ids"][0]: "amygdala"})
+        with_unused_scope_args = sm._bind_role_candidates(
+            self._role_spec(), units, model_client=client2, child_id="c4", requirement_id="c4#req"
+        )
+        self.assertEqual(len(no_scope), 1)
+        self.assertEqual(no_scope[0]["exact_text"], with_unused_scope_args[0]["exact_text"])
+        self.assertNotIn("nomination_receipt_status", no_scope[0]["provenance"])
+        self.assertNotIn("nomination_receipt_status", with_unused_scope_args[0]["provenance"])
+
+    def test_with_nomination_context_but_no_child_id_raises(self):
+        units = [_unit("u1", 1, "The amygdala showed increased activity.")]
+        client = _FakeModelClient({units[0]["proposition_ids"][0]: "amygdala"})
+        ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
+        with self.assertRaises(ValueError):
+            sm._bind_role_candidates(self._role_spec(), units, model_client=client, nomination_context=ctx)
+
+    def test_fresh_authorized_call_stamps_receipt_status_on_provenance(self):
+        units = [_unit("u1", 1, "The amygdala showed increased activity.")]
+        client = _FakeModelClient({units[0]["proposition_ids"][0]: "amygdala"})
+        ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
+        result = sm._bind_role_candidates(
+            self._role_spec(),
+            units,
+            model_client=client,
+            child_id="c4",
+            requirement_id="c4#req",
+            nomination_context=ctx,
+        )
+        self.assertEqual(result[0]["provenance"]["nomination_receipt_status"], "fresh")
+        self.assertEqual(result[0]["provenance"]["candidate_source"], "model_mapping")
+
+    def test_unauthorized_scope_with_no_prior_receipt_degrades_to_no_candidates(self):
+        units = [_unit("u1", 1, "The amygdala showed increased activity.")]
+        client = _FakeModelClient({units[0]["proposition_ids"][0]: "amygdala"})
+        other_scope = mscope.new_model_nomination_scope("c99", "other#req", "other_role")
+        ctx = mscope.new_nomination_context(mscope.exact_scope_set_policy([other_scope]))
+        result = sm._bind_role_candidates(
+            self._role_spec(),
+            units,
+            model_client=client,
+            child_id="c4",
+            requirement_id="c4#req",
+            nomination_context=ctx,
+        )
+        self.assertEqual(result, [])
+        self.assertEqual(client.calls, [], "an unauthorized scope must never reach the model")
+
+    def test_repeated_call_under_the_same_scope_within_one_context_memoizes(self):
+        units = [_unit("u1", 1, "The amygdala showed increased activity.")]
+        client = _FakeModelClient({units[0]["proposition_ids"][0]: "amygdala"})
+        ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
+        sm._bind_role_candidates(
+            self._role_spec(),
+            units,
+            model_client=client,
+            child_id="c4",
+            requirement_id="c4#req",
+            nomination_context=ctx,
+        )
+        result2 = sm._bind_role_candidates(
+            self._role_spec(),
+            units,
+            model_client=client,
+            child_id="c4",
+            requirement_id="c4#req",
+            nomination_context=ctx,
+        )
+        self.assertEqual(len(client.calls), 1, "the same scope resolved twice must cost exactly one model call")
+        self.assertEqual(result2[0]["provenance"]["nomination_receipt_status"], "memoized_in_pass")
+
+    def test_no_descriptive_string_comparison_used_for_authorization(self):
+        """Two roles with the IDENTICAL category_description but different (child_id,
+        requirement_id, role) must be authorized independently -- proving authorization never
+        reads `category_description` at all (audit §4/§6/test #7)."""
+        same_description = "a specific named brain area"
+        role_spec_a = se.new_role_spec("named_brain_region_or_network", same_description, "model_nomination_only")
+        role_spec_b = se.new_role_spec("named_brain_region_or_network", same_description, "model_nomination_only")
+        units = [_unit("u1", 1, "The amygdala showed increased activity.")]
+        target_scope = mscope.new_model_nomination_scope("c4", "c4#req", "named_brain_region_or_network")
+        ctx = mscope.new_nomination_context(mscope.exact_scope_set_policy([target_scope]))
+
+        client_a = _FakeModelClient({units[0]["proposition_ids"][0]: "amygdala"})
+        result_a = sm._bind_role_candidates(
+            role_spec_a,
+            units,
+            model_client=client_a,
+            child_id="c4",
+            requirement_id="c4#req",
+            nomination_context=ctx,
+        )
+        self.assertEqual(result_a[0]["exact_text"], "amygdala", "the authorized (c4) scope must actually bind")
+        client_b = _FakeModelClient({units[0]["proposition_ids"][0]: "amygdala"})
+        result_b = sm._bind_role_candidates(
+            role_spec_b,
+            units,
+            model_client=client_b,
+            child_id="c5",
+            requirement_id="c5#req",
+            nomination_context=ctx,
+        )
+        self.assertEqual(len(client_a.calls), 1, "the authorized (c4) scope must call the model")
+        self.assertEqual(
+            len(client_b.calls),
+            0,
+            "an unauthorized (c5) scope must NOT call the model despite "
+            "sharing the identical category_description text",
+        )
+        self.assertEqual(result_b, [])
+
+    def test_mechanical_failure_with_valid_prior_receipt_falls_back(self):
+        units = [_unit("u1", 1, "The amygdala showed increased activity.")]
+
+        class _RaisingClient:
+            model_name = "raising-fake"
+
+            def nominate_sufficiency_role(self, *, category_description, candidates):
+                raise RuntimeError("transport failed")
+
+        scope = mscope.new_model_nomination_scope("c4", "c4#req", "named_brain_region_or_network")
+        prior_accepted = [
+            {
+                "proposition_id": units[0]["proposition_ids"][0],
+                "exact_text": "amygdala",
+                "supporting_proposition_ids": [units[0]["proposition_ids"][0]],
+            }
+        ]
+        prior_receipt = mscope.new_nomination_receipt(
+            scope,
+            model_name="old-model",
+            request_fingerprint="irrelevant",
+            candidates_offered=[],
+            accepted=prior_accepted,
+            status="fresh",
+        )
+        ctx = mscope.new_nomination_context(mscope.all_eligible_policy(), prior_receipts={scope: prior_receipt})
+        result = sm._bind_role_candidates(
+            self._role_spec(),
+            units,
+            model_client=_RaisingClient(),
+            child_id="c4",
+            requirement_id="c4#req",
+            nomination_context=ctx,
+        )
+        self.assertEqual(result[0]["exact_text"], "amygdala")
+        self.assertEqual(result[0]["provenance"]["nomination_receipt_status"], "fresh_failed_fallback_to_prior")
+
+    def test_mechanical_failure_with_stale_prior_receipt_degrades_to_missing(self):
+        """A prior accepted proposition_id that no longer exists in the current candidate pool
+        must NOT be replayed (audit §L: fail that receipt CLOSED, never retain stale evidence)."""
+        units = [_unit("u1", 1, "The amygdala showed increased activity.")]
+
+        class _RaisingClient:
+            model_name = "raising-fake"
+
+            def nominate_sufficiency_role(self, *, category_description, candidates):
+                raise RuntimeError("transport failed")
+
+        scope = mscope.new_model_nomination_scope("c4", "c4#req", "named_brain_region_or_network")
+        stale_accepted = [
+            {
+                "proposition_id": "p-no-longer-present",
+                "exact_text": "hippocampus",
+                "supporting_proposition_ids": ["p-no-longer-present"],
+            }
+        ]
+        prior_receipt = mscope.new_nomination_receipt(
+            scope,
+            model_name="old-model",
+            request_fingerprint="irrelevant",
+            candidates_offered=[],
+            accepted=stale_accepted,
+            status="fresh",
+        )
+        ctx = mscope.new_nomination_context(mscope.all_eligible_policy(), prior_receipts={scope: prior_receipt})
+        result = sm._bind_role_candidates(
+            self._role_spec(),
+            units,
+            model_client=_RaisingClient(),
+            child_id="c4",
+            requirement_id="c4#req",
+            nomination_context=ctx,
+        )
+        self.assertEqual(result, [])
+
+    def test_prior_receipt_with_exact_text_no_longer_grounded_is_rejected(self):
+        """Test #20: the proposition_id still exists, but the accepted `exact_text` is no longer
+        a literal substring of its (possibly re-extracted) passage -- the receipt must still be
+        rejected wholesale, not just the proposition-existence check from the test above."""
+        units = [_unit("u1", 1, "The amygdala showed increased activity.")]
+        pid = units[0]["proposition_ids"][0]
+        scope = mscope.new_model_nomination_scope("c4", "c4#req", "named_brain_region_or_network")
+        ungrounded_accepted = [
+            {
+                "proposition_id": pid,
+                "exact_text": "hippocampus",  # never in this passage
+                "supporting_proposition_ids": [pid],
+            }
+        ]
+        self.assertFalse(
+            sm._prior_receipt_is_admissible(
+                mscope.new_nomination_receipt(
+                    scope,
+                    model_name="m",
+                    request_fingerprint="x",
+                    candidates_offered=[],
+                    accepted=ungrounded_accepted,
+                    status="fresh",
+                ),
+                self._role_spec(),
+                units,
+            )
+        )
+
+    def test_prior_receipt_with_now_inadmissible_guard_is_rejected(self):
+        """A proposition_id still exists and the text still matches, but the unit is no longer
+        admissible per this role's own disqualifying guards (e.g. a guard flag changed) -- the
+        receipt is still rejected (admissibility, not just literal grounding, is checked)."""
+        units = [_unit("u1", 1, "might involve the amygdala")]  # hedged
+        pid = units[0]["proposition_ids"][0]
+        role_spec = self._role_spec(disqualifying_guards=["hedged"])
+        scope = mscope.new_model_nomination_scope("c4", "c4#req", "named_brain_region_or_network")
+        accepted = [{"proposition_id": pid, "exact_text": "amygdala", "supporting_proposition_ids": [pid]}]
+        self.assertFalse(
+            sm._prior_receipt_is_admissible(
+                mscope.new_nomination_receipt(
+                    scope,
+                    model_name="m",
+                    request_fingerprint="x",
+                    candidates_offered=[],
+                    accepted=accepted,
+                    status="fresh",
+                ),
+                role_spec,
+                units,
+            )
+        )
+
+    def test_authorized_target_scope_gets_a_fresh_call_even_when_candidates_have_broadened(self):
+        """Test #21: a target/authorized scope's fresh call is never blocked by candidates having
+        broadened since a prior pass -- there is no cross-pass fingerprint comparison at all, by
+        design (audit §M: this is exactly what "recovery adds new evidence" requires)."""
+        narrower_units = [_unit("u1", 1, "The amygdala showed increased activity.")]
+        broader_units = narrower_units + [_unit("u2", 2, "The hippocampus also showed increased activity.")]
+        scope = mscope.new_model_nomination_scope("c4", "c4#req", "named_brain_region_or_network")
+        prior_receipt = mscope.new_nomination_receipt(
+            scope,
+            model_name="old",
+            request_fingerprint="whatever-the-narrower-fingerprint-was",
+            candidates_offered=[],
+            accepted=[
+                {
+                    "proposition_id": narrower_units[0]["proposition_ids"][0],
+                    "exact_text": "amygdala",
+                    "supporting_proposition_ids": [narrower_units[0]["proposition_ids"][0]],
+                }
+            ],
+            status="fresh",
+        )
+        ctx = mscope.new_nomination_context(
+            mscope.exact_scope_set_policy([scope]), prior_receipts={scope: prior_receipt}
+        )
+        client = _FakeModelClient(
+            {
+                narrower_units[0]["proposition_ids"][0]: "amygdala",
+                broader_units[1]["proposition_ids"][0]: "hippocampus",
+            }
+        )
+        result = sm._bind_role_candidates(
+            self._role_spec(),
+            broader_units,
+            model_client=client,
+            child_id="c4",
+            requirement_id="c4#req",
+            nomination_context=ctx,
+        )
+        self.assertEqual(
+            len(client.calls),
+            1,
+            "the authorized scope must make a fresh call against the CURRENT, "
+            "broadened candidate pool rather than being blocked by the prior "
+            "pass's different fingerprint",
+        )
+        self.assertEqual({r["exact_text"] for r in result}, {"amygdala", "hippocampus"})
+
+    def test_unauthorized_scope_ignores_newly_broadened_candidates_and_stays_held_fixed(self):
+        """Test #22: a held-fixed (non-target) scope's broadened current candidate pool is never
+        consulted -- the prior decision alone is replayed, exactly as "held fixed" requires."""
+        narrower_units = [_unit("u1", 1, "The amygdala showed increased activity.")]
+        broader_units = narrower_units + [_unit("u2", 2, "The hippocampus also showed increased activity.")]
+        scope = mscope.new_model_nomination_scope("c5", "c5#req", "named_brain_region_or_network")
+        other_target = mscope.new_model_nomination_scope("c4", "c4#req", "named_brain_region_or_network")
+        prior_accepted = [
+            {
+                "proposition_id": narrower_units[0]["proposition_ids"][0],
+                "exact_text": "amygdala",
+                "supporting_proposition_ids": [narrower_units[0]["proposition_ids"][0]],
+            }
+        ]
+        prior_receipt = mscope.new_nomination_receipt(
+            scope,
+            model_name="old",
+            request_fingerprint="irrelevant",
+            candidates_offered=[],
+            accepted=prior_accepted,
+            status="fresh",
+        )
+        ctx = mscope.new_nomination_context(
+            mscope.exact_scope_set_policy([other_target]), prior_receipts={scope: prior_receipt}
+        )
+        client = _FakeModelClient(
+            {
+                narrower_units[0]["proposition_ids"][0]: "amygdala",
+                broader_units[1]["proposition_ids"][0]: "hippocampus",
+            }
+        )
+        result = sm._bind_role_candidates(
+            self._role_spec(),
+            broader_units,
+            model_client=client,
+            child_id="c5",
+            requirement_id="c5#req",
+            nomination_context=ctx,
+        )
+        self.assertEqual(
+            client.calls, [], "a held-fixed scope must never call the model regardless of broadened candidates"
+        )
+        self.assertEqual(
+            {r["exact_text"] for r in result},
+            {"amygdala"},
+            "only the PRIOR decision is replayed -- "
+            "the newly-added hippocampus unit is "
+            "never considered for a held-fixed scope",
+        )
+
+
+class MapRequirementPhase19ForkMemoizationTests(unittest.TestCase):
+    """The audit's real finding (§3/§8/§J): a later role reached once per pre-existing fork must
+    cost exactly one physical model call per mapping pass when every invocation is the same
+    request -- proven here through the REAL `map_requirement` fork mechanics, not a bare
+    `resolve_nomination` unit test."""
+
+    def test_a_later_role_forked_by_an_earlier_one_calls_the_model_exactly_once(self):
+        specs = {
+            "culture_or_population": se.new_role_spec(
+                "culture_or_population", "a named culture", "model_nomination_only"
+            ),
+            "operationalization_or_measure": se.new_role_spec(
+                "operationalization_or_measure", "how it was measured", "model_nomination_only"
+            ),
+        }
+        completion = se.new_role_completion(required_roles=["culture_or_population", "operationalization_or_measure"])
+        req = se.new_requirement("c11#req", "relational", specs, completion, "exists")
+        units = [_unit("u1", 1, "Hadza and U.S. participants were assessed using the IRI questionnaire.")]
+        pid = units[0]["proposition_ids"][0]
+
+        # Role 1 forks into 2 instances from one passage (two distinct cultures named).
+        first_role_client = _FakeModelClient({pid: ["Hadza", "U.S."]})
+
+        class _CombinedClient:
+            model_name = "combined-fake"
+
+            def __init__(self):
+                self.calls = []
+
+            def nominate_sufficiency_role(self, *, category_description, candidates):
+                self.calls.append(category_description)
+                if category_description == "a named culture":
+                    return first_role_client.nominate_sufficiency_role(
+                        category_description=category_description, candidates=candidates
+                    )
+                # Role 2: the SAME units_here/role_spec every time it's reached -- byte-identical
+                # requests across both forks of role 1.
+                return [{"proposition_id": pid, "exact_text": "IRI questionnaire"}]
+
+        client = _CombinedClient()
+        ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
+        result = sm.map_requirement(req, units, model_client=client, child_id="c11", nomination_context=ctx)
+
+        role2_calls = [c for c in client.calls if c == "how it was measured"]
+        self.assertEqual(len(result["instances"]), 2, "role 1 must still fork into 2 instances")
+        self.assertEqual(
+            len(role2_calls),
+            1,
+            "role 2 is reached once per pre-existing fork (2x) but must cost exactly ONE physical "
+            "model call this pass -- the confirmed audit §3/§8 redundancy, now memoized",
+        )
+        for instance in result["instances"]:
+            self.assertEqual(
+                instance["role_bindings"]["operationalization_or_measure"]["exact_text"], "IRI questionnaire"
+            )
+
+    def test_result_semantics_match_what_the_old_repeated_call_pattern_would_have_produced(self):
+        """Same scenario, but WITHOUT a nomination_context (legacy path, repeated calls) --
+        confirms memoization changes nothing observable about the final mapped result."""
+        specs = {
+            "culture_or_population": se.new_role_spec(
+                "culture_or_population", "a named culture", "model_nomination_only"
+            ),
+            "operationalization_or_measure": se.new_role_spec(
+                "operationalization_or_measure", "how it was measured", "model_nomination_only"
+            ),
+        }
+        completion = se.new_role_completion(required_roles=["culture_or_population", "operationalization_or_measure"])
+        req = se.new_requirement("c11#req", "relational", specs, completion, "exists")
+        units = [_unit("u1", 1, "Hadza and U.S. participants were assessed using the IRI questionnaire.")]
+        pid = units[0]["proposition_ids"][0]
+
+        class _DeterministicClient:
+            model_name = "deterministic-fake"
+
+            def nominate_sufficiency_role(self, *, category_description, candidates):
+                if category_description == "a named culture":
+                    return [
+                        {"proposition_id": pid, "exact_text": "Hadza"},
+                        {"proposition_id": pid, "exact_text": "U.S."},
+                    ]
+                return [{"proposition_id": pid, "exact_text": "IRI questionnaire"}]
+
+        legacy_result = sm.map_requirement(req, units, model_client=_DeterministicClient(), child_id="c11")
+        ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
+        memoized_result = sm.map_requirement(
+            req, units, model_client=_DeterministicClient(), child_id="c11", nomination_context=ctx
+        )
+
+        def _strip(result):
+            return [
+                {
+                    role: {"exact_text": b.get("exact_text"), "state": b.get("state")}
+                    for role, b in inst["role_bindings"].items()
+                }
+                for inst in sorted(result["instances"], key=lambda i: i["instance_key"] or "")
+            ]
+
+        self.assertEqual(_strip(legacy_result), _strip(memoized_result))
+
+
+class MapAnyRequirementPhase19ChildIdThreadingTests(unittest.TestCase):
+    """Proves child_id reaches the real scope even when requirement ids do NOT follow the
+    "childid#..." naming convention -- i.e. child_id is genuinely threaded, never parsed back out
+    of the requirement id string (audit §4, test #6)."""
+
+    def test_child_id_threaded_even_when_requirement_id_does_not_start_with_it(self):
+        specs = {"region": se.new_role_spec("region", "a region", "model_nomination_only")}
+        completion = se.new_role_completion(required_roles=["region"])
+        # Deliberately misleading id -- looks like it belongs to "zzz", not "c4".
+        req = se.new_requirement("zzz#totally-unrelated-id", "atomic", specs, completion, "exists")
+        units = [_unit("u1", 1, "The amygdala showed increased activity.")]
+        pid = units[0]["proposition_ids"][0]
+        client = _FakeModelClient({pid: "amygdala"})
+
+        target_scope = mscope.new_model_nomination_scope("c4", "zzz#totally-unrelated-id", "region")
+        ctx = mscope.new_nomination_context(mscope.exact_scope_set_policy([target_scope]))
+
+        result = sm.map_any_requirement(req, units, model_client=client, child_id="c4", nomination_context=ctx)
+        self.assertEqual(result["instances"][0]["role_bindings"]["region"]["exact_text"], "amygdala")
+        self.assertEqual(len(client.calls), 1)
+
+
+class MapPairedRequirementPhase19Tests(unittest.TestCase):
+    """Descendant propagation stays architecturally untouched (audit §13/§Q): a fresh parent
+    scope updates a paired child with zero extra model calls, and an INDEPENDENT descendant
+    model-assisted role is never authorized merely because its parent was the recovery target."""
+
+    def test_independent_descendant_role_is_held_fixed_unless_its_own_scope_is_named(self):
+        parent_specs = {"region": se.new_role_spec("region", "a region", "model_nomination_only")}
+        parent_completion = se.new_role_completion(required_roles=["region"])
+        parent_req = se.new_requirement("c4#req", "atomic", parent_specs, parent_completion, "exists")
+        parent_units = [_unit("pu1", 1, "The amygdala showed increased activity.")]
+        parent_client = _FakeModelClient({parent_units[0]["proposition_ids"][0]: "amygdala"})
+        parent_target = mscope.new_model_nomination_scope("c4", "c4#req", "region")
+        parent_ctx = mscope.new_nomination_context(mscope.exact_scope_set_policy([parent_target]))
+        mapped_parent = sm.map_requirement(
+            parent_req, parent_units, model_client=parent_client, child_id="c4", nomination_context=parent_ctx
+        )
+
+        child_specs = {
+            "region": se.new_role_spec("region", "a region", "model_nomination_only"),
+            "own_independent_role": se.new_role_spec(
+                "own_independent_role", "an unrelated independent finding", "model_nomination_only"
+            ),
+        }
+        child_completion = se.new_role_completion(required_roles=["region", "own_independent_role"])
+        child_req = se.new_requirement(
+            "c5#req", "relational", child_specs, child_completion, "exists", parent_context_roles=["region"]
+        )
+        child_units = [_unit("cu1", 1, "A behavioral effect was independently observed.")]
+
+        class _ShouldNeverBeCalledClient:
+            model_name = "should-not-be-called"
+
+            def nominate_sufficiency_role(self, *, category_description, candidates):
+                raise AssertionError("an unauthorized, unrelated descendant scope must never call the model")
+
+        # Same policy object (parent-only authorization) reused for the child's own mapping pass.
+        result = sm.map_paired_requirement(
+            child_req,
+            mapped_parent,
+            child_units,
+            model_client=_ShouldNeverBeCalledClient(),
+            child_id="c5",
+            nomination_context=parent_ctx,
+        )
+        self.assertEqual(result["instances"][0]["role_bindings"]["region"]["exact_text"], "amygdala")
+        self.assertEqual(
+            result["instances"][0]["role_bindings"]["region"]["provenance"]["candidate_source"], "parent_context"
+        )
+        self.assertEqual(result["instances"][0]["role_bindings"]["own_independent_role"]["state"], "missing")
+
+
 if __name__ == "__main__":
     unittest.main()

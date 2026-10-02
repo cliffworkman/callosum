@@ -847,3 +847,72 @@ that hash covers -- none touched by this phase). v9 `combined_hash` confirmed un
 `9c72dc6a0180e95c55e68a009c366843b671684c19c6ae84ed254f3865305586`. No live model call, no
 retrieval, no recovery execution, no contract or pin change, no production integration. Full detail
 in `PHASE18_DIRECTION_EFFECTIVENESS_IMPLEMENTATION_RESULTS.md`.
+
+---
+
+## Phase 19 — robust model-nomination scoping + nomination-receipt infrastructure (appended 2026-10-02; does not alter the rows above)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-10-02 | Evidence | Phase 14 production call-graph audit |
+| 2026-10-02 | Design direction | Cliff Workman + ChatGPT |
+| 2026-10-02 | Audit / design | Claude |
+| 2026-10-02 | Implementation direction | Cliff Workman |
+| 2026-10-02 | Implementation, verification | Claude |
+
+**Evidence (Phase 14 production call-graph audit).** Experimental target-scoped remapping
+demonstrated that recovered evidence can be semantically consumed by a model-assisted role, while
+production mapping still lacked an explicit identity-safe scoping mechanism.
+
+**Design direction (Cliff Workman + ChatGPT).** Defined model-assistance authority around an
+explicit `(child_id, requirement_id, role)` semantic scope, separating role identity from
+descriptive prompt text and requiring the same seam to support both initial mapping and isolated
+post-recovery remapping.
+
+**Audit / design (Claude).** Conducted entirely in Plan Mode (read-only; no code, no commit; full
+text in `~/.claude/plans/pasted-content-id-ec13-new-architectura-snappy-storm.md`, outside this
+repo). Traced the complete model-nomination call graph against this exact HEAD and confirmed
+production `e2e.py` supplies no `model_client` anywhere. Confirmed `(child_id, requirement_id,
+role)` is sufficient scope identity by direct code reading: a nomination's actual model-facing
+request never varies by instance, so instance multiplicity is a deterministic consequence of one
+nomination's own output size, never a precondition for the call. Found, as a direct corollary, a
+real latency defect in the existing fork-handling code: a later `model_nomination_only` role
+reached once per pre-existing fork re-invokes the model with byte-identical inputs. Found that
+`child_id` is threaded nowhere below `compute_diagnostic_sufficiency_map`'s own per-child loop
+variable (confirmed directly against `sufficiency_engine.new_requirement`'s return shape -- no
+such key exists on an individual requirement dict). Recommended Scope A (scope/receipt
+infrastructure only, production calls stay off) and flagged one explicit design fork for sign-off:
+whether scope rides inside the raw `model_client` wire protocol or stays entirely outside it.
+
+**Implementation direction (Cliff Workman).** Accepted the audit OTR for Scope A and resolved the
+one flagged design fork explicitly: scope stays OUTSIDE the raw model-client protocol, owned by a
+new orchestration layer above it, so every existing live/recorded/replay/fake client needs zero
+modification. Specified the request-fingerprint invariant as something to be *proven mechanically*
+against the real v9 inventory, not merely asserted; specified the receipt as the normalized/
+accepted nomination output, never a derived role binding; and specified exact authorization,
+held-fixed-replay, candidate-broadening, and mechanical-failure-fallback semantics in full, each
+with its own required test.
+
+**Implementation, verification (Claude).** Built `sufficiency_model_scope.py` (new, dependency-free
+of `sufficiency_mapping.py`/`sufficiency_recovery_targets.py` by design -- every place it would
+otherwise need mapping internals receives them as an injected callable instead, avoiding a
+circular import while keeping all scope/authorization/receipt logic in one place): scope
+construction/enumeration, a canonical order-insensitive request fingerprint, two authorization
+policies, nomination receipts, the one `resolve_nomination` orchestration checkpoint (in-pass
+memoization, authorization, held-fixed replay, mechanical-failure fallback), and a `RecoveryTarget
+-> scope` projection. Threaded `child_id`/`requirement_id`/`nomination_context` as optional,
+defaulted-`None` keyword parameters through `sufficiency_mapping.py`'s full call chain, with the
+ONE integration checkpoint inside `_bind_role_candidates`: when no `nomination_context` is
+supplied, legacy behavior is byte-identical (confirmed by the full pre-existing test suites for
+both `sufficiency_mapping.py` and `sufficiency_diagnostic.py` passing unchanged). Mechanically
+proved the audit's own fingerprint hypothesis rather than assuming it, against a real q_aib-shaped
+multi-fork reconstruction: raw client call count for a doubly-forked later role dropped from N to
+exactly 1, with downstream mapped results unchanged from the pre-Phase-19 repeated-call pattern.
+TDD throughout, including the extraction of `_candidate_rows_for_role` as a proven zero-behavior-
+change refactor before any scope threading began. 73 new tests (49 + 19 + 5 across the three
+touched/new test files); full `experiments/ask_cli_revised` regression: 2251 passed, 11 skipped,
+2 failed -- the identical pre-existing pin-drift pair Phase 16/17/18 already documented, confirmed
+unrelated by `git diff --stat` showing zero changes to the files that failure concerns. v9
+`combined_hash` confirmed unchanged: `9c72dc6a0180e95c55e68a009c366843b671684c19c6ae84ed254f3865305586`.
+`e2e.py` untouched -- no live model call, no retrieval, no recovery execution, no contract or pin
+change, no production integration. Full detail in `PHASE19_MODEL_SCOPING_RESULTS.md`.
