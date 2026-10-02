@@ -43,6 +43,7 @@ from app.backend.capture.trusted_paths import (
     queued_pdf_read_path,
     require_canonical_id,
 )
+from app.backend.embeddings.admission import ensure_paper_indexed
 from app.backend.metadata.doi_add import add_paper_by_doi
 from app.backend.pdf_processing.ingest import attach_pdf_to_paper
 from app.backend.persistence import capture_events_repo, provisional_artifacts_repo
@@ -339,6 +340,11 @@ def attempt_attach_to_paper(
     DERIVED from it -- the persisted `pdf_path` column is not filesystem authority -- and the source is read only if it is a
     plain regular file directly in the queue (a symlinked entry is refused).
     """
+
+    # Canonical admission has committed before any caller reaches this shared seam.
+    # Index new/reused papers independently of PDF eligibility; the common hook is
+    # idempotent and nonfatal, and reuses the caller's app-owned model/vector store.
+    ensure_paper_indexed(engine, paper_id, model=embedding_model, vector_store=vector_store)
 
     def _check_attachment(conn: Connection) -> tuple[bool, str]:
         return attachment_decision(conn, paper_id, newly_created=created)

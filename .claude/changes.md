@@ -10,6 +10,14 @@ are the design diary; this is the chronological "what & why" record.
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
 
+## 2026-10-02 — Increment 604: paper metadata index after canonical PDF admission (local only)
+- **Evidence:** Cliff's genuine Windows capture at `2a80b734` preserved one PDF and 122 chunk vectors but no metadata embedding for the confirmed paper. The original PARTIAL evidence and QA state remain unchanged.
+- **Cause:** provisional confirmation, automatic promotion and retry reached chunk attachment/indexing without the shared post-admission paper hook. The existing admission matrix omitted these paths; the omission predates the two Windows fixes.
+- **Files/behavior:** `capture/provisional.py` calls existing `ensure_paper_indexed` after canonical admission commits, for new/reused papers independently of attachment eligibility. No bespoke model/text/vector logic, schema, runtime, transport, identity or UI change.
+- **Verification:** extend `tests/test_admission_indexing.py` with real-fixture confirmation, automatic admission, missing/valid index reuse, no recomputation/duplicates, retry/failure/conflict and real sqlite-vec persistence. See increment 604 and `docs/research/2026-10-02_capture-paper-index.md` for red/green results and the remaining isolated packaged-runtime check.
+- **Lineage:** Cliff — physical evidence/authorization; Cody — diagnosis, implementation/tests; Lucien — shared-invariant scope and targeted acceptance boundary.
+- **Revert:** revert this local commit; no data migration or live QA repair occurred. Source push, packaging, PR changes and release actions remain outside scope.
+
 ## 2026-10-01 — Publisher PDF classification and responsive capture (local only)
 - **Evidence/lineage:** Cliff's genuine Windows Chrome clicks created four PDF-viewer-title metadata records with no attachment or Import Queue. Cody supplied the checksum-correct original PLOS URL but missed suffix-only PDF detection; preserved snapshots establish the generic admission path. First-click logs show model loading before acknowledgement, consistent with the observed health timeout; an exact original stack/timing span was not captured.
 - **Change:** classify only the clicked active document, requiring PDF magic with bounded fetch/stream size/time; only identified HTML may use generic extraction. Preview becomes 0.1.2 with the same dedicated identity and verified package inventory. No permissions, production IDs, runtime or app version change.

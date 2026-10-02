@@ -37,6 +37,12 @@ for the research track's own state; don't duplicate its content here.
 
 ## Other isolated worktrees
 
+- `C:\Users\cliff\Documents\Codex\2026-09-23\we-have-a-physical-intel-macos\work\capture-paper-index`
+  (`fix/capture-admission-paper-index`) starts at accepted Windows candidate `2a80b734`.
+  It contains only the local post-admission paper-index correction and its tests/docs.
+  The adjacent `capture-pdf-responsive` and `windows-preview-path` worktrees remain frozen;
+  the original Windows QA database, artifacts and parked user state must not be repaired in place.
+  This branch is not authorized for push, merge, packaging or release.
 - `.claude/worktrees/browser-capture-research` (branch `browser-capture-research`) — the
   browser-capture/import-queue feature (issue #61). **As of 2026-09-17** it was deliberately left
   isolated and untouched, with uncommitted in-progress changes referencing a separate open issue

@@ -113,4 +113,15 @@ with no model inference or canonical paper. Test HTML, unknown MIME, invalid PDF
 oversize bytes, fetch/body timeout, stream cleanup and inaccessible-document refusal.
 Existing failed acceptance rows and parked user data must not be silently removed.
 
+### Post-admission paper index (increment 604)
+
+After canonical confirmation, inspect paper and chunk indexes separately: one current paper-level
+metadata embedding with a real vector, plus one current vector for every PDF chunk. A chunked
+Library card alone is not evidence of the paper index. Cover new papers, existing unindexed papers,
+and already-indexed papers without recomputation or duplication, including automatic promotion and
+retry. Unresolved capture and DOI preview must not index a candidate as a canonical paper.
+Use only disposable data. The Oct 2 Windows receipt remains PARTIAL for paper indexing; preserve it.
+The minimum follow-up is in `docs/research/2026-10-02_capture-paper-index.md`, not a repeat of all
+previous browser/native-host acceptance steps.
+
 Write `.claude/qa-inbox/<RUN_ID>/route_27_scan_import.md` + `screenshots/` (see `_TEMPLATE.md`).
