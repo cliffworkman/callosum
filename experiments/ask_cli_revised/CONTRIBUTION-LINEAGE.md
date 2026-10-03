@@ -1329,3 +1329,53 @@ anomalous-is-bad-bias contract yet still produced an accepted model value. Trace
 correctly excluding behavior-only candidates from a joint brain+behavior requirement, not a model
 rejection) before it was mischaracterized as an inconsistency. Full detail in
 `PHASE23A_POSTHOC_SCIENTIFIC_ADJUDICATION_AND_ERRATUM.md`.
+
+---
+
+## Phase 24 -- production-route activation of sufficiency recovery (appended 2026-10-03; preserves all prior entries unchanged)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-10-03 | Evidence | Phase 23/23a |
+| 2026-10-03 | Design direction | Cliff Workman + ChatGPT |
+| 2026-10-03 | Implementation | Claude |
+
+**Evidence (Phase 23/23a).** Live recovery/remap correctness and its scientific usefulness and
+limitations were both established; the one remaining gap -- `run_topology()` could not express
+`sufficiency_recovery_gate_enabled` at all, so the live validation had to call `execute()`
+directly -- was explicitly named as Phase 24's own purpose.
+
+**Design direction (Cliff Workman + ChatGPT).** Required the already-proven sufficiency recovery
+capability to become reachable through the normal production-shaped main/run_topology path
+without changing semantic recovery behavior; required the flag to be independent of
+--sufficiency-model-assist unless code genuinely proved a dependency; required profile-independent
+threading; and required an offline, direct-execute()-vs-integrated-route equivalence proof mirroring
+Phase 20a's own pattern, before calling the seam closed.
+
+**Implementation (Claude).** Audited the real entry path end to end before editing (parse_args ->
+main() -> run_topology() -> execute()) and confirmed the gap precisely: run_topology()'s own
+execute() call site never threaded the kwarg, and no CLI flag existed for it. Added one new
+store_true flag (--sufficiency-recovery, default off) validated at both the CLI-parser layer and
+inside run_topology() itself (the same two-layer precedent --sufficiency-model-assist already
+established, since run_topology() is a real, directly-callable unit independent of the parser).
+Audited from code, not assumed, whether recovery requires model assistance -- traced execute()'s own
+gating condition and found it depends only on a sufficiency map existing at all, which the
+deterministic-only path already produces unconditionally -- and proved, offline, that
+--sufficiency-recovery without --sufficiency-model-assist is a real, working, independent mode, not
+an invented one. Built the direct-execute()-vs-integrated-route equivalence proof by reusing Phase
+22's own real scripted fixture (TargetedPostRecoveryRemapIntegrationTests' claim/recovery set and
+_DeclineUnderTwoCandidatesClient) rather than inventing a new scenario, and found the one seam that
+needed substituting to drive it through run_topology()'s own real bind(): a managed_local-kind W
+binding resolves bound.qwen to a real QwenTasks wrapping a fixture-only config, which
+_sufficiency_u1_context cannot resolve a model_name from -- substituted that one function, never
+execute()'s own control flow or bind()'s construction. All 8 new tests plus one pre-existing
+manifest-shape test (extended, not weakened) pass; the full suite grew from Phase 23a's 2343 passed
+to 2351 passed, 11 skipped, with the identical 2 pre-existing, unrelated pin-drift failures every
+phase this session has reconfirmed. Zero changes to any semantic sufficiency module
+(sufficiency_mapping.py/sufficiency_diagnostic.py/sufficiency_model_scope.py/
+sufficiency_recovery_targets.py/sufficiency_engine.py/qwen.py/hierarchy_contract.py), confirmed by
+per-file diff. v9 combined_hash unchanged. Audited, but explicitly declined to fix incidentally, the
+real CLI path's own pre-existing pin-drift block on load_contract_for_live -- unrelated to and
+unworsened by this phase, disposed of per the brief's own sanctioned use of the established
+pins=None test fixture. Full detail in
+`PHASE24_PRODUCTION_RECOVERY_ROUTE_ACTIVATION_RESULTS.md`.

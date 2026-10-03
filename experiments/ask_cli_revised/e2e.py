@@ -680,6 +680,10 @@ def execute(
 
     sufficiency_map_final = sufficiency_map_initial
     sufficiency_u2_context = None  # stays None unless the block below actually recomputes U2
+    # Phase 24: minimal additive manifest diagnostic (§12) -- None whenever U2 never recomputes at
+    # all (byte-identical absence to sufficiency_u2_context above), never a reimplementation of F
+    # itself (the real frozenset lives only in sufficiency_u2_fresh_request_keys below).
+    sufficiency_u2_fresh_request_key_count = None
     if (
         sufficiency_contract is not None
         and contract.get("version") == hierarchy_contract.HIER_VERSION
@@ -725,6 +729,7 @@ def execute(
                 mscope.exact_request_set_policy(sufficiency_u2_fresh_request_keys),
                 prior_receipts=sufficiency_u1_receipts_snapshot,
             )
+        sufficiency_u2_fresh_request_key_count = len(sufficiency_u2_fresh_request_keys)
         sufficiency_map_final = sufficiency_diagnostic.compute_diagnostic_sufficiency_map(
             sealed,
             sufficiency_contract,
@@ -946,6 +951,19 @@ def execute(
         # "sufficiency_recovery_candidates" since the shape itself changed (confirmed by grep: no
         # consumer outside this file parses the old key/shape).
         "sufficiency_recovery_targets": recovery_targets_final,
+        # Phase 24 (§12, minimal additive manifest diagnostics): the BEFORE-recovery inventory
+        # execute() already computes internally for injection into `gaps` -- exposed here so a
+        # caller (run_topology()'s own manifest; Phase 23's harness previously had to recompute
+        # this post-hoc, read-only, via a second call to the same pure function) never needs to
+        # reimplement or re-derive it. `None` exactly when the gate never ran (byte-identical to
+        # the pre-Phase-24 absence of this key).
+        "sufficiency_recovery_targets_initial": recovery_targets_initial,
+        # Phase 24 (§12/§13): |F|'s own count only -- never the raw key set (that stays exclusively
+        # in the "18_sufficiency_model_assist.json" trace artifact's receipts). Named precisely per
+        # Phase 23a's corrected terminology: this is the fresh-AUTHORIZED request-key count, not a
+        # physical-call count (`sufficiency_model_assist.final.by_status` already carries the
+        # fresh/fresh_no_candidates/held_fixed breakdown whenever model assistance is on).
+        "sufficiency_u2_fresh_request_key_count": sufficiency_u2_fresh_request_key_count,
         # Phase 20b: internal run diagnostics only (audit §14) -- never user-facing prose. `None`
         # unless model assistance actually ran (byte-identical absence to every pre-Phase-20b
         # caller, including Phase 20a's own deterministic-only path).
@@ -1044,6 +1062,7 @@ def run_topology(
     authorization_checker=None,
     sufficiency_loader=_default_sufficiency_loader,
     sufficiency_model_assist: bool = False,
+    sufficiency_recovery_gate: bool = False,
     git_state_fn=provenance.git_state,
     verify_library=library_copy.verify,
     verify_contracts=e2e_contracts.verify_frozen,
@@ -1062,6 +1081,13 @@ def run_topology(
         # class in this file calls it without going through the CLI parser at all), so it must
         # not depend on the CLI layer alone to enforce its own preconditions.
         raise ValueError("--sufficiency-model-assist requires --hierarchy")
+    if sufficiency_recovery_gate and not hierarchy:
+        # Phase 24: the same independent-of-the-CLI-parser precondition as the model-assist check
+        # above, for the same reason. Deliberately NOT required to pair with sufficiency_model_
+        # assist -- execute()'s own recovery-gate block only depends on sufficiency_map_initial
+        # existing, which a deterministic-only (model-assist-off) sufficiency pass already
+        # produces; recovery and model assistance are independent capabilities (Phase 24 audit).
+        raise ValueError("--sufficiency-recovery requires --hierarchy")
     hier_contract = None
     if hierarchy:
         if question_key != "aib":
@@ -1137,6 +1163,7 @@ def run_topology(
                     entail=rt.verifier.support_scorer.support_and_contradiction_many if profile.S.kind != "off" else None,
                     sufficiency_contract=sufficiency_contract, sufficiency_parent_of=sufficiency_parent_of,
                     sufficiency_model_assist_enabled=sufficiency_model_assist,
+                    sufficiency_recovery_gate_enabled=sufficiency_recovery_gate,
                 )  # fmt: skip
         except Exception as exc:
             trace.write_json("RUN_FAILED.json", {"error_type": type(exc).__name__, "message": str(exc)[:500]})
@@ -1214,6 +1241,18 @@ def run_topology(
             # "18_sufficiency_model_assist.json" trace artifact; this is only the thin summary
             # _nomination_pass_summary already computed inside execute() itself.
             "model_assist": result.get("sufficiency_model_assist"),
+            # Phase 24: minimal additive reachability/activation diagnostics -- never a duplicate of
+            # the detailed Phase-22 trace artifacts (the full RecoveryTarget/receipt detail stays in
+            # "17_sufficiency_map.*.json"/"18_sufficiency_model_assist.json"). `requested` is the raw
+            # flag this call received; `enabled` is whether the gate was actually live for this run
+            # (requires a sufficiency map to have existed at all, exactly execute()'s own gating
+            # condition); the remaining three are honest post-hoc observations of what happened, not
+            # a re-derivation of recovery semantics.
+            "recovery_gate_requested": sufficiency_recovery_gate,
+            "recovery_gate_enabled": sufficiency_recovery_gate and result["sufficiency_map_initial"] is not None,
+            "recovery_targets_initial_count": len(result.get("sufficiency_recovery_targets_initial") or {}),
+            "recovery_round_executed": any(s["stage"] == "W2" for s in result["stage_log"]),
+            "u2_fresh_request_key_count": result.get("sufficiency_u2_fresh_request_key_count"),
         }
     if result.get("overview") is not None:
         manifest["overview"] = overview.manifest_record(result["overview"])
@@ -1270,6 +1309,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "requires the active W binding's thinking to be exactly False"
         ),
     )
+    parser.add_argument(
+        "--sufficiency-recovery",
+        action="store_true",
+        help=(
+            "with --hierarchy: let a missing/partial/provisional-corroboration requirement also "
+            "drive one bounded recovery round via synthetic RecoveryTarget search gaps, then a "
+            "Phase-22 target-scoped U2 remap. Default off. Independent of --sufficiency-model-assist "
+            "(a deterministic-only sufficiency map can drive a recovery round on its own -- the "
+            "model-assist flag only governs whether any role may be filled by model nomination at "
+            "all, never whether recovery itself may run)"
+        ),
+    )
     args = parser.parse_args(argv)
     if args.smoke_seed and not args.smoke:
         parser.error("--smoke-seed requires --smoke")
@@ -1281,6 +1332,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error("--smoke-seed cannot be combined with --hierarchy (it would replace approved children)")
     if args.sufficiency_model_assist and not args.hierarchy:
         parser.error("--sufficiency-model-assist requires --hierarchy")
+    if args.sufficiency_recovery and not args.hierarchy:
+        parser.error("--sufficiency-recovery requires --hierarchy")
     if not args.preflight_only:
         missing = [f"--{name}" for name in ("profile", "question", "db", "out") if getattr(args, name) is None]
         if missing:
@@ -1333,6 +1386,7 @@ def main(argv: list[str] | None = None) -> int:
         hierarchy=args.hierarchy,
         experiment_authorization=args.experiment_authorization,
         sufficiency_model_assist=args.sufficiency_model_assist,
+        sufficiency_recovery_gate=args.sufficiency_recovery,
         sampler=sampler,
     )
     if manifest.get("blocked"):

@@ -744,6 +744,333 @@ class TargetedPostRecoveryRemapIntegrationTests(unittest.TestCase):
 
 
 @needs_artifacts
+class RunTopologyRecoveryActivationTests(unittest.TestCase):
+    """Phase 24: proves the new `--sufficiency-recovery` CLI/config surface, threaded through
+    `run_topology()`, reaches `execute()` exactly once and is semantically equivalent to calling
+    `execute()` directly with `sufficiency_recovery_gate_enabled=True` on the SAME fixture -- the
+    same discipline `RunTopologySufficiencyWiringTests` already established for
+    `sufficiency_contract`/`sufficiency_parent_of` threading, extended to this one remaining
+    unthreaded kwarg. Reuses Phase 22's own real, non-trivial scripted fixture
+    (`TargetedPostRecoveryRemapIntegrationTests`'s claim/recovery set and
+    `_DeclineUnderTwoCandidatesClient`) rather than inventing a new scenario -- this is the SAME
+    evidence shape already proven (directly) to fire a genuine targeted remap within budget; Phase
+    24 only proves the normal production-shaped entry point reaches it identically."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.contract = hc.load_contract(BENCHMARK_QUESTION, pins=None)
+        cls.contract_by_child = sufficiency_freeze.load_verified()
+        cls.parent_of = hc.parent_of(cls.contract)
+        cls.assist_profile = replace(topo.WAVE1["T0"], W=replace(topo.WAVE1["T0"].W, think=False))
+
+    def _fixture(self):
+        shared = ScriptedClient(
+            r=r_by_claim(
+                {
+                    CLAIM_C5: ["c5"],
+                    CLAIM_C4: ["c4"],
+                    CLAIM_C12: ["c12"],
+                    TargetedPostRecoveryRemapIntegrationTests.CLAIM_C5B: ["c5"],
+                }
+            )
+        )
+        recovery = [rec("c5", TargetedPostRecoveryRemapIntegrationTests.CLAIM_C5B, chunk=21, origin="recovery")]
+        h = HierHarness(
+            self.assist_profile, self.contract, initial=INITIAL, recovery=recovery, clients={"shared": shared}
+        )
+        self.addCleanup(h.close)
+        # run_topology() calls rt.close() in its own finally block; HierHarness's own rt (a bare
+        # SimpleNamespace, built for direct-execute() callers that never go through run_topology())
+        # has no such method -- added here, on the test's own fixture instance, never on production.
+        h.rt.close = lambda: None
+        return h, shared
+
+    def _direct_execute(self, h, shared, *, gate_enabled, model_assist=True):
+        real_bound = e2e.bind(
+            self.assist_profile, rt=h.rt, clients=h.clients, trace=h.trace, managed_chat=lambda c: h.clients["shared"]
+        )
+        qwen = _DeclineUnderTwoCandidatesClient() if model_assist else None
+        bound = e2e.Bound(qwen=qwen, supervisors=real_bound.supervisors) if model_assist else real_bound
+        with (
+            patch.object(e2e, "_initial_pass", h._initial_pass),
+            patch.object(e2e, "_recover_round", h._recover_round),
+        ):
+            return e2e.execute(
+                rt=h.rt,
+                profile=self.assist_profile,
+                contract=h.contract,
+                trace=h.trace,
+                guard=h.guard,
+                bound=bound,
+                sufficiency_contract=self.contract_by_child,
+                sufficiency_parent_of=self.parent_of,
+                sufficiency_model_assist_enabled=model_assist,
+                sufficiency_recovery_gate_enabled=gate_enabled,
+            )
+
+    def _via_run_topology(self, h, shared, tmp_root, *, recovery_gate, model_assist=True):
+        captured_kwargs, captured_result = {}, {}
+        real_execute = e2e.execute
+        fake = _DeclineUnderTwoCandidatesClient()
+
+        def _spy(**kwargs):
+            captured_kwargs.update(kwargs)
+            result = real_execute(**kwargs)
+            captured_result.update(result)
+            return result
+
+        def _fake_u1_context(profile, bound):
+            # run_topology() builds `bound` itself via the real bind() -- T0's own W/R are
+            # managed_local, so bound.qwen is a real QwenTasks wrapping a bare fake rt.qwen_config
+            # this fixture was never meant to resolve a model_name from. Substituting ONLY this one
+            # seam (never execute()'s own control flow, never the real bind()/require_models()
+            # construction) is the identical technique the direct-execute() path above achieves by
+            # constructing `bound.qwen` as the fake directly -- not reachable here since
+            # run_topology() owns `bind()` itself.
+            return fake, mscope.new_nomination_context(mscope.all_eligible_policy())
+
+        patches = [
+            patch.object(e2e, "execute", side_effect=_spy),
+            patch.object(e2e, "_initial_pass", h._initial_pass),
+            patch.object(e2e, "_recover_round", h._recover_round),
+            # run_topology() resolves its own `profile_name` argument via topo.resolve_profile --
+            # it has no way to accept a Profile object directly. This fixture's whole point is the
+            # think=False variant (the same precondition `_sufficiency_u1_context` enforces), so
+            # the standing registry lookup is substituted for "T0" only, the identical narrow
+            # technique Phase 23's own harness already used for its own profile variant.
+            patch.object(
+                topo,
+                "resolve_profile",
+                side_effect=lambda name: self.assist_profile if name == "T0" else topo.WAVE1[name],
+            ),
+        ]
+        if model_assist:
+            patches.append(patch.object(e2e, "_sufficiency_u1_context", side_effect=_fake_u1_context))
+        with contextlib.ExitStack() as stack:
+            for p in patches:
+                stack.enter_context(p)
+            manifest = e2e.run_topology(
+                "T0",
+                "aib",
+                db_path=tmp_root / "l.sqlite",
+                library_frozen=tmp_root / "l.json",
+                out_dir=tmp_root / "out",
+                git_root=tmp_root,
+                scored=False,
+                hierarchy=True,
+                hierarchy_loader=lambda question: h.contract,
+                authorization_checker=lambda auth, question: None,
+                git_state_fn=lambda r: {"sha": "x", "branch": "b", "dirty_paths": []},
+                verify_library=lambda db, frozen: {"sha256": "same"},
+                verify_contracts=lambda: None,
+                runtime_factory=lambda *a, **kw: h.rt,
+                client_factory=lambda url: shared,
+                managed_chat=lambda config: shared,
+                sufficiency_model_assist=model_assist,
+                sufficiency_recovery_gate=recovery_gate,
+            )
+        return manifest, captured_kwargs, captured_result
+
+    @staticmethod
+    def _without_timing(result: dict) -> dict:
+        """Strips the two real-wall-clock fields (`wall_seconds`/`swap_seconds`) from `stage_log` --
+        the only fields in `execute()`'s own return dict that are never semantically deterministic
+        across two separate invocations of the same scripted fixture. Every other field is compared
+        for exact equality."""
+        stripped = dict(result)
+        stripped["stage_log"] = [
+            {k: v for k, v in entry.items() if k not in ("wall_seconds", "swap_seconds")}
+            for entry in result["stage_log"]
+        ]
+        return stripped
+
+    def test_recovery_flag_reaches_execute_exactly_once_and_the_route_is_semantically_equivalent(self):
+        h_direct, shared_direct = self._fixture()
+        direct = self._direct_execute(h_direct, shared_direct, gate_enabled=True)
+
+        h_route, shared_route = self._fixture()
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest, captured_kwargs, captured_result = self._via_run_topology(
+                h_route, shared_route, Path(tmp), recovery_gate=True
+            )
+
+        # The flag reached execute() exactly once, with the exact value this call requested.
+        self.assertIs(captured_kwargs["sufficiency_recovery_gate_enabled"], True)
+
+        # Direct execute() and the full main-shaped run_topology() route agree on every semantic
+        # field: stage execution, RecoveryTargets before and after, the sealed final evidence,
+        # the U1/U2 nomination receipts (fresh/fresh_no_candidates/held_fixed statuses included),
+        # the final sufficiency map (direction/effectiveness/stop-search live inside it), and F's
+        # own count. Section 8's required comparison, in one assertion rather than one per field,
+        # since execute()'s return dict already carries every one of those fields by name.
+        self.assertEqual(self._without_timing(direct), self._without_timing(captured_result))
+
+        # And the manifest's own thin diagnostics (§12) agree with what actually happened.
+        self.assertEqual(manifest["sufficiency"]["recovery_gate_requested"], True)
+        self.assertEqual(manifest["sufficiency"]["recovery_gate_enabled"], True)
+        self.assertEqual(
+            manifest["sufficiency"]["recovery_targets_initial_count"],
+            len(direct["sufficiency_recovery_targets_initial"]),
+        )
+        self.assertTrue(manifest["sufficiency"]["recovery_round_executed"])
+        self.assertEqual(
+            manifest["sufficiency"]["u2_fresh_request_key_count"], direct["sufficiency_u2_fresh_request_key_count"]
+        )
+        # §13: the manifest's own count is the fresh-AUTHORIZED key count, never the physical-call
+        # count -- confirmed distinct here on real data (2 physical calls underlie this fixture's
+        # own F, per TargetedPostRecoveryRemapIntegrationTests' own assertions above).
+        by_status = direct["sufficiency_model_assist"]["final"]["by_status"]
+        physical_calls = by_status.get("fresh", 0)
+        self.assertNotEqual(manifest["sufficiency"]["u2_fresh_request_key_count"], physical_calls)
+
+    def test_gate_absent_through_run_topology_matches_gate_off_direct_exactly(self):
+        """§9: with the new flag ABSENT, the normal production route must remain byte-identical
+        (modulo wall-clock) to calling execute() with the gate explicitly off -- no target-driven
+        recovery round, F empty/absent, U2 fully held fixed where it runs at all, zero new
+        recovery-specific search actions or model calls caused by this phase's own change."""
+        h_direct, shared_direct = self._fixture()
+        direct_off = self._direct_execute(h_direct, shared_direct, gate_enabled=False)
+
+        h_route, shared_route = self._fixture()
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest, captured_kwargs, captured_result = self._via_run_topology(
+                h_route, shared_route, Path(tmp), recovery_gate=False
+            )
+
+        self.assertIs(captured_kwargs["sufficiency_recovery_gate_enabled"], False)
+        self.assertEqual(self._without_timing(direct_off), self._without_timing(captured_result))
+        self.assertFalse(direct_off["sufficiency_recovery_targets_initial"])
+        self.assertEqual(manifest["sufficiency"]["recovery_gate_requested"], False)
+        self.assertEqual(manifest["sufficiency"]["recovery_gate_enabled"], False)
+        self.assertEqual(manifest["sufficiency"]["recovery_targets_initial_count"], 0)
+
+    def test_recovery_without_model_assist_is_a_valid_supported_mode(self):
+        """§5/§6: audited from code, not assumed -- `execute()`'s own recovery-gate block depends
+        only on `sufficiency_map_initial is not None`, which a deterministic-only (model-assist-off)
+        sufficiency pass already produces. Proven here through BOTH the direct-execute() path and
+        the full `run_topology()` route: the recovery gate alone (no model assistance at all)
+        still computes a real `RecoveryTarget` inventory and injects it as search gaps -- recovery
+        and model assistance are independent capabilities, confirmed on real data, not invented."""
+        h_direct, shared_direct = self._fixture()
+        direct = self._direct_execute(h_direct, shared_direct, gate_enabled=True, model_assist=False)
+        self.assertIsNone(direct["sufficiency_model_assist"])
+        self.assertTrue(direct["sufficiency_recovery_targets_initial"])  # a real, nonempty inventory
+
+        h_route, shared_route = self._fixture()
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest, captured_kwargs, captured_result = self._via_run_topology(
+                h_route, shared_route, Path(tmp), recovery_gate=True, model_assist=False
+            )
+        self.assertIs(captured_kwargs["sufficiency_recovery_gate_enabled"], True)
+        self.assertIs(captured_kwargs["sufficiency_model_assist_enabled"], False)
+        self.assertEqual(self._without_timing(direct), self._without_timing(captured_result))
+        self.assertTrue(manifest["sufficiency"]["recovery_gate_enabled"])
+        self.assertGreater(manifest["sufficiency"]["recovery_targets_initial_count"], 0)
+        # No fresh-request-key concept exists without model assistance -- the deterministic-only
+        # U2 recompute still runs (a search was planned), but F's own count is honestly 0, never
+        # fabricated or left stale from a different call.
+        self.assertEqual(manifest["sufficiency"]["u2_fresh_request_key_count"], 0)
+
+    def test_model_assist_on_recovery_off_leaves_the_initial_map_reachable_but_injects_nothing(self):
+        """§6 state B: model assistance ON, recovery OFF -- the initial sufficiency map (and its
+        own would-trigger RecoveryTargets, always computed per execute()'s own unconditional
+        end-of-run recomputation) exists and is inspectable, but the gate injects nothing into the
+        search plan. Mirrors `test_model_assist_on_with_recovery_gate_off_still_maps_but_injects_
+        no_recovery_targets` above, now proven through run_topology() too."""
+        h_route, shared_route = self._fixture()
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest, captured_kwargs, captured_result = self._via_run_topology(
+                h_route, shared_route, Path(tmp), recovery_gate=False, model_assist=True
+            )
+        self.assertIs(captured_kwargs["sufficiency_model_assist_enabled"], True)
+        self.assertIs(captured_kwargs["sufficiency_recovery_gate_enabled"], False)
+        self.assertIsNotNone(captured_result["sufficiency_model_assist"])
+        self.assertFalse(captured_result["sufficiency_recovery_targets_initial"])
+        self.assertFalse(manifest["sufficiency"]["recovery_gate_enabled"])
+
+    def test_recovery_flag_without_hierarchy_is_refused_by_run_topology_itself(self):
+        """§3/§7: `run_topology()` is a real, directly-callable unit independent of the CLI parser
+        (the same rationale the pre-existing `sufficiency_model_assist`-requires-`hierarchy` check
+        documents) -- this must be enforced here too, not only in `parse_args`."""
+        with self.assertRaises(ValueError) as ctx:
+            e2e.run_topology(
+                "T0",
+                "aib",
+                db_path="unused",
+                library_frozen="unused",
+                out_dir="unused",
+                git_root="unused",
+                hierarchy=False,
+                sufficiency_recovery_gate=True,
+            )
+        self.assertIn("--sufficiency-recovery requires --hierarchy", str(ctx.exception))
+
+    def test_cli_rejects_the_flag_without_hierarchy(self):
+        """§7/§16 item 3: the CLI-level refusal, mirroring the existing `--sufficiency-model-assist`
+        combo check exactly."""
+        with contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit):
+                e2e.parse_args(
+                    ["--sufficiency-recovery", "--profile", "T0", "--question", "lld", "--db", "d", "--out", "o"]
+                )
+
+    def test_cli_accepts_the_flag_with_hierarchy_default_off_when_absent(self):
+        """§16 items 1-2: the flag defaults off, and parses cleanly alongside `--hierarchy`."""
+        with contextlib.redirect_stderr(io.StringIO()):
+            absent = e2e.parse_args(["--hierarchy", "--preflight-only"])
+            present = e2e.parse_args(["--hierarchy", "--preflight-only", "--sufficiency-recovery"])
+        self.assertFalse(absent.sufficiency_recovery)
+        self.assertTrue(present.sufficiency_recovery)
+
+    def test_no_profile_specific_branch_exists_for_the_new_flag(self):
+        """§7: the new flag must work through ORDINARY profile resolution -- proven here by
+        running the identical fixture under a SECOND, differently-shaped profile (T0 itself already
+        used above is `legacy` P; this repeats the direct-equivalence check under an `ollama`-P
+        variant of the same profile family, confirming no T0-only or P-kind-specific branch exists
+        anywhere in the new threading)."""
+        ollama_p_variant = replace(self.assist_profile, P=replace(topo.WAVE1["T1"].P, endpoint="shared"))
+        shared = ScriptedClient(
+            r=r_by_claim(
+                {
+                    CLAIM_C5: ["c5"],
+                    CLAIM_C4: ["c4"],
+                    CLAIM_C12: ["c12"],
+                    TargetedPostRecoveryRemapIntegrationTests.CLAIM_C5B: ["c5"],
+                }
+            ),
+            p=lambda prompt, schema: {
+                "rationale": "scripted",
+                "plan": {ob: "SEARCH" for ob in schema["properties"]["plan"]["required"]},
+            },
+        )
+        recovery = [rec("c5", TargetedPostRecoveryRemapIntegrationTests.CLAIM_C5B, chunk=21, origin="recovery")]
+        h = HierHarness(ollama_p_variant, self.contract, initial=INITIAL, recovery=recovery, clients={"shared": shared})
+        self.addCleanup(h.close)
+        real_bound = e2e.bind(
+            ollama_p_variant, rt=h.rt, clients=h.clients, trace=h.trace, managed_chat=lambda c: h.clients["shared"]
+        )
+        bound = e2e.Bound(qwen=_DeclineUnderTwoCandidatesClient(), supervisors=real_bound.supervisors)
+        with (
+            patch.object(e2e, "_initial_pass", h._initial_pass),
+            patch.object(e2e, "_recover_round", h._recover_round),
+        ):
+            result = e2e.execute(
+                rt=h.rt,
+                profile=ollama_p_variant,
+                contract=h.contract,
+                trace=h.trace,
+                guard=h.guard,
+                bound=bound,
+                sufficiency_contract=self.contract_by_child,
+                sufficiency_parent_of=self.parent_of,
+                sufficiency_model_assist_enabled=True,
+                sufficiency_recovery_gate_enabled=True,
+            )
+        self.assertTrue(result["sufficiency_recovery_targets_initial"])
+        self.assertEqual(result["sufficiency_map_final"]["c5"]["requirements"][0]["state"], "filled")
+
+
+@needs_artifacts
 class HierarchyModelCoverageTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -998,6 +1325,15 @@ class RunTopologySufficiencyWiringTests(unittest.TestCase):
                 # Phase 20b's own additive key -- None whenever model assistance never ran, exactly
                 # as it never does in this (default-off) test.
                 "model_assist": None,
+                # Phase 24's own additive reachability diagnostics -- the recovery gate defaults off
+                # and this call never requests it; the deterministic-only U2 recompute still runs
+                # (a search was planned in this fixture) and honestly reports zero RecoveryTargets
+                # and zero fresh-request keys, since nothing ever requested the gate.
+                "recovery_gate_requested": False,
+                "recovery_gate_enabled": False,
+                "recovery_targets_initial_count": 0,
+                "recovery_round_executed": True,
+                "u2_fresh_request_key_count": 0,
             },
         )
 
