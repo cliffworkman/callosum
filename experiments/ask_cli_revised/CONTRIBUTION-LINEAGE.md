@@ -1240,3 +1240,56 @@ untouched by this phase). v9 `combined_hash` reconfirmed unchanged:
 `9c72dc6a0180e95c55e68a009c366843b671684c19c6ae84ed254f3865305586`. No live model call, no network
 retrieval, no live recovery experiment anywhere in this phase. Full detail in
 `PHASE22_TARGET_SCOPED_POST_RECOVERY_REMAP_RESULTS.md`.
+
+---
+
+## Phase 23 — one bounded LIVE recovery + exact-request U2 remap validation (appended 2026-10-02; does not alter the rows above)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-10-02 | Evidence | Phase 22 target-scoped post-recovery model remapping |
+| 2026-10-02 | Design direction + experimental qualification | Cliff Workman |
+| 2026-10-02 | Empirical execution/adjudication | Claude |
+
+**Evidence (Phase 22).** The offline-proven target-scoped post-recovery remap mechanism —
+instance-level `request_context` stamping, `exact_request_set_policy`, and the `project_fresh_
+request_keys` projection — was ready for exactly one bounded live exercise under real retrieval and
+a real recovery round, per Phase 22's own closing recommendation.
+
+**Design direction + experimental qualification (Cliff Workman).** Chose the T0-shaped profile
+variant (W/R on isolated-JUNO `qwen3.5:9b`, `think=False`) with legacy `P`, specifying verbatim:
+"Use T0 for Phase 23. The purpose of this one-shot experiment is to guarantee exercise of the
+recovery/remap mechanism, not to validate P. Treat legacy P as an explicit experimental
+qualification. Do not interpret the run as evidence about production model-driven planning. A later
+broader E2E gate should use T5/production P once recovery itself has been proven live." Resolved the
+managed-local-Qwen unavailability blocker by approving the W/R-swapped T0 variant rather than
+installing a new runtime or substituting a different standing profile.
+
+**Empirical execution/adjudication (Claude).** Found, by direct re-read, that `run_topology()`'s own
+`execute()` call site never threads `sufficiency_recovery_gate_enabled` and has no CLI flag for it
+either — confirming `execute()` must be called directly, replicating `run_topology()`'s own
+pre-`execute()` setup verbatim rather than reusing it wholesale (a second, independent finding:
+`run_topology()`'s `scored=True` path structurally cannot admit a yet-uncommitted one-shot harness
+script, since `provenance.assert_clean()` refuses on any untracked path — resolved by the harness
+running its own equivalent dirty-tree check, mirroring Phase 21's precedent, rather than silently
+loosening the real production safety property). Ran the one authorized live call: full real
+retrieval (W1/R1/C1), a real 22-action recovery round (W2/R2/C2) that discovered genuinely new
+partitioned evidence for `c11`/`c12`/`c1`/`c4`, and the real Phase-22 U2 remap. Independently
+recomputed the fresh-request set F from the written trace artifacts (not from the live object the
+production run itself used) and found it **exactly equal**, by set equality, to the actual physical
+U2 fresh-attempt calls observed (19 = 19) — the strongest form of confirmation available that
+production's own internal hard-call-budget assertion is correct under real, recovery-augmented
+evidence, not merely under Phase 21's offline replay. Traced a genuine, non-obvious interaction
+live-exercised for the first time: `c6#suff:brain-attitude` (`multi_instance: False` in its own
+authored contract) acquired 8 `partially_filled` instances post-recovery purely through structural
+`parent_context_roles` propagation of `c4`'s own 8 independently-forked `named_brain_region_or_
+network` acceptances — confirmed by matching instance counts exactly (c4: 8 accepted → 8 forked
+instances; c6: 8 inherited instances), and explicitly distinguished from Phase 22's own
+`dependency_origins` cross-child redirection, which this run's real evidence did **not** happen to
+exercise (confirmed by direct search: zero redirected targets). Confirmed the `c8` real-suppression
+case the Phase-22 audit predicted from Phase 21's data holds identically under real recovery-
+augmented evidence: `c8`'s nominated role has 4 real accepted values, yet both of its own targets
+remain honestly unresolved because its sibling role never received a single candidate even after
+recovery. Zero production-code diff from the authorized Phase-22 HEAD (confirmed via `git diff
+--stat` excluding only the new harness file). Full detail in
+`PHASE23_LIVE_RECOVERY_TARGETED_U2_VALIDATION_RESULTS.md`.
