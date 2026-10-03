@@ -1597,3 +1597,54 @@ scoped flag so it applies only to a genuinely empty, zero-evidence terminal requ
 budget behavior, and the frozen Phase-23 replay are recorded in `PHASE27B_EMPTY_RESULT_RECOVERY_SEMANTICS_RESULTS.md`
 (Part II). The frozen Phase-23 replay is unchanged: 19 initial targets, 33 final targets, 24 claims, 33 gaps, and 0
 resolved-empty outcomes. The zero-findings path is proven through the real `execute()`.
+
+---
+
+## Phase 28 -- one live hierarchical Ask + parent-synthesis attempt, FAILED before any pipeline stage completed (appended 2026-10-03; preserves all prior entries unchanged)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-10-03 | Experimental design | Cliff Workman + ChatGPT |
+| 2026-10-03 | Live authorization, execution, root-cause diagnosis, reports | Claude |
+
+**Experimental design (Cliff Workman + ChatGPT).** Cliff Workman requested a human-readable,
+stage-by-stage "answer biography" -- including every child Ask synthesis -- so that any error in a final
+parent answer could be localized to its earliest responsible pipeline stage rather than misattributed to
+parent synthesis. ChatGPT designed the one-shot validation around stage-local responsibility, an
+independent S2 prompt/schema witness (not self-reported by the system under test), one-call enforcement,
+deterministic citation tracing, and post-run-only use of prior scientific adjudication (Phase 23A's
+c8/c12 tracers). A required correction, applied before any live call: all runner/recorder implementation,
+offline testing, freezing, and hashing happens in a prep phase, before the hard stop that asks for
+explicit authorization; the harness itself is scratch-only evidence, never tracked/committed code, unlike
+the phase13/15/21/23 precedent of committing driver scripts.
+
+**Evidence and outcome (Claude).** A scratch-only runner (`phase28_runner.py`, SHA-256
+`bc66be23f2e660f0536b07d27974b3a6504b539c1c72a4907b441468dc12466f`, frozen before authorization after an
+offline self-test proved its recorder's single-call/no-mutation/no-retry/hash-rederivation behavior with
+zero network calls) called the real, unmodified `e2e.run_topology()` for profile T5C / question aib, with
+hierarchy, sufficiency-model-assist, sufficiency-recovery, and parent-synthesis all enabled, through the
+same `hierarchy_loader=lambda q: hc.load_contract(q, pins=None)` pin-drift seam every prior live phase has
+used. The one live call **failed 49.4 seconds in**, inside the first subquestion's embedding call
+(`discovery.nominate_papers` -> `model.encode_texts`), with `EndpointRefused: name resolution for
+'huggingface.co' refused by the endpoint guard`. Per the governing instruction, the failure was not
+patched and rerun: it was preserved (`run/00_question.json`, `01_request_contract.json`,
+`04_graph_rescue.json`, `RUN_FAILED.json`; the independent recorder confirms **zero** `Supervisor.call`
+invocations -- no W1 chunk, no proposition, no S1, no S2 ever occurred) and diagnosed offline, via two
+separate, safe, read-only reproductions against the same production code (no Ollama contact, no second
+live/model call, library fingerprint reverified byte-identical throughout). Root cause, confirmed by full
+traceback: `sentence_transformers.SentenceTransformer`'s loader (lazily constructed on the first
+`model.encode_texts()` call, not at `build_runtime()` time) unconditionally probes HuggingFace Hub for a
+PEFT `adapter_config.json` on load, regardless of local cache state -- silent and harmless under genuine
+internet access (every prior live phase's own posture) or genuine total offline (which
+`huggingface_hub`'s own fallback catches), but not under this phase's own `endpoint_guard.isolated_only()`
+wrapper, whose custom `EndpointRefused` exception type that fallback logic does not catch. **This is a
+flaw in this phase's own scratch harness scoping, not in the Phase 27b production pipeline, T5C, or
+parent synthesis** -- none of which were exercised long enough to say anything about. Full narrative in
+`PHASE28_LIVE_PARENT_SYNTHESIS_FORENSIC_REPORT.md`; compact handback in
+`PHASE28_LIVE_PARENT_SYNTHESIS_RESULTS.md`. This run supplies zero evidence, positive or negative, about
+the Phase 23A c8/c12 tracers or about parent synthesis's own fidelity -- that remains the next phase's
+open question, under a fresh authorization with a corrected harness (drop the network guard around the
+live call, or set `HF_HUB_OFFLINE=1`/`TRANSFORMERS_OFFLINE=1` first, matching
+`contract_directed/offline_pytest.py`'s own existing precedent). No tracked pipeline module, frozen
+contract, or pin was touched; the scratch runner, recorder output, and raw run directory remain
+uncommitted under `.local/e2e-runs/phase28-live-parent-synthesis-20261003T223145Z/`.
