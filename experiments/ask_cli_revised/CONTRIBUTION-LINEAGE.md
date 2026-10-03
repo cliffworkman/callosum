@@ -1293,3 +1293,39 @@ remain honestly unresolved because its sibling role never received a single cand
 recovery. Zero production-code diff from the authorized Phase-22 HEAD (confirmed via `git diff
 --stat` excluding only the new harness file). Full detail in
 `PHASE23_LIVE_RECOVERY_TARGETED_U2_VALIDATION_RESULTS.md`.
+
+---
+
+## Phase 23a — read-only post-hoc evidence erratum + scientific adjudication (appended 2026-10-03; preserves the Phase-23 entry above unchanged)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-10-03 | Evidence / scientific adjudication | Phase 23a |
+
+Read-only post-hoc adjudication of the frozen Phase-23 run corrected fresh-request versus
+physical-call accounting and assessed the scientific responsiveness of stored U2 nominations and
+recovered evidence without rerunning any model or retrieval operation.
+
+**Erratum (Claude).** Confirmed mechanically, by direct re-read of `resolve_nomination`'s own code
+and docstring, that `fresh_no_candidates` is checked before `make_fresh_call` and therefore triggers
+zero physical model calls. Corrected the Phase-23 record's conflation of "fresh-status keys
+exercised" (19, exactly `|F|`) with "physical model inference calls" (17) -- the stronger locality
+result (fresh-status key set == F, set equality) is unchanged and explicitly preserved; only the
+earlier "19 actual physical calls" phrasing was wrong.
+
+**Scientific adjudication (Claude).** Adjudicated all 30 grounded/accepted nominations present in
+the frozen U2 pass (25 from the 17 new physical calls, 5 carried forward via held-fixed replay): 26
+correct, 3 incorrect, 1 ambiguous -- with the denominator explicitly reconciled against
+representation multiplicity (one verified passage naming 9 brain regions independently re-extracted
+by two sibling requirements is not double-counted as duplication). Cross-referenced each accepted
+nomination's source proposition against its own `provenance.origin` field to separate genuinely new
+recovery-discovered evidence (8 of 10 source propositions) from pre-existing evidence merely
+re-offered in a wider pool, then classified every recovery-to-nomination pathway against a fixed
+six-way taxonomy (A-F), surfacing two concrete findings beyond what Phase 23's own infrastructure
+metrics could show: a correct-intervention/wrong-target-manifestation pairing, and one recovered
+passage (a COVID-19 misinformation-inoculation study) that is plausibly off-topic for the
+anomalous-is-bad-bias contract yet still produced an accepted model value. Traced the `c5`
+"rejected" behavioral evidence to its real, structural cause (a relational `same_proposition` guard
+correctly excluding behavior-only candidates from a joint brain+behavior requirement, not a model
+rejection) before it was mischaracterized as an inconsistency. Full detail in
+`PHASE23A_POSTHOC_SCIENTIFIC_ADJUDICATION_AND_ERRATUM.md`.
