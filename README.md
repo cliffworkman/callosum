@@ -34,16 +34,36 @@ No Python, no command line — grab the installer for your platform (also on the
 | Platform | Installer |
 |---|---|
 | Windows | [Download `.exe`](https://github.com/cliffworkman/callosum/releases/latest/download/Callosum-windows-x64-setup.exe) (NSIS installer) |
-| macOS (Apple Silicon) | [Download `.dmg`](https://github.com/cliffworkman/callosum/releases/latest/download/Callosum-macos-arm64.dmg) — Intel Macs aren't supported yet |
+| macOS (Apple Silicon) | [Download `.dmg`](https://github.com/cliffworkman/callosum/releases/latest/download/Callosum-macos-arm64.dmg) |
+| macOS (Intel) | [Download `.dmg`](https://github.com/cliffworkman/callosum/releases/latest/download/Callosum-macos-x64.dmg) |
 | Linux | [Download `.deb`](https://github.com/cliffworkman/callosum/releases/latest/download/Callosum-linux-amd64.deb) (Debian/Ubuntu and derivatives) |
 
-These builds are **unsigned** (no paid Apple/Microsoft developer certificate yet), so your OS will show
-a one-time trust warning on first launch — that's expected, not a red flag. See
-[`FIRST-LAUNCH-NOTE.md`](app/desktop-shell/FIRST-LAUNCH-NOTE.md) for exactly what you'll see and what to
-click.
+The Windows installer is **unsigned**; macOS builds are **ad-hoc signed and not notarized**.
+Your OS may block first launch. See
+[`FIRST-LAUNCH-NOTE.md`](app/desktop-shell/FIRST-LAUNCH-NOTE.md) for the distribution limitations.
 
 Prefer to run from source, want a platform not listed above, or planning to contribute? See
 **Build from source** below.
+
+## Browser Capture Early Access (0.5.16)
+
+Send the page or PDF open in Chrome to Callosum for identity review. In the desktop app,
+open **Settings → Integrations → Browser Capture → Enable early access**, then **Prepare extension**.
+This opt-in preview requires manual **Load unpacked** installation in browser Developer mode.
+Chrome Web Store and Microsoft Edge Add-ons installation is not available. After an app update,
+prepare the extension again and reload it in Chrome. Use **Verify connection** in both Callosum
+and the extension options to check the native-host connection; opening the folder is not verification.
+
+| Configuration | Browser Capture evidence for 0.5.16 |
+|---|---|
+| Intel macOS Sequoia + Chrome | Genuine physical acceptance passed (Late-2015 iMac via OCLP). |
+| Windows 11 x64 + Chrome | Genuine physical acceptance passed; follow-up indexing/provenance fixes passed an isolated real-runtime replay. |
+| Apple Silicon macOS + Chrome | Automated build/startup/integration checks passed; physical Chrome/native-host acceptance has not been performed. |
+| Linux | Browser Capture is unsupported in 0.5.16; tracked in [#109](https://github.com/cliffworkman/callosum/issues/109). |
+
+Edge is not validated. Older macOS versions have not received Browser Capture acceptance testing;
+the configured build floor is not an empirical macOS 12+ support claim. There is no automatic migration
+to a future store extension. Turning off early access and removing the extension keeps captured papers.
 
 ## What it does today
 
@@ -246,8 +266,9 @@ limits than a bigger one that quietly oversells itself.
 - Pre-1.0, single-user-focused; no auth for general/hosted deployment (the opt-in token targets the local tunnel).
 - First run needs internet to fetch the local models.
 - Node.js is required for the citation engine and the frontend build (source path only).
-- Desktop installers are unsigned (no paid Apple/Microsoft developer certificate yet — see
-  [`FIRST-LAUNCH-NOTE.md`](app/desktop-shell/FIRST-LAUNCH-NOTE.md)); the macOS build is Apple Silicon only.
+- Windows installers are unsigned; Intel and Apple Silicon macOS builds are ad-hoc signed and not notarized
+  (see [`FIRST-LAUNCH-NOTE.md`](app/desktop-shell/FIRST-LAUNCH-NOTE.md)). Browser Capture validation is limited
+  to the configurations listed above.
 - AI summary quality depends on your chosen provider; **verification of citations is always local and runs on every
   result**, so a weaker model affects draft quality and coverage, never which citations are accepted.
 

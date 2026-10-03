@@ -15,10 +15,10 @@
     "reviewed_increment": 603,
     "source_fingerprint": "f6022d6596cfa83651363c0b25e1730b1ba4723fc54efcab3e8ac8d551911d65",
     "note": "Reviewed cap-import and the Library map: the unverified DOI review correction changes no advertised acquisition capability or published screenshot. Candidate lookup remains explicit; packaged Mac acceptance of this local fix is pending.",
-    "declined_at": "2026-10-02",
-    "declined_rev": "2a80b734",
-    "declined_increment": 605,
-    "decline_note": "Increment 605 repairs only the internal confirmation provenance mirror. No frontend or public marketing change. Preserve the preview-marketing deferral until release approval; fresh isolated downstream acceptance remains pending. No store availability is claimed."
+    "declined_at": "2026-10-03",
+    "declined_rev": "1bdde984",
+    "declined_increment": 606,
+    "decline_note": "Continue the explicitly approved showcase deferral through release-preparation increment 606. Release README/help support wording is updated; public showcase refresh and visual review remain deferred, with no store or expanded hardware-support claim."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",

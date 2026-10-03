@@ -3,9 +3,11 @@
 Download the installer for your platform from the
 [latest release](https://github.com/cliffworkman/callosum/releases/latest) (scroll to "Assets").
 
-Callosum isn't published through an app store yet, so your computer doesn't recognize it as coming
-from a "known" publisher. That's not a sign anything is wrong — here's exactly what you'll see and
-what to click.
+Callosum's Windows installer is unsigned. Its Intel and Apple Silicon macOS builds are ad-hoc
+signed and not notarized with Apple; neither platform has a verified publisher certificate.
+The OS may therefore block installation or first launch. The prompts below vary by OS version and
+policy. Download only from the official release linked above; updater signatures do not remove
+these OS trust limitations.
 
 ## On Windows
 
@@ -35,11 +37,11 @@ If neither of those dialogs shows an "Open"/"Run anyway" option, go to **System 
 & Security**, scroll down, and you should see a line about Callosum being blocked with an **Open
 Anyway** button.
 
-**If it instead says "Callosum is damaged and can't be opened" with only Move-to-Trash/Cancel and
-no way to proceed at all** — don't trash it, that's not actually true; it's a sign the copy you have
-is corrupted (a bad download, not a bad app). Grab a fresh copy from the
-[latest release](https://github.com/cliffworkman/callosum/releases/latest) and try again; let me
-know if it still happens.
+**If it says "Callosum is damaged and can't be opened"**, that message alone does not establish
+whether the download is corrupt or the OS has rejected this non-notarized app. Check that your copy
+came from the [official release](https://github.com/cliffworkman/callosum/releases/latest) and report
+the exact message and macOS version if opening remains blocked. Do not assume the generic steps
+above apply to every macOS version or organization policy.
 
 ## On Linux
 

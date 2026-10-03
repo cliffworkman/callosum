@@ -115,10 +115,11 @@ hardware selection, GPU recommendations, and a multi-model catalog remain out of
 
 ## Known, deliberate limits (see the increment notes for the full writeup)
 
-- **No code signing or notarization on either platform.** `FIRST-LAUNCH-NOTE.md` is the mitigation —
-  a plain-language explanation of the SmartScreen/Gatekeeper click-through, linked from the release
-  and the download page.
-- **The macOS builds are never manually verified before shipping** — there's no Mac hardware available
-  in this project's dev environment. CI's blocking native arm64 and x86_64 jobs prove each real
-  dependency stack imports and serves, exercise managed Local AI, and mount/open each `.dmg`; they do
-  not substitute for a human checking the complete UI on both Mac architectures.
+- **Windows installers are unsigned; macOS builds are ad-hoc signed and not notarized.**
+  See `FIRST-LAUNCH-NOTE.md`. Tauri updater signatures authenticate updates separately;
+  they do not provide Windows Authenticode or Apple Developer ID/notarization.
+- **Browser Capture physical acceptance covers Intel macOS Sequoia + Chrome and Windows 11 x64 + Chrome.**
+  The Intel run used a Late-2015 iMac via OCLP. Apple Silicon has automated package/startup/integration
+  coverage only; no physical Chrome/native-host acceptance is claimed. Edge and older macOS versions
+  are unvalidated, and Linux Browser Capture is unsupported in 0.5.16 (#109).
+  See the root README for the manual-preview installation and support matrix.

@@ -88,6 +88,10 @@ Zotero documents that this carries the personal library's data, files, and folde
 
 <!-- section: browser-capture -->
 ## Browser Capture early access
+For 0.5.16, genuine physical acceptance covers **Intel macOS Sequoia + Chrome** and **Windows 11 x64 + Chrome**. Apple Silicon has automated build/startup/integration coverage only; physical Chrome/native-host acceptance has not been performed. Edge and older macOS versions are unvalidated. **Linux Browser Capture is unsupported** in 0.5.16 (#109). Chrome Web Store and Microsoft Edge Add-ons installation is not available.
+
+Windows installers remain unsigned; macOS builds are ad-hoc signed and not notarized, so the OS may block first launch.
+
 In the desktop app, open **Settings → Integrations → Browser Capture** and choose **Enable early access**, then **Prepare extension**. This is a manual Developer mode preview, not a browser-store installation. Follow the instructions for your browser, load the exact prepared folder, and check its extension ID. After an app update, prepare the extension again and **Reload** it on your browser's Extensions page.
 
 To test the connection, click **Verify connection** in Callosum, then in the extension's options within 60 seconds. A successful check records that moment; it does not continuously monitor the connection. Preparing or opening the folder alone does not establish a connection.

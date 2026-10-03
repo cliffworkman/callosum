@@ -10,6 +10,15 @@ are the design diary; this is the chronological "what & why" record.
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
 
+## 2026-10-03 — Increment 606: prepare 0.5.16 Browser Capture Early Access
+- **Accepted lineage:** PR #103 merged with both parents preserved at `1bdde984`; its tree exactly matches accepted head `80025d1a`. Frozen worktrees and prior acceptance receipts remain preserved.
+- **Release preparation:** normal five-file desktop version bump to 0.5.16, informational What's New banner, regenerated frontend, and manual-preview/support wording in README, desktop docs and served help. No application logic, runtime IDs, browser identity or signing-policy change.
+- **Evidence boundaries:** physical Intel Sequoia/Chrome and Windows 11 x64/Chrome acceptance; Windows paper-index/sidecar fixes additionally verified by isolated managed-runtime replay. Apple Silicon is automated-only; Edge and older macOS unvalidated; Linux Browser Capture unsupported (#109).
+- **Documentation drift:** correct obsolete Intel-unsupported/no-Mac-hardware/updater-unbuilt statements; distinguish OS signing from updater signatures. Help changes cover Browser Capture only; the global help-sync marker stays unchanged because unrelated historical help drift was not audited.
+- **Verification:** release-prep and fresh exact-head CI/package results are recorded in increment 606 and the external pre-tag report. Existing demo/showcase deferrals advance explicitly without claiming a visual review of those surfaces.
+- **Authorization:** Cliff approved ready/merge and release-prep push; Lucien supplied the integration and release-gate scope; Cody implemented and checked the preparation. Annotated tag, GitHub Release and updater publication still await Cliff's separate approval.
+- **Revert:** revert this release-prep commit before tagging; accepted feature history and user data are unaffected.
+
 ## 2026-10-02 — Increment 605: mirror restored confirmation/retry provenance (local only)
 - **Evidence:** the isolated real-Windows replay at `d3ab1442` passed 122 chunk vectors plus one paper vector, then failed because the JSON sidecar lacked the DB's confirmation history. The FAIL receipt and original genuine Windows PARTIAL evidence stay unchanged.
 - **Repair:** `capture/provisional_review.py` supplies the existing Library root to `_reattach_user_actions`, which calls the existing `_refresh_sidecar` after its DB commit. Covers unresolved confirmation, admission outcomes and retry; no serialization, authority, attachment, indexing, runtime or UI redesign.

@@ -18,7 +18,9 @@ Design/security/release ordering: [manual preview](docs/research/2026-09-27_brow
 Normal packaged connector permits a separate, opt-in preview identity; development tooling
 remains separate. Settings file preparation uses a fixed Tauri command, not a backend HTTP
 writer. Real-browser acceptance and clean immutable-runtime release validation are separate
-gates. No production IDs, runtime publication, merge, tag or release is authorized by this work.
+gates. This was the original scoped authorization; later accepted integration and release preparation
+are recorded in increment 606. Tags/releases still require explicit approval; never infer authorization
+for production IDs or publication from this historical section.
 
 ## Project overview
 
@@ -31,11 +33,10 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 580** (see Increment workflow) with **2824 passed, 5 skipped in the last completed root-suite
-pass** (+ 12 opt-in Chromium smoke tests + the inc-120 Codex-driven QA route suite).
-The current serial root-suite harness can exceed its one-hour local bound; affected suites remain the acceptance
-receipt until that pre-existing harness issue is repaired. It is a working MVP backed by a
-thorough planning suite in `.claude/docs/`.
+It is currently at **Increment 606** (see Increment workflow). The accepted Browser Capture head
+`80025d1a` passed **3490 tests, 9 skipped**, plus 23 browser smoke tests in CI before merging.
+Fresh release-candidate checks are required for 0.5.16; do not substitute that earlier receipt.
+It is a working MVP backed by a thorough planning suite in `.claude/docs/`.
 (A substantial "backend-free public demo" subsystem — `demo/`, `tools/demo/`, `app/backend/demo_*.py`,
 `tools/qa/check_demo_experience_coverage.py`/`check_website_coverage.py`, plus a new `www/how-it-works.html`
 pipeline-explainer page — landed between incs 479 and 480 without its own increment number: it was built across
@@ -1712,7 +1713,7 @@ latency regressions.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (605 on this scoped branch). Each increment of real work
+callosum is built in **numbered increments** (606 on main). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 
@@ -1974,7 +1975,8 @@ callosum is a **git repo** (remote `origin` → `github.com/cliffworkman/callosu
      then `git push origin vX.Y.Z`. **The tag push is the only thing that ever reaches colleagues** —
      it fires `.github/workflows/desktop-shell-release.yml`, which rebuilds all three platforms fresh
      (as reusable-workflow calls into the same three files, not a separate build path) and, only once
-     all three succeed, publishes one public GitHub Release with all three installers attached. A fast
+     all platform jobs succeed, publishes one public GitHub Release with four architecture-specific
+     packages (Windows x64, macOS arm64/x64, Linux amd64) attached. A fast
      preflight step in each platform workflow hard-fails before the expensive build if the tag's
      version disagrees with the three files above — the guardrail against tagging without bumping or
      bumping without tagging.
@@ -1984,9 +1986,9 @@ callosum is a **git repo** (remote `origin` → `github.com/cliffworkman/callosu
      changelog file.
    - `README.md`'s Download section and `www/index.html` link at GitHub's stable `.../releases/latest/
      download/<file>` URLs — these never need editing on subsequent releases; only bump-and-tag when
-     shipping something new. The in-app auto-updater (Tauri's updater plugin + a signing keypair +
-     background check-for-updates) is a deliberate, separate later increment — not built yet; see
-     `INCREMENT-BACKLOG.md` for the sketch.
+     shipping something new. The in-app updater is implemented (incs 409/417 and later): the existing
+     tag workflow signs Windows/macOS update artifacts and publishes `latest.json`; Linux uses the
+     release-page fallback. Follow that workflow, not the obsolete pre-updater backlog sketch.
 
 ---
 

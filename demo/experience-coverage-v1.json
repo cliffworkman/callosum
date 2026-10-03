@@ -196,8 +196,8 @@
     "source_fingerprint": "a3d51bd64e6c47ebb5ae5901b0da8404b3e041324cb05ea76c88bc0e824c5c24",
     "note": "Reviewed inc 576 exact-checksum PDF reconnection and cause-specific unavailable states. Recovery depends on local filesystem failures, so the backend-free demo remains intentionally unchanged.",
     "declined_at": "2026-10-03",
-    "declined_rev": "e575b8a5",
-    "declined_increment": 605,
-    "decline_note": "Cliff explicitly authorized deferring this stale demo review on 2026-10-03 after exact-head CI exposed the expired increment-603 deferral. Browser Capture changes through increment 605 are accepted via separate physical and real-runtime evidence; cap-import remains visible-live-only in the backend-free demo. Accumulated demo drift since the increment-576 review is acknowledged and deferred to a dedicated demo review. This is not a fresh demo review or a store/support claim."
+    "declined_rev": "1bdde984",
+    "declined_increment": 606,
+    "decline_note": "Continue the explicitly approved demo deferral through release-preparation increment 606. Browser Capture manual preview and support limits are documented in release/help copy; no demo visual review or snapshot refresh is claimed."
   }
 }

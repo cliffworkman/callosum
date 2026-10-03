@@ -17,6 +17,10 @@
     "0.5.15": {
       "headline": "Ask a whole axis: point Ask at one of your semantic axes and it answers only from that axis's papers — the exact corpus is shown before you run, and a scoped run never falls back to the rest of your library. In Library → Axes, use the ✦ button on any axis.",
       "actionKind": null
+    },
+    "0.5.16": {
+      "headline": "Browser Capture Early Access: send a page or PDF from Chrome to Callosum for review. Enable the manual extension preview in Settings → Integrations; browser-store installation is not available.",
+      "actionKind": null
     }
   },
   "no_banner": {
