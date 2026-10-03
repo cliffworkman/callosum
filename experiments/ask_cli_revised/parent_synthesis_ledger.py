@@ -35,6 +35,7 @@ import hashlib
 import json
 
 from experiments.ask_cli_revised import sufficiency_engine as se
+from experiments.ask_cli_revised import sufficiency_recovery_targets as srt
 
 CLAIM_KINDS = ("role_value", "relational", "category_list", "direction_or_effectiveness")
 
@@ -476,13 +477,9 @@ def build_gap_report(sufficiency_recovery_targets: dict, sufficiency_map_final: 
     per ``target_id`` (already deduplicated upstream by ``sufficiency_recovery_targets.
     new_target_id``'s own content hash), sorted by ``target_id`` for deterministic output.
 
-    Every target is reported exactly as the sufficiency engine produced it -- "respect the current
-    semantic engine's behavior rather than manufacturing a gap" is honored by NOT inventing an
-    independent suppression rule here. A real, pre-existing, out-of-scope gap was found while
-    implementing this: ``empty_result_semantically_allowed`` (authored on every requirement) is
-    never actually consulted anywhere in ``sufficiency_recovery_targets.py`` today, so a
-    requirement that explicitly permits an empty result can still generate a RecoveryTarget --
-    documented in the Phase-26 results doc, not fixed here (no sufficiency semantic change).
+    Every target is reported exactly as the final RecoveryTarget inventory holds it. This function never suppresses a
+    target itself. A zero-evidence deficit that a completed scoped search made terminal (Phase 27b) is already absent
+    from that inventory, because ``sufficiency_recovery_targets.compute_recovery_targets`` omitted it upstream.
 
     ``sufficiency_map_final``, when supplied, is used ONLY as an integrity cross-check: every
     target's own ``requirement_id`` must resolve against SOME requirement in the map (a mismatch
@@ -518,3 +515,50 @@ def sufficiency_map_hash(sufficiency_map_final: dict) -> str:
     id: contract}``'s own insertion order carries no semantic meaning)."""
     canonical = json.dumps(sufficiency_map_final, sort_keys=True, ensure_ascii=False)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+# ---------------------------------------------------------------------------------------------
+# Phase 27b: ResolvedEmptyOutcome -- a positive statement that a completed scoped search established no support.
+#
+# Deliberately NOT a ParentClaim (it asserts nothing about the literature) and NOT an UnresolvedGap (it is not
+# outstanding). It is an epistemic/search outcome, projected deterministically from the final semantic map and the
+# persisted scoped-search status. It never reaches the S2 realization prompt, and it is never derived from model prose
+# or from RecoveryTarget absence alone.
+# ---------------------------------------------------------------------------------------------
+
+RESOLVED_EMPTY_OUTCOME = "searched_no_support_established"
+
+
+def _category_descriptions(requirement: dict) -> list[str]:
+    """Each completion role's own authored category description, in completion-role order, de-duplicated."""
+    described: list[str] = []
+    for role in se.completion_roles(requirement["role_completion"]):
+        description = requirement["role_specs"][role]["category_description"]
+        if description not in described:
+            described.append(description)
+    return described
+
+
+def build_resolved_empty_outcomes(sufficiency_map_final: dict, terminal_status: dict | None) -> list[dict]:
+    """One ``ResolvedEmptyOutcome`` per requirement that is zero-evidence terminal in the FINAL map AND whose persisted
+    scoped-search status records a completed, terminal search. The map is re-checked here, so the status alone can
+    never create an outcome for a requirement that still has support. Sorted by (child_id, requirement_id)."""
+    status = terminal_status or {}
+    outcomes = []
+    for child_id in sorted(sufficiency_map_final):
+        for requirement in sufficiency_map_final[child_id]["requirements"]:
+            entry = status.get(requirement["id"])
+            if not entry or not (entry.get("completed") and entry.get("terminal")):
+                continue
+            if not srt.is_zero_evidence_terminal(requirement):
+                continue
+            outcomes.append(
+                {
+                    "child_id": child_id,
+                    "requirement_id": requirement["id"],
+                    "category_descriptions": _category_descriptions(requirement),
+                    "outcome": RESOLVED_EMPTY_OUTCOME,
+                }
+            )
+    outcomes.sort(key=lambda o: (o["child_id"], o["requirement_id"]))
+    return outcomes

@@ -127,6 +127,12 @@ def _statement(claim: dict, realized_text: dict | None, cite: bool) -> str:
     return f"{text} {citation}".rstrip() if citation else text
 
 
+def _render_resolved_empty(outcome: dict) -> str:
+    """A statement about the completed search's outcome. Never a statement that the effect or the literature is absent."""
+    categories = "; ".join(outcome["category_descriptions"])
+    return f"- The scoped search completed without establishing a supported result for {categories}."
+
+
 def render_answer(
     claim_ledger: list[dict],
     gap_report: list[dict],
@@ -134,6 +140,7 @@ def render_answer(
     sealed: dict | None = None,
     realized_text: dict | None = None,
     cite: bool = False,
+    resolved_empty_outcomes: list | None = None,
 ) -> str:
     """The researcher-facing answer. Pure: a function of its own arguments only.
 
@@ -141,7 +148,9 @@ def render_answer(
     ``realized_text`` (Phase 27) maps claim_id to the statement shown for that claim; a claim absent from it, or mapped
     to an empty string, shows its deterministic literal. ``cite`` appends each claim's own admissible proposition ids
     to its Overview/Qualified line. ``sealed``, when supplied, additively enriches Supporting findings with the full
-    cited passage (mirroring ``overview_render._finding_block``'s own style)."""
+    cited passage (mirroring ``overview_render._finding_block``'s own style). ``resolved_empty_outcomes`` (Phase 27b)
+    adds a deterministic "searched, no supported result" section only when there are outcomes, so a run without one
+    renders byte-identically to before. It is never routed through the realization stage."""
     overview_claims = [c for c in claim_ledger if not _is_qualified(c)]
     qualified_claims = [c for c in claim_ledger if _is_qualified(c)]
 
@@ -169,6 +178,9 @@ def render_answer(
                         lines.append(f"  - {locator}")
     else:
         lines.append("No source-verified claims were established in this run.")
+    if resolved_empty_outcomes:
+        lines += ["", "## Searched, no supported result established", ""]
+        lines.extend(_render_resolved_empty(o) for o in resolved_empty_outcomes)
     lines += ["", "## Unresolved parts", ""]
     if gap_report:
         by_reason: dict[str, list[dict]] = {}
@@ -202,16 +214,23 @@ def construction_record(
     sealed_hash: str,
     sufficiency_map_hash: str,
     realization: dict | None = None,
+    resolved_empty_outcomes: list | None = None,
+    scoped_search_status: dict | None = None,
 ) -> dict:
     """The construction record. Without ``realization`` this is exactly the Phase-26 deterministic-only object (no model
     metadata, ``realization_state`` "deterministic_only"). With a Phase-27 ``realization`` it adds the realization fields;
-    model metadata appears only when a call was actually attempted. ``parent_synthesis_hash`` is computed last."""
+    model metadata appears only when a call was actually attempted. Phase 27b adds two orthogonal fields, never inside
+    ``claim_ledger`` or ``gap_report``: ``resolved_empty_outcomes`` (the deterministic searched-no-support projection)
+    and ``scoped_search_status`` (the canonical per-requirement search status it was derived from). Both are always
+    present, so a record's shape never depends on whether recovery ran. ``parent_synthesis_hash`` is computed last."""
     record = {
         "version": CONSTRUCTION_RECORD_VERSION,
         "sealed_ledger_hash": sealed_hash,
         "sufficiency_map_final_hash": sufficiency_map_hash,
         "claim_ledger": claim_ledger,
         "gap_report": gap_report,
+        "resolved_empty_outcomes": list(resolved_empty_outcomes or []),
+        "scoped_search_status": dict(scoped_search_status or {}),
     }
     if realization is None:
         record["realization_state"] = "deterministic_only"
@@ -250,6 +269,8 @@ def declined_record(*, reason: str, sealed_hash: str) -> dict:
         "sufficiency_map_final_hash": None,
         "claim_ledger": [],
         "gap_report": [],
+        "resolved_empty_outcomes": [],
+        "scoped_search_status": {},
         "realization_state": "declined",
         "skip_reason": reason,
         "call_attempted": False,

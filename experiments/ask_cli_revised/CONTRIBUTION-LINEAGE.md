@@ -1531,3 +1531,69 @@ stayed at 20/4. Surface dedup was applied to the value lists presented to the mo
 The ledger, every proposition id, and every citation are unchanged, and the c12 wrong target and the c12 adversarial
 withholding are unchanged. Full detail, including the authority boundary, the residual runaway risk, and the Phase-27
 supersession note, is in `PHASE27A_PARENT_REALIZATION_PER_CLAIM_FALLBACK_RESULTS.md`.
+
+
+---
+
+## Phase 27b -- empty-result semantics in RecoveryTarget generation: audit and stop, no implementation (appended 2026-10-03; preserves all prior entries unchanged)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-10-03 | Evidence | Phase 26/27 finding; frozen Phase-23 recovery log; closure record for c4 (CD-4) |
+| 2026-10-03 | Design direction | Cliff Workman + ChatGPT (correction belongs upstream at the RecoveryTarget authority, not in parent synthesis) |
+| 2026-10-03 | Audit | Claude |
+
+**Evidence (Phase 26/27 and the frozen record).** Phase 26/27 found `empty_result_semantically_allowed` authored on c4's
+`exists` requirement and persisted, but never consulted by RecoveryTarget generation. A zero-findings outcome therefore
+produces two `missing` targets, which the gap report presents as unresolved parent gaps. The closure record gives the
+intended meaning: "a downstream answer that finds no supported area must be able to say so" and "an empty result is a valid
+answer." Read against the frozen Phase-23 recovery log, the two c4 `missing` targets were the search obligations that ran
+a targeted recovery search (one recorded `new_verified: 2`). They are not failures to be suppressed.
+
+**Design direction.** Cliff Workman + ChatGPT required the correction to occur at the upstream RecoveryTarget authority,
+not be compensated for by parent synthesis, and required non-empty partial, relational, and conflicting obligations to
+survive. This audit confirms that direction and identifies its precondition: "searched, found nothing" must be a
+persisted fact the final gap computation can observe, because a zero-evidence map does not reveal whether a search ran.
+
+**Implementation (Claude).** None. The audit found that the narrow suppression rule the brief expected would remove the
+initial search obligations for c4, which the frozen run records as running. A correct rule needs a persisted
+terminal-after-search state threaded through `e2e.py`, which is out of scope for this phase. No code, frozen contract, pin,
+or parent module was changed. The reproduction, the frozen-replay probe (19 initial and 33 final targets recomputed
+identically; a blanket rule would drop 2 initial and 0 final), and the focused suites (242 passed) are recorded in
+`PHASE27B_EMPTY_RESULT_RECOVERY_SEMANTICS_RESULTS.md`, which carries the architectural question and the options. Phase 27b
+is not closed; Phase 28 remains blocked.
+
+
+
+---
+
+## Phase 27b Part II -- authorized implementation of empty-result terminality (Option A), offline only (appended 2026-10-03; preserves all prior entries unchanged)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-10-03 | Design direction / acceptance of the STOP | Cliff Workman + ChatGPT (selected Option A; widened the implementation surface to the minimum needed) |
+| 2026-10-03 | Implementation and tests | Claude |
+
+**Design direction (Cliff Workman + ChatGPT).** The Phase 27b audit's STOP was accepted as correct. Option A was adopted:
+`empty_result_semantically_allowed=True` means a SEARCHED requirement may legitimately end with zero supported findings. It
+never means "skip the search". Terminality must come from a completed, scoped structured search plus a genuinely empty final
+semantic map. It must also leave a positive, deterministic, non-model statement in the parent answer, and it must never
+become a ParentClaim. The direction required that a stray scoped-completion flag can never silence partial, relational,
+ambiguous, or corroborating obligations, and that failed, skipped, and budget-blocked searches never count as completed.
+
+**Evidence.** The frozen Phase-23 recovery log shows c4's two structured initial targets driving a targeted search: the
+named-region target recorded `recovery_added_evidence` (new_verified 2) and the bears-evidence target recorded
+`recovery_no_new_evidence`. Those obligations are search obligations and must keep running. The existing "scoped search
+completed" flags were defined in the engine but never set by any caller, so the terminal fact had no representation the final
+gap computation could read.
+
+**Implementation (Claude).** Structured round outcomes are read from the recovery log using only rows that carry
+`_recovery_target_id`. A target is completed only on a completing reason code from exactly one row, and a requirement is
+completed only when every one of its initial targets is. The canonical status is persisted to `13c_scoped_search.json`,
+threaded into the FINAL target computation (the initial computation still runs with no status), and recorded in the
+parent construction record. A separate deterministic projector yields `resolved_empty_outcomes`, rendered as a section
+only when non-empty and never handed to the realization stage. The audit re-derives both. The sufficiency layer gates the
+scoped flag so it applies only to a genuinely empty, zero-evidence terminal requirement. The full rule, the failure and
+budget behavior, and the frozen Phase-23 replay are recorded in `PHASE27B_EMPTY_RESULT_RECOVERY_SEMANTICS_RESULTS.md`
+(Part II). The frozen Phase-23 replay is unchanged: 19 initial targets, 33 final targets, 24 claims, 33 gaps, and 0
+resolved-empty outcomes. The zero-findings path is proven through the real `execute()`.

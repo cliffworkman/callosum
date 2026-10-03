@@ -678,6 +678,11 @@ def execute(
         elif plan_record["state"] == "no_answer":
             skip("W2", "recovery_plan_no_answer")
 
+    # Phase 27b: how each INITIAL structured RecoveryTarget's own search fared, read from the round's log. Structured
+    # rows only; a generic child gap can never complete a requirement's scoped search.
+    structured_search = sufficiency_recovery_targets.structured_search_outcomes(
+        recovery_targets_initial or {}, recovery_log
+    )
     sealed = stages.seal(
         contract, subquestions, sink.all_records, sink.evidence_packets, coverage_final, prior_sealed=sealed_initial
     )
@@ -796,8 +801,20 @@ def execute(
     # Same primitive as the pre-round call above, re-run against the (possibly recovery-updated)
     # final map -- one shared function, two call sites, never two independently-computed
     # recovery-need checks (the prior design's own redundancy, closed by Phase 12).
+    # Phase 27b: the SAME persisted scoped-search status the parent record carries feeds the final target computation.
+    # A requirement's zero-evidence deficit closes only when its own search completed AND the final map is genuinely
+    # empty for it. The initial inventory above is computed with no status, so the search obligation itself is kept.
+    terminal_search = (
+        sufficiency_recovery_targets.terminal_search_status(sufficiency_map_final, structured_search)
+        if sufficiency_map_final is not None
+        else {}
+    )
     recovery_targets_final = (
-        sufficiency_recovery_targets.compute_recovery_targets(sufficiency_map_final, sufficiency_parent_of or {})
+        sufficiency_recovery_targets.compute_recovery_targets(
+            sufficiency_map_final,
+            sufficiency_parent_of or {},
+            sufficiency_recovery_targets.engine_search_status(terminal_search),
+        )
         if sufficiency_map_final is not None
         else {}
     )
@@ -877,6 +894,7 @@ def execute(
             sealed_hash=sealed_hash,
             sufficiency_map_final=sufficiency_map_final,
             recovery_targets_final=recovery_targets_final,
+            scoped_search=terminal_search,
             question=question,
             entail=entail,
         )
@@ -920,6 +938,8 @@ def execute(
         )
     trace.write_json("13_recovery_plan.json", {**plan_record, "unresolved_items": [g["field_id"] for g in gaps]})
     trace.write_json("13_gap_recovery.json", recovery_log)
+    # Phase 27b: the scoped-search status the final target computation and the parent record both consumed.
+    trace.write_json("13c_scoped_search.json", {"round": structured_search, "final": terminal_search})
     trace.write_json("11_verified_ledger.json", {**sealed, "sealed_hash": sealed_hash})
     if overview_record is None:
         final_path = trace.write_report("14_final_answer.md", [text.rstrip("\n")])
@@ -976,6 +996,10 @@ def execute(
         # reimplement or re-derive it. `None` exactly when the gate never ran (byte-identical to
         # the pre-Phase-24 absence of this key).
         "sufficiency_recovery_targets_initial": recovery_targets_initial,
+        # Phase 27b: the per-requirement scoped-search outcome of the round, and the canonical final status (terminal
+        # flags) that the final target computation and the parent construction record both consumed.
+        "scoped_search_round": structured_search,
+        "scoped_search_final": terminal_search,
         # Phase 24 (§12/§13): |F|'s own count only -- never the raw key set (that stays exclusively
         # in the "18_sufficiency_model_assist.json" trace artifact's receipts). Named precisely per
         # Phase 23a's corrected terminology: this is the fresh-AUTHORIZED request-key count, not a
@@ -1005,17 +1029,32 @@ def execute(
 
 
 def _parent_synthesis_outputs(
-    *, trace, stage, bound, sealed, sealed_hash, sufficiency_map_final, recovery_targets_final, question, entail
+    *,
+    trace,
+    stage,
+    bound,
+    sealed,
+    sealed_hash,
+    sufficiency_map_final,
+    recovery_targets_final,
+    question,
+    entail,
+    scoped_search: dict | None = None,
 ) -> dict:
     """Phase 27: the bounded parent realization, run after every child stage and the final sufficiency state.
     It writes only the additive 15* artifacts. It never feeds search, recovery, U2, the sufficiency state or the
-    per-child Overview back, and it never replaces the top-level 14_final_answer.md."""
+    per-child Overview back, and it never replaces the top-level 14_final_answer.md.
+
+    Phase 27b: ``scoped_search`` is the persisted terminal status. It yields the deterministic ResolvedEmptyOutcome
+    projection, which is recorded and rendered beside the claims but never handed to the realization stage."""
     if sufficiency_map_final is None:
         record = parent_synthesis_render.declined_record(reason="no_sufficiency_map", sealed_hash=sealed_hash)
         trace.write_json(parent_synthesis_render.RECORD_FILE, record)
         return {"record": record}
     claims = parent_synthesis_ledger.build_claim_ledger(sufficiency_map_final, sealed)
     gaps = parent_synthesis_ledger.build_gap_report(recovery_targets_final, sufficiency_map_final=sufficiency_map_final)
+    scoped = scoped_search or {}
+    resolved = parent_synthesis_ledger.build_resolved_empty_outcomes(sufficiency_map_final, scoped)
     realization = parent_synthesis.realize(
         claims,
         sealed,
@@ -1030,12 +1069,15 @@ def _parent_synthesis_outputs(
         sealed_hash=sealed_hash,
         sufficiency_map_hash=parent_synthesis_ledger.sufficiency_map_hash(sufficiency_map_final),
         realization=realization,
+        resolved_empty_outcomes=resolved,
+        scoped_search_status=scoped,
     )
     answer = parent_synthesis_render.render_answer(
         claims,
         gaps,
         realized_text={s["claim_id"]: s["final_text"] for s in realization["segments"]},
         cite=True,
+        resolved_empty_outcomes=resolved,
     )
     trace.write_json(parent_synthesis_render.RECORD_FILE, record)
     trace.write_report(parent_synthesis_render.ANSWER_FILE, [answer.rstrip("\n")])
@@ -1339,7 +1381,16 @@ def run_topology(
             "gap_count": len(ps_record.get("gap_report", [])),
             "grounded_segment_count": ps_record.get("grounded_count", 0),
             "fallback_segment_count": ps_record.get("fallback_count", 0),
+            "resolved_empty_outcome_count": len(ps_record.get("resolved_empty_outcomes", [])),
         }
+    # Phase 27b: counts only; the per-requirement detail is in 13c_scoped_search.json.
+    scoped_round = result.get("scoped_search_round") or {}
+    scoped_final = result.get("scoped_search_final") or {}
+    manifest["scoped_search"] = {
+        "requirements_with_structured_search": len(scoped_round),
+        "requirements_search_completed": sum(1 for e in scoped_round.values() if e["completed"]),
+        "requirements_terminal_no_support": sum(1 for e in scoped_final.values() if e["terminal"]),
+    }
     trace.write_json("15_run_manifest.json", manifest)
     return manifest
 

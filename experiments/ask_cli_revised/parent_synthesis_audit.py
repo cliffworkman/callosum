@@ -13,6 +13,7 @@ from __future__ import annotations
 from experiments.ask_cli_revised import parent_synthesis as ps
 from experiments.ask_cli_revised import parent_synthesis_ledger as psl
 from experiments.ask_cli_revised import parent_synthesis_render as psr
+from experiments.ask_cli_revised import sufficiency_recovery_targets as srt
 
 
 def _realization_checks(record: dict, sealed: dict, checks: dict, problems: list[str]) -> None:
@@ -143,6 +144,23 @@ def _realization_checks(record: dict, sealed: dict, checks: dict, problems: list
     _check("model_metadata_present_iff_call_attempted", model_metadata_iff_call_attempted)
 
 
+def _terminal_flags_justified(sufficiency_map_final: dict, scoped_search_status: dict) -> bool:
+    """Phase 27b: every recorded status entry must be consistent with the final map. ``terminal`` is true exactly when
+    the search completed AND the requirement is zero-evidence terminal in that map. A requirement the map does not
+    contain can never be terminal."""
+    requirements = {
+        requirement["id"]: requirement
+        for contract in sufficiency_map_final.values()
+        for requirement in contract["requirements"]
+    }
+    for requirement_id, entry in scoped_search_status.items():
+        requirement = requirements.get(requirement_id)
+        expected = bool(entry["completed"]) and requirement is not None and srt.is_zero_evidence_terminal(requirement)
+        if bool(entry["terminal"]) != expected:
+            return False
+    return True
+
+
 def audit_parent_synthesis(
     sufficiency_map_final: dict, sealed: dict, sufficiency_recovery_targets: dict, record: dict
 ) -> dict:
@@ -164,6 +182,15 @@ def audit_parent_synthesis(
     _check("gap_report_matches_rederivation", lambda: record["gap_report"] == rederived_gaps)
     _check("sufficiency_map_final_hash_matches", lambda: record["sufficiency_map_final_hash"] == rederived_map_hash)
     _check("parent_synthesis_hash_matches_content", lambda: psr.record_hash(record) == record["parent_synthesis_hash"])
+    _check(
+        "resolved_empty_outcomes_match_rederivation",
+        lambda: record["resolved_empty_outcomes"]
+        == psl.build_resolved_empty_outcomes(sufficiency_map_final, record["scoped_search_status"]),
+    )
+    _check(
+        "scoped_search_terminal_flags_justified_by_map",
+        lambda: _terminal_flags_justified(sufficiency_map_final, record["scoped_search_status"]),
+    )
 
     if "realized_segments" in record:
         _realization_checks(record, sealed, checks, problems)

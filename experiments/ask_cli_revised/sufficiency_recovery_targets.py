@@ -546,7 +546,7 @@ def compute_recovery_targets(
 
     for child_id, contract in mapped_contract_by_child.items():
         for requirement in contract["requirements"]:
-            status = _status_for(requirement["id"])
+            status = _gate_status(requirement, _status_for(requirement["id"]))
             if not se.compute_recovery_needed(requirement, status):
                 continue
             quantifier = requirement["instance_quantifier"]
@@ -762,3 +762,114 @@ def project_fresh_request_keys(
                     fresh.add(key)
 
     return frozenset(fresh)
+
+
+# -------------------------------------------------------------------------------------------
+# Scoped-search terminality for allowed-empty requirements (Phase 27b, Option A)
+#
+# `empty_result_semantically_allowed` means: a SEARCHED requirement may legitimately end with zero supported findings.
+# It never means "skip the search". Its effect is gated by two independent facts, both required:
+#   1. the requirement is genuinely empty in the FINAL semantic map (no binding is filled, partial, or ambiguous), and
+#   2. every structured RecoveryTarget the INITIAL inventory emitted for that requirement ran to completion in the
+#      recovery round (the scoped search actually happened and ended).
+# Only when both hold is the requirement's zero-evidence deficit closed. A generic (non-sufficiency) gap, a planned
+# no-search, a mechanical NO ANSWER query, or a skipped target is never completion.
+# -------------------------------------------------------------------------------------------
+
+# Only these recovery-log reason codes mean a structured search ran to its end. `__main__._recover` emits them after
+# the search and its verification pass have finished. Every other outcome is not completion.
+_COMPLETED_SEARCH_REASON_CODES = frozenset({"recovery_added_evidence", "recovery_no_new_evidence"})
+
+
+def is_genuinely_empty(requirement: dict) -> bool:
+    """No established support: the requirement is `missing`, and every role binding in every instance is `missing`.
+    A filled, partially-filled, or ambiguous binding is evidence, so this is never true for such a requirement."""
+    return requirement["state"] == "missing" and all(
+        binding.get("state") == "missing"
+        for instance in requirement["instances"]
+        for binding in instance["role_bindings"].values()
+    )
+
+
+def is_zero_evidence_terminal(requirement: dict) -> bool:
+    """The authored permission applied to a genuinely empty requirement. Permission alone never suffices; the scoped
+    search must also have completed (see `terminal_search_status`)."""
+    return bool(requirement.get("empty_result_semantically_allowed")) and is_genuinely_empty(requirement)
+
+
+def structured_search_outcomes(recovery_targets_initial: dict, recovery_log: list) -> dict:
+    """`{requirement_id: {"completed": bool, "target_states": {target_id: {"state", "reason_code"}}}}` for every
+    requirement that owned at least one INITIAL structured RecoveryTarget.
+
+    Structured rows only: a log row counts for a target only if its gap carries that target's `_recovery_target_id`.
+    A generic child gap for the same child can never prove that a requirement's structured search completed.
+
+    Per target: `not_attempted` when no row names it (its subquestion was unresolved, it had no planned action, or the
+    round never ran); `completed` when exactly one row names it with a completing reason code; `not_completed` otherwise
+    (a planned no-search, a NO ANSWER query, or more than one row naming it).
+
+    Per requirement: `completed` only when EVERY one of its initial targets is `completed` (conservative aggregation: one
+    query finding nothing is not the requirement having been searched sufficiently)."""
+    rows_by_target: dict[str, list[dict]] = {}
+    for row in recovery_log:
+        target_id = (row.get("gap") or {}).get("_recovery_target_id")
+        if target_id is not None:
+            rows_by_target.setdefault(target_id, []).append(row)
+    by_requirement: dict[str, dict] = {}
+    for target_id in sorted(recovery_targets_initial):
+        target = recovery_targets_initial[target_id]
+        rows = rows_by_target.get(target_id, [])
+        if not rows:
+            state, reason_code = "not_attempted", None
+        elif len(rows) > 1:
+            state, reason_code = "not_completed", "ambiguous_log_rows"
+        else:
+            reason_code = rows[0].get("reason_code")
+            state = "completed" if reason_code in _COMPLETED_SEARCH_REASON_CODES else "not_completed"
+        entry = by_requirement.setdefault(target["requirement_id"], {"target_states": {}})
+        entry["target_states"][target_id] = {"state": state, "reason_code": reason_code}
+    for entry in by_requirement.values():
+        entry["completed"] = all(state["state"] == "completed" for state in entry["target_states"].values())
+    return by_requirement
+
+
+def terminal_search_status(sufficiency_map_final: dict, outcomes_by_requirement: dict) -> dict:
+    """The canonical per-requirement scoped-search status used by the FINAL target computation and recorded in the
+    parent construction record. `terminal` is true only when the search completed AND the final map is zero-evidence
+    terminal for the requirement. Only requirements that owned round outcomes appear; others have no entry."""
+    final_requirements = {
+        requirement["id"]: requirement
+        for contract in sufficiency_map_final.values()
+        for requirement in contract["requirements"]
+    }
+    status = {}
+    for requirement_id in sorted(outcomes_by_requirement):
+        outcome = outcomes_by_requirement[requirement_id]
+        requirement = final_requirements.get(requirement_id)
+        terminal = bool(outcome["completed"]) and requirement is not None and is_zero_evidence_terminal(requirement)
+        status[requirement_id] = {
+            "completed": bool(outcome["completed"]),
+            "terminal": terminal,
+            "target_states": outcome["target_states"],
+        }
+    return status
+
+
+def engine_search_status(terminal_status: dict) -> dict:
+    """The run-level `search_status_by_requirement` shape `compute_recovery_targets` consumes (`se.new_search_status`).
+    Only `terminal` drives the scoped-completion flag; every other field keeps its default."""
+    return {
+        requirement_id: se.new_search_status(
+            requirement_id, scoped_search_completed_no_additional_support=entry["terminal"]
+        )
+        for requirement_id, entry in terminal_status.items()
+    }
+
+
+def _gate_status(requirement: dict, status: dict) -> dict:
+    """The scoped-completion flag counts only for a zero-evidence terminal requirement. The engine reads it as
+    budget-spent for EVERY state, so a stray flag on a partial, relational, ambiguous, or corroborating requirement would
+    silence a real obligation. Such a flag is ignored here, never trusted."""
+    if status.get("scoped_search_completed_no_additional_support") and not is_zero_evidence_terminal(requirement):
+        return {**status, "scoped_search_completed_no_additional_support": False}
+    return status
