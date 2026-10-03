@@ -59,6 +59,8 @@ the full per-increment narrative for all other increments now lives in the reloc
   fixture and `docs/research/2026-09-24_ioannidis-doi-review.md` for the exact acceptance cause.
   Once canonical admission commits, the common attach seam calls `ensure_paper_indexed` for new
   and reused papers (inc 604). Chunk indexing alone does not satisfy the paper-level invariant.
+  After restoring confirmation/retry actions, refresh the provenance sidecar from the committed
+  DB (inc 605). The JSON file is a nonfatal mirror, never independent confirmation authority.
 - **Generation output ceilings must cover what the schema permits (inc 575).** `_PRIMARY_SYNTHESIS_SCHEMA`
   allows 7 claims × 3 citations, and the "no quote may exceed 80 words" instruction is *prose the grammar
   does not enforce* — so an unbounded `quote` string could consume the whole allowance. A citation-dense
@@ -1710,7 +1712,7 @@ latency regressions.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (604 on this scoped branch). Each increment of real work
+callosum is built in **numbered increments** (605 on this scoped branch). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

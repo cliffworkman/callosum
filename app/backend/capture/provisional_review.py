@@ -236,7 +236,7 @@ def confirm_identity(
         evidence.decision = "queued"
         evidence.decision_reason = f"user-supplied DOI {normalized!r} did not resolve"
         result = provisional._finish_unresolved(engine, owned_id, library_root, evidence)
-        _reattach_user_actions(engine, owned_id, evidence_json)
+        _reattach_user_actions(engine, owned_id, evidence_json, library_root=library_root)
         return result
 
     evidence.decision = "promotion_attempted"
@@ -254,7 +254,7 @@ def confirm_identity(
     # attempt_attach_to_paper's own update_resolution calls overwrite evidence_json with `evidence`'s
     # serialization (candidates/resolutions preserved above) -- but that would DROP the user_actions
     # entry just persisted. Re-append it so the confirmation is never lost from the final record.
-    _reattach_user_actions(engine, owned_id, evidence_json)
+    _reattach_user_actions(engine, owned_id, evidence_json, library_root=library_root)
     return result
 
 
@@ -283,7 +283,7 @@ def retry_promotion(
     evidence_json = _append_user_action(
         evidence_dict, action="retry_attempted", doi=None, disposition=row["promotion_state"]
     )
-    _reattach_user_actions(engine, owned_id, evidence_json)
+    _reattach_user_actions(engine, owned_id, evidence_json, library_root=library_root)
 
     evidence = _Evidence()
     evidence.candidates = evidence_dict["candidates"]
@@ -302,11 +302,13 @@ def retry_promotion(
         embedding_model=embedding_model,
         evidence=evidence,
     )
-    _reattach_user_actions(engine, owned_id, evidence_json)
+    _reattach_user_actions(engine, owned_id, evidence_json, library_root=library_root)
     return result
 
 
-def _reattach_user_actions(engine: Engine, artifact_id: str, evidence_json_with_actions: str) -> None:
+def _reattach_user_actions(
+    engine: Engine, artifact_id: str, evidence_json_with_actions: str, *, library_root: Path
+) -> None:
     """`attempt_attach_to_paper`'s own `update_resolution` calls overwrite `evidence_json` with a freshly
     serialized `_Evidence` that has no `user_actions` -- merge the just-recorded user action(s) back in
     so a confirm/retry is never silently dropped from the durable record."""
@@ -328,3 +330,5 @@ def _reattach_user_actions(engine: Engine, artifact_id: str, evidence_json_with_
         )
 
     run_write(engine, _merge)
+    # The DB is authoritative: mirror only after the restored action history commits.
+    provisional._refresh_sidecar(engine, artifact_id, library_root)

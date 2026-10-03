@@ -10,6 +10,13 @@ are the design diary; this is the chronological "what & why" record.
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
 
+## 2026-10-02 — Increment 605: mirror restored confirmation/retry provenance (local only)
+- **Evidence:** the isolated real-Windows replay at `d3ab1442` passed 122 chunk vectors plus one paper vector, then failed because the JSON sidecar lacked the DB's confirmation history. The FAIL receipt and original genuine Windows PARTIAL evidence stay unchanged.
+- **Repair:** `capture/provisional_review.py` supplies the existing Library root to `_reattach_user_actions`, which calls the existing `_refresh_sidecar` after its DB commit. Covers unresolved confirmation, admission outcomes and retry; no serialization, authority, attachment, indexing, runtime or UI redesign.
+- **Tests:** strengthen shared confirmation/provenance checks and the real Ioannidis fixture. Seven tests fail before production changes; cover full DB/sidecar evidence equality, ordered history through unsuccessful/successful retry, and nonfatal sidecar I/O failure. Results and fresh replay disposition are recorded in increment 605/research note.
+- **Lineage:** Cliff — physical evidence and replay execution/authorization; Lucien — minimal post-restoration scope; Cody/ChatGPT — failure trace, implementation and regression tests.
+- **Revert:** revert this local commit; no migration or historical QA repair. No push, PR mutation or release action.
+
 ## 2026-10-02 — Increment 604: paper metadata index after canonical PDF admission (local only)
 - **Evidence:** Cliff's genuine Windows capture at `2a80b734` preserved one PDF and 122 chunk vectors but no metadata embedding for the confirmed paper. The original PARTIAL evidence and QA state remain unchanged.
 - **Cause:** provisional confirmation, automatic promotion and retry reached chunk attachment/indexing without the shared post-admission paper hook. The existing admission matrix omitted these paths; the omission predates the two Windows fixes.

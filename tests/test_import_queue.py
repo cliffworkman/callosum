@@ -126,6 +126,22 @@ def _queue_pending_item(client: TestClient, tmp_path: Path, *, title: str | None
     return rows[0]["id"]
 
 
+def _assert_sidecar_mirrors_db(client: TestClient, artifact_id: str) -> dict:
+    """Read the durable row independently; the sidecar must mirror all evidence, not only the decision."""
+    engine = make_engine(client.app.state.db_url)
+    with engine.connect() as conn:
+        row = provisional_artifacts_repo.get(conn, artifact_id)
+    engine.dispose()
+    evidence = json.loads(row["evidence_json"])
+    sidecar = json.loads((provenance_artifacts_dir(library_dir()) / f"{artifact_id}.json").read_text())
+    assert row["provenance_sidecar_state"] == "ok"
+    assert sidecar["evidence"] == evidence
+    for field in ("identity_state", "promotion_state", "resolved_paper_id", "content_hash"):
+        assert sidecar[field] == row[field]
+    assert client.get(f"/library/import-queue/{artifact_id}").json()["evidence"] == evidence
+    return evidence
+
+
 def test_list_and_detail_expose_explanation_and_best_candidate(temp_db_url: str, tmp_path: Path) -> None:
     client = _client(temp_db_url)
     artifact_id = _queue_pending_item(client, tmp_path)
@@ -229,12 +245,15 @@ def test_preview_doi_404s_for_unknown_artifact(temp_db_url: str) -> None:
 # ── confirm: best candidate, manual DOI, attachment conflict ────────────────────────────────────────
 
 
-def test_confirm_with_manually_entered_doi_promotes_and_records_provenance(temp_db_url: str, tmp_path: Path) -> None:
+@pytest.mark.parametrize("source,action", [("manual", "user_entered_doi"), ("candidate", "user_confirmed_candidate")])
+def test_confirm_with_manually_entered_doi_promotes_and_records_provenance(
+    temp_db_url: str, tmp_path: Path, source: str, action: str
+) -> None:
     client = _client(temp_db_url)
     artifact_id = _queue_pending_item(client, tmp_path)
 
     response = client.post(
-        f"/library/import-queue/{artifact_id}/confirm", json={"doi": "10.1234/found-in-pdf", "source": "manual"}
+        f"/library/import-queue/{artifact_id}/confirm", json={"doi": "10.1234/found-in-pdf", "source": source}
     )
     assert response.status_code == 200, response.text
     data = response.json()
@@ -251,8 +270,9 @@ def test_confirm_with_manually_entered_doi_promotes_and_records_provenance(temp_
     evidence = json.loads(artifact["evidence_json"])
     user_actions = evidence.get("user_actions", [])
     assert len(user_actions) == 1
-    assert user_actions[0]["action"] == "user_entered_doi"
+    assert user_actions[0]["action"] == action
     assert user_actions[0]["doi"] == "10.1234/found-in-pdf"
+    assert _assert_sidecar_mirrors_db(client, artifact_id) == evidence
 
     # No longer actionable -- it's promoted.
     assert client.get("/library/import-queue").json()["items"] == []
@@ -308,6 +328,7 @@ def test_ambiguous_candidates_require_manual_choice_and_preserve_evidence(temp_d
     assert evidence["user_actions"][0]["action"] == "user_entered_doi"
     # The original auto-pipeline's observations survive untouched.
     assert len(evidence["candidates"]) >= 2
+    assert _assert_sidecar_mirrors_db(client, artifact_id) == evidence
 
 
 def test_confirm_reaching_attachment_conflict_leaves_existing_paper_and_queue_pdf_untouched(
@@ -347,6 +368,7 @@ def test_confirm_reaching_attachment_conflict_leaves_existing_paper_and_queue_pd
     assert len(listed) == 1
     assert listed[0]["promotion_state"] == "attachment_conflict"
     assert listed[0]["resolved_paper_title"] == "A Captured Paper"
+    assert _assert_sidecar_mirrors_db(client, artifact_id)["user_actions"][0]["action"] == "user_entered_doi"
 
 
 def test_confirm_invalid_doi_reports_error_without_mutating(temp_db_url: str, tmp_path: Path) -> None:
@@ -411,6 +433,8 @@ def test_retry_on_attachment_conflict_preserves_queue_pdf_when_conflict_persists
 
     root = library_dir()
     assert len(list(queue_dir(root).glob("*.pdf"))) == 1
+    evidence = _assert_sidecar_mirrors_db(client, artifact_id)
+    assert [action["action"] for action in evidence["user_actions"]] == ["user_entered_doi", "retry_attempted"]
 
 
 def test_retry_after_injected_failure_preserves_queue_pdf_and_cleans_staged_duplicate(
@@ -449,11 +473,22 @@ def test_retry_after_injected_failure_preserves_queue_pdf_and_cleans_staged_dupl
         f"/library/import-queue/{artifact_id}/confirm", json={"doi": "10.1234/found-in-pdf", "source": "manual"}
     )
     assert confirm.json()["promotion_state"] in {"indexing_unavailable", "processing_failed"}
+    confirmed = _assert_sidecar_mirrors_db(client, artifact_id)
+    failed_retry = client.post(f"/library/import-queue/{artifact_id}/retry")
+    assert failed_retry.json()["promotion_state"] == confirm.json()["promotion_state"]
+    retried = _assert_sidecar_mirrors_db(client, artifact_id)
+    assert retried["user_actions"][:-1] == confirmed["user_actions"]
+    assert retried["user_actions"][-1]["action"] == "retry_attempted"
 
     monkeypatch.setattr(provisional_module, "attach_pdf_to_paper", real_attach_pdf_to_paper)
     retry = client.post(f"/library/import-queue/{artifact_id}/retry")
     assert retry.status_code == 200
     assert retry.json()["promotion_state"] == "promoted"
+    promoted = _assert_sidecar_mirrors_db(client, artifact_id)
+    assert promoted["user_actions"][:-1] == retried["user_actions"]
+    assert promoted["user_actions"][-1]["action"] == "retry_attempted"
+    for field in ("candidates", "title_candidates", "resolutions"):
+        assert promoted[field] == retried[field] == confirmed[field]
 
     root = library_dir()
     assert list(queue_dir(root).glob("*.pdf")) == []
@@ -463,6 +498,35 @@ def test_retry_after_injected_failure_preserves_queue_pdf_and_cleans_staged_dupl
 def test_retry_404s_for_unknown_artifact(temp_db_url: str) -> None:
     client = _client(temp_db_url)
     assert client.post("/library/import-queue/not-a-real-id/retry").status_code == 422
+
+
+def test_sidecar_write_failure_is_nonfatal_and_retains_durable_confirmation(
+    temp_db_url: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.backend.capture import provisional
+
+    client = _client(temp_db_url)
+    artifact_id = _queue_pending_item(client, tmp_path)
+    sidecar = provenance_artifacts_dir(library_dir()) / f"{artifact_id}.json"
+    before = sidecar.read_bytes()
+
+    def fail_write(*args, **kwargs):
+        raise OSError("simulated sidecar write failure")
+
+    monkeypatch.setattr(provisional, "_atomic_write_text", fail_write)
+    response = client.post(
+        f"/library/import-queue/{artifact_id}/confirm", json={"doi": "10.1234/found-in-pdf", "source": "candidate"}
+    )
+    assert response.status_code == 200 and response.json()["promotion_state"] == "promoted"
+    engine = make_engine(temp_db_url)
+    with engine.connect() as conn:
+        row = provisional_artifacts_repo.get(conn, artifact_id)
+        assert len(get_attachments_for_paper(conn, row["resolved_paper_id"])) == 1
+    engine.dispose()
+    assert json.loads(row["evidence_json"])["user_actions"][0]["action"] == "user_confirmed_candidate"
+    assert row["provenance_sidecar_state"] == "error"
+    assert sidecar.read_bytes() == before
+    assert client.get("/library/import-queue").json()["items"] == []
 
 
 # ── raw PDF preview stream ───────────────────────────────────────────────────────────────────────

@@ -17,7 +17,10 @@ from app.backend.capture.provisional_review import best_candidate, explain_evide
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.schema import papers
 from tests.test_capture import _client, _direct_pdf_capture_id, _paired
-from tests.test_import_queue import _ui_instance  # noqa: F401 -- shared isolated capture fixture
+from tests.test_import_queue import (
+    _assert_sidecar_mirrors_db,
+    _ui_instance,  # noqa: F401 -- shared isolated capture fixture
+)
 
 FIXTURES = Path(__file__).parent / "fixtures" / "capture"
 PDF = FIXTURES / "ioannidis-pmed.0020124.pdf"
@@ -189,6 +192,8 @@ def test_real_pdf_preview_and_confirmation_preserve_evidence_and_require_admissi
     engine = make_engine(temp_db_url)
     with engine.connect() as conn:
         assert conn.execute(select(func.count()).select_from(papers)).scalar_one() == 0
+    unresolved = _assert_sidecar_mirrors_db(client, artifact_id)
+    assert unresolved["user_actions"][0]["action"] == "user_confirmed_candidate"
     client.app.state.crossref_client = Resolver()
     preview_before = client.get(path).json()["evidence"]
     assert client.post(path + "/preview-doi", json={"doi": DOI}).json()["title"] == TITLE
@@ -200,6 +205,8 @@ def test_real_pdf_preview_and_confirmation_preserve_evidence_and_require_admissi
         assert after[field] == before[field]
     assert len(after["user_actions"]) == 2
     assert all(a["action"] == "user_confirmed_candidate" for a in after["user_actions"])
+    assert after["user_actions"][:-1] == unresolved["user_actions"]
+    assert _assert_sidecar_mirrors_db(client, artifact_id) == after
     engine.dispose()
 
 
