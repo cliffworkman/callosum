@@ -3,5 +3,5 @@
 fastapi>=0.110
 uvicorn[standard]>=0.29
 sqlalchemy>=2.0
-psycopg[binary]>=3.1   # the Postgres driver (prod); tests run on SQLite via stdlib sqlite3 — psycopg not needed there
+psycopg[binary]>=3.3.4   # the Postgres driver (prod); tests run on SQLite via stdlib sqlite3 — psycopg not needed there
 PyJWT[crypto]>=2.8     # Authentik access-token (JWKS) verification
