@@ -321,7 +321,7 @@ class ParentHelperWiringTests(unittest.TestCase):
     def _restate(prompt, schema):
         # One faithful statement per claim: the amygdala claim restates its own value; the behavior claim does too.
         statements = {}
-        for cid in schema["properties"]["items"]["items"]["properties"]["claim_id"]["enum"]:
+        for cid in pst.prompt_claim_ids(prompt):
             block = prompt.split(f"[{cid}]", 1)[1].split("\n\n", 1)[0]
             statements[cid] = (
                 "The amygdala responded to scarring."
@@ -335,7 +335,7 @@ class ParentHelperWiringTests(unittest.TestCase):
         return {
             "items": [
                 {"claim_id": cid, "statement": "The insula causes a loss of attention."}
-                for cid in schema["properties"]["items"]["items"]["properties"]["claim_id"]["enum"]
+                for cid in pst.prompt_claim_ids(prompt)
             ]
         }
 

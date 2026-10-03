@@ -1501,3 +1501,33 @@ surviving as a grounded statement. The design cannot correct an upstream role va
 important open item before any live parent answer is trusted. Phase 27 runs no model, makes no network call, and writes
 nothing outside the new 15* artifacts. Full detail, debt, and the Phase-28 hand-back are in
 `PHASE27_BOUND_PARENT_REALIZATION_OFFLINE_RESULTS.md`.
+
+---
+
+## Phase 27a -- parent realization: per-claim fallback and surface dedup, offline only (appended 2026-10-03; preserves all prior entries unchanged)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-10-03 | Design direction | Cliff Workman + ChatGPT |
+| 2026-10-03 | Implementation | Claude |
+
+**Design direction (Cliff Workman + ChatGPT).** Phase 27 was accepted provisionally but not closed. ChatGPT identified that
+Phase 27's whole-answer schema, which carried an editorial minimum statement length, defeated the per-claim fallback
+invariant: one too-short statement turned an otherwise recoverable answer into NO ANSWER for all claims. The direction
+required structural parsing to remain recoverable when only individual items are invalid, with whole-call failure reserved
+for answers that cannot be safely recovered as an identifiable item list. The same direction required that duplicate
+display values be collapsed only at rendering time, while every underlying proposition, ledger value, and citation keeps
+its independent evidentiary provenance: surface-value deduplication is not evidence deduplication.
+
+**Implementation (Claude).** Traced the collapse to its exact cause. Three distinct whole-answer schema constraints
+produced it: `minLength` on the statement, the claim-id `enum`, and `maxItems` equal to the claim count. Each was reproduced
+with the HEAD schema and its exact validator message. Removed the editorial and identity constraints from the whole-answer
+schema, kept the structural bounds as runaway caps, and moved per-item editorial validity into the parent layer. Two
+departures from the brief's wording were necessary and are recorded in the results document: the enum was removed, because
+an unknown id must not collapse its siblings, and the item cap is 2N rather than N, because a duplicate adds an item. The
+output budget guards the legitimate shape. On the frozen Phase-23 state, the one-short case moved from 0/24 to 19/5 with
+exactly one per-item fallback; the unpadded case moved from 0/24 to 19/5 with three per-item fallbacks; the padded baseline
+stayed at 20/4. Surface dedup was applied to the value lists presented to the model and to the deterministic literal only.
+The ledger, every proposition id, and every citation are unchanged, and the c12 wrong target and the c12 adversarial
+withholding are unchanged. Full detail, including the authority boundary, the residual runaway risk, and the Phase-27
+supersession note, is in `PHASE27A_PARENT_REALIZATION_PER_CLAIM_FALLBACK_RESULTS.md`.

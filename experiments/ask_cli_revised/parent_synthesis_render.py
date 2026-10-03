@@ -50,8 +50,23 @@ def _render_role_value(claim: dict) -> str:
     return f"{claim['category_description']}: {value['exact_text']}."
 
 
+def distinct_surface(values) -> list[str]:
+    """Surface-level dedup for DISPLAY only (Phase 27a). Strings identical after whitespace normalization are shown
+    once, first occurrence kept. Exact, never fuzzy: a near-but-not-identical value is a different value and stays.
+    The ledger, every value, every proposition id and every citation are untouched; this only decides what is printed.
+    Two independent corroborating sources for one value are still two sources in the ledger and in the citations."""
+    seen: set[str] = set()
+    out: list[str] = []
+    for value in values:
+        key = " ".join(str(value).split())
+        if key not in seen:
+            seen.add(key)
+            out.append(key)
+    return out
+
+
 def _render_category_list(claim: dict) -> str:
-    items = "; ".join(v["exact_text"] for v in claim["values"])
+    items = "; ".join(distinct_surface(v["exact_text"] for v in claim["values"]))
     return f"{claim['category_description']}: {items}."
 
 
@@ -65,7 +80,8 @@ def _render_direction_or_effectiveness(claim: dict) -> str:
     field = summary["field"]
     if summary["consensus_value"] is not None:
         return f"A {field} finding ({summary['consensus_value']}) was reported."
-    lines = [f"Reported {field} values across instances: {', '.join(summary['observed_values']) or 'none resolved'}."]
+    observed = ", ".join(distinct_surface(summary["observed_values"])) or "none resolved"
+    lines = [f"Reported {field} values across instances: {observed}."]
     if summary["has_across_instance_heterogeneity"]:
         lines.append("These instances disagree (heterogeneous across instances), and are not collapsed to one value.")
     if summary["has_within_instance_conflict"]:
@@ -213,6 +229,7 @@ def construction_record(
                 "contract_sha256": realization["contract_sha256"],
                 "realized_segments": realization["segments"],
                 "unknown_claim_ids": realization["unknown_claim_ids"],
+                "item_diagnostics": realization.get("item_diagnostics"),
                 "grounded_count": realization["grounded_count"],
                 "fallback_count": realization["fallback_count"],
                 "fallback_used": realization["fallback_count"] > 0,

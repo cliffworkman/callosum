@@ -31,6 +31,19 @@ OUTPUT_BUDGET_CHARS = int(topo.PARENT_SYNTHESIS_S_OPTIONS["num_predict"] * stage
 # substitutes another phrase, it has changed the slot's value. Longer values (a whole sentence) are not coverage-
 # checked here: a faithful summary of a sentence cannot be word-for-word, and the source/NLI layers guard them.
 COVERAGE_MAX_CONTENT_WORDS = 8
+# EDITORIAL bounds on one claim's statement. A violation makes THAT claim's item invalid and only that claim falls back
+# deterministically; it never invalidates a sibling (Phase 27a). The whole-answer schema below does not carry them: an
+# editorial minimum enforced there turned one short item into a whole-answer NO ANSWER, defeating per-claim fallback.
+MIN_STATEMENT_CHARS = guards.MIN_SENTENCE_CHARS
+MAX_STATEMENT_CHARS = guards.MAX_SENTENCE_CHARS
+# STRUCTURAL runaway caps that the whole-answer schema check DOES enforce. Deliberately looser than the editorial bounds,
+# so a statement over the editorial maximum but within the runaway cap reaches per-item validation and is rejected there.
+# Only output beyond these caps is a whole-answer failure.
+SCHEMA_STATEMENT_MAX_CHARS = 2 * MAX_STATEMENT_CHARS
+SCHEMA_CLAIM_ID_MAX_CHARS = 256
+# A duplicated or unknown claim_id adds an item beyond the claim count. The item cap admits one extra item per claim;
+# anything beyond that is runaway output.
+SCHEMA_ITEMS_PER_CLAIM = 2
 
 SKIP_REASONS = (
     "no_claims",
@@ -89,7 +102,8 @@ def authorized_claim_text(claim: dict) -> str:
         value = claim["values"][0]
         return f"Category: {claim['category_description']}\nValue for {value['role']}: {value['exact_text']}"
     if kind == "category_list":
-        items = "\n".join(f"- {v['exact_text']}" for v in claim["values"])
+        # Identical surface values are presented once (Phase 27a). Every underlying value stays in the ledger.
+        items = "\n".join(f"- {v}" for v in psr.distinct_surface(v["exact_text"] for v in claim["values"]))
         return (
             f"Category: {claim['category_description']}\n"
             f"Every value listed under {claim['role']} (each must be stated):\n{items}"
@@ -98,7 +112,7 @@ def authorized_claim_text(claim: dict) -> str:
         pairs = "\n".join(f"- {v['role']}: {v['exact_text']}" for v in claim["values"])
         return f"One already-established joint relation, not separable into its parts:\n{pairs}"
     summary = claim["direction_or_effectiveness"]
-    observed = ", ".join(_phrase(v) for v in summary["observed_values"]) or "none"
+    observed = ", ".join(psr.distinct_surface(_phrase(v) for v in summary["observed_values"])) or "none"
     consensus = (
         _phrase(summary["consensus_value"]) if summary["consensus_value"] is not None else "none (no single consensus)"
     )
@@ -131,23 +145,27 @@ def build_prompt(claim_ledger: list[dict], question: str) -> str:
 
 
 def build_schema(claim_ids: list[str]) -> dict:
-    """Closed: the claim id is an enum of exactly the supplied ids; the statement is bounded; there is no citation
-    field, so the model has no way to name a proposition. ``maxItems`` is the claim count."""
+    """The whole-answer schema the supervisor enforces. STRUCTURE ONLY (Phase 27a):
+
+    - closed object shape at every level, both item keys required, no citation or proposition field;
+    - claim_id is a bounded string with NO enum: an unknown id is an item-level fact that the parent layer records and
+      discards, not a whole-answer failure;
+    - statement is a bounded string with NO minimum: the editorial floor is per item (``item_reasons``);
+    - the item cap and the statement/claim_id maxima are runaway guards, not editorial limits.
+
+    A value violating these structural bounds makes the whole answer NO ANSWER, because the supervisor validates the
+    whole answer at once. Everything editorial is decided per claim, after the answer is parsed."""
     return {
         "type": "object",
         "properties": {
             "items": {
                 "type": "array",
-                "maxItems": len(claim_ids),
+                "maxItems": SCHEMA_ITEMS_PER_CLAIM * len(claim_ids),
                 "items": {
                     "type": "object",
                     "properties": {
-                        "claim_id": {"type": "string", "enum": list(claim_ids)},
-                        "statement": {
-                            "type": "string",
-                            "minLength": guards.MIN_SENTENCE_CHARS,
-                            "maxLength": guards.MAX_SENTENCE_CHARS,
-                        },
+                        "claim_id": {"type": "string", "maxLength": SCHEMA_CLAIM_ID_MAX_CHARS},
+                        "statement": {"type": "string", "maxLength": SCHEMA_STATEMENT_MAX_CHARS},
                     },
                     "required": ["claim_id", "statement"],
                     "additionalProperties": False,
@@ -159,7 +177,20 @@ def build_schema(claim_ids: list[str]) -> dict:
     }
 
 
-def worst_case_output_chars(schema: dict) -> int:
+def legitimate_output_chars(claim_ids: list[str]) -> int:
+    """The output budget guard. Worst case for the LEGITIMATE shape: exactly one item per claim, each at the EDITORIAL
+    maximum, with the longest real id. Runaway output (more items, or longer statements) is not budgeted here: it is
+    bounded by the completion cap, and exceeding that is truncation, which the supervisor already reports as NO ANSWER.
+    Recomputed from a schema of that shape, never hand-estimated."""
+    if not claim_ids:
+        return 0
+    schema = build_schema(claim_ids)
+    array = schema["properties"]["items"]
+    array["maxItems"] = len(claim_ids)
+    array["items"]["properties"] = {
+        "claim_id": {"type": "string", "maxLength": max(len(cid) for cid in claim_ids)},
+        "statement": {"type": "string", "maxLength": MAX_STATEMENT_CHARS},
+    }
     return ov.worst_case_output_chars(schema)
 
 
@@ -175,6 +206,7 @@ def contract_sha256() -> str:
             "prompt_max_chars": PARENT_PROMPT_MAX_CHARS,
             "output_budget_chars": OUTPUT_BUDGET_CHARS,
             "coverage_max_content_words": COVERAGE_MAX_CONTENT_WORDS,
+            "statement_editorial_bounds": [MIN_STATEMENT_CHARS, MAX_STATEMENT_CHARS],
         },
         "screen_version": guards.SCREEN_VERSION,
         "options": topo.PARENT_SYNTHESIS_S_OPTIONS,
@@ -183,7 +215,10 @@ def contract_sha256() -> str:
 
 
 def parse_items(answer) -> list[dict]:
-    """The closed item shape, or the whole answer is malformed. Extra keys are refused, never tolerated."""
+    """The STRUCTURAL boundary. A top-level object with an items list, each item exactly {claim_id: str, statement:
+    str}, or the whole answer is malformed (WHOLE-CALL). The supervisor's schema check already enforces this shape; the
+    re-check is defense in depth. Nothing editorial is judged here: a well-formed item is never rejected for its
+    content, only later, per claim (``item_reasons``, the screens)."""
     if not isinstance(answer, dict) or not isinstance(answer.get("items"), list):
         raise MalformedParentOutput("the answer is not an object carrying an items list")
     items = []
@@ -197,6 +232,20 @@ def parse_items(answer) -> list[dict]:
             raise MalformedParentOutput("an item is not exactly {claim_id, statement}")
         items.append({"claim_id": item["claim_id"], "statement": item["statement"]})
     return items
+
+
+def item_reasons(statement: str) -> list[str]:
+    """EDITORIAL validity of ONE claim's statement (PER-ITEM). A non-empty result makes that claim's item invalid and
+    only that claim falls back. It never affects a sibling item. Pure."""
+    reasons = []
+    stripped = statement.strip()
+    if len(stripped) < MIN_STATEMENT_CHARS:
+        reasons.append("statement_too_short")
+    if len(statement) > MAX_STATEMENT_CHARS:
+        reasons.append("statement_too_long")
+    if len(re.findall(r"[A-Za-z]{2,}", stripped)) < 2:
+        reasons.append("statement_not_prose")
+    return reasons
 
 
 # ---------------------------------------------------------------------------------------------
@@ -363,7 +412,7 @@ def _screen_candidates(candidates: list[dict], claim_ledger: list[dict], sealed:
 # ---------------------------------------------------------------------------------------------
 
 
-def _segment(claim: dict, *, status: str, proposed=None, screen=None) -> dict:
+def _segment(claim: dict, *, status: str, proposed=None, screen=None, rejected=None, item_reasons_=()) -> dict:
     screen = screen or {}
     grounded = status == "grounded"
     reasons_nli = screen.get("nli_reasons", [])
@@ -371,6 +420,8 @@ def _segment(claim: dict, *, status: str, proposed=None, screen=None) -> dict:
         "claim_id": claim["claim_id"],
         "claim_kind": claim["claim_kind"],
         "proposed_text": proposed,
+        "rejected_text": rejected,
+        "item_reasons": list(item_reasons_),
         "final_text": proposed if grounded else psr.literal_statement(claim),
         "status": status,
         "fallback_used": not grounded,
@@ -397,6 +448,7 @@ def _result(
     prompt_sha=None,
     schema_sha=None,
     outcome=None,
+    item_diagnostics=None,
 ) -> dict:
     grounded = sum(1 for s in segments if s["status"] == "grounded")
     return {
@@ -411,6 +463,7 @@ def _result(
         "contract_sha256": contract_sha256() if call_attempted else None,
         "segments": segments,
         "unknown_claim_ids": sorted(unknown),
+        "item_diagnostics": item_diagnostics,
         "grounded_count": grounded,
         "fallback_count": len(segments) - grounded,
         "claim_count": len(claim_ledger),
@@ -464,7 +517,7 @@ def realize(
 
     ids = [c["claim_id"] for c in claim_ledger]
     schema = build_schema(ids)
-    if worst_case_output_chars(schema) > OUTPUT_BUDGET_CHARS:
+    if legitimate_output_chars(ids) > OUTPUT_BUDGET_CHARS:
         return skipped("output_cap_exceeded")
     prompt = build_prompt(claim_ledger, question)
     if len(prompt) > prompt_char_cap:
@@ -518,37 +571,64 @@ def realize(
             outcome=outcome,
         )
 
+    # PER-ITEM recovery (Phase 27a). The answer is structurally sound here, so every failure below is local to one claim
+    # or one identifier: it can make that claim fall back, and never touches a sibling.
     by_id: dict[str, list[dict]] = {}
     for item in items:
         by_id.setdefault(item["claim_id"], []).append(item)
-    unknown = [cid for cid in by_id if cid not in ids]
+    known = set(ids)
+    unknown = sorted(cid for cid in by_id if cid not in known)  # recorded, never rendered, never contaminates
 
-    candidates = []
     statuses: dict[str, str] = {}
+    candidates: list[dict] = []
+    rejected: dict[str, dict] = {}
     for claim in claim_ledger:
-        matched = by_id.get(claim["claim_id"], [])
+        cid = claim["claim_id"]
+        matched = by_id.get(cid, [])
         if not matched:
-            statuses[claim["claim_id"]] = "missing"
+            statuses[cid] = "missing"
         elif len(matched) > 1:
-            statuses[claim["claim_id"]] = "duplicate"
+            statuses[cid] = "duplicate"  # neither copy is trusted; the claim falls back exactly once
         else:
-            statuses[claim["claim_id"]] = "candidate"
-            candidates.append(matched[0])
+            reasons = item_reasons(matched[0]["statement"])
+            if reasons:
+                statuses[cid] = "invalid_item"
+                rejected[cid] = {"text": matched[0]["statement"], "reasons": reasons}
+            else:
+                statuses[cid] = "candidate"
+                candidates.append(matched[0])
 
     screens = _screen_candidates(candidates, claim_ledger, sealed, entail)
     proposed = {c["claim_id"]: c["statement"] for c in candidates}
     segments = []
     for claim in claim_ledger:
         cid = claim["claim_id"]
-        if statuses[cid] != "candidate":
-            segments.append(_segment(claim, status=statuses[cid]))
-            continue
-        screen = screens[cid]
-        clean = not (screen["claim"] or screen["evidence"] or screen["heterogeneity"] or screen["nli_reasons"])
-        segments.append(
-            _segment(claim, status="grounded" if clean else "withheld", proposed=proposed[cid], screen=screen)
-        )
+        status = statuses[cid]
+        if status == "candidate":
+            screen = screens[cid]
+            clean = not (screen["claim"] or screen["evidence"] or screen["heterogeneity"] or screen["nli_reasons"])
+            segments.append(
+                _segment(claim, status="grounded" if clean else "withheld", proposed=proposed[cid], screen=screen)
+            )
+        elif status == "invalid_item":
+            segments.append(
+                _segment(
+                    claim,
+                    status="invalid_item",
+                    rejected=rejected[cid]["text"],
+                    item_reasons_=rejected[cid]["reasons"],
+                )
+            )
+        else:
+            segments.append(_segment(claim, status=status))
 
+    diagnostics = {
+        "items_received": len(items),
+        "unknown_claim_ids": unknown,
+        "duplicate_claim_ids": sorted(cid for cid, s in statuses.items() if s == "duplicate"),
+        "missing_claim_ids": sorted(cid for cid, s in statuses.items() if s == "missing"),
+        "invalid_claim_ids": sorted(rejected),
+    }
     grounded = sum(1 for s in segments if s["status"] == "grounded")
     state = (
         "model_realized"
@@ -566,4 +646,5 @@ def realize(
         unknown=unknown,
         outcome=outcome,
         whole_status="ok",
+        item_diagnostics=diagnostics,
     )

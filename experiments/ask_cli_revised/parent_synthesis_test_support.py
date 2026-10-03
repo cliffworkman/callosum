@@ -12,6 +12,8 @@ that directory existing in any given worktree (the same precedent Phase 16's own
 
 from __future__ import annotations
 
+import re
+
 from experiments.ask_cli_revised import sufficiency_diagnostic as sd
 from experiments.ask_cli_revised import sufficiency_engine as se
 
@@ -218,6 +220,12 @@ import json as _json  # noqa: E402
 
 from experiments.ask_cli_revised import stages as _stages  # noqa: E402
 from experiments.ask_cli_revised import topology as _topo  # noqa: E402
+
+
+def prompt_claim_ids(prompt: str) -> list[str]:
+    """The claim ids a real model reads from the prompt: one ``[claim_id]`` header per claim. The schema no longer
+    carries an enum (Phase 27a), so a fake that needs the ids reads them the way the model does, not from the schema."""
+    return re.findall(r"^\[([^\]\n]+)\]$", prompt, re.MULTILINE)
 
 
 class FakeParentClient:

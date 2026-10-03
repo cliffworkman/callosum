@@ -103,24 +103,6 @@ def _grounded_items(claims, text_for=None):
     ]
 
 
-class _RawSupervisor:
-    """A supervisor double whose ``call`` returns the given answer verbatim, bypassing the schema check the real
-    Supervisor applies. Used ONLY to exercise realize()'s own post-validation layer (defense in depth)."""
-
-    def __init__(self, answer):
-        from types import SimpleNamespace
-
-        self.binding = topo.CHILD_OVERVIEW_PROFILES["T5C"].S
-        self.base_options = dict(topo.PARENT_SYNTHESIS_S_OPTIONS)
-        self.calls = 0
-        self._answer = answer
-        self._result = SimpleNamespace
-
-    def call(self, stage, prompt, schema, *, input_text=""):
-        self.calls += 1
-        return self._result(answer=self._answer, record={"outcome": "usable"})
-
-
 def _run(claims, sealed, *, answer, entail=None, supervisor=None, question="Which regions respond to scarring?"):
     client = pst.FakeParentClient(answer=answer)
     sup = supervisor or pst.make_s2_supervisor(client)
@@ -139,25 +121,31 @@ class PromptAndSchemaTests(unittest.TestCase):
         self.assertNotIn("proposition_id", prompt)
         self.assertNotIn("p1", prompt.split("\n"))
 
-    def test_schema_is_closed_and_bounded_by_the_claim_ids(self):
+    def test_schema_is_closed_and_structural_only(self):
+        """Phase 27a: the whole-answer schema carries structure and runaway caps only. The claim-id enum and the
+        editorial minimum are gone; an unknown id or a short statement is decided per item, not as a whole-answer NO
+        ANSWER."""
         _sealed, claims = _three_claims()
         ids = [c["claim_id"] for c in claims]
         schema = ps.build_schema(ids)
         items = schema["properties"]["items"]
-        self.assertEqual(items["maxItems"], len(ids))
+        self.assertEqual(items["maxItems"], ps.SCHEMA_ITEMS_PER_CLAIM * len(ids))
         props = items["items"]["properties"]
         self.assertEqual(set(props), {"claim_id", "statement"})  # no citation/proposition field can exist
-        self.assertEqual(props["claim_id"]["enum"], ids)
+        self.assertNotIn("enum", props["claim_id"])
+        self.assertEqual(props["claim_id"]["maxLength"], ps.SCHEMA_CLAIM_ID_MAX_CHARS)
+        self.assertNotIn("minLength", props["statement"])  # the editorial floor is per item, never whole-answer
+        self.assertEqual(props["statement"]["maxLength"], ps.SCHEMA_STATEMENT_MAX_CHARS)
         self.assertFalse(items["items"]["additionalProperties"])
         self.assertEqual(schema["required"], ["items"])
 
     def test_contract_hash_is_stable(self):
         self.assertEqual(ps.contract_sha256(), ps.contract_sha256())
 
-    def test_worst_case_output_fits_the_budget_for_the_real_scale(self):
+    def test_legitimate_output_fits_the_budget_for_the_real_scale(self):
         _sealed, claims = _three_claims()
         budget = topo.PARENT_SYNTHESIS_S_OPTIONS["num_predict"] * 3
-        self.assertLessEqual(ps.worst_case_output_chars(ps.build_schema([c["claim_id"] for c in claims])), budget)
+        self.assertLessEqual(ps.legitimate_output_chars([c["claim_id"] for c in claims]), budget)
 
 
 class EnvelopeTests(unittest.TestCase):
@@ -363,29 +351,32 @@ class RealizeTests(unittest.TestCase):
         self.assertEqual(len(result["segments"]), len(claims))
         self.assertEqual(result["state"], "mixed_model_and_fallback")
 
-    def test_E_a_duplicate_claim_id_never_duplicates_the_answer(self):
-        """The closed schema caps items at the claim count, so a duplicate is only schema-valid alongside a
-        missing claim: [c0, c0, c1] for three claims. The duplicate is withheld, never rendered twice."""
+    def test_E_a_duplicate_claim_id_falls_back_that_claim_once_and_never_renders_twice(self):
+        """Phase 27a: a duplicated id is per-item. Neither copy is trusted, that claim falls back exactly once, and
+        its valid siblings stay grounded. [c0, c0, c1, c2] for three claims: c0 duplicate, c1 and c2 grounded."""
         sealed, claims = _three_claims()
         base = _grounded_items(claims)
-        items = [base[0], base[0], base[1]]
-        result, _client = _run(claims, sealed, answer={"items": items})
-        dup = [s for s in result["segments"] if s["status"] == "duplicate"]
-        self.assertEqual(len(dup), 1)
-        self.assertEqual(dup[0]["claim_id"], claims[0]["claim_id"])
+        items = [base[0], base[0], base[1], base[2]]
+        result, client = _run(claims, sealed, answer={"items": items})
+        by_id = {s["claim_id"]: s for s in result["segments"]}
+        self.assertEqual(by_id[claims[0]["claim_id"]]["status"], "duplicate")
+        self.assertEqual(by_id[claims[1]["claim_id"]]["status"], "grounded")
+        self.assertEqual(by_id[claims[2]["claim_id"]]["status"], "grounded")
         self.assertEqual(len(result["segments"]), len(claims))
+        self.assertEqual(result["item_diagnostics"]["duplicate_claim_ids"], [claims[0]["claim_id"]])
+        self.assertEqual(len(client.calls), 1)
 
-    def test_F_an_unknown_claim_id_is_rejected_and_recorded_never_rendered(self):
-        """The supervisor's schema enum refuses an unknown id before post-validation sees it. This drives the
-        post-validation layer directly (defense in depth) through a raw supervisor that bypasses that check."""
+    def test_F_an_unknown_claim_id_is_recorded_and_never_contaminates_known_siblings(self):
+        """Phase 27a: an unknown id is no longer a whole-answer schema failure. It is recorded and discarded, and
+        every known claim still appears exactly once, grounded."""
         sealed, claims = _three_claims()
         base = _grounded_items(claims)
-        items = [base[0], base[1], {"claim_id": "ghost::0000", "statement": "A ghost claim is stated."}]
-        result = ps.realize(
-            claims, sealed, supervisor=_RawSupervisor({"items": items}), entail=pst.FakeEntail(), question="q"
-        )
+        items = [base[0], base[1], {"claim_id": "ghost::0000", "statement": "A ghost claim is stated."}, base[2]]
+        result, client = _run(claims, sealed, answer={"items": items})
         self.assertEqual(result["unknown_claim_ids"], ["ghost::0000"])
         self.assertNotIn("ghost::0000", [s["claim_id"] for s in result["segments"]])
+        self.assertEqual(result["grounded_count"], 3)
+        self.assertEqual(len(client.calls), 1)
 
     def test_G_unsupported_wording_is_withheld_per_claim_others_stay_grounded(self):
         sealed, claims = _three_claims()

@@ -40,6 +40,40 @@ def _realization_checks(record: dict, sealed: dict, checks: dict, problems: list
     def citations_are_admissible_ids() -> bool:
         return all(s["cited_proposition_ids"] == ledger[s["claim_id"]]["admissible_proposition_ids"] for s in segments)
 
+    def invalid_items_are_recorded_not_rendered() -> bool:
+        """Phase 27a: an item invalid for its own statement keeps the rejected text and its re-derived reasons, and
+        never a proposed (renderable) text."""
+        for s in segments:
+            if s["status"] != "invalid_item":
+                continue
+            if s["proposed_text"] is not None or s["rejected_text"] is None or not s["item_reasons"]:
+                return False
+            if ps.item_reasons(s["rejected_text"]) != s["item_reasons"]:
+                return False
+        return True
+
+    def model_text_passes_the_editorial_bounds() -> bool:
+        """Every statement that reached screening (grounded or withheld) re-derives as editorially valid."""
+        return all(ps.item_reasons(s["proposed_text"]) == [] for s in segments if s["proposed_text"] is not None)
+
+    def item_diagnostics_match_segments() -> bool:
+        d = record.get("item_diagnostics")
+        if d is None:
+            # A whole-call failure or a skipped run carries no per-item diagnostics, and no per-item status either.
+            return not any(
+                s["status"] in ("missing", "duplicate", "invalid_item", "grounded", "withheld") for s in segments
+            )
+
+        def claim_ids_with(status: str) -> list[str]:
+            return sorted(s["claim_id"] for s in segments if s["status"] == status)
+
+        return (
+            d["missing_claim_ids"] == claim_ids_with("missing")
+            and d["duplicate_claim_ids"] == claim_ids_with("duplicate")
+            and d["invalid_claim_ids"] == claim_ids_with("invalid_item")
+            and d["unknown_claim_ids"] == record["unknown_claim_ids"]
+        )
+
     def fallback_mapping_is_honest() -> bool:
         for s in segments:
             grounded = s["status"] == "grounded"
@@ -98,6 +132,9 @@ def _realization_checks(record: dict, sealed: dict, checks: dict, problems: list
     _check("realized_segments_cover_each_claim_exactly_once", covers_each_claim_once)
     _check("grounded_segment_is_exactly_one_claim", grounded_segments_are_single_claims)
     _check("citations_are_exactly_the_claims_admissible_ids", citations_are_admissible_ids)
+    _check("invalid_items_are_recorded_not_rendered", invalid_items_are_recorded_not_rendered)
+    _check("model_text_passes_the_editorial_bounds", model_text_passes_the_editorial_bounds)
+    _check("item_diagnostics_match_segments", item_diagnostics_match_segments)
     _check("fallback_mapping_is_honest", fallback_mapping_is_honest)
     _check("lexical_screens_rederive", lexical_screens_rederive)
     _check("nli_structure_recorded", nli_structure_recorded)

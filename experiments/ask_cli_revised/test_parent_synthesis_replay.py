@@ -9,6 +9,7 @@ import copy
 import json
 import tempfile
 import unittest
+from collections import Counter
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -68,7 +69,7 @@ def _faithful(prompt, schema):
     frame ("Reported: ...") so it is a schema-valid statement, as a sentence-writing model would produce; the frame adds
     no content, so the screens still judge exactly the authorized values."""
     items = []
-    for cid in schema["properties"]["items"]["items"]["properties"]["claim_id"]["enum"]:
+    for cid in pst.prompt_claim_ids(prompt):
         text = _restated_values(_block(prompt, cid))[:400]
         if len(text) < 15:
             text = f"Reported: {text}"
@@ -226,6 +227,107 @@ class TamperedRealizationAuditTests(unittest.TestCase):
         audit = self._audit(_rehashed(record))
         self.assertFalse(audit["ok"])
         self.assertFalse(audit["checks"]["realized_segments_cover_each_claim_exactly_once"])
+
+
+def _unpadded(prompt, schema):
+    """The raw restatement with NO sentence frame: a bare value can fall under the editorial floor, as a real model's
+    fragment could. This is the input that collapsed the whole answer before Phase 27a."""
+    return {
+        "items": [
+            {"claim_id": cid, "statement": _restated_values(_block(prompt, cid))[:400]}
+            for cid in pst.prompt_claim_ids(prompt)
+        ]
+    }
+
+
+def _with_one_short(prompt, schema):
+    """The padded faithful restatement, except one role value is replaced by the bare word ``explicit``."""
+    answer = _faithful(prompt, schema)
+    for item in answer["items"]:
+        block = _block(prompt, item["claim_id"])
+        if block.startswith("\nCategory:") and block.rstrip().endswith("explicit"):
+            item["statement"] = "explicit"
+    return answer
+
+
+@unittest.skipUnless(ARTIFACTS_PRESENT, "the frozen Phase-23 run artifacts are not present in this worktree")
+class PerItemRealReplayTests(unittest.TestCase):
+    """Phase 27a on the real frozen state. Before this phase, one bare item collapsed all 24 claims to a whole-answer
+    NO ANSWER (0/24). The counts below are the after-state, measured with the same fakes."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.smf, cls.sealed, cls.targets = _load()
+        cls.claims = psl.build_claim_ledger(cls.smf, cls.sealed)
+
+    def test_one_too_short_item_among_the_real_twenty_four_costs_exactly_one_fallback(self):
+        padded, _c, _s = _realize(_faithful, self.smf, self.sealed, self.targets)
+        short, client, _s = _realize(_with_one_short, self.smf, self.sealed, self.targets)
+        self.assertEqual(short["record"]["whole_call_status"], "ok")
+        self.assertEqual(short["record"]["grounded_count"], padded["record"]["grounded_count"] - 1)
+        self.assertEqual(short["record"]["fallback_count"], padded["record"]["fallback_count"] + 1)
+        self.assertEqual(Counter(s["status"] for s in short["record"]["realized_segments"])["invalid_item"], 1)
+        self.assertEqual(len(client.calls), 1)
+        self.assertTrue(short["audit"]["ok"], short["audit"])
+
+    def test_an_unpadded_real_answer_recovers_per_item_instead_of_collapsing(self):
+        out, client, _s = _realize(_unpadded, self.smf, self.sealed, self.targets)
+        record = out["record"]
+        self.assertEqual(record["whole_call_status"], "ok")
+        self.assertEqual(Counter(s["status"] for s in record["realized_segments"])["invalid_item"], 3)
+        self.assertEqual(record["grounded_count"], 19)
+        self.assertEqual(len(client.calls), 1)
+        self.assertTrue(out["audit"]["ok"], out["audit"])
+
+    def test_hadza_displays_once_while_both_supports_and_both_values_remain(self):
+        c10 = next(c for c in self.claims if c["claim_kind"] == "category_list" and "c10" in c["child_ids"])
+        self.assertEqual(psr.literal_statement(c10), "a named culture or population: Hadza.")
+        self.assertEqual([v["exact_text"] for v in c10["values"]], ["Hadza", "Hadza"])
+        self.assertEqual(len(set(c10["admissible_proposition_ids"])), 2)
+        citation = psr.format_citations(c10)
+        for proposition_id in c10["admissible_proposition_ids"]:
+            self.assertIn(proposition_id, citation)
+
+    def test_rendering_and_realization_never_mutate_the_real_ledger(self):
+        before = copy.deepcopy(self.claims)
+        out, _c, _s = _realize(_faithful, self.smf, self.sealed, self.targets)
+        self.assertEqual(out["record"]["claim_ledger"], before)
+        self.assertEqual(self.claims, before)
+
+
+@unittest.skipUnless(ARTIFACTS_PRESENT, "the frozen Phase-23 run artifacts are not present in this worktree")
+class PerItemAuditTamperTests(unittest.TestCase):
+    """The Phase-27a audit checks must catch a tampered per-item record. Each tamper is re-sealed so exactly one
+    re-derivation is what fails."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.smf, cls.sealed, cls.targets = _load()
+        out, _c, _s = _realize(_with_one_short, cls.smf, cls.sealed, cls.targets)
+        cls.base = out["record"]
+
+    def _audit(self, record: dict) -> dict:
+        return psa.audit_parent_synthesis(self.smf, self.sealed, self.targets, record)
+
+    def test_a_rendered_invalid_item_fails_its_check(self):
+        record = copy.deepcopy(self.base)
+        segment = next(s for s in record["realized_segments"] if s["status"] == "invalid_item")
+        segment["proposed_text"] = "A rendered statement that the editorial bounds rejected."
+        audit = self._audit(_rehashed(record))
+        self.assertFalse(audit["checks"]["invalid_items_are_recorded_not_rendered"])
+
+    def test_an_editorially_invalid_grounded_text_fails_its_check(self):
+        record = copy.deepcopy(self.base)
+        segment = next(s for s in record["realized_segments"] if s["status"] == "grounded")
+        segment["proposed_text"] = segment["final_text"] = "ok"
+        audit = self._audit(_rehashed(record))
+        self.assertFalse(audit["checks"]["model_text_passes_the_editorial_bounds"])
+
+    def test_diagnostics_that_disagree_with_the_segments_fail_their_check(self):
+        record = copy.deepcopy(self.base)
+        record["item_diagnostics"]["missing_claim_ids"] = ["role_value::0000"]
+        audit = self._audit(_rehashed(record))
+        self.assertFalse(audit["checks"]["item_diagnostics_match_segments"])
 
 
 if __name__ == "__main__":

@@ -1,5 +1,14 @@
 # Phase 27 — bounded parent realization + production wiring (offline only)
 
+> **Phase 27a supersession note (additive; the body below is the Phase-27 record and is not rewritten).** The
+> whole-answer schema described in §5 carried an editorial `minLength`, a claim-id `enum`, and a `maxItems` equal to the
+> claim count. Any violation made the supervisor return NO ANSWER for the entire response, so one too-short statement
+> collapsed all claims to deterministic fallback. §5's "enum" description, §8.4 (the open whole-call collapse debt), and
+> the §6/§7 replay counts are superseded by Phase 27a: see
+> `PHASE27A_PARENT_REALIZATION_PER_CLAIM_FALLBACK_RESULTS.md`. The §7 padded-faithful baseline of 20 grounded / 4 fallback
+> is unchanged by 27a. The before-state for the collapse (0/24 whole-call with an unpadded or one-short answer) was
+> measured on HEAD `15d4a99f` and is recorded in the 27a results document, not in this one.
+
 **Status: offline implementation complete; no live model call, no network, no e2e run, no recovery rerun, no
 contract or pin change.** Phase 28 readiness is **FALSE** pending the upstream fix recorded in §4 (disposition B). This
 is a judgment for Cliff to overrule, not a settled finding.
