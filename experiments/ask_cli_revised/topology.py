@@ -192,12 +192,19 @@ for _profile in OVERVIEW_PROFILES.values():
 # thinking-on T5O run and its artifacts are unaffected and remain the only live evidence this arm currently has.
 CHILD_OVERVIEW_S_OPTIONS = dict(SUPERVISOR_BASE_OPTIONS)
 CHILD_OVERVIEW_PROFILES = {
-    "T5C": replace(
-        WAVE1["T5"], name="T5*+C", S=_ollama(_QWEN35, think=False), S_options=CHILD_OVERVIEW_S_OPTIONS
-    )
+    "T5C": replace(WAVE1["T5"], name="T5*+C", S=_ollama(_QWEN35, think=False), S_options=CHILD_OVERVIEW_S_OPTIONS)
 }
 for _profile in CHILD_OVERVIEW_PROFILES.values():
     validate(_profile)
+
+# ---- parent realization envelope (Phase 27): NOT a Profile, no new Profile field ----------------------------------------
+# The parent-synthesis S2 call reuses whichever S binding the run already holds resident (no swap, no new binding). It
+# is an editorial transform over already-decided structured claims, so it runs THINKING OFF, like the per-child
+# Overview, not on the flat thinking-on envelope. The call refuses to run unless the bound S supervisor is exactly this
+# envelope and thinking-off (parent_synthesis.realize): a run whose S differs gets the deterministic fallback, never a
+# silently different model regime. Deliberately equal to CHILD_OVERVIEW_S_OPTIONS today; a separate name keeps the
+# parent contract explicit and reviewable on its own. Not live-tuned in Phase 27 (Phase 28 validates it).
+PARENT_SYNTHESIS_S_OPTIONS = dict(SUPERVISOR_BASE_OPTIONS)
 
 
 def profile_names() -> list[str]:

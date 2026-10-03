@@ -1464,3 +1464,40 @@ cannot become a second, silent semantic adjudicator. Documented one further real
 out-of-scope gap found along the way (`empty_result_semantically_allowed` is authored but never
 consulted by `sufficiency_recovery_targets.py`) without fixing it, per the brief's own scope
 boundary. Full detail in `PHASE26_PARENT_SYNTHESIS_LEDGER_OFFLINE_RESULTS.md`.
+
+---
+
+## Phase 27 -- bounded parent realization + production wiring, offline only (appended 2026-10-03; preserves all prior entries unchanged)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-10-03 | Evidence | Phase 26's ledger and the frozen Phase-23 state; Phase 23a's adjudication |
+| 2026-10-03 | Design direction / acceptance | Cliff Workman |
+| 2026-10-03 | Implementation | Claude |
+
+**Evidence (Phase 26 and the frozen Phase-23 state).** Phase 26's deterministic ParentClaim ledger was the authority the
+realization stage was allowed to phrase and nothing more. Two preflight questions were resolved from raw artifacts before
+any code was written. The `c8` question found Phase 23a's mechanism sentence overbroad: the relation role was filled
+pre-recovery (`p8`, instance U1), and the requirement remains incomplete because the trait and relation roles are filled
+in disjoint instances. Phase 23a's conclusion holds, and the clarification is recorded additively in the Phase-27 results
+document. The `empty_result_semantically_allowed` question found the flag authored and persisted but never consumed, and
+it is reachable pre-recovery on `c4`. The frozen final state is unaffected. Disposition B was recorded, so Phase 28
+readiness is FALSE pending a separate narrow upstream fix.
+
+**Design direction (Cliff Workman).** Accepted the bounded editorial realization: the model decides only how to phrase an
+already-authorized claim. It receives claim-closed input, returns a closed schema with no citation field, and makes one call
+with no retry. Claim-value fidelity and source-passage fidelity are kept as two independent layers with one batched local
+NLI pass. Any model failure falls back deterministically, per claim or for the whole call. The stage is default-off behind
+`--parent-synthesis`, which requires `--hierarchy`, and changes nothing when absent. The c12 adversarial case remains a
+test fixture only: no runtime logic may encode a benchmark-specific exception.
+
+**Implementation (Claude).** Built `parent_synthesis.py` (the realization stage), with additive changes to the render,
+audit, topology, e2e, and hierarchy test-support modules. Added 43 realization-matrix tests, 15 wiring tests, and 13 offline
+replay and tamper-audit tests, and ran the real production helper over the frozen Phase-23 state with a faithful fake
+client and the c12 adversary. The replay found that the faithful fake, not production, had two defects (list-item extraction
+and sub-15-character fragments that trip the schema's minimum); both were fixed in the fake. The replay shows one call per
+run, audit passing, 20 grounded and 4 fallback in the faithful case, and the c12 wrong target `bias toward people of color`
+surviving as a grounded statement. The design cannot correct an upstream role value, and this is recorded as the most
+important open item before any live parent answer is trusted. Phase 27 runs no model, makes no network call, and writes
+nothing outside the new 15* artifacts. Full detail, debt, and the Phase-28 hand-back are in
+`PHASE27_BOUND_PARENT_REALIZATION_OFFLINE_RESULTS.md`.

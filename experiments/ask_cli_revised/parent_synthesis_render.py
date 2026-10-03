@@ -13,6 +13,9 @@ import hashlib
 import json
 
 CONSTRUCTION_RECORD_VERSION = "parent-synthesis-v1"
+RECORD_FILE = "15a_parent_synthesis.json"
+ANSWER_FILE = "15_parent_answer.md"
+INSPECTION_FILE = "15b_parent_synthesis_inspection.md"
 
 _REASON_LABELS = {
     "missing": "not established in the retrieved evidence",
@@ -83,30 +86,59 @@ def _render_claim(claim: dict) -> str:
     return _RENDERERS[claim["claim_kind"]](claim)
 
 
+def literal_statement(claim: dict) -> str:
+    """The Phase-26 deterministic literal for one claim: the fallback text Phase 27 uses whenever a model
+    segment is not grounded. Public so the realization layer never re-implements a template."""
+    return _render_claim(claim)
+
+
 def _render_gap(gap: dict) -> str:
     label = _REASON_LABELS.get(gap["reason"], gap["reason"])
     categories = "; ".join(gap["category_descriptions"]) or "(no category description recorded)"
     return f"- {categories} ({label})."
 
 
-def render_answer(claim_ledger: list[dict], gap_report: list[dict], *, sealed: dict | None = None) -> str:
-    """The researcher-facing deterministic fallback answer. Pure: a function of its own arguments
-    only. ``sealed``, when supplied, additively enriches Supporting findings with the full cited
-    passage (mirroring ``overview_render._finding_block``'s own style); omitting it falls back to
-    each claim's own short ``exact_text`` spans, still fully provenance-complete."""
+def format_citations(claim: dict) -> str:
+    """The deterministic citation for one claim: exactly its admissible proposition ids, sorted. The only citation a
+    rendered statement can carry, so a model can never choose one (Phase 27 Section 5)."""
+    ids = claim["admissible_proposition_ids"]
+    return f"[{', '.join(ids)}]" if ids else ""
+
+
+def _statement(claim: dict, realized_text: dict | None, cite: bool) -> str:
+    text = (realized_text or {}).get(claim["claim_id"]) or _render_claim(claim)
+    citation = format_citations(claim) if cite else ""
+    return f"{text} {citation}".rstrip() if citation else text
+
+
+def render_answer(
+    claim_ledger: list[dict],
+    gap_report: list[dict],
+    *,
+    sealed: dict | None = None,
+    realized_text: dict | None = None,
+    cite: bool = False,
+) -> str:
+    """The researcher-facing answer. Pure: a function of its own arguments only.
+
+    Phase 26 behaviour is the default and is unchanged when ``realized_text`` and ``cite`` are omitted.
+    ``realized_text`` (Phase 27) maps claim_id to the statement shown for that claim; a claim absent from it, or mapped
+    to an empty string, shows its deterministic literal. ``cite`` appends each claim's own admissible proposition ids
+    to its Overview/Qualified line. ``sealed``, when supplied, additively enriches Supporting findings with the full
+    cited passage (mirroring ``overview_render._finding_block``'s own style)."""
     overview_claims = [c for c in claim_ledger if not _is_qualified(c)]
     qualified_claims = [c for c in claim_ledger if _is_qualified(c)]
 
     lines = ["# Overview", ""]
     if overview_claims:
         for claim in overview_claims:
-            lines.append(_render_claim(claim))
+            lines.append(_statement(claim, realized_text, cite))
     else:
         lines.append("No claim is established by the retrieved evidence in this run.")
     lines += ["", "## Qualified / heterogeneous findings", ""]
     if qualified_claims:
         for claim in qualified_claims:
-            lines.append(_render_claim(claim))
+            lines.append(_statement(claim, realized_text, cite))
     else:
         lines.append("None.")
     lines += ["", "## Supporting findings", ""]
@@ -140,21 +172,105 @@ def render_answer(claim_ledger: list[dict], gap_report: list[dict], *, sealed: d
     return "\n".join(lines).rstrip() + "\n"
 
 
+def record_hash(record: dict) -> str:
+    """Canonical hash of a construction record minus its own ``parent_synthesis_hash`` key -- the same "hash the whole
+    record minus its own hash" discipline ``overview.canonical_hash`` established."""
+    body = {k: v for k, v in record.items() if k != "parent_synthesis_hash"}
+    return hashlib.sha256(json.dumps(body, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
+
+
 def construction_record(
-    claim_ledger: list[dict], gap_report: list[dict], *, sealed_hash: str, sufficiency_map_hash: str
+    claim_ledger: list[dict],
+    gap_report: list[dict],
+    *,
+    sealed_hash: str,
+    sufficiency_map_hash: str,
+    realization: dict | None = None,
 ) -> dict:
-    """The Phase-26 construction-record object -- deterministic-only, no fake model metadata.
-    ``parent_synthesis_hash`` is computed last, over everything else (the same "hash the whole
-    record minus its own hash key" discipline ``overview.canonical_hash`` already established)."""
+    """The construction record. Without ``realization`` this is exactly the Phase-26 deterministic-only object (no model
+    metadata, ``realization_state`` "deterministic_only"). With a Phase-27 ``realization`` it adds the realization fields;
+    model metadata appears only when a call was actually attempted. ``parent_synthesis_hash`` is computed last."""
     record = {
         "version": CONSTRUCTION_RECORD_VERSION,
         "sealed_ledger_hash": sealed_hash,
         "sufficiency_map_final_hash": sufficiency_map_hash,
         "claim_ledger": claim_ledger,
         "gap_report": gap_report,
-        "realization_state": "deterministic_only",
-        "fallback_used": True,
     }
-    canonical = json.dumps(record, sort_keys=True, ensure_ascii=False)
-    record["parent_synthesis_hash"] = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    if realization is None:
+        record["realization_state"] = "deterministic_only"
+        record["fallback_used"] = True
+    else:
+        record.update(
+            {
+                "realization_state": realization["state"],
+                "call_attempted": realization["call_attempted"],
+                "skip_reason": realization["skip_reason"],
+                "whole_call_status": realization["whole_call_status"],
+                "call_outcome": realization["call_outcome"],
+                "prompt_sha256": realization["prompt_sha256"],
+                "schema_sha256": realization["schema_sha256"],
+                "contract_sha256": realization["contract_sha256"],
+                "realized_segments": realization["segments"],
+                "unknown_claim_ids": realization["unknown_claim_ids"],
+                "grounded_count": realization["grounded_count"],
+                "fallback_count": realization["fallback_count"],
+                "fallback_used": realization["fallback_count"] > 0,
+            }
+        )
+        if realization["call_attempted"]:
+            record["model"] = realization["model"]
+    record["parent_synthesis_hash"] = record_hash(record)
     return record
+
+
+def declined_record(*, reason: str, sealed_hash: str) -> dict:
+    """The explicit decline: parent synthesis was requested but there is no final sufficiency map to consume. No ledger,
+    no gaps, no model call, and no fallback to a raw-ledger rendering (Phase 27 Section 27)."""
+    record = {
+        "version": CONSTRUCTION_RECORD_VERSION,
+        "sealed_ledger_hash": sealed_hash,
+        "sufficiency_map_final_hash": None,
+        "claim_ledger": [],
+        "gap_report": [],
+        "realization_state": "declined",
+        "skip_reason": reason,
+        "call_attempted": False,
+        "fallback_used": False,
+    }
+    record["parent_synthesis_hash"] = record_hash(record)
+    return record
+
+
+def render_inspection(claim_ledger: list[dict], gap_report: list[dict], realization: dict | None) -> str:
+    """The inspection artifact: every claim's segment status, screen reasons and citations, plus the full gap report with
+    identifiers. Lives beside the researcher answer, never inside it."""
+    lines = ["# Parent synthesis inspection", ""]
+    if realization is None:
+        lines += ["Deterministic-only rendering: no realization was supplied.", ""]
+    else:
+        header = f"Realization state: {realization['state']}"
+        if realization["skip_reason"]:
+            header += f" (skip: {realization['skip_reason']})"
+        if realization["whole_call_status"]:
+            header += f"; whole-call status: {realization['whole_call_status']}"
+        lines += [
+            header,
+            "",
+            "| claim | kind | segment | cited | claim-value reasons | evidence reasons | heterogeneity reasons | NLI reasons |",
+            "|---|---|---|---|---|---|---|---|",
+        ]
+        for seg in realization["segments"]:
+            lines.append(
+                f"| {seg['claim_id']} | {seg['claim_kind']} | {seg['status']} | "
+                f"{', '.join(seg['cited_proposition_ids']) or '-'} | {', '.join(seg['claim_screen_reasons']) or '-'} | "
+                f"{', '.join(seg['evidence_screen_reasons']) or '-'} | {', '.join(seg['heterogeneity_reasons']) or '-'} | "
+                f"{', '.join(seg['nli_reasons']) or '-'} |"
+            )
+        lines.append("")
+    lines += ["## Unresolved parts (identifiers)", ""]
+    gap_lines = [
+        f"- {g['target_id']} ({g['search_child_id']} / {g['requirement_id']}): {g['reason']}" for g in gap_report
+    ]
+    lines += gap_lines or ["None recorded."]
+    return "\n".join(lines).rstrip() + "\n"

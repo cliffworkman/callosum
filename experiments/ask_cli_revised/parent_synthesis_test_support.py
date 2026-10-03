@@ -207,3 +207,70 @@ def real_c12_fixture() -> tuple[dict, dict]:
     sufficiency_map_final = map_with("c12", req)
     sd.compute_direction_and_effectiveness(sealed, sufficiency_map_final)
     return sealed, sufficiency_map_final
+
+
+# ---------------------------------------------------------------------------------------------
+# Phase 27 fakes: a scripted S2 client (routed by the parent schema, never the Overview schema),
+# a recording NLI scorer, and a real stages.Supervisor wrapped around them. No Ollama, no network.
+# ---------------------------------------------------------------------------------------------
+
+import json as _json  # noqa: E402
+
+from experiments.ask_cli_revised import stages as _stages  # noqa: E402
+from experiments.ask_cli_revised import topology as _topo  # noqa: E402
+
+
+class FakeParentClient:
+    """Routes ``chat`` by the parent schema's ``items`` property. ``answer(prompt, schema)`` may return
+    a dict (sent as JSON), ``None`` (NO ANSWER: an empty, capped reply), a raw string (sent verbatim),
+    or raise (a transport failure). Every call is recorded, so tests can assert exact call counts."""
+
+    def __init__(self, answer=None):
+        self.answer = answer
+        self.calls: list[dict] = []
+
+    def chat(self, model, prompt, *, schema, options, think=None, keep_alive=None, wall_timeout=None):
+        self.calls.append(
+            {"model": model, "prompt": prompt, "schema": schema, "options": dict(options), "think": think}
+        )
+        answer = self.answer(prompt, schema) if callable(self.answer) else self.answer
+        base = {
+            "status": "ok",
+            "error": None,
+            "thinking": "",
+            "timings": {"prompt_eval_count": 900, "eval_count": 300},
+            "wall_seconds": 1.0,
+        }
+        if answer is None:
+            return {**base, "content": "", "done_reason": "length"}
+        content = answer if isinstance(answer, str) else _json.dumps(answer)
+        return {**base, "content": content, "done_reason": "stop"}
+
+
+def make_s2_supervisor(client, *, binding=None, base_options=None):
+    """A real ``stages.Supervisor`` on the T5C thinking-off S binding and the parent envelope -- the
+    exact supervisor shape the production hierarchy arm already holds. Overridable for refusal tests."""
+    return _stages.Supervisor(
+        role="S",
+        binding=binding or _topo.CHILD_OVERVIEW_PROFILES["T5C"].S,
+        client=client,
+        base_options=base_options if base_options is not None else _topo.PARENT_SYNTHESIS_S_OPTIONS,
+    )
+
+
+class FakeEntail:
+    """A recording stand-in for the local NLI seam: ``entail(pairs) -> [(support, contradiction)]``.
+    ``score(premise, hypothesis)`` decides each pair; the default is an entailing, uncontradicted
+    scorer. ``raises`` makes the whole batch fail. ``batches`` records every call's size."""
+
+    def __init__(self, score=None, raises: Exception | None = None):
+        self.score = score or (lambda premise, hypothesis: (0.9, 0.05))
+        self.raises = raises
+        self.batches: list[int] = []
+
+    def __call__(self, pairs):
+        pairs = list(pairs)
+        self.batches.append(len(pairs))
+        if self.raises is not None:
+            raise self.raises
+        return [self.score(p, h) for p, h in pairs]

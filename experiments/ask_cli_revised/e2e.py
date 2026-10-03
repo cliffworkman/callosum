@@ -36,6 +36,10 @@ from experiments.ask_cli_revised import (
     overview,
     overview_audit,
     overview_render,
+    parent_synthesis,
+    parent_synthesis_audit,
+    parent_synthesis_ledger,
+    parent_synthesis_render,
     provenance,
     retrieval,
     stages,
@@ -404,6 +408,7 @@ def execute(
     sufficiency_contract: dict | None = None,
     sufficiency_parent_of: dict | None = None,
     sufficiency_recovery_gate_enabled: bool = False,
+    parent_synthesis_enabled: bool = False,
     sufficiency_model_assist_enabled: bool = False,
 ) -> dict:
     if "S" in bound.supervisors and entail is None:
@@ -862,6 +867,19 @@ def execute(
                     sealed, sealed_hash, supervisor=bound.supervisors["S"], entail=entail
                 )
                 entry["detail"] = overview.stage_detail(overview_record)
+    parent_synthesis_result = None
+    if parent_synthesis_enabled and contract.get("version") == hierarchy_contract.HIER_VERSION:
+        parent_synthesis_result = _parent_synthesis_outputs(
+            trace=trace,
+            stage=stage,
+            bound=bound,
+            sealed=sealed,
+            sealed_hash=sealed_hash,
+            sufficiency_map_final=sufficiency_map_final,
+            recovery_targets_final=recovery_targets_final,
+            question=question,
+            entail=entail,
+        )
     text, render_manifest = render_answer(sealed)
 
     trace.write_json("02_direct_papers.json", sink.direct_papers)
@@ -931,7 +949,7 @@ def execute(
     trace.write_json("stage_log.json", {"stages": stage_log, "skipped": skipped})
     trace.flush_qwen()
     trace.flush_events()
-    return {
+    result_out = {
         "sealed": sealed,
         "sealed_hash": sealed_hash,
         "stage_log": stage_log,
@@ -981,6 +999,52 @@ def execute(
         "supervisor_records": {role: sup.records for role, sup in bound.supervisors.items()},
         "records_total": len(sink.all_records),
     }
+    if parent_synthesis_result is not None:
+        result_out["parent_synthesis"] = parent_synthesis_result
+    return result_out
+
+
+def _parent_synthesis_outputs(
+    *, trace, stage, bound, sealed, sealed_hash, sufficiency_map_final, recovery_targets_final, question, entail
+) -> dict:
+    """Phase 27: the bounded parent realization, run after every child stage and the final sufficiency state.
+    It writes only the additive 15* artifacts. It never feeds search, recovery, U2, the sufficiency state or the
+    per-child Overview back, and it never replaces the top-level 14_final_answer.md."""
+    if sufficiency_map_final is None:
+        record = parent_synthesis_render.declined_record(reason="no_sufficiency_map", sealed_hash=sealed_hash)
+        trace.write_json(parent_synthesis_render.RECORD_FILE, record)
+        return {"record": record}
+    claims = parent_synthesis_ledger.build_claim_ledger(sufficiency_map_final, sealed)
+    gaps = parent_synthesis_ledger.build_gap_report(recovery_targets_final, sufficiency_map_final=sufficiency_map_final)
+    realization = parent_synthesis.realize(
+        claims,
+        sealed,
+        supervisor=bound.supervisors.get("S"),
+        entail=entail,
+        question=question,
+        call_context=lambda: stage(parent_synthesis.STAGE_LABEL, "S"),
+    )
+    record = parent_synthesis_render.construction_record(
+        claims,
+        gaps,
+        sealed_hash=sealed_hash,
+        sufficiency_map_hash=parent_synthesis_ledger.sufficiency_map_hash(sufficiency_map_final),
+        realization=realization,
+    )
+    answer = parent_synthesis_render.render_answer(
+        claims,
+        gaps,
+        realized_text={s["claim_id"]: s["final_text"] for s in realization["segments"]},
+        cite=True,
+    )
+    trace.write_json(parent_synthesis_render.RECORD_FILE, record)
+    trace.write_report(parent_synthesis_render.ANSWER_FILE, [answer.rstrip("\n")])
+    trace.write_report(
+        parent_synthesis_render.INSPECTION_FILE,
+        [parent_synthesis_render.render_inspection(claims, gaps, realization).rstrip("\n")],
+    )
+    audit = parent_synthesis_audit.audit_parent_synthesis(sufficiency_map_final, sealed, recovery_targets_final, record)
+    return {"record": record, "audit": audit}
 
 
 # ---- the guarded run ---------------------------------------------------------------------------------------------------
@@ -1063,6 +1127,7 @@ def run_topology(
     sufficiency_loader=_default_sufficiency_loader,
     sufficiency_model_assist: bool = False,
     sufficiency_recovery_gate: bool = False,
+    parent_synthesis: bool = False,
     git_state_fn=provenance.git_state,
     verify_library=library_copy.verify,
     verify_contracts=e2e_contracts.verify_frozen,
@@ -1088,6 +1153,9 @@ def run_topology(
         # existing, which a deterministic-only (model-assist-off) sufficiency pass already
         # produces; recovery and model assistance are independent capabilities (Phase 24 audit).
         raise ValueError("--sufficiency-recovery requires --hierarchy")
+    if parent_synthesis and not hierarchy:
+        # Phase 27: the same independent-of-the-CLI-parser precondition as the flags above.
+        raise ValueError("--parent-synthesis requires --hierarchy")
     hier_contract = None
     if hierarchy:
         if question_key != "aib":
@@ -1164,6 +1232,7 @@ def run_topology(
                     sufficiency_contract=sufficiency_contract, sufficiency_parent_of=sufficiency_parent_of,
                     sufficiency_model_assist_enabled=sufficiency_model_assist,
                     sufficiency_recovery_gate_enabled=sufficiency_recovery_gate,
+                    parent_synthesis_enabled=parent_synthesis,
                 )  # fmt: skip
         except Exception as exc:
             trace.write_json("RUN_FAILED.json", {"error_type": type(exc).__name__, "message": str(exc)[:500]})
@@ -1256,6 +1325,21 @@ def run_topology(
         }
     if result.get("overview") is not None:
         manifest["overview"] = overview.manifest_record(result["overview"])
+    if parent_synthesis:
+        # Phase 27: minimal additive diagnostics. The full construction record stays in 15a_parent_synthesis.json.
+        ps_record = (result.get("parent_synthesis") or {}).get("record") or {}
+        manifest["parent_synthesis"] = {
+            "requested": True,
+            "enabled": ps_record.get("realization_state") not in (None, "declined"),
+            "realization_state": ps_record.get("realization_state"),
+            "skip_reason": ps_record.get("skip_reason"),
+            "call_attempted": ps_record.get("call_attempted", False),
+            "fallback_used": ps_record.get("fallback_used", False),
+            "claim_count": len(ps_record.get("claim_ledger", [])),
+            "gap_count": len(ps_record.get("gap_report", [])),
+            "grounded_segment_count": ps_record.get("grounded_count", 0),
+            "fallback_segment_count": ps_record.get("fallback_count", 0),
+        }
     trace.write_json("15_run_manifest.json", manifest)
     return manifest
 
@@ -1310,6 +1394,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--parent-synthesis",
+        action="store_true",
+        help=(
+            "with --hierarchy: after the per-child stages and the final sufficiency state, make ONE bounded "
+            "local S2 call that phrases the deterministic parent claim ledger, validating each claim against its "
+            "own authorized evidence, with a deterministic fallback for every claim not validated. Default off."
+        ),
+    )
+    parser.add_argument(
         "--sufficiency-recovery",
         action="store_true",
         help=(
@@ -1334,6 +1427,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error("--sufficiency-model-assist requires --hierarchy")
     if args.sufficiency_recovery and not args.hierarchy:
         parser.error("--sufficiency-recovery requires --hierarchy")
+    if args.parent_synthesis and not args.hierarchy:
+        parser.error("--parent-synthesis requires --hierarchy")
     if not args.preflight_only:
         missing = [f"--{name}" for name in ("profile", "question", "db", "out") if getattr(args, name) is None]
         if missing:
@@ -1387,6 +1482,7 @@ def main(argv: list[str] | None = None) -> int:
         experiment_authorization=args.experiment_authorization,
         sufficiency_model_assist=args.sufficiency_model_assist,
         sufficiency_recovery_gate=args.sufficiency_recovery,
+        parent_synthesis=args.parent_synthesis,
         sampler=sampler,
     )
     if manifest.get("blocked"):
