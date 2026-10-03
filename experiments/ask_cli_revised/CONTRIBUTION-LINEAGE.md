@@ -1379,3 +1379,46 @@ real CLI path's own pre-existing pin-drift block on load_contract_for_live -- un
 unworsened by this phase, disposed of per the brief's own sanctioned use of the established
 pins=None test fixture. Full detail in
 `PHASE24_PRODUCTION_RECOVERY_ROUTE_ACTIVATION_RESULTS.md`.
+
+---
+
+## Phase 25 -- bounded parent synthesis design audit (appended 2026-10-03; preserves all prior entries unchanged)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-10-03 | Audit authorization / design brief | Cliff Workman |
+| 2026-10-03 | Architectural audit and design | Claude |
+
+**Audit authorization / design brief (Cliff Workman).** Commissioned a fresh-context architectural
+review of the existing per-child/flat Overview synthesis machinery to design the next rung -- a
+bounded parent synthesis layer converting a hierarchical run's final child state into one coherent
+answer -- as an editorial transform, never a new semantic reasoner, with a hard mechanical boundary
+against inventing cross-child relationships, no code change, no live model call, no contract/pin
+change.
+
+**Architectural audit and design (Claude).** Traced the complete current synthesis call graph from
+first principles (`e2e.py`'s hierarchy-vs-flat Overview branch, `overview.py`/`overview_evidence.py`/
+`overview_guards.py`/`overview_render.py`/`overview_audit.py`, the deterministic `ledger_renderer.
+render_answer`/`hierarchy_contract.rollup` structural roll-up, and the Phase-16/18-shipped parent-
+context-eligibility and instance-grounded direction/effectiveness machinery in `sufficiency_engine.py`/
+`sufficiency_diagnostic.py`) and found the one finding the whole design turns on: per-child Overview
+prose is screened only for fidelity to its cited passage, never for fidelity to the sufficiency
+engine's own role-binding semantics, so a parent synthesizer built on child Overview *text* would
+silently inherit a role-assignment error (concretely, Phase 23a's own confirmed `c12` wrong-half-of-
+a-contrast nomination) dressed in fluent, passage-grounded prose with nothing positioned to catch it.
+Designed parent synthesis instead as a sibling consumer of the same `sufficiency_map_final`/
+`sufficiency_recovery_targets` state the per-child Overview never sees, decoupling the two completely:
+a deterministic, pre-combined parent claim ledger (role-value/relational/category-list/direction-
+effectiveness/unresolved-gap, keyed by the globally-unique `proposition_id` rather than per-child
+`unit_id`s, which collide across children) built once, before any model call, so a bounded realization
+pass can only ever reorder/phrase/compress claims the ledger already decided were safe to combine --
+never invent a relationship the sufficiency engine itself never jointly-grounded. Reused
+`overview_guards.screen`/the batched local-NLI validation pattern unchanged as the realization pass's
+own fidelity check, added one new screen rule for heterogeneity/conflict collapse, and specified a
+zero-retry deterministic-ledger fallback on any model failure. Proved the upstream-error boundary by
+construction rather than by instruction: the design makes a parent synthesizer structurally unable to
+"fix" a wrong upstream role value (it can only cite what the ledger already carries), verified against
+the real, previously-adjudicated `c12` case as an explicit adversarial test fixture. Confirmed zero
+missing representation blocks offline implementation and that every existing semantic sufficiency
+module needs no change. Full detail in
+`PHASE25_BOUNDED_PARENT_SYNTHESIS_DESIGN_AUDIT.md`.
