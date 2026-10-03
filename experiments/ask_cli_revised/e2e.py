@@ -326,6 +326,57 @@ def _sufficiency_u1_context(profile: topo.Profile, bound: Bound) -> tuple[object
     return model_client, mscope.new_nomination_context(mscope.all_eligible_policy())
 
 
+class _SufficiencyPostRecoveryDryClient:
+    """Phase 22: counting-only, never-live fake -- always declines, never asserts a real
+    nomination. Used ONLY to let the real, unmodified `compute_diagnostic_sufficiency_map` perform
+    its own candidate-construction work against the post-recovery sealed ledger, so the SET of
+    reachable `(ModelNominationScope, request_context)` keys can be enumerated without any network
+    call or live model request -- the identical technique Phase 21's own offline fresh-call-cap
+    derivation used."""
+
+    model_name = "phase22-post-recovery-dry-enumeration-never-live"
+
+    def nominate_sufficiency_role(self, *, category_description, candidates):
+        return []
+
+
+def _sufficiency_post_recovery_request_inventory(
+    sealed: dict, sufficiency_contract: dict, sufficiency_parent_of: dict
+) -> frozenset:
+    """Phase 22: candidate-construction-only dry enumeration (no network, no live model call) of
+    every `(ModelNominationScope, request_context)` reached with nonempty candidates against the
+    POST-RECOVERY sealed ledger. Never reimplements any mapper logic -- it calls the real
+    `compute_diagnostic_sufficiency_map` with `_SufficiencyPostRecoveryDryClient` and reads back
+    which composite keys resolved to status `"fresh"` (the same status Phase 21's own cap
+    derivation filtered on).
+
+    Safe (model-output invariant) for every mechanism currently in real use -- ordinary single/
+    multi-instance mapping, `build_multi_instances` partitioning, role-fork multiplicity, and
+    `map_paired_requirement`'s own-evidence-first dispatch (confirmed by direct trace of each
+    during the Phase-22 audit: a role's own candidate rows and `(scope, request_context)` identity
+    are fixed before any role is processed, independent of nomination outcome -- role-forking only
+    changes CALL COUNT per key, which `resolve_nomination`'s own in-pass memoization already
+    collapses to one physical call regardless). Explicitly NOT proven safe for a `model_nomination_
+    only` role under `all_requested_categories` (`map_cardinality_requirement`'s own dormant,
+    never-yet-triggered multi-term identity gap) -- this function would simply propagate that same
+    loud `ValueError` refusal rather than silently mis-enumerating, since it calls the identical
+    production function with no bypass.
+
+    NOT authoritative for final semantic answers or final forked instance structure -- only
+    `sufficiency_map_initial` (the REAL U1 map) is ever consulted for historical role-fill state
+    (`sufficiency_recovery_targets.project_fresh_request_keys`'s own documented division of
+    labor)."""
+    ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
+    sufficiency_diagnostic.compute_diagnostic_sufficiency_map(
+        sealed,
+        sufficiency_contract,
+        sufficiency_parent_of or {},
+        model_client=_SufficiencyPostRecoveryDryClient(),
+        nomination_context=ctx,
+    )
+    return frozenset(key for key, receipt in ctx["in_pass_receipts"].items() if receipt["status"] == "fresh")
+
+
 def _nomination_pass_summary(nomination_context: dict | None) -> dict:
     """Internal run diagnostics only (audit §14) -- never user-facing prose, never raw model text:
     `new_nomination_receipt` carries no chain-of-thought/raw-scratch field to begin with, so this
@@ -531,6 +582,10 @@ def execute(
         # one-attempt-per-target budget; persisting attempts across REPEATED calls (a future
         # multi-round increment) is left unbuilt here, the same disclosed scope boundary the prior
         # boolean gate already carried.
+        # Phase 22: pre-initialized to `None` (never computed) whenever the gate is off, so the
+        # U2 seam below can tell "no recovery round was ever authorized to generate targets" apart
+        # from "a round ran and genuinely found zero obligations" without a second flag or branch.
+        recovery_targets_initial = None
         if sufficiency_recovery_gate_enabled and sufficiency_map_initial is not None:
             recovery_targets_initial = sufficiency_recovery_targets.compute_recovery_targets(
                 sufficiency_map_initial, sufficiency_parent_of or {}
@@ -634,19 +689,41 @@ def execute(
         # R2/C2 gate exactly, e2e.py's own `if len(...) > before:` check above) -- otherwise the
         # initial map is already the final one and re-running would be wasted, identical work.
         started = time.monotonic()
+        sufficiency_u2_fresh_request_keys: frozenset = frozenset()
         if sufficiency_u1_model_client is not None:
-            # Phase 20b §8/§9 -- load-bearing: U2 holds every U1 model-assisted decision FIXED.
-            # `exact_scope_set_policy(set())` is an EMPTY fresh-authorization set, never
-            # ALL_ELIGIBLE -- no model_nomination_only scope may make a fresh call here, no matter
-            # how the recovery round changed the candidate pool; each such scope instead replays
-            # its own U1 receipt from the immutable snapshot (if still admissible under Phase-19's
-            # own `_prior_receipt_is_admissible`) or resolves missing. Deterministic-strategy roles
-            # never consult a nomination_context at all and recompute normally from the rebuilt
-            # `sealed` ledger. This is the deliberate, disclosed bridge to Phase 22, which will
-            # later substitute the exact RecoveryTarget-derived scope set for this empty one,
-            # reusing this exact context shape unchanged.
+            # Phase 22: target-scoped post-recovery remap. `recovery_targets_initial` is `None`
+            # whenever the gate was off (§22 pre-initialization above) -- the ONLY gate this
+            # capability rides; no second feature flag. When it IS populated, derive the exact,
+            # finite fresh-request set F this one targeted pass may authorize:
+            #   1. a candidate-construction-only dry pass (no network, no live call) enumerates
+            #      every (scope, request_context) the POST-RECOVERY evidence can reach --
+            #      `_sufficiency_post_recovery_request_inventory`, the identical technique Phase
+            #      21's own offline call-cap derivation used;
+            #   2. `sufficiency_recovery_targets.project_fresh_request_keys` -- a pure function,
+            #      no model call, no mutation -- projects the ORIGINAL (pre-recovery) targets onto
+            #      that inventory, using `sufficiency_map_initial` (never the dry pass's own
+            #      final, model-output-dependent instance tree) as the sole authority for which
+            #      existing requests are already settled.
+            # `exact_request_set_policy(F)` is the ONLY policy used here regardless of gate state
+            # -- when the gate was off (or a round ran but genuinely found zero targets), F is
+            # simply empty, which authorizes nothing: byte-identical in EFFECT to Phase 20b/21's
+            # own `exact_scope_set_policy(set())`, just expressed through the one unified,
+            # request-granular policy kind rather than two different "authorize nothing" shapes.
+            if recovery_targets_initial:
+                post_recovery_keys = _sufficiency_post_recovery_request_inventory(
+                    sealed, sufficiency_contract, sufficiency_parent_of or {}
+                )
+                initial_keys = frozenset((sufficiency_u1_receipts_snapshot or {}).keys())
+                sufficiency_u2_fresh_request_keys = sufficiency_recovery_targets.project_fresh_request_keys(
+                    recovery_targets_initial,
+                    sufficiency_contract,
+                    sufficiency_map_initial,
+                    initial_keys,
+                    post_recovery_keys,
+                )
             sufficiency_u2_context = mscope.new_nomination_context(
-                mscope.exact_scope_set_policy(set()), prior_receipts=sufficiency_u1_receipts_snapshot
+                mscope.exact_request_set_policy(sufficiency_u2_fresh_request_keys),
+                prior_receipts=sufficiency_u1_receipts_snapshot,
             )
         sufficiency_map_final = sufficiency_diagnostic.compute_diagnostic_sufficiency_map(
             sealed,
@@ -656,18 +733,49 @@ def execute(
             nomination_context=sufficiency_u2_context,
         )
         sufficiency_diagnostic.compute_direction_and_effectiveness(sealed, sufficiency_map_final)
+        if sufficiency_u2_context is not None:
+            # Hard call-budget assertion (audit §19/§20): no physical fresh attempt may ever occur
+            # for a key outside the precomputed F -- authorization is a pure membership check
+            # (`exact_request_set_policy`), so this should be structurally impossible; asserted
+            # anyway as the same bounded-run discipline Phase 21's own precomputed cap enforced.
+            fresh_attempted_statuses = {
+                "fresh",
+                "fresh_no_candidates",
+                "fresh_failed_fallback_to_prior",
+                "fresh_failed_no_valid_prior",
+            }
+            actual_fresh_keys = frozenset(
+                key
+                for key, receipt in sufficiency_u2_context["in_pass_receipts"].items()
+                if receipt["status"] in fresh_attempted_statuses
+            )
+            if not actual_fresh_keys <= sufficiency_u2_fresh_request_keys:
+                raise RuntimeError(
+                    f"Phase-22 U2 call-budget violation: {actual_fresh_keys - sufficiency_u2_fresh_request_keys!r} "
+                    "made a fresh attempt outside the precomputed authorized set F -- authorization is a pure "
+                    "membership check against F, so this indicates a real bug, never an evidence/policy edge case."
+                )
         u2_entry = {
             "stage": "U2",
             "role": "U",
-            # Deliberately NEVER wrapped in stage("U2", "W"): U2 is held-fixed by construction and
-            # must make zero fresh model calls (audit §8/§11) -- incurring a W residency swap
-            # merely to replay already-known receipts would be pure waste with no corresponding
-            # model work to account for. Still honestly labelled (never falsely "deterministic")
-            # when model-assisted bindings are actually being replayed into it.
+            # Deliberately NEVER wrapped in stage("U2", "W"): held-fixed replay carries no model
+            # residency cost; a targeted remap's own fresh calls are small and bounded by |F| --
+            # neither case needs the W-role residency guard a variable-count-of-calls PHASE would
+            # (unlike U1, which can genuinely swap W's residency for the duration of its pass).
+            # Honestly labelled by what actually happened this pass, never a fixed string: zero
+            # fresh keys this time is "held fixed," one or more is a genuine targeted remap.
             "binding": (
                 {"kind": "deterministic_sufficiency_mapping", "model": None}
                 if sufficiency_u1_model_client is None
-                else {"kind": "sufficiency_model_assist_held_fixed", "model": sufficiency_u1_model_client.model_name}
+                else {
+                    "kind": (
+                        "sufficiency_model_assist_held_fixed"
+                        if not sufficiency_u2_fresh_request_keys
+                        else "sufficiency_model_assist_targeted_remap"
+                    ),
+                    "model": sufficiency_u1_model_client.model_name,
+                    "fresh_request_count": len(sufficiency_u2_fresh_request_keys),
+                }
             ),
             "swap_seconds": 0.0,
             "wall_seconds": round(time.monotonic() - started, 3),

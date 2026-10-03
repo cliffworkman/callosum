@@ -44,6 +44,7 @@ import hashlib
 import json
 
 from experiments.ask_cli_revised import sufficiency_engine as se
+from experiments.ask_cli_revised import sufficiency_model_scope as mscope
 
 REASONS = (
     "missing",
@@ -370,12 +371,19 @@ def _provisional_corroboration_targets_for_instance(
             continue
         prov = binding.get("provenance") or {}
         if prov.get("candidate_source") == "model_mapping":
+            # Phase 22: this fallback mints an origin inline for a DIRECT model_mapping binding
+            # that was never routed through `sufficiency_diagnostic._stamp_model_dependency_
+            # origins` first (e.g. a caller that builds a mapped tree by hand, as several of this
+            # module's own test fixtures do) -- `request_context` must match that stamping site's
+            # own shape exactly, read from the SAME place it reads it from: the owning instance's
+            # own field, never the binding (which never carries it).
             origins = [
                 {
                     "child_id": child_id,
                     "requirement_id": requirement["id"],
                     "role": role,
                     "instance_key": instance["instance_key"],
+                    "request_context": instance.get("request_context"),
                 }
             ]
         elif prov.get("model_dependency_origins"):
@@ -630,3 +638,127 @@ def recovery_query_hint(target: dict, mapped_contract_by_child: dict) -> str:
             f"evidence establishing a relationship involving {subject}" if subject else "additional supporting evidence"
         )
     return "additional supporting evidence"
+
+
+# -------------------------------------------------------------------------------------------
+# Phase 22: RecoveryTarget -> fresh request-key projection. Pure; no model call, no mutation, no
+# hidden state -- every input below is already-computed plain data (the real U1 map, two
+# frozensets of composite keys, and the target inventory itself).
+# -------------------------------------------------------------------------------------------
+
+
+def _requirement_in(mapped_contract_by_child: dict, child_id: str, requirement_id: str) -> dict | None:
+    contract = mapped_contract_by_child.get(child_id)
+    if contract is None:
+        return None
+    return next((r for r in contract["requirements"] if r["id"] == requirement_id), None)
+
+
+def project_fresh_request_keys(
+    targets: dict,
+    contract_by_child: dict,
+    mapped_contract_by_child_initial: dict,
+    initial_keys,
+    post_recovery_keys,
+) -> frozenset:
+    """The single pure projection from a `{target_id: RecoveryTarget}` inventory to the exact,
+    finite set of fresh `(ModelNominationScope, request_context)` keys U2 may authorize --
+    `sufficiency_model_scope.exact_request_set_policy`'s own input shape.
+
+    `mapped_contract_by_child_initial` (the REAL U1 map, `sufficiency_diagnostic.
+    compute_diagnostic_sufficiency_map`'s own output from the initial pass) is the SOLE authority
+    for "does an existing instance already have this role filled" and "what is that instance's own
+    `request_context`" -- never the post-recovery dry map, whose final (possibly role-forked)
+    instance tree is NOT model-output invariant (confirmed by direct trace of `map_requirement`'s
+    own role-forking and `map_cardinality_requirement`'s own per-term instance construction during
+    the Phase-22 audit -- only the SET of reachable request keys and their candidate rows are
+    invariant for the mechanisms currently in use, never the final instance count/identity).
+    `initial_keys`/`post_recovery_keys` (both iterables of the Phase-19b composite key shape,
+    `(ModelNominationScope, request_context)` -- typically `dict.keys()` of a nomination context's
+    own `in_pass_receipts`) are consulted ONLY to find genuinely NEW requests the post-recovery
+    evidence created (`post_recovery_keys - initial_keys`) -- never to answer a question the
+    initial map already answers directly.
+
+    Two routes, matching the two ways a RecoveryTarget can legitimately bear on a model-assisted
+    role (Phase-22 audit §1-2):
+
+    1. **Reconsideration** (`target["dependency_origins"]` non-empty -- a `provisional_
+       corroboration` target): each origin already names the exact historical `(scope,
+       request_context)` pair (Phase 22's own provenance stamping, `sufficiency_diagnostic.
+       _stamp_model_dependency_origins`). Multiple targets sharing one origin collapse to the
+       identical key by ordinary set membership -- the real c6 case: two distinct instances, one
+       shared upstream nomination, one fresh request key, never two.
+
+    2. **Discovery** (every other reason -- `missing`/`partial`/`open_list_breadth`/
+       `cardinality_deficit`): derive the target's own semantic scope(s) via `sufficiency_
+       model_scope.model_scopes_for_recovery_target` (unchanged since Phase 19), then:
+       - **Instance-scoped** (`target["scope"]["kind"] == "instance"`): resolve ONLY the one named
+         instance, never a sibling -- the real c12 adversarial case: a target naming `U1` must
+         never also authorize `U5`. Included iff that instance's own role is not yet `filled`.
+       - **Scope-wide** (`"none"`/`"cardinality_deficit"` -- no single instance to name, either
+         because none exists yet or the target is a blanket, instance-blind requirement-level
+         statement): if the role is ALREADY `filled` on ANY existing instance for this requirement,
+         every EXISTING request under this scope is excluded -- this is the real c8 finding:
+         `_first_instance_targets` labels `individual_difference_trait_or_construct` "missing"
+         purely because its SIBLING role never completes, even though the named role itself is
+         filled on all four of c8's own real instances; reconsidering it here would violate
+         locality for no semantic reason. Only a genuinely NEW post-recovery context may still
+         enter (c8's own hypothetical `U7`). If the role is NOT filled anywhere existing (real c11:
+         zero instances at all; real c5/c10: one instance, genuinely unfilled), every existing-and-
+         unfilled instance's own key, plus every new one, is included.
+
+    Deliberately never widens to "every request_context reachable under this scope" -- that was
+    the rejected naive policy (Phase-22 audit §4): it would re-litigate an untargeted sibling
+    merely because it happens to share a scope with a genuinely deficient one. No model call, no
+    mutation, no hidden global state; the result is a plain `frozenset`, order-independent by
+    construction."""
+    fresh: set[tuple] = set()
+    new_keys = frozenset(post_recovery_keys) - frozenset(initial_keys)
+
+    for target in targets.values():
+        origins = target.get("dependency_origins") or []
+        if origins:
+            for origin in origins:
+                scope = (origin["child_id"], origin["requirement_id"], origin["role"])
+                fresh.add((scope, origin.get("request_context")))
+            continue
+
+        scopes = mscope.model_scopes_for_recovery_target(target, contract_by_child)
+        if not scopes:
+            continue
+
+        target_scope = target.get("scope") or {"kind": "none"}
+        named_instance_key = target_scope.get("instance_key") if target_scope.get("kind") == "instance" else None
+
+        for scope in scopes:
+            child_id, requirement_id, role = scope
+            requirement = _requirement_in(mapped_contract_by_child_initial, child_id, requirement_id)
+            if requirement is None:
+                for key in new_keys:
+                    if key[0] == scope:
+                        fresh.add(key)
+                continue
+
+            if named_instance_key is not None:
+                # Instance-scoped: resolve ONLY the named instance -- never a sibling under the
+                # same scope, and never a brand-new context either (an instance-scoped target was
+                # generated from an EXISTING instance's own incompleteness; new-context discovery
+                # is exclusively the scope-wide route below, matching `_incomplete_instance_
+                # targets` vs. `_first_instance_targets`'s own disjoint generation paths).
+                instance = next((i for i in requirement["instances"] if i["instance_key"] == named_instance_key), None)
+                if instance is not None and instance["role_bindings"].get(role, {}).get("state") != "filled":
+                    fresh.add((scope, instance.get("request_context")))
+                continue
+
+            role_filled_anywhere = any(
+                inst["role_bindings"].get(role, {}).get("state") == "filled" for inst in requirement["instances"]
+            )
+            if not role_filled_anywhere:
+                for inst in requirement["instances"]:
+                    if inst["role_bindings"].get(role, {}).get("state") != "filled":
+                        fresh.add((scope, inst.get("request_context")))
+            for key in new_keys:
+                if key[0] == scope:
+                    fresh.add(key)
+
+    return frozenset(fresh)

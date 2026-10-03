@@ -549,6 +549,21 @@ def map_requirement(
     iteration already shares the same `root_key=None`, so this is a no-op there -- byte-identical
     to the pre-Phase-19b behavior.
 
+    Phase 22: `instance["request_context"]` is stamped to `root_key` BEFORE any role is bound or
+    forked -- a top-level field on the instance itself, never only on one role's own binding. This
+    is what lets a later RecoveryTarget projection answer "which evidence partition did THIS
+    instance originate from" even when every one of its roles stays `missing`/`fresh_no_candidates`
+    (no binding ever exists to carry the value in that case -- the instance is the only object that
+    reliably does). Survives `_fork_instances_over_role`'s shallow-spread copies and `_rederive_
+    keys_if_forked`'s key replacement unchanged (neither touches unrecognized top-level keys), so
+    it is identical across every fork of one original instance, exactly mirroring `request_context`
+    itself. Deliberately NOT the final, possibly-rederived `instance_key` (Phase 19b's own
+    established distinction, now also a documented top-level field rather than only a memoization
+    parameter) -- and deliberately NOT added to `se.new_instance`'s own signature, since every other
+    instance-producing path (`map_paired_requirement`, `map_cardinality_requirement`) never has a
+    `root_key` concept at all and correctly leaves this field absent (`.get("request_context")`
+    degrades to `None` there, matching their own already-`request_context=None` invariant).
+
     Returns a NEW requirement dict with `instances` populated and `state`/`reason` recomputed.
     """
     role_specs = requirement["role_specs"]
@@ -564,6 +579,7 @@ def map_requirement(
     all_instances: list[dict] = []
     for instance in instances:
         root_key = instance["instance_key"]
+        instance = {**instance, "request_context": root_key}
         units_here = units_by_instance.get(root_key, candidate_units)
         forks = [instance]
         for role, spec in role_specs.items():
@@ -598,12 +614,43 @@ def map_cardinality_requirement(
     satisfies any instance". Exactly one category-evidence role is expected. `model_client`
     threaded for architectural consistency (no q_aib category role declares
     `model_nomination_only` today, so this is inert in practice -- the category identity is
-    already fixed by the requested term, so no forking applies here even if it were used)."""
+    already fixed by the requested term, so no forking applies here even if it were used).
+
+    Phase 22 audit finding (dormant, never yet triggered by any real contract): unlike
+    `map_requirement`, this function has no `root_key`/`request_context` concept at all -- every
+    term's own `_bind_role_candidates` call shares the bare `(child_id, requirement_id, role)`
+    scope with `request_context=None`, identical for every term. If this role were ever
+    `model_nomination_only` with MORE than one `requested_category_term`, two or more structurally
+    distinct requests (different `category_description`/candidate framing per term) would collide
+    on the exact same composite memoization key `resolve_nomination` uses -- the same class of
+    identity collision `build_multi_instances` had before Phase 19b, left unfixed here because
+    nothing has ever exercised it. Rather than let that collision manifest as either a confusing
+    `RequestFingerprintMismatch` or, worse, a silently wrong `memoized_in_pass` reuse of one term's
+    receipt for another, this is refused deterministically below, before any model call, whenever
+    the unsupported shape is detected. The proper fix -- threading a stable per-term
+    `request_context` through this function, analogous in spirit to Phase 19b's own fix for
+    `build_multi_instances` -- is backlogged, not built here, since no current contract needs it."""
     role_names = list(requirement["role_specs"])
     if len(role_names) != 1:
         raise ValueError("a cardinality requirement expects exactly one category-evidence role")
     role = role_names[0]
     spec = requirement["role_specs"][role]
+    if (
+        nomination_context is not None
+        and spec["mapping_strategy"] == "model_nomination_only"
+        and spec["model_nomination_permitted"]
+        and len(spec["requested_category_terms"]) > 1
+    ):
+        raise ValueError(
+            f"{requirement['id']!r}'s role {role!r} is model_nomination_only with "
+            f"{len(spec['requested_category_terms'])} requested_category_terms under Phase-19/22 "
+            "scoped nomination -- map_cardinality_requirement has no per-term request_context, so "
+            "every term would collide on the identical (child_id, requirement_id, role) composite "
+            "key, exactly the identity collision Phase 19b fixed for build_multi_instances but never "
+            "extended here (dormant until now because no contract previously exercised this shape). "
+            "Refusing before any model call rather than silently colliding two terms' receipts; see "
+            "sufficiency_mapping.py's map_cardinality_requirement docstring for the backlogged fix."
+        )
     instances = []
     for term in spec["requested_category_terms"]:
         instance = se.new_instance(term)

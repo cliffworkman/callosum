@@ -228,9 +228,12 @@ class RealV9FullContractReplayTests(unittest.TestCase):
             u1_receipts_snapshot[(u1_scope, "U5")]["accepted"],
         )
 
-    def test_a_model_dependency_origins_shape_is_unchanged_by_this_phase(self):
-        """Explicit researcher decision: Phase 19b does not propagate `request_context` into
-        `model_dependency_origins` -- that linkage is deferred to Phase 22's own design."""
+    def test_a_model_dependency_origins_shape_carries_request_context_as_of_phase_22(self):
+        """Phase 19b's own researcher decision explicitly deferred this linkage: 'Phase 19b does
+        not propagate request_context into model_dependency_origins -- that linkage is deferred to
+        Phase 22's own design.' Phase 22 is that design: `request_context` is now a fifth field on
+        every origin, read from the owning instance's own stamp
+        (`sufficiency_mapping.map_requirement`), never parsed from `instance_key`."""
         client = _FakeNominationClient()
         ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
         mapped = sd.compute_diagnostic_sufficiency_map(
@@ -244,6 +247,8 @@ class RealV9FullContractReplayTests(unittest.TestCase):
                 if origins:
                     found_origin = True
                     for origin in origins:
-                        self.assertEqual(set(origin), {"child_id", "requirement_id", "role", "instance_key"})
-                        self.assertNotIn("request_context", origin)
+                        self.assertEqual(
+                            set(origin), {"child_id", "requirement_id", "role", "instance_key", "request_context"}
+                        )
+                        self.assertEqual(origin["request_context"], instance.get("request_context"))
         self.assertTrue(found_origin, "expected at least one stamped model_dependency_origins entry on real c12")

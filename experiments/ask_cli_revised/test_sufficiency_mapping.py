@@ -212,6 +212,60 @@ class CardinalityMappingTests(unittest.TestCase):
         result = sm.map_cardinality_requirement(req, units)
         self.assertEqual(result["state"], "filled")
 
+    def test_multi_term_model_nomination_only_under_scoped_authorization_fails_loudly(self):
+        """Phase 22 audit finding (dormant, never triggered by any real contract today):
+        `map_cardinality_requirement` has no per-term `request_context` at all -- every term's own
+        call would share the bare `(child_id, requirement_id, role)` composite key with
+        `request_context=None`, exactly the identity collision Phase 19b fixed for
+        `build_multi_instances` but never extended here. Must refuse before any model call,
+        deterministically, whenever a `model_nomination_only` category role declares more than one
+        `requested_category_terms` entry AND scoped (Phase-19/22) authorization is in play."""
+        spec = se.new_role_spec(
+            "cat", "attitude category", "model_nomination_only", requested_category_terms=["implicit", "explicit"]
+        )
+        completion = se.new_role_completion(required_roles=["cat"])
+        req = se.new_requirement(
+            "c#cat", "cardinality", {"cat": spec}, completion, "all_requested_categories", multi_instance=True
+        )
+        units = [_unit("U1", 1, "We measured explicit attitudes toward the target group.")]
+        client = _FakeModelClient({})
+        ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
+        with self.assertRaises(ValueError):
+            sm.map_cardinality_requirement(req, units, model_client=client, child_id="c", nomination_context=ctx)
+        self.assertEqual(client.calls, [], "must refuse before any model call, not after one")
+
+    def test_single_term_model_nomination_only_under_scoped_authorization_is_unaffected(self):
+        """The guard is scoped to the genuinely unsupported >1-term shape -- a single requested
+        term has nothing to collide with and must keep working exactly as before."""
+        spec = se.new_role_spec(
+            "cat", "attitude category", "model_nomination_only", requested_category_terms=["explicit"]
+        )
+        completion = se.new_role_completion(required_roles=["cat"])
+        req = se.new_requirement(
+            "c#cat", "cardinality", {"cat": spec}, completion, "all_requested_categories", multi_instance=True
+        )
+        units = [_unit("U1", 1, "We measured explicit attitudes toward the target group.")]
+        client = _FakeModelClient({units[0]["proposition_ids"][0]: "explicit attitudes"})
+        ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
+        result = sm.map_cardinality_requirement(req, units, model_client=client, child_id="c", nomination_context=ctx)
+        self.assertEqual(result["state"], "filled")
+
+    def test_multi_term_model_nomination_only_without_a_nomination_context_is_unaffected(self):
+        """The legacy bare-client path (`nomination_context=None`) never reaches `resolve_
+        nomination`'s own composite-key memoization at all, so it has nothing to collide on --
+        the guard only fires once scoped authorization is actually in play."""
+        spec = se.new_role_spec(
+            "cat", "attitude category", "model_nomination_only", requested_category_terms=["implicit", "explicit"]
+        )
+        completion = se.new_role_completion(required_roles=["cat"])
+        req = se.new_requirement(
+            "c#cat", "cardinality", {"cat": spec}, completion, "all_requested_categories", multi_instance=True
+        )
+        units = [_unit("U1", 1, "We measured explicit attitudes toward the target group.")]
+        client = _FakeModelClient({})
+        result = sm.map_cardinality_requirement(req, units, model_client=client)
+        self.assertEqual(result["reason"], "category_missing")
+
 
 class PairedMappingTests(unittest.TestCase):
     def _parent_requirement_with_one_discovered_trait(self, *, relation_filled=True):

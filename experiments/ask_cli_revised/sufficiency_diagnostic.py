@@ -158,9 +158,9 @@ def compute_diagnostic_sufficiency_map(
 def _stamp_model_dependency_origins(requirement: dict, child_id: str) -> dict:
     """Pure; returns a NEW requirement. Stamps origin ONLY on a FRESH, un-propagated
     `model_mapping` binding -- one with no existing `model_dependency_origins` -- naming its own
-    location (`{child_id, requirement_id, role, instance_key}`). A propagated `parent_context`
-    binding already carries its origin forward via `sufficiency_mapping._propagated_provenance`
-    and is left untouched here.
+    location (`{child_id, requirement_id, role, instance_key, request_context}`). A propagated
+    `parent_context` binding already carries its origin forward via `sufficiency_mapping.
+    _propagated_provenance` and is left untouched here.
 
     Called from THIS per-child loop (never from `sufficiency_mapping.py`, which is deliberately
     child-agnostic -- see that module's own "zero question/domain-specific vocabulary" charter)
@@ -172,7 +172,15 @@ def _stamp_model_dependency_origins(requirement: dict, child_id: str) -> dict:
 
     `requirement_id` global uniqueness is NOT an engine invariant (`sufficiency_engine.
     new_requirement`/`new_contract` validate nothing about it) -- `child_id` is therefore stamped
-    explicitly rather than reconstructed later from a naming convention."""
+    explicitly rather than reconstructed later from a naming convention.
+
+    Phase 22: `request_context` is read from the OWNING INSTANCE's own `request_context` field
+    (`sufficiency_mapping.map_requirement`'s own pre-fork stamp, Phase 22) -- never from the
+    binding itself (which never carries it) and never the final `instance_key` (which, per Phase
+    19b's own established distinction, is NOT the same value once a role has forked). An instance
+    produced by `map_paired_requirement`/`map_cardinality_requirement` simply has no
+    `request_context` field at all, degrading correctly to `None` via `.get(...)` -- matching
+    their own already-established `request_context=None` invariant exactly."""
     new_instances = []
     for instance in requirement["instances"]:
         bindings = dict(instance["role_bindings"])
@@ -190,6 +198,7 @@ def _stamp_model_dependency_origins(requirement: dict, child_id: str) -> dict:
                                 "requirement_id": requirement["id"],
                                 "role": role,
                                 "instance_key": instance["instance_key"],
+                                "request_context": instance.get("request_context"),
                             }
                         ],
                     },

@@ -231,6 +231,54 @@ class AuthorizationPolicyTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             mscope.is_authorized_for_fresh_call({"kind": "nonsense"}, ("a", "b", "c"))
 
+    def test_all_eligible_and_exact_scope_set_ignore_request_context(self):
+        """Pre-Phase-22 policies remain scope-only, byte-identical, regardless of whatever
+        request_context is passed alongside the scope."""
+        scope = mscope.new_model_nomination_scope("c4", "req", "role")
+        all_eligible = mscope.all_eligible_policy()
+        self.assertTrue(mscope.is_authorized_for_fresh_call(all_eligible, scope, "U1"))
+        self.assertTrue(mscope.is_authorized_for_fresh_call(all_eligible, scope, "U5"))
+        scope_set = mscope.exact_scope_set_policy([scope])
+        self.assertTrue(mscope.is_authorized_for_fresh_call(scope_set, scope, "U1"))
+        self.assertTrue(mscope.is_authorized_for_fresh_call(scope_set, scope, "U5"))
+
+
+class ExactRequestSetPolicyTests(unittest.TestCase):
+    """Phase 22: request-granular authorization -- the policy `exact_scope_set_policy` cannot
+    express (it authorizes a whole scope, every request_context under it alike)."""
+
+    def test_authorizes_only_the_exact_named_request_key(self):
+        scope = mscope.new_model_nomination_scope("c12", "c12#suff:intervention-effectiveness", "intervention")
+        key = mscope.new_model_nomination_key(scope, "U1")
+        policy = mscope.exact_request_set_policy([key])
+        self.assertTrue(mscope.is_authorized_for_fresh_call(policy, scope, "U1"))
+
+    def test_sibling_request_context_under_the_same_scope_is_not_authorized(self):
+        """The real c12 case: a target naming U1 must never also fresh-authorize U5."""
+        scope = mscope.new_model_nomination_scope("c12", "c12#suff:intervention-effectiveness", "intervention")
+        policy = mscope.exact_request_set_policy([mscope.new_model_nomination_key(scope, "U1")])
+        self.assertFalse(mscope.is_authorized_for_fresh_call(policy, scope, "U5"))
+
+    def test_a_different_scope_is_never_authorized_merely_by_sharing_a_request_context(self):
+        scope_a = mscope.new_model_nomination_scope("c12", "c12#suff:intervention-effectiveness", "intervention")
+        scope_b = mscope.new_model_nomination_scope(
+            "c12", "c12#suff:intervention-effectiveness", "target_manifestation"
+        )
+        policy = mscope.exact_request_set_policy([mscope.new_model_nomination_key(scope_a, "U1")])
+        self.assertFalse(mscope.is_authorized_for_fresh_call(policy, scope_b, "U1"))
+
+    def test_empty_request_set_authorizes_nothing(self):
+        scope = mscope.new_model_nomination_scope("c4", "req", "role")
+        policy = mscope.exact_request_set_policy([])
+        self.assertFalse(mscope.is_authorized_for_fresh_call(policy, scope, None))
+
+    def test_none_request_context_is_a_distinct_authorizable_key(self):
+        """A non-partitioned requirement's one-and-only request (request_context=None) is itself a
+        valid, independently-authorizable key -- never conflated with "unauthorized" by default."""
+        scope = mscope.new_model_nomination_scope("c1", "c1#suff:neural-manifestation", "brain_region_or_network")
+        policy = mscope.exact_request_set_policy([mscope.new_model_nomination_key(scope, None)])
+        self.assertTrue(mscope.is_authorized_for_fresh_call(policy, scope, None))
+
 
 def _rows(n=1):
     return [{"proposition_id": f"p{i}", "passage": f"passage {i}"} for i in range(n)]

@@ -1179,3 +1179,64 @@ additional mild cross-role semantic stretch. Zero production code changed throug
 before and after the run: `git diff --stat HEAD -- '*.py'` excluding the harness itself stayed
 empty). Infrastructure verdict: PASS. Full detail in
 `PHASE21_LIVE_INITIAL_MODEL_ASSIST_VALIDATION_RESULTS.md`.
+
+---
+
+## Phase 22 — target-scoped post-recovery model remapping (appended 2026-10-02; does not alter the rows above)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-10-02 | Evidence | Phase 21 live initial model-assisted validation |
+| 2026-10-02 | Design direction | Cliff Workman + ChatGPT |
+| 2026-10-02 | Audit/design | Claude |
+| 2026-10-02 | Implementation | Claude |
+
+**Evidence (Phase 21).** The full eleven-child production-shaped q_aib U1 pass completed with exact
+precomputed call accounting, correct composite request isolation including c12, zero fresh U2
+calls, intact stop-search safeguards, and real provisional RecoveryTargets suitable for designing
+post-recovery target-scoped remapping.
+
+**Design direction (Cliff Workman + ChatGPT).** Required target-scoped U2 reconsideration at exact
+request-key granularity, separated historical reconsideration from first-time post-recovery
+discovery, required the initial semantic map as historical authority (never the post-recovery dry
+map, whose final instance tree is not model-output invariant), required one finite pre-U2
+fresh-call set F, and required this capability to ride the existing recovery gate with no second
+flag.
+
+**Audit/design (Claude).** Across two corrective design passes, traced the exact single provenance-
+loss point (`_bind_role_candidates`'s own binding construction, one hop before the dependency-
+origins stamping site) and resolved it with instance-level `request_context` stamping rather than
+per-binding stamping — simpler, and correct for the "no accepted binding" case (missing/
+`fresh_no_candidates` roles) that per-binding stamping cannot reach at all. Found, by direct trace
+of every mapping mechanism (never assumed from one run's own call count matching), that the
+reachable-request-key set is model-output invariant for every mechanism in real use but genuinely
+unsafe in principle for `map_cardinality_requirement`'s own dormant multi-term shape — a real,
+previously-undocumented identity-collision gap, confirmed never yet triggered. Found and corrected
+a real conflation in its own first design pass: `scope:"none"` does not mean "no prior request" (it
+means "nothing to discriminate between," which a `_first_instance_targets`-style blanket target can
+still issue for an already-filled role when a SIBLING role is what's actually missing) — resolved
+precisely against the real c8 shape, which required exactly this correction before implementation
+could proceed safely.
+
+**Implementation (Claude).** Implemented exactly the corrected design: instance-level
+`request_context` stamping (`sufficiency_mapping.map_requirement`, one line); propagation into
+`model_dependency_origins` at both its canonical stamping site and a second, previously-inconsistent
+inline fallback construction site found and fixed in the same pass
+(`sufficiency_recovery_targets.py`); a new, separate `exact_request_set_policy` (never an overload
+of `exact_scope_set_policy`); a pure `project_fresh_request_keys` projection helper, proven against
+nine tests built directly from real q_aib structural shapes (c5/c8/c10/c11/c12/c6 plus a synthetic
+parent-redirection case); a fail-loud guard for the dormant cardinality identity gap, confirmed to
+refuse before any model call; and the full `e2e.py` U2 integration, including a hard call-budget
+assertion. Proved the complete lifecycle end to end through the real, unmodified `execute()` path
+with a custom fake client and genuinely broadened recovery evidence -- not merely at the pure-helper
+level -- confirming a real targeted remap fires genuine new calls for some requests while holding
+others fixed, within the precomputed call budget, and that the SAME gate (not evidence
+availability) is what decides whether U2 ever reconsiders. 21 new tests (6 policy + 3 cardinality-
+guard + 9 projection + 3 end-to-end), each count collected via `pytest --collect-only`; full
+`experiments/ask_cli_revised` regression: 2343 passed, 11 skipped, 2 failed -- 2322 + 21 = 2343
+exactly, the 2 failures being the identical pre-existing pin-drift pair every phase since Phase 16
+has documented, confirmed unrelated (`hierarchy_contract.py`, the file both failures trace to,
+untouched by this phase). v9 `combined_hash` reconfirmed unchanged:
+`9c72dc6a0180e95c55e68a009c366843b671684c19c6ae84ed254f3865305586`. No live model call, no network
+retrieval, no live recovery experiment anywhere in this phase. Full detail in
+`PHASE22_TARGET_SCOPED_POST_RECOVERY_REMAP_RESULTS.md`.

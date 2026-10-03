@@ -616,6 +616,133 @@ class ModelAssistIntegrationTests(unittest.TestCase):
             self.assertNotIn(forbidden, blob)
 
 
+class _DeclineUnderTwoCandidatesClient:
+    """Phase 22: a model_client whose nomination outcome depends on how many admissible candidate
+    rows it is actually offered -- declines (returns `[]`) under 2, accepts (nominates the first
+    candidate's own grounded prefix) at 2 or more. Used to drive a real, end-to-end "U1 declines,
+    recovery broadens the SAME request's candidate pool, U2 genuinely reconsiders and succeeds"
+    scenario through the real `execute()` path -- never a synthetic toy mapper."""
+
+    model_name = "qwen3.5:9b"
+
+    def __init__(self):
+        self.calls: list[dict] = []
+
+    def nominate_sufficiency_role(self, *, category_description, candidates):
+        self.calls.append({"category_description": category_description, "candidates": list(candidates)})
+        if len(candidates) < 2:
+            return []
+        first = candidates[0]
+        return [{"proposition_id": first["proposition_id"], "exact_text": first["passage"][:15]}]
+
+
+@needs_artifacts
+class TargetedPostRecoveryRemapIntegrationTests(unittest.TestCase):
+    """Phase 22: target-scoped post-recovery model remapping, exercised end to end through the
+    real `execute()` path -- real frozen v9 contract, real hierarchy, a fake (never live) client,
+    no network, no live recovery. One real `provisional`/`missing`-shaped scenario where recovery
+    genuinely broadens evidence for an already-reached-but-unfilled request, proving the full
+    lifecycle (U1 -> targets -> recovery -> F -> targeted U2) fires real new calls for SOME
+    requests while holding others fixed, all within the precomputed call-budget invariant.
+
+    Every number below was empirically confirmed by directly running this exact fixture against
+    the real frozen v9 contract (never hand-derived) -- the same discipline every prior Phase-19/
+    20/21 integration test in this file already follows."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.contract = hc.load_contract(BENCHMARK_QUESTION, pins=None)
+        cls.contract_by_child = sufficiency_freeze.load_verified()
+        cls.parent_of = hc.parent_of(cls.contract)
+        cls.assist_profile = replace(topo.WAVE1["T0"], W=replace(topo.WAVE1["T0"].W, think=False))
+
+    CLAIM_C5B = "A second finding also linked amygdala reactivity to the same bias."
+
+    def _run(self, *, gate_enabled):
+        shared = ScriptedClient(
+            r=r_by_claim({CLAIM_C5: ["c5"], CLAIM_C4: ["c4"], CLAIM_C12: ["c12"], self.CLAIM_C5B: ["c5"]})
+        )
+        recovery = [rec("c5", self.CLAIM_C5B, chunk=21, origin="recovery")]
+        h = HierHarness(
+            self.assist_profile, self.contract, initial=INITIAL, recovery=recovery, clients={"shared": shared}
+        )
+        self.addCleanup(h.close)
+        real_bound = e2e.bind(
+            self.assist_profile, rt=h.rt, clients=h.clients, trace=h.trace, managed_chat=lambda c: h.clients["shared"]
+        )
+        fake = _DeclineUnderTwoCandidatesClient()
+        bound = e2e.Bound(qwen=fake, supervisors=real_bound.supervisors)
+        with (
+            patch.object(e2e, "_initial_pass", h._initial_pass),
+            patch.object(e2e, "_recover_round", h._recover_round),
+        ):
+            result = e2e.execute(
+                rt=h.rt,
+                profile=self.assist_profile,
+                contract=h.contract,
+                trace=h.trace,
+                guard=h.guard,
+                bound=bound,
+                sufficiency_contract=self.contract_by_child,
+                sufficiency_parent_of=self.parent_of,
+                sufficiency_model_assist_enabled=True,
+                sufficiency_recovery_gate_enabled=gate_enabled,
+            )
+        return result, fake, h
+
+    def test_gate_on_fires_a_genuine_targeted_remap_within_the_call_budget(self):
+        result, fake, _ = self._run(gate_enabled=True)
+        u2 = result["sufficiency_model_assist"]["final"]
+        u2_stage = next(s for s in result["stage_log"] if s["stage"] == "U2")
+
+        self.assertEqual(u2_stage["binding"]["kind"], "sufficiency_model_assist_targeted_remap")
+        self.assertEqual(u2_stage["binding"]["fresh_request_count"], 8)
+        self.assertEqual(u2["scopes_reached"], 11)
+        self.assertEqual(u2["by_status"], {"fresh_no_candidates": 6, "held_fixed_replay": 3, "fresh": 2})
+        # At least one request was genuinely excluded (held fixed) -- F never widened to "everything".
+        self.assertGreaterEqual(u2["by_status"]["held_fixed_replay"], 1)
+        # At least one request was genuinely reconsidered with a real new call -- not a no-op pass.
+        self.assertGreaterEqual(u2["by_status"]["fresh"], 1)
+        # No RuntimeError was raised by execute()'s own hard call-budget assertion -- confirmed
+        # implicitly (the run completed), and explicitly here: every status that represents a
+        # physical fresh attempt sums to exactly the declared fresh_request_count (|F|).
+        fresh_attempted = sum(
+            u2["by_status"].get(s, 0)
+            for s in ("fresh", "fresh_no_candidates", "fresh_failed_fallback_to_prior", "fresh_failed_no_valid_prior")
+        )
+        self.assertEqual(fresh_attempted, u2_stage["binding"]["fresh_request_count"])
+
+        c5 = result["sufficiency_map_final"]["c5"]
+        req = next(r for r in c5["requirements"] if r["id"] == "c5#suff:brain-behavior")
+        self.assertEqual(req["state"], "filled")
+        for role in ("named_brain_region_or_network", "behavior_or_behavioral_measure"):
+            self.assertEqual(req["instances"][0]["role_bindings"][role]["state"], "filled")
+
+    def test_gate_off_with_the_same_broadened_evidence_stays_fully_held_fixed(self):
+        """The exact same recovery evidence is sealed either way (the harness injects it
+        unconditionally once `_recover_round` runs at all, regardless of gate state) -- proving
+        the gate, not evidence availability, is what decides whether U2 ever looks at it."""
+        result, fake, h = self._run(gate_enabled=False)
+        u1_call_count = len(fake.calls)
+        u2 = result["sufficiency_model_assist"]["final"]
+        u2_stage = next(s for s in result["stage_log"] if s["stage"] == "U2")
+
+        self.assertEqual(u2_stage["binding"]["kind"], "sufficiency_model_assist_held_fixed")
+        self.assertEqual(u2_stage["binding"]["fresh_request_count"], 0)
+        self.assertEqual(u2["by_status"], {"held_fixed_replay": 11})
+        self.assertEqual(len(fake.calls), u1_call_count)  # zero additional calls beyond U1's own
+
+    def test_fresh_u2_sees_the_broadened_pool_not_just_the_original_candidate(self):
+        """Confirms U2's own fresh call for c5's request was genuinely offered the POST-RECOVERY
+        candidate pool (2 propositions), never only the one U1 already knew about -- the brief's
+        own explicit preference (full current pool, never a recovered-only subset)."""
+        _, fake, _ = self._run(gate_enabled=True)
+        # Every call this client ever received with >=2 candidates succeeded (by construction);
+        # at least one such call must have occurred for c5's own requirement to end up filled.
+        broadened_calls = [c for c in fake.calls if len(c["candidates"]) >= 2]
+        self.assertGreaterEqual(len(broadened_calls), 1)
+
+
 @needs_artifacts
 class HierarchyModelCoverageTests(unittest.TestCase):
     @classmethod

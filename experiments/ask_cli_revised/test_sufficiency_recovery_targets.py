@@ -1042,5 +1042,229 @@ class LeakageTests(unittest.TestCase):
         self.assertNotIn("RC-", hint)
 
 
+class FreshRequestKeyProjectionTests(unittest.TestCase):
+    """Phase 22: `project_fresh_request_keys` -- the pure RecoveryTarget -> exact fresh-request-key
+    projection, built directly from real q_aib structural shapes (c5/c8/c10/c11/c12/c6/parent-
+    redirection), never synthetic toy data alone."""
+
+    def test_c12_shaped_instance_scoped_target_authorizes_only_its_own_named_instance(self):
+        """The real c12 adversarial case: a target naming U1 must never also authorize U5."""
+        specs = {"intervention": se.new_role_spec("intervention", "a named intervention", "model_nomination_only")}
+        completion = se.new_role_completion(required_roles=["intervention"])
+        req = se.new_requirement("c12#req", "atomic", specs, completion, "exists", multi_instance=True)
+        inst_u1 = {**se.new_instance("U1"), "request_context": "U1"}
+        inst_u1["role_bindings"]["intervention"] = _missing("intervention")
+        inst_u5 = {**se.new_instance("U5"), "request_context": "U5"}
+        inst_u5["role_bindings"]["intervention"] = _missing("intervention")
+        req["instances"] = [inst_u1, inst_u5]
+        req = se.recompute_requirement(req)
+        mapped = _contract_with("c12", req)
+        targets = srt.compute_recovery_targets(mapped, {})
+        self.assertEqual(len(targets), 2)  # one target per instance, never merged
+        u1_target = next(t for t in targets.values() if t["scope"].get("instance_key") == "U1")
+
+        keys = srt.project_fresh_request_keys(
+            {u1_target["target_id"]: u1_target}, mapped, mapped, frozenset(), frozenset()
+        )
+        self.assertEqual(keys, frozenset({(("c12", "c12#req", "intervention"), "U1")}))
+
+    def test_c8_shaped_already_filled_role_is_excluded_but_a_new_sibling_context_is_included(self):
+        """The real c8 finding: `individual_difference_trait_or_construct` is already filled (U6)
+        yet the requirement's own sibling role never completes -- `_first_instance_targets` labels
+        the filled role "missing" too. It must stay held fixed; only a genuinely new post-recovery
+        context (U7) may enter."""
+        specs = {
+            "trait": se.new_role_spec("trait", "a trait", "model_nomination_only"),
+            "relationship": se.new_role_spec("relationship", "the relationship", "achieved_outcome_predicate"),
+        }
+        completion = se.new_role_completion(required_roles=["trait", "relationship"])
+        req = se.new_requirement("c8#req", "atomic", specs, completion, "open_list", multi_instance=True)
+        inst_u6 = {**se.new_instance("U6"), "request_context": "U6"}
+        inst_u6["role_bindings"]["trait"] = _filled("trait", "p1", "a trait value", method="model_mapping")
+        inst_u6["role_bindings"]["relationship"] = _missing("relationship")
+        req["instances"] = [inst_u6]
+        req = se.recompute_requirement(req)
+        mapped = _contract_with("c8", req)
+        targets = srt.compute_recovery_targets(mapped, {})
+        trait_target = next(t for t in targets.values() if t["target_roles"] == ["trait"])
+        self.assertEqual(trait_target["reason"], "missing")
+        self.assertEqual(trait_target["scope"], {"kind": "none"})
+
+        scope = ("c8", "c8#req", "trait")
+        # No new evidence yet -- U6 is already filled, so it must be entirely excluded.
+        keys = srt.project_fresh_request_keys(
+            {trait_target["target_id"]: trait_target}, mapped, mapped, frozenset(), frozenset()
+        )
+        self.assertEqual(keys, frozenset())
+
+        # A hypothetical new U7 context appears post-recovery -- it SHOULD enter F; U6 still must not.
+        initial_keys = frozenset({(scope, "U6")})
+        post_recovery_keys = frozenset({(scope, "U6"), (scope, "U7")})
+        keys_with_new = srt.project_fresh_request_keys(
+            {trait_target["target_id"]: trait_target}, mapped, mapped, initial_keys, post_recovery_keys
+        )
+        self.assertEqual(keys_with_new, frozenset({(scope, "U7")}))
+
+    def test_c11_shaped_zero_instances_only_genuinely_new_keys_enter(self):
+        specs = {"culture": se.new_role_spec("culture", "a named culture", "model_nomination_only")}
+        completion = se.new_role_completion(required_roles=["culture"])
+        req = se.new_requirement("c11#req", "atomic", specs, completion, "exists", multi_instance=True)
+        req["instances"] = []
+        req = se.recompute_requirement(req)
+        mapped = _contract_with("c11", req)
+        targets = srt.compute_recovery_targets(mapped, {})
+        target = next(iter(targets.values()))
+        self.assertEqual(target["scope"], {"kind": "none"})
+
+        scope = ("c11", "c11#req", "culture")
+        keys_no_new_evidence = srt.project_fresh_request_keys(
+            {target["target_id"]: target}, mapped, mapped, frozenset(), frozenset()
+        )
+        self.assertEqual(keys_no_new_evidence, frozenset())
+
+        post_recovery_keys = frozenset({(scope, "U1")})
+        keys = srt.project_fresh_request_keys(
+            {target["target_id"]: target}, mapped, mapped, frozenset(), post_recovery_keys
+        )
+        self.assertEqual(keys, frozenset({(scope, "U1")}))
+
+    def test_c5_c10_shaped_single_unfilled_instance_is_included(self):
+        """Not multi_instance; `request_context=None`, genuinely unfilled -- enters F directly,
+        same reasoning for both the real c5 and real c10 shapes."""
+        specs = {"behavior": se.new_role_spec("behavior", "a behavior", "model_nomination_only")}
+        completion = se.new_role_completion(required_roles=["behavior"])
+        req = se.new_requirement("c5#req", "atomic", specs, completion, "exists")
+        inst = se.new_instance()
+        inst["role_bindings"]["behavior"] = _missing("behavior")
+        req["instances"] = [inst]
+        req = se.recompute_requirement(req)
+        mapped = _contract_with("c5", req)
+        targets = srt.compute_recovery_targets(mapped, {})
+        target = next(iter(targets.values()))
+        self.assertEqual(target["scope"], {"kind": "none"})
+
+        keys = srt.project_fresh_request_keys({target["target_id"]: target}, mapped, mapped, frozenset(), frozenset())
+        self.assertEqual(keys, frozenset({(("c5", "c5#req", "behavior"), None)}))
+
+    def test_deterministic_role_target_never_projects_to_any_request_key(self):
+        specs = {"a": se.new_role_spec("a", "category a", "achieved_outcome_predicate")}
+        completion = se.new_role_completion(required_roles=["a"])
+        req = se.new_requirement("x#req", "atomic", specs, completion, "exists")
+        inst = se.new_instance()
+        inst["role_bindings"]["a"] = _missing("a")
+        req["instances"] = [inst]
+        req = se.recompute_requirement(req)
+        mapped = _contract_with("x", req)
+        targets = srt.compute_recovery_targets(mapped, {})
+        target = next(iter(targets.values()))
+        keys = srt.project_fresh_request_keys({target["target_id"]: target}, mapped, mapped, frozenset(), frozenset())
+        self.assertEqual(keys, frozenset())
+
+    def test_provisional_corroboration_projects_to_the_exact_historical_request_key(self):
+        specs = {"a": se.new_role_spec("a", "category a", "model_nomination_only")}
+        completion = se.new_role_completion(required_roles=["a"])
+        req = se.new_requirement("x#req", "atomic", specs, completion, "exists")
+        inst = {**se.new_instance(), "request_context": None}
+        inst["role_bindings"]["a"] = _filled("a", "p1", "value", method="model_mapping")
+        req["instances"] = [inst]
+        req = se.recompute_requirement(req)
+        req = sd._stamp_model_dependency_origins(req, "x")
+        mapped = _contract_with("x", req)
+        targets = srt.compute_recovery_targets(mapped, {})
+        target = next(iter(targets.values()))
+        self.assertEqual(target["reason"], "provisional_corroboration")
+
+        keys = srt.project_fresh_request_keys({target["target_id"]: target}, mapped, mapped, frozenset(), frozenset())
+        self.assertEqual(keys, frozenset({(("x", "x#req", "a"), None)}))
+
+    def test_c6_shaped_two_targets_sharing_one_origin_collapse_to_one_request_key(self):
+        """The real c6 dedup case: two distinct, independently-model-dependent instances (forked
+        from one role-nomination call) get two separate RecoveryTargets, but both trace back to
+        the identical physical request -- the projection must produce exactly ONE key, never two."""
+        specs = {"a": se.new_role_spec("a", "category a", "model_nomination_only")}
+        completion = se.new_role_completion(required_roles=["a"])
+        req = se.new_requirement("x#req", "atomic", specs, completion, "exists")
+        inst1 = se.new_instance()
+        inst1["role_bindings"]["a"] = _filled("a", "p1", "implicit value", method="model_mapping")
+        inst2 = {**se.new_instance(), "instance_key": "i::other"}
+        inst2["role_bindings"]["a"] = _filled("a", "p2", "explicit value", method="model_mapping")
+        req["instances"] = [inst1, inst2]
+        req = se.recompute_requirement(req)
+        mapped = _contract_with("x", req)
+        targets = srt.compute_recovery_targets(mapped, {})
+        self.assertEqual(len(targets), 2)
+
+        keys = srt.project_fresh_request_keys(targets, mapped, mapped, frozenset(), frozenset())
+        self.assertEqual(keys, frozenset({(("x", "x#req", "a"), None)}))
+
+    def test_parent_context_redirected_target_projects_to_the_upstream_request_key(self):
+        """A downstream target caused by an upstream model-dependent fill must project to the
+        ORIGINAL upstream (scope, request_context), never a new key at the downstream child."""
+        parent_specs = {"trait": se.new_role_spec("trait", "a named trait", "model_nomination_only")}
+        parent_completion = se.new_role_completion(required_roles=["trait"])
+        parent_req = se.new_requirement("p#req", "atomic", parent_specs, parent_completion, "exists")
+        p_inst = {**se.new_instance(), "request_context": None}
+        p_inst["role_bindings"]["trait"] = _filled("trait", "pp", "trait X", method="model_mapping")
+        parent_req["instances"] = [p_inst]
+        parent_req = se.recompute_requirement(parent_req)
+        parent_req = sd._stamp_model_dependency_origins(parent_req, "p")
+        propagated = _propagate(parent_req, "trait")
+
+        child_specs = {
+            "trait": se.new_role_spec("trait", "a named trait", "model_nomination_only"),
+            "scale": se.new_role_spec("scale", "a named scale", "named_instrument_lexicon"),
+        }
+        child_completion = se.new_role_completion(required_roles=["trait", "scale"])
+        child_req = se.new_requirement(
+            "c#req", "relational", child_specs, child_completion, "exists", parent_context_roles=["trait"]
+        )
+        c_inst = se.new_instance()
+        c_inst["role_bindings"]["trait"] = propagated["trait"]
+        c_inst["role_bindings"]["scale"] = _filled("scale", "cp", "Scale")
+        child_req["instances"] = [c_inst]
+        child_req = se.recompute_requirement(child_req)
+
+        mapped = {"p": se.new_contract("p", [parent_req]), "c": se.new_contract("c", [child_req])}
+        targets = srt.compute_recovery_targets(mapped, {"c": "p"})
+        redirected = next(t for t in targets.values() if t["search_child_id"] == "p")
+        self.assertEqual(redirected["reason"], "provisional_corroboration")
+
+        keys = srt.project_fresh_request_keys(targets, mapped, mapped, frozenset(), frozenset())
+        self.assertEqual(keys, frozenset({(("p", "p#req", "trait"), None)}))
+        # The downstream child never gets its own, separate fresh-authorized key merely because
+        # it triggered the search.
+        for (child_id, _req_id, _role), _rc in keys:
+            self.assertEqual(child_id, "p")
+
+    def test_projection_is_order_invariant_over_the_target_dict(self):
+        specs_c5 = {"behavior": se.new_role_spec("behavior", "a behavior", "model_nomination_only")}
+        req_c5 = se.new_requirement(
+            "c5#req", "atomic", specs_c5, se.new_role_completion(required_roles=["behavior"]), "exists"
+        )
+        inst_c5 = se.new_instance()
+        inst_c5["role_bindings"]["behavior"] = _missing("behavior")
+        req_c5["instances"] = [inst_c5]
+        req_c5 = se.recompute_requirement(req_c5)
+
+        specs_c10 = {"culture": se.new_role_spec("culture", "a culture", "model_nomination_only")}
+        req_c10 = se.new_requirement(
+            "c10#req", "atomic", specs_c10, se.new_role_completion(required_roles=["culture"]), "exists"
+        )
+        inst_c10 = se.new_instance()
+        inst_c10["role_bindings"]["culture"] = _missing("culture")
+        req_c10["instances"] = [inst_c10]
+        req_c10 = se.recompute_requirement(req_c10)
+
+        mapped = {"c5": se.new_contract("c5", [req_c5]), "c10": se.new_contract("c10", [req_c10])}
+        targets = srt.compute_recovery_targets(mapped, {})
+        self.assertEqual(len(targets), 2)
+        forward = dict(targets)
+        reversed_targets = dict(reversed(list(targets.items())))
+
+        keys_forward = srt.project_fresh_request_keys(forward, mapped, mapped, frozenset(), frozenset())
+        keys_reversed = srt.project_fresh_request_keys(reversed_targets, mapped, mapped, frozenset(), frozenset())
+        self.assertEqual(keys_forward, keys_reversed)
+
+
 if __name__ == "__main__":
     unittest.main()

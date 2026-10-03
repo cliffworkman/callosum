@@ -372,11 +372,16 @@ class StampModelDependencyOriginsTests(unittest.TestCase):
     per-child loop (round 3 §7's corrected stamping site)."""
 
     def test_fresh_model_mapping_binding_is_stamped_with_its_own_location(self):
+        """Phase 22: the origin now also carries `request_context`, read from the owning instance's
+        own stamp (`sufficiency_mapping.map_requirement`) -- here the single real unit's own
+        `unit_id`, coinciding with the (unforked) `instance_key` exactly as the Phase-19b/22 audits'
+        own documented, non-general coincidence predicts."""
         sealed = _sealed([_prop("p1", 1, "This finding showed empathy was strongly related to the outcome.", ["p"])])
         mapped = sd.compute_diagnostic_sufficiency_map(
             sealed, _small_contract(), parent_of={"c": "p"}, model_client=_FakeModelClient()
         )
-        trait_binding = mapped["p"]["requirements"][0]["instances"][0]["role_bindings"]["trait"]
+        instance = mapped["p"]["requirements"][0]["instances"][0]
+        trait_binding = instance["role_bindings"]["trait"]
         self.assertEqual(
             trait_binding["provenance"]["model_dependency_origins"],
             [
@@ -384,7 +389,8 @@ class StampModelDependencyOriginsTests(unittest.TestCase):
                     "child_id": "p",
                     "requirement_id": "p8#req",
                     "role": "trait",
-                    "instance_key": mapped["p"]["requirements"][0]["instances"][0]["instance_key"],
+                    "instance_key": instance["instance_key"],
+                    "request_context": instance["request_context"],
                 }
             ],
         )

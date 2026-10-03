@@ -129,8 +129,9 @@ class RequestFingerprintMismatch(Exception):
 
 
 # ---------------------------------------------------------------------------------------------
-# Authorization policies: who may make a FRESH call this pass. Two policies for now (audit §K);
-# both are plain dicts with a validated `kind`, matching this package's own enum-as-tuple style.
+# Authorization policies: who may make a FRESH call this pass. Three policies (audit §K; Phase 22
+# adds the third); all are plain dicts with a validated `kind`, matching this package's own
+# enum-as-tuple style.
 # ---------------------------------------------------------------------------------------------
 
 
@@ -140,17 +141,51 @@ def all_eligible_policy() -> dict:
 
 
 def exact_scope_set_policy(scopes) -> dict:
-    """Recovery-remap-style policy: only the named scopes may make a fresh call; every other
-    model-assisted scope is held fixed (audit §5B/§7)."""
+    """Every REQUEST CONTEXT under a named semantic scope may make a fresh call; every other
+    model-assisted scope is held fixed (audit §5B/§7). Deliberately SCOPE-granular, never
+    request-granular -- if a named scope happens to be `build_multi_instances`-partitioned into
+    several `request_context`s, this authorizes ALL of them, never just one. Phase 22's own audit
+    confirmed this is the wrong tool for target-scoped post-recovery reconsideration precisely
+    because of that breadth (real q_aib c12: authorizing its scope this way would also reconsider
+    an untargeted sibling context) -- `exact_request_set_policy` below is the request-granular
+    alternative Phase 22 actually needs. This policy's own existing semantics are UNCHANGED by
+    Phase 22; it remains available for a caller that genuinely wants whole-scope authorization
+    (e.g., a from-scratch initial pass over a named subset)."""
     return {"kind": "exact_scope_set", "scopes": frozenset(scopes)}
 
 
-def is_authorized_for_fresh_call(policy: dict, scope: tuple[str, str, str]) -> bool:
+def exact_request_set_policy(request_keys) -> dict:
+    """Phase 22: ONLY the exact named composite request keys -- `(ModelNominationScope,
+    request_context)` pairs, the identical shape `new_model_nomination_key` already returns -- may
+    make a fresh call; every other request, including a SIBLING request_context under the same
+    semantic scope, is held fixed. This is the request-granular authority Phase 22's own target-
+    scoped post-recovery remap needs: a RecoveryTarget's projection to a fresh-request set
+    (`sufficiency_recovery_targets`'s own projection helper) produces exactly this shape, and this
+    policy is the only one that can express "reconsider this one request, never its sibling"
+    without silently widening to the whole scope (confirmed necessary by the real c12 two-context
+    case: a target naming `U1` must never also fresh-authorize `U5`).
+
+    Deliberately a SEPARATE policy kind, not an overload of `exact_scope_set_policy`'s own
+    `scopes` field -- composite keys and bare scopes are different authority levels, and silently
+    accepting either shape in one field would make a policy's own granularity ambiguous at a
+    glance. `request_keys` is coerced to a `frozenset` of `(scope, request_context)` tuples,
+    exactly as `new_model_nomination_key` already shapes them."""
+    return {"kind": "exact_request_set", "request_keys": frozenset(request_keys)}
+
+
+def is_authorized_for_fresh_call(policy: dict, scope: tuple[str, str, str], request_context: str | None = None) -> bool:
+    """`request_context` (Phase 22, optional, default `None`): consulted ONLY by
+    `exact_request_set`'s own request-granular check below. `all_eligible`/`exact_scope_set` both
+    ignore it entirely -- their own authority level is, and remains, scope-only, exactly as Phase
+    19 built them; every existing call site that omits this parameter observes byte-identical
+    behavior to before Phase 22."""
     kind = policy["kind"]
     if kind == "all_eligible":
         return True
     if kind == "exact_scope_set":
         return scope in policy["scopes"]
+    if kind == "exact_request_set":
+        return (scope, request_context) in policy["request_keys"]
     raise ValueError(f"unknown nomination authorization policy kind: {kind!r}")
 
 
@@ -242,12 +277,17 @@ def resolve_nomination(
     (the Phase-21-preflight finding: `build_multi_instances` partitions a `multi_instance=True`,
     no-parent-context requirement's real candidate units across several instances, each reaching
     the SAME `(child_id, requirement_id, role)` scope with a DIFFERENT, disjoint candidate pool --
-    real q_aib c12 is the confirmed example, two units, two legitimate requests). AUTHORIZATION
-    (`is_authorized_for_fresh_call`) is decided on `scope` ALONE, exactly as Phase 19 built it --
-    `request_context` never enters that decision, only which receipt SLOT this invocation reads
-    from or writes to. Every pre-Phase-19b caller omits it, giving every non-partitioned
-    requirement the identical `None` context for its one-and-only request -- byte-identical
-    behavior to before this phase.
+    real q_aib c12 is the confirmed example, two units, two legitimate requests). It ALWAYS decides
+    which receipt SLOT this invocation reads from or writes to (the composite memoization key,
+    unchanged since Phase 19b). Whether it ALSO enters the AUTHORIZATION decision itself
+    (`is_authorized_for_fresh_call`) depends on the active policy's own granularity: `all_eligible`/
+    `exact_scope_set` ignore it, deciding on `scope` alone exactly as Phase 19 built them; Phase
+    22's `exact_request_set` policy consults it directly, since that policy's entire purpose is
+    authorizing one exact request while holding a sibling `request_context` under the identical
+    scope fixed (the real c12 case: a target naming `U1` must never also fresh-authorize `U5`).
+    Every pre-Phase-22 caller/policy combination observes byte-identical behavior to before this
+    phase; only a caller that explicitly opts into `exact_request_set_policy` sees request-granular
+    authorization at all.
 
     `fresh_no_candidates` (Phase 20b): when `scope` IS authorized for a fresh call but
     `candidate_rows` is empty, `make_fresh_call` is never invoked at all -- there is nothing to
@@ -300,7 +340,7 @@ def resolve_nomination(
         return list(existing["accepted"]), "memoized_in_pass"
 
     policy = nomination_context["policy"]
-    if is_authorized_for_fresh_call(policy, scope):
+    if is_authorized_for_fresh_call(policy, scope, request_context):
         if not candidate_rows:
             accepted, status = [], "fresh_no_candidates"
         else:
