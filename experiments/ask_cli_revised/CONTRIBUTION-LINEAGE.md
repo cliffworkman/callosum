@@ -1422,3 +1422,45 @@ the real, previously-adjudicated `c12` case as an explicit adversarial test fixt
 missing representation blocks offline implementation and that every existing semantic sufficiency
 module needs no change. Full detail in
 `PHASE25_BOUNDED_PARENT_SYNTHESIS_DESIGN_AUDIT.md`.
+
+---
+
+## Phase 26 -- offline parent claim-ledger + deterministic rendering (appended 2026-10-03; preserves all prior entries unchanged)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-10-03 | Evidence | Phase 25's own design audit |
+| 2026-10-03 | Design direction / implementation steering | Cliff Workman + ChatGPT |
+| 2026-10-03 | Implementation | Claude |
+
+**Evidence (Phase 25's own design audit).** Established the authority hierarchy and showed that
+per-child Overview prose cannot serve as semantic authority for parent synthesis -- the design this
+phase implements against.
+
+**Design direction / implementation steering (Cliff Workman + ChatGPT).** Accepted the ledger-first
+architecture and required the parent stage to remain an editorial transform, implemented offline
+only (no model, no e2e/topology wiring). During implementation steering, ChatGPT identified and
+corrected the Phase-25 audit's dedup-key inconsistency: different semantic roles must never fold
+merely because category_description, proposition_id, and exact_text match -- implemented in this
+phase exactly as specified (`semantic_claim_key`'s own 5-tuple).
+
+**Implementation (Claude).** Built `parent_synthesis_ledger.py` (claim-ledger/gap-report
+construction, canonical claim-id hashing, deduplication), `parent_synthesis_render.py`
+(deterministic, model-free rendering and the construction record), and `parent_synthesis_audit.py`
+(re-derive-and-compare, mirroring `overview_audit.py`'s own discipline), plus 52 offline tests
+across three files. Found and fixed one real implementation-time bug the briefs did not anticipate
+(category-list combination was first scoped across requirements rather than within one, reread
+against the brief's own explicit "same requirement" condition and corrected before any test was
+weakened) and made one grounded refinement beyond the brief's own literal wording (relational-vs-
+atomic dispatch reads the instance's own jointly-grounded own-evidence-role count rather than the
+requirement's authored `kind` label, because `sufficiency_engine.py` itself documents `kind` as
+descriptive-only, never dispatch-driving). Performed a real, offline, read-only replay of the frozen
+Phase-23 production state (`sufficiency_map_final`/`recovery_targets_final`, present in this
+worktree) through the new ledger/gap-report/renderer, confirming 24 claims and 33 gaps resolve with
+zero provenance-resolution failures, and that the real, confirmed-wrong `c12` role-assignment
+(Phase 23a's own adjudicated finding) survives into the parent ledger and its rendering byte-
+identical and unflagged -- proving by construction, not by instruction, that parent synthesis
+cannot become a second, silent semantic adjudicator. Documented one further real, pre-existing,
+out-of-scope gap found along the way (`empty_result_semantically_allowed` is authored but never
+consulted by `sufficiency_recovery_targets.py`) without fixing it, per the brief's own scope
+boundary. Full detail in `PHASE26_PARENT_SYNTHESIS_LEDGER_OFFLINE_RESULTS.md`.
