@@ -78,7 +78,7 @@ def _emit(
         doi = (meta or {}).get("doi")
         if not meta or not doi or doi in dismissed:
             continue
-        if find_existing_paper_by_identity(conn, doi=doi) is not None:  # already in the library → not a gap
+        if find_existing_paper_by_identity(conn, doi=doi, include_trashed=True) is not None:  # known → not a gap
             continue
         candidates.append(
             GapCandidate(

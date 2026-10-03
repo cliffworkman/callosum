@@ -23,6 +23,7 @@ from app.backend.acquisition.registry import OaLocation, PaperRef, ResolverRegis
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import create_paper
 from app.backend.persistence.schema import attachments
+from tests.api_helpers import indexing_collaborators
 
 
 def _minimal_pdf_bytes() -> bytes:
@@ -240,7 +241,7 @@ def test_import_oa_pdf_stores_managed_labeled_and_local(temp_db_url, monkeypatch
     location = OaLocation(pdf_url="https://e.org/x.pdf", oa_color="bronze", version="vor", source="openalex")
     temp_pdf = download_oa_pdf(location, fetcher=lambda url, *, timeout, max_bytes: _minimal_pdf_bytes())
     with engine.begin() as conn:
-        result = import_oa_pdf(conn, location, temp_pdf, paper_id=paper_id)
+        result = import_oa_pdf(conn, location, temp_pdf, paper_id=paper_id, **indexing_collaborators())
 
     assert result["oa_color"] == "bronze" and result["bronze_unstable"] is True
     assert result["filename"] == "Smith & Jones - 2021 - J. Test.pdf"

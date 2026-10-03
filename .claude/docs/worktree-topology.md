@@ -37,11 +37,24 @@ for the research track's own state; don't duplicate its content here.
 
 ## Other isolated worktrees
 
-- `.claude/worktrees/browser-capture-research` (branch `browser-capture-research`) — a substantial,
-  mostly-complete browser-capture/import-queue feature (issue #61) with real committed work cleanly
-  ahead of `main`, plus **uncommitted, in-progress changes** referencing a separate open issue (#98).
-  Deliberately left isolated and untouched as of 2026-09-17 pending its own explicit review/merge
-  decision — not part of ordinary `main` development until that happens.
+- `C:\Users\cliff\Documents\Codex\2026-09-23\we-have-a-physical-intel-macos\work\capture-paper-index`
+  (`fix/capture-admission-paper-index`) starts at accepted Windows candidate `2a80b734`.
+  It contains only the local post-admission paper-index correction and its tests/docs.
+  The adjacent `capture-pdf-responsive` and `windows-preview-path` worktrees remain frozen;
+  the original Windows QA database, artifacts and parked user state must not be repaired in place.
+  This branch is not authorized for push, merge, packaging or release.
+- `.claude/worktrees/browser-capture-research` (branch `browser-capture-research`) — the
+  browser-capture/import-queue feature (issue #61). **As of 2026-09-17** it was deliberately left
+  isolated and untouched, with uncommitted in-progress changes referencing a separate open issue
+  (#98), pending its own explicit review/merge decision. **As of 2026-09-20** that isolation note no
+  longer applies: #98 is resolved and closed; the work is committed and the tracked tree is clean
+  (the only local extras are deliberately untracked acceptance evidence under
+  `.claude/experiments/browser-capture-acceptance/`); technical acceptance is complete locally (real
+  packaged Edge R1–R4; real Chrome development-identity happy path plus wrong-ID and host-absent
+  negatives); and `origin/main` has been merged into the branch locally, so the branch is prepared to
+  enter draft-PR / GitHub-CI integration. It is still not part of ordinary `main` development, and
+  the store / production-extension-ID gates remain (`production_extension_ids` is empty, no store
+  submission has occurred), so #61 stays open.
 - Assorted temp-directory worktrees under `%TEMP%` hold other point-in-time research/audit
   checkpoints (H1c adversarial audits, corpus census, replication studies, etc.). These are
   ephemeral and outside this file's scope; `git worktree list` is authoritative for what currently

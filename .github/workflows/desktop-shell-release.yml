@@ -23,15 +23,31 @@ on:
   workflow_dispatch: {}
 
 jobs:
+  distribution-gate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Verify distribution policy, historical store IDs and runtime prerequisite
+        run: |
+          python app/desktop-shell/packaging/build_preview_package.py --check
+          python app/desktop-shell/packaging/check_capture_release.py --public-release
+
   build-windows:
+    needs: distribution-gate
     uses: ./.github/workflows/desktop-shell-windows.yml
     secrets: inherit # the TAURI_SIGNING_* pair, so this platform's updater artifact gets signed
 
   build-macos:
+    needs: distribution-gate
     uses: ./.github/workflows/desktop-shell-macos.yml
     secrets: inherit # same as above
 
   build-linux:
+    needs: distribution-gate
     uses: ./.github/workflows/desktop-shell-linux.yml
     # No secrets needed: Linux has no silent auto-update path (see updater.rs's header comment) —
     # nothing here is ever signed.

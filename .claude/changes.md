@@ -9,6 +9,190 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+
+## 2026-10-02 — Increment 605: mirror restored confirmation/retry provenance (local only)
+- **Evidence:** the isolated real-Windows replay at `d3ab1442` passed 122 chunk vectors plus one paper vector, then failed because the JSON sidecar lacked the DB's confirmation history. The FAIL receipt and original genuine Windows PARTIAL evidence stay unchanged.
+- **Repair:** `capture/provisional_review.py` supplies the existing Library root to `_reattach_user_actions`, which calls the existing `_refresh_sidecar` after its DB commit. Covers unresolved confirmation, admission outcomes and retry; no serialization, authority, attachment, indexing, runtime or UI redesign.
+- **Tests:** strengthen shared confirmation/provenance checks and the real Ioannidis fixture. Seven tests fail before production changes; cover full DB/sidecar evidence equality, ordered history through unsuccessful/successful retry, and nonfatal sidecar I/O failure. Results and fresh replay disposition are recorded in increment 605/research note.
+- **Lineage:** Cliff — physical evidence and replay execution/authorization; Lucien — minimal post-restoration scope; Cody/ChatGPT — failure trace, implementation and regression tests.
+- **Revert:** revert this local commit; no migration or historical QA repair. No push, PR mutation or release action.
+
+## 2026-10-02 — Increment 604: paper metadata index after canonical PDF admission (local only)
+- **Evidence:** Cliff's genuine Windows capture at `2a80b734` preserved one PDF and 122 chunk vectors but no metadata embedding for the confirmed paper. The original PARTIAL evidence and QA state remain unchanged.
+- **Cause:** provisional confirmation, automatic promotion and retry reached chunk attachment/indexing without the shared post-admission paper hook. The existing admission matrix omitted these paths; the omission predates the two Windows fixes.
+- **Files/behavior:** `capture/provisional.py` calls existing `ensure_paper_indexed` after canonical admission commits, for new/reused papers independently of attachment eligibility. No bespoke model/text/vector logic, schema, runtime, transport, identity or UI change.
+- **Verification:** extend `tests/test_admission_indexing.py` with real-fixture confirmation, automatic admission, missing/valid index reuse, no recomputation/duplicates, retry/failure/conflict and real sqlite-vec persistence. See increment 604 and `docs/research/2026-10-02_capture-paper-index.md` for red/green results and the remaining isolated packaged-runtime check.
+- **Lineage:** Cliff — physical evidence/authorization; Cody — diagnosis, implementation/tests; Lucien — shared-invariant scope and targeted acceptance boundary.
+- **Revert:** revert this local commit; no data migration or live QA repair occurred. Source push, packaging, PR changes and release actions remain outside scope.
+
+## 2026-10-01 — Publisher PDF classification and responsive capture (local only)
+- **Evidence/lineage:** Cliff's genuine Windows Chrome clicks created four PDF-viewer-title metadata records with no attachment or Import Queue. Cody supplied the checksum-correct original PLOS URL but missed suffix-only PDF detection; preserved snapshots establish the generic admission path. First-click logs show model loading before acknowledgement, consistent with the observed health timeout; an exact original stack/timing span was not captured.
+- **Change:** classify only the clicked active document, requiring PDF magic with bounded fetch/stream size/time; only identified HTML may use generic extraction. Preview becomes 0.1.2 with the same dedicated identity and verified package inventory. No permissions, production IDs, runtime or app version change.
+- **Scheduling:** blocking admission and PDF processing use awaited workers in a serialized capture lane. Supplementary metadata indexing runs after the committed response, reusing the app-owned model; notifications cover admission and indexing. Same-key retries and concurrent same-content PDFs remain idempotent.
+- **Coverage:** real Ioannidis bytes, HTML/mislabeled/unknown/inaccessible/oversize/stalled responses, real handler with mocked browser APIs, concurrent admission/uploads, blocked model/PDF work with live health, cleanup, failure notification and the existing capture/DOI/trust/package suites. Simulated tests do not establish packaged Windows acceptance.
+- **Help sync:** added manual-preview setup, update/reload, connection, unreadable-document and DOI-review guidance to the served help corpus; unrelated historical help drift was not rewritten.
+- **Recovery:** preserve the installed f241f9aa QA state and its four failed rows; build a separately identified candidate through existing NSIS packaging. No push, merge, tag or publication. Revert this local commit to undo the correction.
+
+## 2026-10-01 — Windows preview native-host path correction (local only)
+- **Cause/evidence:** Cliff's real Chrome connection failed after Prepare. The manifest/registry used a Tauri verbatim Windows path; Cody reproduced cmd.exe failing to launch that exact executable path while the ordinary path returned a valid native message. The actual Chrome launch branch remains untraced.
+- **Change:** simplify safe Windows resource paths before deriving both native-host manifest executable and registry path. Reuse the already-locked dunce 1.0.5 library; reject unsafe-to-simplify and unsupported namespace paths explicitly. Preserve NSIS's ordinary-path ownership comparison, exact extension origin policy and pairing boundaries.
+- **Regression:** Windows path cases and a staged real connector launched through cmd from a Unicode/space-containing folder; protocol 0 stops before sessions/capture. Existing caller-admission and preview-package coverage remain gates.
+- **Scope:** new isolated fix/windows-preview-native-host-path branch from frozen fcaabb7a. No runtime correction, browser identity, source push, release/version or normal-user state change.
+- **Recovery:** separately launch the newly built packaged candidate from ordinary user Windows, preserving the redirected Codex QA state; never substitute a copied runtime or manual host registration.
+- **Revert:** revert this local correction commit; the frozen integration worktree and prior acceptance evidence remain untouched.
+
+## 2026-09-24 — local Ioannidis DOI-review correction (not pushed)
+- **Cause:** page-wide Summary/abstract state classified the page-1 publication DOI as body;
+  review ignored unresolved observations and falsely said no DOI was found. An InDesign
+  filename suppressed the useful visible title.
+- **Behavior:** retain conservative automatic admission, show a unique observed article DOI
+  for explicit lookup/review, exclude reference/component identifiers, refuse arbitrary
+  ambiguous selection, prefer prominent visible title evidence over conflicting metadata.
+- **Evidence/tests:** exact checksum-pinned CC-BY acceptance PDF and original manual-confirmation
+  provenance, synthetic adversarial cases, endpoint and assembled-browser regressions.
+- **Principles/experience:** observed text stays distinct from verified identity; Cliff can
+  review a found DOI without transcribing it. See `docs/research/2026-09-24_ioannidis-doi-review.md`
+  and `security-audits/2026-09-24_doi-review.md`; QA route 27 covers the flow.
+- **Scope/revert:** separate local branch; no runtime, capture-notification, schema, or live
+  data changes. Revert source/generated UI changes; no user-data rollback needed.
+- **Lineage:** Cliff supplied the real-Mac finding; Cody traced and prepared the local fix.
+- **Finalization:** Lucien identified the extraction-failure truthfulness gap and reinforced
+  the review boundary. Codex added fixed failure explanations using existing schema-1
+  dispositions, with four extraction/no-DOI/lookup/backward-compatibility regressions.
+  Cliff's evidence/product direction, Lucien's critique and Codex's implementation are
+  recorded separately in the investigation addendum.
+
+## 2026-09-24 — browser capture (#103): wake the open app when capture commits
+- **What:** an app-scoped bounded async notification wakes the frontend to retrieve authoritative
+  Import Queue state and invalidate Library. Successful capture completion has no polling delay;
+  focus recovery also handles suspended windows. Admission, identity, extension and host rules stay intact.
+- **Why:** Cliff's actual `b0d98e63` Mac capture required reload after roughly 5–30 seconds for the
+  queue, while confirmation-to-Library already worked. A focus-only recheck would miss early return.
+- **Files:** `api/capture_updates.py`, capture router/app wiring, `03a_capture_updates.jsx`, Library
+  hook/generated frontend, focused Python/Node/browser regressions, CI Node step, latency/security
+  documentation, QA route 27 and website review receipt.
+- **Verification:** 177 focused Python tests and 26 Node tests passed; isolated local Chromium
+  showed queue visibility 230.6–395.0 ms after upload response across three captures. Auth gate
+  checks and final hooks are recorded in the accompanying receipt. This is not real-Mac acceptance
+  or fresh CI. Details and limits: `docs/research/2026-09-24_capture-visibility.md`.
+- **Experience:** directly addresses Cliff's need for immediate visible confirmation, without
+  skipping human identity review. No visual or existing Help-copy changes are required.
+- **Lineage:** Cliff supplied observations and latency requirement; Codex implemented this fix.
+- **Revert:** revert this commit; no persisted schema or user-data migration is involved.
+
+## 2026-09-21 — browser capture (#61): queue filesystem authority, probe-token redaction, audit corrections (draft PR #103, second pass)
+- **Files:** `app/backend/capture/trusted_paths.py`, new `app/backend/capture/owned_artifacts.py`, `provisional.py`,
+  `provisional_review.py`, `provisional_recovery.py`, `api/routers/import_queue.py`, `persistence/provisional_artifacts_repo.py`,
+  `tests/test_queue_filesystem_authority.py` (new) and `tests/test_capture_trust_boundaries.py`; new
+  `app/desktop-shell/packaging/connector_probe.py`, `.github/workflows/desktop-shell-macos.yml`, `tests/test_connector_probe.py`,
+  `tests/test_desktop_packaging.py`; the security audit; this entry. (The #102 ordering fix is its own commit and entry above.)
+- **What:** PR #103's CodeQL gate still reported 14 `py/path-injection` alerts after the first pass. The analysis' source→sink flows
+  showed every one starts at a route `artifact_id` and reaches a path directly or through the database row (`row["pdf_path"]`).
+  Managed filesystem paths now derive from Callosum-owned identity, never from request text or a persisted path string: a route id
+  is a lookup claim matched against the server-owned active Import Queue ids (the stored value is what is used); entry paths
+  (unlink) and read paths (follow) are separate capabilities; every path constructor enforces the canonical id; recovery accepts
+  only exact `<32-hex>.pdf` entries and ignores symlinks. The stored-path helper `resolve_queued_pdf` is deleted. Separately, the
+  macOS CI probe no longer prints or uploads the connector's raw reply (it carried a session token) — a redacting, fail-closed
+  script proves "token present" instead — and the audit records that alert #72 auto-closed (no dismissal) and that the stored-path
+  rule was superseded.
+- **Why:** a persisted arbitrary path was inappropriate filesystem authority regardless of what CodeQL thinks; the token was
+  in an Actions log and artifact of an ephemeral runner (historical runs are preserved, not deleted).
+- **Verify:** local only at this checkpoint (focused capture/import-queue/authority/probe/packaging/WIP suites, symlink cases
+  executed on Windows with links available, lint/format/line-budget/tach/bandit/pre-commit). **Fresh GitHub CI and CodeQL results
+  for this head are not part of this entry.** Whether CodeQL accepts the active-ID allowlist as a sufficient path-control boundary is
+  unknown until its analysis runs; a remaining alert is to be classified, not suppressed.
+- **Behaviour narrowing:** deleting a promoted artifact through the queue route now answers 404.
+- **Lineage** (per `.claude/CREDIT-THE-LINEAGE.md`; descriptive): defect discovery — GitHub CodeQL; the invariant, the active-allowlist,
+  the entry/read capability split and the fail-closed probe requirements — Cliff Workman + ChatGPT (GPT-5.6 Sol); implementation —
+  Claude.
+- **Revert:** the commits are independent by concern and each reverts with `git revert`; reverting the authority commit restores the
+  stored-path behaviour and the CodeQL alerts.
+
+## 2026-09-21 — WIP tasks: deterministic newest-first ordering (#102)
+- **Files:** `app/backend/persistence/wip_workflow_repo.py` (`list_tasks`), `tests/test_wip_workflow.py`,
+  `demo/wip-state-v1.json`, this entry.
+- **What:** `list_tasks` ordered by completion state, then due date, then `created_at DESC`, with no further key.
+  `created_at` is SQLite's one-second `CURRENT_TIMESTAMP`, so tasks created in the same second (or across a second
+  boundary) could list in either order. `id DESC` is now the FINAL tie-break: the INTEGER PRIMARY KEY (SQLite's rowid) records
+  insertion order, so "newest first" is deterministic. It never outranks completion state, due date or `created_at`; three
+  tests pin the whole contract (same second, later second, and a full precedence test where, apart from the final tie-break, each
+  expectation differs from what `id` alone would give).
+- **Why:** #102 — the demo snapshot test `test_demo_wip_state_regenerates_from_real_sandbox_deterministically` failed
+  intermittently with two task rows swapped (observed once locally; a later failure of the same test on PR #103's CI had the same
+  signature but was not independently proven to be this defect). It predates the browser-capture work and is not a capture defect.
+- **Visible change:** the committed demo fixture recorded the old incidental same-second order (oldest first). It was
+  regenerated; the only difference is task order — same-second tasks now list newest-created first (e.g. manuscript 1 task ids
+  `[3, 1, 2]` -> `[3, 2, 1]`, manuscript 2 `[6, 4, 5]` -> `[6, 5, 4]`).
+- **Verify:** the same-second and full-contract tests failed before the change and pass after; the formerly failing demo test
+  passed 10 of 10 in fresh processes; #102's forced 1.1 s-delay reproduction now equals the committed fixture; WIP and demo
+  suites green. **GitHub CI has not yet run on this commit, and #102 is not closed by this entry** — it is reported there only
+  once fresh CI establishes the fix.
+- **Revert:** `git revert` the commit; the fixture reverts with it.
+
+## 2026-09-20 — browser capture (#61): first GitHub challenge of draft PR #103 answered; macOS becomes a Phase-1 platform
+- **Files:** Tauri config (`tauri.conf.json` now common-only; new `tauri.windows.conf.json`; `tauri.macos.conf.json` gains the
+  connector sidecar) and `packaging/stage_connector.py`; new `src-tauri/src/connector_registration.rs` (+ `lib.rs` setup wiring),
+  `connector-host/src/bin/dev_connector_launcher.rs`, `tools/run_dev.py`, `.github/workflows/desktop-shell-macos.yml`;
+  new `app/backend/capture/trusted_paths.py` with `api/routers/capture.py`, `api/routers/import_queue.py`, `capture/pairing.py`;
+  `.github/workflows/ci.yml`; tests (`test_desktop_packaging.py`, `test_run_dev_connector.py`, `test_capture_trust_boundaries.py`);
+  the security audit addendum, the store-release runbook (§0/§1/§5b/§6), the browser-capture architecture doc,
+  `app/desktop-shell/README.md`, the `connector-host` comment, and this entry.
+- **What:** PR #103's first GitHub run found two blocker classes. (1) The Linux and macOS shell builds failed because the shared
+  `tauri.conf.json` bundled a connector resource only the Windows workflow stages; the connector is now platform-owned:
+  Windows keeps it as a resource, **macOS ships it as an executable sidecar (`bundle.externalBin`) and registers it for Chrome at
+  every launch**, and **Linux builds with no connector** (no dummy directory). (2) CodeQL raised six alerts: four
+  `py/path-injection` alerts are fixed by explicit trust-boundary helpers (route IDs must be canonical and filenames derive from
+  server-minted IDs; queued PDFs are served only after strict-resolve containment); `ci.yml`'s `connector-and-extension` job
+  now declares `permissions: contents: read`; and the pairing file is now created 0600 from birth on POSIX. The remaining
+  cleartext-storage alert is the deliberate, audited plain-file pairing design, recorded as an accepted risk in the audit
+  addendum (the pairing FILE is owner-readable/writable on POSIX; nothing claims `~/.callosum` is owner-only).
+- **Why:** The first concrete user of browser capture is on macOS with Google Chrome (product fact supplied by Cliff; the
+  repository recorded neither). A Windows-only connector proves the architecture while failing the intended utility target, so
+  macOS is now a hard Phase-1 criterion and Linux is unsupported for browser capture. The earlier Windows-first work stays as
+  the implementation sequence, not the release scope.
+- **Verify:** Local only at this checkpoint: 188 focused Python tests (3 POSIX-only skips on Windows) plus migrations, ruff,
+  format, line budget, tach, bandit, all pre-commit hooks, connector-host and registration cargo tests. **Fresh GitHub evidence
+  for the new head is not part of this entry.** macOS code that cannot compile on the Windows dev machine, where Tauri places the
+  sidecar, and whether a Chrome-launched connector works on real macOS are **unobserved**; the real-Mac acceptance gate
+  (runbook §5b, including the Intel-iMac evidence taxonomy) is a separate later step and a green runner does not satisfy it.
+  Not released: `production_extension_ids` is `[]`, no store submission, #61 stays open.
+- **Help corpus:** not updated (browser capture is not publicly released); this entry sits above the `HELP-DOCS-SYNCED` marker
+  and does not move it.
+- **Lineage** (per `.claude/CREDIT-THE-LINEAGE.md`; descriptive, not an ownership judgment): defect discovery — GitHub CI and
+  CodeQL; platform decision and steering — Cliff Workman + ChatGPT (GPT-5.6 Sol); implementation — Claude.
+- **Revert:** the four commits are independent by concern (Tauri ownership; macOS registration/CI; trust-boundary hardening;
+  docs) and each can be reverted on its own with `git revert`, newest first; reverting the first two reinstates the
+  Linux/macOS build failure.
+
+## 2026-09-20 — browser capture (#61): branch prepared for draft-PR integration; `origin/main` merged in
+- **Files:** `.claude/docs/worktree-topology.md` (current-status update for the branch), `.claude/changes.md`
+  (this entry). The feature itself is the branch's earlier commits and is not re-described file-by-file here — see
+  `.claude/docs/research/2026-09-15_browser-capture-architecture.md`, `.claude/security-audits/2026-09-16_browser-capture.md`
+  and `.claude/docs/research/2026-09-19_browser-capture-store-release-runbook.md`.
+- **What:** `browser-capture-research` carries the browser-capture feature (issue #61): a Windows native-messaging
+  connector host and browser extension, packaged-app instance resolution, the pairing/session capture boundary, and a
+  provisional Import Queue with conservative identity promotion. Since the 2026-09-17 entry below left the branch isolated:
+  #98 (a Rust supervisor drain defect that blocked the first clean-build real-Edge promotion) was fixed and closed; real
+  packaged Edge R1–R4 and a real Chrome development-identity happy path plus wrong-ID and host-absent negatives passed
+  locally; release-packaging hardening, a store-release runbook, lint/line-budget cleanup and pre-commit hygiene were
+  committed; and `origin/main` (one docs-only commit) was merged into the branch with a real merge commit — no rebase,
+  no squash.
+- **Why:** The 2026-09-17 note describing the branch as isolated pending review was stale. Local evidence is complete, so
+  the next gate is an independent GitHub environment (draft PR, CI, manually dispatched platform builds) challenging that
+  evidence before anything lands on `main`.
+- **Verify:** Local evidence only. Python: 3,326 test IDs each accounted for exactly once (3,323 passed / 3 skipped /
+  0 failed) across four deterministic fresh-process partitions — not one monolithic run; pre-commit clean; real Edge and
+  real Chrome acceptance under the development identity only. At this checkpoint **GitHub CI has not yet run** on the newest
+  commits; the next gate is draft-PR integration. Not publicly released: `production_extension_ids` is `[]`, no store
+  submission has occurred, and #61 stays open.
+- **Help corpus:** not updated in this pass (browser capture is not publicly released); this entry, like the entries
+  around it, sits above the `HELP-DOCS-SYNCED` marker and does not move it.
+- **Lineage** (per `.claude/CREDIT-THE-LINEAGE.md`; descriptive, not an ownership judgment): direction and review —
+  Cliff Workman + ChatGPT (GPT-5.6 Sol); implementation, acceptance orchestration and evidence — Claude; the
+  browser-required manual steps — Cliff Workman. The detailed chronology lives on #61, #98 and #99.
+- **Revert:** docs-only metadata — `git revert` the commit that adds this entry. The merge commit is ordinary topology;
+  reverting it would be a separate, deliberate decision.
+
 ## 2026-09-17 — worktree topology restore: primary checkout back on `main`
 - **Files:** `.claude/docs/worktree-topology.md` (new), `.claude/CLAUDE.md` (Reference docs table row).
 - **What:** The primary checkout (`C:\Users\cliff\Dropbox\Dropbox\01_Work\callosum`) had been sitting on

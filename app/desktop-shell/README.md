@@ -52,6 +52,14 @@ npm install && python tools/build_frontend.py
 # 2. Stage the real source tree into resources/callosum-src/
 python app/desktop-shell/packaging/stage_source.py
 
+# 2b. Windows and macOS: the browser-capture connector host. On Windows the installer registers it as the Chrome/Edge
+# native-messaging host, so BOTH steps are needed for a Windows installer that supports browser capture
+# (CI runs them in desktop-shell-windows.yml). On macOS stage_connector.py places it as an executable sidecar
+# (bundle.externalBin) and the app registers it for Chrome at every launch (desktop-shell-macos.yml); generate_connector_nsh.py
+# is Windows-only. Linux is not supported for browser capture: it builds with no connector.
+python app/desktop-shell/packaging/generate_connector_nsh.py   # connector/identity.json -> installer allowed_origins
+python app/desktop-shell/packaging/stage_connector.py          # builds + stages resources/connector/
+
 # 3. Confirm this platform's immutable runtime release already exists. Maintainers build/publish a
 # new runtime only when package_python_runtime.py derives a new ID; see
 # .github/workflows/desktop-python-runtime.yml.

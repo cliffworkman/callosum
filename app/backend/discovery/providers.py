@@ -31,7 +31,16 @@ class Item:
     journal: str | None = None
     year: int | None = None
     url: str | None = None
-    in_library: bool = False  # set by the search service (dedup vs the library)
+    # Set by the search service (dedup vs the library). ``in_library`` stays a bool for every existing
+    # consumer and is DERIVED from ``library_state`` — a candidate matching a trashed paper keeps
+    # ``in_library=True``, exactly as before identity resolution became live-only, so an unmigrated UI
+    # can never render a trashed paper as a novel candidate and invite a duplicate. A migrated surface
+    # reads ``library_state`` instead and can offer the honest "in Trash" affordance.
+    library_state: str = "absent"  # "absent" | "active" | "trashed"
+
+    @property
+    def in_library(self) -> bool:
+        return self.library_state != "absent"
 
     @property
     def dedup_key(self) -> str:
@@ -68,6 +77,7 @@ class Item:
             "year": self.year,
             "url": self.url,
             "in_library": self.in_library,
+            "library_state": self.library_state,
             "dedup_key": self.dedup_key,
         }
 

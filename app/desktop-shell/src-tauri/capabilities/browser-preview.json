@@ -1,0 +1,15 @@
+{
+  "identifier": "browser-preview",
+  "description": "Manual preview actions only in packaged main; exact origin additionally checked in Rust.",
+  "windows": [
+    "main"
+  ],
+  "remote": {
+    "urls": [
+      "http://127.0.0.1:*/*"
+    ]
+  },
+  "permissions": [
+    "allow-browser-preview"
+  ]
+}

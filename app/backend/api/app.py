@@ -13,6 +13,7 @@ from html import escape
 from pathlib import Path
 from threading import Lock
 
+from anyio import Lock as AsyncLock
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
@@ -20,6 +21,14 @@ from fastapi.responses import FileResponse, HTMLResponse
 from app.backend.api.access_control import AccessControlMiddleware
 from app.backend.api.auth.oidc import OidcClient, build_oidc_client_from_env
 from app.backend.api.auth.router import router as auth_router
+from app.backend.api.capture_startup import (
+    ensure_capture_pairing_ready as _ensure_capture_pairing_ready,
+)
+from app.backend.api.capture_startup import (
+    recover_provisional_captures as _recover_provisional_captures,
+)
+from app.backend.api.capture_updates import CaptureUpdates
+from app.backend.api.capture_updates import router as capture_updates_router
 from app.backend.api.frontend import FRONTEND_DIR, build_frontend_document, frontend_sources_available
 from app.backend.api.job_store import JobStore
 from app.backend.api.routers import (
@@ -30,6 +39,7 @@ from app.backend.api.routers import (
     annotations,
     axes,
     beyond_library_saved,
+    capture,
     citation_context,
     citation_counts,
     citation_equity,
@@ -55,6 +65,7 @@ from app.backend.api.routers import (
     grobid_docker,
     health,
     help,
+    import_queue,
     library,
     library_collections,
     library_enrich,
@@ -204,6 +215,8 @@ def create_app(
         # row yet -- back-fill it so their works flow into the Feed without the user re-following.
         with engine.begin() as conn:
             backfill_feed_subscriptions(conn)
+        _ensure_capture_pairing_ready()
+        _recover_provisional_captures(engine)
         try:
             yield
         finally:
@@ -217,6 +230,8 @@ def create_app(
 
     api = FastAPI(title="Callosum Local API", version="0.1.0", lifespan=lifespan)
     api.state.engine = engine
+    api.state.capture_updates = CaptureUpdates()
+    api.state.capture_work_lock = AsyncLock()  # Serialize capture mutations without blocking the event loop.
     api.state.db_url = resolved_db_url
     api.state.frontend_path = resolved_frontend_path
     api.state.summary_jobs = JobStore()
@@ -482,6 +497,7 @@ def create_app(
     api.include_router(saved_searches.router)
     api.include_router(reading_queue.router)  # /reading-queue/* — the to-read Queue tab (inc 219)
     api.include_router(library.router)
+    api.include_router(import_queue.router)  # /library/import-queue/* — provisional direct-PDF captures (#61)
     api.include_router(library_collections.router)  # imported reference-manager folders/groups -> ordinary axes
     api.include_router(library_zotero.router)  # /library/zotero/import — native Zotero library import (#57 Phase 1)
     api.include_router(wip.router)  # /wip/* — local-only unpublished manuscript workspaces
@@ -502,6 +518,9 @@ def create_app(
     api.include_router(usage.router)  # /usage/* — local usage instrumentation, zero egress (backlog #38A, inc 450)
     api.include_router(settings_providers.router)  # /settings/providers — unified custom-provider roster (inc 256)
     api.include_router(access.router)  # /access/recover — in-app recovery from a remote-access lockout (inc 254)
+    # /capture/* — bounded browser-capture intake, separately authorized, UI-instance only (#61 Phase 1)
+    api.include_router(capture.router)
+    api.include_router(capture_updates_router)
     api.include_router(status.router)  # /status/jobs — cross-feature async-job aggregator (inc 406)
     api.include_router(
         agent.router

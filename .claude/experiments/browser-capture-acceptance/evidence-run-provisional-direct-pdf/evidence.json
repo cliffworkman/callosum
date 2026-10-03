@@ -1,0 +1,157 @@
+{
+  "cases": [
+    {
+      "case": "B",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC1817752/pdf/pone.0000308.pdf",
+      "click_result": "RESULT:CLICKED_VIA_MENU via keyboard",
+      "click_log": "WINDOW_NAME:pone.0000308 1..5 - Profile 1 - Microsoft? Edge\nANCHORED_FOCUS_VIA_ADDRESS_BAR at 392,70\nTAB 0 -> 'Add this page to favorites (Ctrl+D)'\nTAB 1 -> 'Extensions'\nOPENED_EXT_MENU\nMENU_TAB 0 -> 'Callosum Capture (dev) Allowed only when clicked New Extension'\nRESULT:CLICKED_VIA_MENU via keyboard\n",
+      "extension_state_raw": "RESULT:{\"id\":2,\"result\":{\"result\":{\"type\":\"string\",\"value\":\"[\\\"Saved to your Callosum Import Queue for review \\u2014 identity couldn't be confirmed automatically.\\\",\\\"OK\\\"]\"}}}\nAdd-Type : Cannot add type. One or more required assemblies are missing.\nAt C:\\Users\\cliff\\Dropbox\\Dropbox\\01_Work\\callosum\\.claude\\worktrees\\browser-capture-research\\.claude\\experiments\\brows\ner-capture-acceptance\\read_extension_state.ps1:8 char:1\n+ Add-Type -AssemblyName System.Net.WebSockets.Client -ErrorAction Sile ...\n+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n    + CategoryInfo          : InvalidData: (:) [Add-Type], InvalidOperationException\n    + FullyQualifiedErrorId : ASSEMBLY_LOAD_ERRORS,Microsoft.PowerShell.Commands.AddTypeCommand\n \n",
+      "screenshot": "C:\\Users\\cliff\\Dropbox\\Dropbox\\01_Work\\callosum\\.claude\\worktrees\\browser-capture-research\\.claude\\experiments\\browser-capture-acceptance\\evidence-run-provisional-direct-pdf\\case_B_after_click.png",
+      "db_before": {
+        "total_papers": 0
+      },
+      "db_after": {
+        "total_papers": 0,
+        "provisional_artifacts": [
+          {
+            "id": "8ffd1b22d67c4f4ea803b0068e04cdad",
+            "content_hash": "b52ca44dfd09d240543b80315f0cd43fe9ba7946f2b5650d5580213ed5d9186c",
+            "pdf_path": "C:\\Users\\cliff\\Dropbox\\Dropbox\\01_Work\\callosum\\.claude\\worktrees\\browser-capture-research\\.local\\acceptance-disposable-library-provisional\\_Import Queue\\8ffd1b22d67c4f4ea803b0068e04cdad.pdf",
+            "identity_state": "unresolved",
+            "promotion_state": "pending_review",
+            "resolved_paper_id": null,
+            "evidence_json": "{\"schema_version\": 1, \"candidates\": [{\"doi\": \"10.1371/journal.pone.0000308\", \"page\": 1, \"position_class\": \"front_matter\", \"disposition\": \"observed\"}, {\"doi\": \"10.1371/journal.pone.0000308.t001\", \"page\": 2, \"position_class\": \"body\", \"disposition\": \"observed\"}, {\"doi\": \"10.1371/journal.pone.0000308.t002\", \"page\": 2, \"position_class\": \"body\", \"disposition\": \"observed\"}, {\"doi\": \"10.1371/journal.pone.0000308.g001\", \"page\": 2, \"position_class\": \"body\", \"disposition\": \"observed\"}, {\"doi\": \"10.1371/journal.pone.0000308.g002\", \"page\": 3, \"position_class\": \"body\", \"disposition\": \"observed\"}, {\"doi\": \"10.1371/journal.pone.0000308.t003\", \"page\": 3, \"position_class\": \"body\", \"disposition\": \"observed\"}], \"title_candidates\": [\"pone.0000308 1..5\"], \"resolutions\": [{\"resolver\": \"crossref\", \"doi\": \"10.1371/journal.pone.0000308\", \"resolved_title\": \"Sharing Detailed Research Data Is Associated with Increased Citation Rate\", \"title_similarity\": 0.0, \"disposition\": \"insufficient_corroboration\"}], \"decision\": \"queued\", \"decision_reason\": \"no uniquely strong front-matter DOI candidate\"}",
+            "provenance_sidecar_state": "ok",
+            "created_at": "2026-09-17 01:44:50",
+            "updated_at": "2026-09-17 01:44:52"
+          }
+        ],
+        "capture_events": [
+          {
+            "id": "619b601e0d974df7bbc64dde2ef120e6",
+            "artifact_id": "8ffd1b22d67c4f4ea803b0068e04cdad",
+            "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC1817752/pdf/pone.0000308.pdf",
+            "captured_at_client": "2026-09-17T01:44:50.265Z",
+            "received_at_server": "2026-09-17 01:44:50",
+            "original_filename": "pone.0000308.pdf",
+            "producer_kind": "direct-pdf",
+            "created_at": "2026-09-17 01:44:50"
+          }
+        ],
+        "import_queue_files": [
+          "8ffd1b22d67c4f4ea803b0068e04cdad.pdf"
+        ],
+        "provenance_sidecar_files": [
+          "8ffd1b22d67c4f4ea803b0068e04cdad.json"
+        ],
+        "canonical_capture_files": []
+      },
+      "notes": [
+        "backend.log /capture/item lines: ['INFO:     127.0.0.1:63220 - \"POST /capture/item HTTP/1.1\" 200 OK']",
+        "backend.log /capture/item/*/pdf lines (expected to be present now): ['INFO:     127.0.0.1:63220 - \"POST /capture/item/619b601e0d974df7bbc64dde2ef120e6/pdf HTTP/1.1\" 200 OK']"
+      ]
+    },
+    {
+      "case": "E",
+      "url": "http://127.0.0.1:65127/existing_real_identity.pdf",
+      "click_result": "RESULT:CLICKED_VIA_MENU via keyboard",
+      "click_log": "WINDOW_NAME:Finite element analysis of annuloplasty and papillary muscle relocation on a patient-specific mitral regurgitation model - Profile 1 - Microsoft? Edge\nANCHORED_FOCUS_VIA_ADDRESS_BAR at 392,70\nTAB 0 -> 'Add this page to favorites (Ctrl+D)'\nTAB 1 -> 'Extensions'\nOPENED_EXT_MENU\nMENU_TAB 0 -> 'Callosum Capture (dev) Allowed on this site New Extension'\nRESULT:CLICKED_VIA_MENU via keyboard\n",
+      "extension_state_raw": "RESULT:{\"id\":2,\"result\":{\"result\":{\"type\":\"string\",\"value\":\"[\\\"Saved to your Callosum Import Queue \\u2014 matched a paper, but couldn't attach automatically.\\\",\\\"OK\\\"]\"}}}\nAdd-Type : Cannot add type. One or more required assemblies are missing.\nAt C:\\Users\\cliff\\Dropbox\\Dropbox\\01_Work\\callosum\\.claude\\worktrees\\browser-capture-research\\.claude\\experiments\\brows\ner-capture-acceptance\\read_extension_state.ps1:8 char:1\n+ Add-Type -AssemblyName System.Net.WebSockets.Client -ErrorAction Sile ...\n+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n    + CategoryInfo          : InvalidData: (:) [Add-Type], InvalidOperationException\n    + FullyQualifiedErrorId : ASSEMBLY_LOAD_ERRORS,Microsoft.PowerShell.Commands.AddTypeCommand\n \n",
+      "screenshot": "C:\\Users\\cliff\\Dropbox\\Dropbox\\01_Work\\callosum\\.claude\\worktrees\\browser-capture-research\\.claude\\experiments\\browser-capture-acceptance\\evidence-run-provisional-direct-pdf\\case_E_after_click.png",
+      "db_before": {
+        "total_papers": 1,
+        "seeded_paper_id": 1
+      },
+      "db_after": {
+        "total_papers": 1,
+        "seeded_paper_row": {
+          "id": 1,
+          "title": "Finite element analysis of annuloplasty and papillary muscle relocation on a patient-specific mitral regurgitation model",
+          "abstract": null,
+          "year": null,
+          "doi": "10.1371/journal.pone.0198331",
+          "venue": null,
+          "item_type": null,
+          "language": null,
+          "publication_date": null,
+          "first_author_family_name": null,
+          "imported_source": "capture:browser",
+          "openalex_work_id": null,
+          "semantic_scholar_paper_id": null,
+          "zotero_library_id": null,
+          "zotero_item_key": null,
+          "citation_key": null,
+          "csl_json": "{}",
+          "processing_tier": "metadata-only",
+          "created_at": "2026-09-17T01:45:03.044536+00:00",
+          "updated_at": "2026-09-17T01:45:03.044536+00:00",
+          "deleted_at": null,
+          "read_at": null,
+          "priority": null,
+          "merged_into": null
+        },
+        "seeded_paper_attachment_count": 1,
+        "provisional_artifacts": [
+          {
+            "id": "8ffd1b22d67c4f4ea803b0068e04cdad",
+            "content_hash": "b52ca44dfd09d240543b80315f0cd43fe9ba7946f2b5650d5580213ed5d9186c",
+            "pdf_path": "C:\\Users\\cliff\\Dropbox\\Dropbox\\01_Work\\callosum\\.claude\\worktrees\\browser-capture-research\\.local\\acceptance-disposable-library-provisional\\_Import Queue\\8ffd1b22d67c4f4ea803b0068e04cdad.pdf",
+            "identity_state": "unresolved",
+            "promotion_state": "pending_review",
+            "resolved_paper_id": null,
+            "evidence_json": "{\"schema_version\": 1, \"candidates\": [{\"doi\": \"10.1371/journal.pone.0000308\", \"page\": 1, \"position_class\": \"front_matter\", \"disposition\": \"observed\"}, {\"doi\": \"10.1371/journal.pone.0000308.t001\", \"page\": 2, \"position_class\": \"body\", \"disposition\": \"observed\"}, {\"doi\": \"10.1371/journal.pone.0000308.t002\", \"page\": 2, \"position_class\": \"body\", \"disposition\": \"observed\"}, {\"doi\": \"10.1371/journal.pone.0000308.g001\", \"page\": 2, \"position_class\": \"body\", \"disposition\": \"observed\"}, {\"doi\": \"10.1371/journal.pone.0000308.g002\", \"page\": 3, \"position_class\": \"body\", \"disposition\": \"observed\"}, {\"doi\": \"10.1371/journal.pone.0000308.t003\", \"page\": 3, \"position_class\": \"body\", \"disposition\": \"observed\"}], \"title_candidates\": [\"pone.0000308 1..5\"], \"resolutions\": [{\"resolver\": \"crossref\", \"doi\": \"10.1371/journal.pone.0000308\", \"resolved_title\": \"Sharing Detailed Research Data Is Associated with Increased Citation Rate\", \"title_similarity\": 0.0, \"disposition\": \"insufficient_corroboration\"}], \"decision\": \"queued\", \"decision_reason\": \"no uniquely strong front-matter DOI candidate\"}",
+            "provenance_sidecar_state": "ok",
+            "created_at": "2026-09-17 01:44:50",
+            "updated_at": "2026-09-17 01:44:52"
+          },
+          {
+            "id": "2635272618e345b3bec5336c29fb1c28",
+            "content_hash": "3b7622891e6688b7a55b4a7004264a3f7d2b9a80246793da7da18789578498d1",
+            "pdf_path": "C:\\Users\\cliff\\Dropbox\\Dropbox\\01_Work\\callosum\\.claude\\worktrees\\browser-capture-research\\.local\\acceptance-disposable-library-provisional\\_Import Queue\\2635272618e345b3bec5336c29fb1c28.pdf",
+            "identity_state": "resolved",
+            "promotion_state": "attachment_conflict",
+            "resolved_paper_id": 1,
+            "evidence_json": "{\"schema_version\": 1, \"candidates\": [{\"doi\": \"10.1371/journal.pone.0198331\", \"page\": 1, \"position_class\": \"front_matter\", \"disposition\": \"observed\"}], \"title_candidates\": [\"Finite element analysis of annuloplasty and papillary muscle relocation on a patient-specific mitral regurgitation model\"], \"resolutions\": [{\"resolver\": \"crossref\", \"doi\": \"10.1371/journal.pone.0198331\", \"resolved_title\": \"Finite element analysis of annuloplasty and papillary muscle relocation on a patient-specific mitral regurgitation model\", \"title_similarity\": 1.0, \"disposition\": \"strong\"}], \"decision\": \"attachment_blocked\", \"decision_reason\": \"attachment_review_required\"}",
+            "provenance_sidecar_state": "ok",
+            "created_at": "2026-09-17 01:45:20",
+            "updated_at": "2026-09-17 01:45:20"
+          }
+        ],
+        "capture_events": [
+          {
+            "id": "619b601e0d974df7bbc64dde2ef120e6",
+            "artifact_id": "8ffd1b22d67c4f4ea803b0068e04cdad",
+            "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC1817752/pdf/pone.0000308.pdf",
+            "captured_at_client": "2026-09-17T01:44:50.265Z",
+            "received_at_server": "2026-09-17 01:44:50",
+            "original_filename": "pone.0000308.pdf",
+            "producer_kind": "direct-pdf",
+            "created_at": "2026-09-17 01:44:50"
+          },
+          {
+            "id": "8d773abeac2542a39fa8ce99428ed696",
+            "artifact_id": "2635272618e345b3bec5336c29fb1c28",
+            "source_url": "http://127.0.0.1:65127/existing_real_identity.pdf",
+            "captured_at_client": "2026-09-17T01:45:20.008Z",
+            "received_at_server": "2026-09-17 01:45:20",
+            "original_filename": "existing_real_identity.pdf",
+            "producer_kind": "direct-pdf",
+            "created_at": "2026-09-17 01:45:20"
+          }
+        ],
+        "import_queue_files": [
+          "2635272618e345b3bec5336c29fb1c28.pdf",
+          "8ffd1b22d67c4f4ea803b0068e04cdad.pdf"
+        ],
+        "provenance_sidecar_files": [
+          "2635272618e345b3bec5336c29fb1c28.json",
+          "8ffd1b22d67c4f4ea803b0068e04cdad.json"
+        ],
+        "canonical_capture_files": []
+      },
+      "notes": [
+        "backend.log /capture/item/*/pdf lines: ['INFO:     127.0.0.1:63220 - \"POST /capture/item/619b601e0d974df7bbc64dde2ef120e6/pdf HTTP/1.1\" 200 OK', 'INFO:     127.0.0.1:56862 - \"POST /capture/item/8d773abeac2542a39fa8ce99428ed696/pdf HTTP/1.1\" 200 OK']"
+      ]
+    }
+  ]
+}

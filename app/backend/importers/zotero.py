@@ -24,6 +24,7 @@ from app.backend.persistence.repository import (
     create_chunk,
     create_paper,
     find_existing_paper_by_identity,
+    find_trashed_identifier_holder,
 )
 from app.backend.persistence.schema import (
     annotations,
@@ -102,6 +103,11 @@ def import_zotero_library(
             year=canonical["year"],
             first_author_family_name=canonical["first_author_family_name"],
         )
+
+        if existing is None:
+            # A trashed paper still holds its UNIQUE Zotero key, so creating beside it would raise
+            # IntegrityError and abort the whole import. Match it instead — it is the same Zotero item.
+            existing = find_trashed_identifier_holder(conn, zotero_library_id=item.library_id, zotero_item_key=item.key)
 
         if existing is None:
             paper_id = create_paper(conn, **canonical)

@@ -89,6 +89,191 @@ def test_windows_update_replaces_source_but_preserves_legacy_runtime_for_migrati
     assert "$APPDATA" not in hook and "$LOCALAPPDATA" not in hook
 
 
+def test_connector_registration_guards_shortcut_and_registry_removal_on_update() -> None:
+    """The finding that justified this whole increment: Tauri's own updater invokes the OLD
+    version's uninstaller with /UPDATE (confirmed against the actual NSIS template bytes embedded
+    in @tauri-apps/cli-win32-x64-msvc, not assumed) before laying down new files. Without the same
+    guard the stock template uses for shortcuts, every auto-update would silently unregister the
+    browser-capture connector."""
+    hook = (ROOT / "app/desktop-shell/src-tauri/windows/installer-hooks.nsh").read_text(encoding="utf-8")
+    assert "!macro NSIS_HOOK_PREUNINSTALL" in hook
+    assert "${If} $UpdateMode <> 1" in hook
+    # Ownership is exact-path equality, not "starts with $INSTDIR" (steering point 5).
+    assert "${If} $8 == $9" in hook
+    assert hook.count("${If} $8 == $9") == 2  # once per browser (Chrome, Edge)
+
+
+def test_connector_registration_never_touches_a_third_party_manifest_by_construction() -> None:
+    """The uninstall hook only ever DeleteRegKey's after confirming the stored value still points at
+    THIS install's own manifest path -- a third-party NativeMessagingHosts sibling registered under
+    a different name is never read, written, or matched by this comparison."""
+    hook = (ROOT / "app/desktop-shell/src-tauri/windows/installer-hooks.nsh").read_text(encoding="utf-8")
+    assert 'StrCpy $9 "$INSTDIR\\connector\\${CONNECTOR_NATIVE_HOST_NAME}.json"' in hook
+    assert hook.count("DeleteRegKey HKCU") == 2
+
+
+TAURI_DIR = ROOT / "app/desktop-shell/src-tauri"
+COMMON_SOURCE_RESOURCE = {"../resources/callosum-src": "callosum-src"}
+CONNECTOR_RESOURCE = {"../resources/connector": "connector"}
+MACOS_CONNECTOR_SIDECAR = ["binaries/callosum-connector"]
+
+
+def _merge_patch(target: object, patch: object) -> object:
+    """RFC 7396 JSON Merge Patch -- how Tauri applies a platform config (`tauri.<os>.conf.json`) over the base config:
+    objects merge key-by-key, arrays and scalars replace, null deletes."""
+    if not isinstance(patch, dict):
+        return patch
+    result = dict(target) if isinstance(target, dict) else {}
+    for key, value in patch.items():
+        if value is None:
+            result.pop(key, None)
+        else:
+            result[key] = _merge_patch(result.get(key), value)
+    return result
+
+
+def _effective_tauri_config(platform: str) -> dict:
+    """The config Tauri actually builds with on `platform` (windows / macos / linux): base + that platform's override."""
+    merged = json.loads((TAURI_DIR / "tauri.conf.json").read_text(encoding="utf-8"))
+    override = TAURI_DIR / f"tauri.{platform}.conf.json"
+    if override.is_file():
+        merged = _merge_patch(merged, json.loads(override.read_text(encoding="utf-8")))
+    assert isinstance(merged, dict)
+    return merged
+
+
+def test_shared_tauri_config_bundles_only_the_common_source_tree() -> None:
+    """The connector is platform-owned. A connector declared in the SHARED config makes every platform's cargo build
+    fail on `resource path ../resources/connector doesn't exist` unless that platform also stages it (found by the
+    first GitHub run of PR #103: Linux and both macOS jobs failed exactly this way while main had passed)."""
+    base = json.loads((TAURI_DIR / "tauri.conf.json").read_text(encoding="utf-8"))["bundle"]
+    assert base["resources"] == COMMON_SOURCE_RESOURCE
+    assert "externalBin" not in base
+
+
+def test_connector_ownership_is_per_platform_in_the_effective_tauri_config() -> None:
+    windows = _effective_tauri_config("windows")["bundle"]
+    macos = _effective_tauri_config("macos")["bundle"]
+    linux = _effective_tauri_config("linux")["bundle"]
+
+    # Windows: the connector is a bundle RESOURCE (NSIS installs it under $INSTDIR\connector), source tree still common.
+    assert windows["resources"] == {**COMMON_SOURCE_RESOURCE, **CONNECTOR_RESOURCE}
+    assert "externalBin" not in windows
+
+    # macOS: the connector is EXECUTABLE CODE -> an external-binary sidecar, never a Contents/Resources resource.
+    assert macos["resources"] == COMMON_SOURCE_RESOURCE
+    assert not any("connector" in source for source in macos["resources"])
+    assert macos["externalBin"] == MACOS_CONNECTOR_SIDECAR
+
+    # Linux: browser capture is unsupported for now; the shell must still build without any connector.
+    assert linux["resources"] == COMMON_SOURCE_RESOURCE
+    assert "externalBin" not in linux
+
+
+def test_connector_resource_ships_in_its_own_subdirectory_not_the_install_root() -> None:
+    """A resource named callosum-connector.exe placed directly under $INSTDIR would collide with
+    cargo's own target/release/ output of the same name and churn fingerprints -- shipping it in a
+    connector/ subdirectory avoids that regardless of naming. (Windows only: see the per-platform test above.)"""
+    resources = _effective_tauri_config("windows")["bundle"]["resources"]
+    assert resources["../resources/connector"] == "connector"
+
+
+def test_macos_connector_staging_follows_tauris_target_triple_sidecar_convention() -> None:
+    spec = importlib.util.spec_from_file_location(
+        "callosum_stage_connector", ROOT / "app/desktop-shell/packaging/stage_connector.py"
+    )
+    assert spec is not None and spec.loader is not None
+    stage = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(stage)
+
+    arm = stage.staged_target("darwin", "aarch64-apple-darwin")
+    intel = stage.staged_target("darwin", "x86_64-apple-darwin")
+    assert arm == TAURI_DIR / "binaries" / "callosum-connector-aarch64-apple-darwin"
+    assert intel == TAURI_DIR / "binaries" / "callosum-connector-x86_64-apple-darwin"
+    # ...and it is NOT staged into the resource tree Tauri copies verbatim into Contents/Resources.
+    assert "resources" not in arm.parts
+    assert stage.staged_target("win32", None) == ROOT / "app/desktop-shell/resources/connector/callosum-connector.exe"
+    with pytest.raises(ValueError):
+        stage.staged_target("darwin", None)  # Tauri requires the triple suffix
+    with pytest.raises(ValueError):
+        stage.staged_target("linux", "x86_64-unknown-linux-gnu")  # Linux stages no connector
+
+
+def test_preinstall_hook_clears_the_stale_connector_resource_like_callosum_src() -> None:
+    hook = (ROOT / "app/desktop-shell/src-tauri/windows/installer-hooks.nsh").read_text(encoding="utf-8")
+    assert 'RMDir /r "$INSTDIR\\connector"' in hook
+
+
+def test_windows_ci_verifies_connector_registration_and_uninstall_ownership() -> None:
+    """Steering points 4/5: beyond 'the registry key exists', CI asserts the manifest is exact and
+    parses, exercises the REAL /UPDATE argv Tauri's own bundler constructs (not a guess), and proves
+    a pre-seeded third-party NativeMessagingHosts sibling survives both uninstall paths untouched."""
+    workflow = (ROOT / ".github/workflows/desktop-shell-windows.yml").read_text(encoding="utf-8")
+    assert "generate_connector_nsh.py" in workflow
+    assert "stage_connector.py" in workflow
+    assert "NativeMessagingHosts\\org.callosum.connector" in workflow
+    assert '"/S", "/UPDATE", "_?=$installDir"' in workflow
+    assert '"/S", "_?=$installDir"' in workflow
+    assert "com.example.thirdparty" in workflow
+    assert "allowed_origins" in workflow
+
+
+def test_macos_ci_packages_registers_and_probes_the_connector_as_nested_code() -> None:
+    """Browser capture reaches macOS (#61: the first concrete user is on a Mac), so the macOS workflow must prove the
+    connector is packaged as executable nested code and that the registration + host protocol work against the INSTALLED
+    app -- on both architectures, before any browser click-through on real hardware."""
+    workflow = (ROOT / ".github/workflows/desktop-shell-macos.yml").read_text(encoding="utf-8")
+    # Staged natively per architecture BEFORE any cargo step that makes Tauri validate the sidecar path.
+    stage = workflow.index("stage_connector.py")
+    assert stage < workflow.index("cargo test live_pinned_preview_installs_and_runs_three_generation_contracts")
+    assert stage < workflow.index("npx tauri build")
+    assert "lipo -archs" in workflow
+    assert "cargo test --release --manifest-path app/desktop-shell/connector-host/Cargo.toml" in workflow
+    assert "cargo test --lib connector_registration" in workflow
+    # Nested code, not a resource: located by observation, never under Contents/Resources, and codesign-verified.
+    assert "find \"$INSTALLED\" -name 'callosum-connector*'" in workflow
+    assert "must NOT be under Contents/Resources" in workflow
+    assert 'codesign --verify --deep --strict --verbose=2 "$INSTALLED"' in workflow
+    assert 'codesign --verify --strict --verbose=2 "$CONNECTOR"' in workflow
+    # Registration evidence: exact manifest from identity.json, absolute installed path, no translocated/DMG path.
+    assert "NativeMessagingHosts/org.callosum.connector.json" in workflow
+    assert 'manifest["allowed_origins"] == expected_origins' in workflow
+    assert "AppTranslocation" in workflow and "/Volumes/" in workflow
+    # Direct-host probes use the explicit DEV mechanism (production_extension_ids is still empty) with explicit expectations.
+    assert "CALLOSUM_CONNECTOR_ALLOW_DEV_BUILD" in workflow
+    assert '"callosum_closed"' in workflow and '"available"' in workflow
+    # The host's reply carries a short-lived session_token. The workflow proves "issued a non-empty token" through the redacting
+    # probe script and never prints, tees or uploads a raw reply (behaviour is proven in tests/test_connector_probe.py).
+    assert "app/desktop-shell/packaging/connector_probe.py" in workflow
+    assert 'r.get("session_token_present") is True' in workflow
+    assert 'r.get("session_token_present") is False' in workflow
+    assert "capture_output=True" not in workflow, "no inline probe may capture and print the raw reply"
+    assert not [
+        line
+        for line in workflow.splitlines()
+        if "session_token" in line and "session_token_present" not in line and not line.strip().startswith("#")
+    ], "the workflow must not otherwise handle the raw session token"
+
+
+def test_the_connector_ci_job_declares_only_read_only_contents_permission() -> None:
+    """CodeQL (`actions/missing-workflow-permissions`) found the new job without an explicit token scope. It only checks
+    out the repository and runs tests, so the narrowest grant -- `contents: read`, no write scope -- is the whole fix."""
+    import re
+
+    text = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    job = re.search(r"^  connector-and-extension:\n(.*?)(?=^  [A-Za-z0-9_-]+:\n|\Z)", text, re.S | re.M)
+    assert job is not None
+    block = job.group(1)
+    assert re.search(r"^    permissions:\n      contents: read\n", block, re.M)
+    assert not re.search(r":\s*write", block), "a permission value of write would exceed the narrowest grant"
+
+
+def test_linux_workflow_stages_no_connector_but_must_still_build() -> None:
+    workflow = (ROOT / ".github/workflows/desktop-shell-linux.yml").read_text(encoding="utf-8")
+    assert "stage_connector" not in workflow
+    assert "resources/connector" not in workflow
+
+
 def test_python_runtime_is_not_a_tauri_bundle_resource() -> None:
     config = json.loads((ROOT / "app/desktop-shell/src-tauri/tauri.conf.json").read_text(encoding="utf-8"))
     resources = config["bundle"]["resources"]

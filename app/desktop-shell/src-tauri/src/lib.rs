@@ -1,10 +1,17 @@
 mod backend;
+mod browser_preview;
+mod browser_preview_files;
+#[path = "../../connector/preview_state.rs"]
+mod preview_state;
+mod connector_registration;
 mod external;
 mod managed_local_ai;
 mod python_runtime;
 mod quick_tunnel;
 mod startup;
 mod updater;
+#[cfg(windows)]
+mod windows_connector_path;
 
 use backend::{
     kill_backend, kill_word_https, resolved_paths, spawn_backend, spawn_word_https,
@@ -311,6 +318,7 @@ pub fn run() {
         .manage(UpdateState::default())
         .manage(startup::StartupState::default())
         .invoke_handler(tauri::generate_handler![
+            browser_preview::browser_preview,
             retry_backend,
             start_word_https_companion,
             stop_word_https_companion,
@@ -345,6 +353,15 @@ pub fn run() {
                     );
                 }
             });
+            // macOS has no installer hook: register (or repair) the per-user Chrome/Edge native-messaging host manifest on
+            // every launch of the installed app. Non-fatal -- browser capture is optional and a failure is only recorded.
+            #[cfg(target_os = "macos")]
+            {
+                match app.path().app_data_dir() {
+                    Ok(dir) => connector_registration::register_on_startup(&dir),
+                    Err(error) => eprintln!("Browser connector registration skipped: no app data dir: {error}"),
+                }
+            }
             let handle2 = app.handle().clone();
             tauri::async_runtime::spawn(updater::run_periodic_check(handle2));
             Ok(())

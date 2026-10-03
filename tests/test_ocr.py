@@ -15,7 +15,7 @@ from app.backend.pdf_processing.ocr import make_searchable_pdf
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES
 from app.backend.persistence.repository import get_attachments_for_paper, get_chunks_for_paper
-from tests.api_helpers import ApiFakeEmbeddingModel, InMemoryVectorStore
+from tests.api_helpers import ApiFakeEmbeddingModel, InMemoryVectorStore, indexing_collaborators
 
 OCR_TEXT = "ultimatum game bargaining behaviour"
 
@@ -113,7 +113,7 @@ def _seed_scanned_paper(temp_db_url, tmp_path) -> int:
     _image_only_pdf(src)
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:
-        result = ingest_pdf_scaffold(conn, src, title="Scanned paper")
+        result = ingest_pdf_scaffold(conn, src, title="Scanned paper", **indexing_collaborators())
         paper_id = int(result["paper_id"])
         assert not get_chunks_for_paper(
             conn, paper_id, document_roles=ARTICLE_DOCUMENT_ROLES
@@ -175,7 +175,7 @@ def test_ocr_endpoint_404_and_422(temp_db_url, tmp_path, monkeypatch):
     seed.write_bytes(_text_pdf_bytes("already has text"))
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:
-        with_text = int(ingest_pdf_scaffold(conn, seed, title="Has text")["paper_id"])
+        with_text = int(ingest_pdf_scaffold(conn, seed, title="Has text", **indexing_collaborators())["paper_id"])
         assert get_chunks_for_paper(conn, with_text, document_roles=ARTICLE_DOCUMENT_ROLES)  # it has chunks
     engine.dispose()
     assert client.post("/papers/ocr/run", json={"paper_id": with_text}).status_code == 422

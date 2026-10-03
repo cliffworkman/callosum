@@ -169,8 +169,24 @@ def find_existing_paper_by_identity(
     title: str | None = None,
     year: int | None = None,
     first_author_family_name: str | None = None,
+    include_trashed: bool = False,
 ) -> tuple[str, RowMapping] | None:
-    """Return the first matching paper using the documented identity precedence."""
+    """Return the first matching **live** paper using the documented identity precedence.
+
+    Trashed papers are excluded by default: a soft-deleted row is not in the Library, so resolving an
+    import onto it silently suppressed the add (the caller saw "already have it" and created nothing,
+    while ``wanted_repo.list_open`` was separately skipping the trashed paper — leaving that work
+    unreachable by either route).
+
+    ``include_trashed=True`` is the explicit opt-in for the callers that genuinely need to *see* a
+    trashed row rather than write to it. It matters because soft-delete keeps the row, so the UNIQUE
+    constraints on ``openalex_work_id`` / ``semantic_scholar_paper_id`` / the Zotero key are still
+    live (the same collision ``paper_merge`` nulls husk identifiers to avoid): a caller that reads
+    "no live match" as "safe to create" gets an IntegrityError. Callers that create should check for
+    a trashed holder and report it, never silently write to it or collide with it.
+
+    The returned row carries ``deleted_at``, so an opted-in caller can always tell the two apart.
+    """
     normalized_doi = _normalize_doi(doi)
     lookups = [
         ("doi", papers.c.doi == normalized_doi if normalized_doi else None),
@@ -200,10 +216,81 @@ def find_existing_paper_by_identity(
         ),
     ]
 
+    live = papers.c.deleted_at.is_(None)
     for reason, predicate in lookups:
         if predicate is None:
             continue
-        row = conn.execute(select(papers).where(predicate).limit(1)).mappings().first()
+        scoped = predicate if include_trashed else and_(predicate, live)
+        row = conn.execute(select(papers).where(scoped).limit(1)).mappings().first()
+        if row is not None:
+            return reason, row
+    return None
+
+
+def resolve_library_state(conn: Connection, **identity: Any) -> tuple[str, RowMapping | None]:
+    """``("absent" | "active" | "trashed", row_or_None)`` for a *candidate* shown to the user.
+
+    The read-side counterpart to ``find_existing_paper_by_identity``. Suggestion surfaces
+    (discovery, gaps, overlooked, citation-equity, beyond-library) ask "do I already know this
+    work?", which is a different question from the write side's "may I resolve onto this row?" —
+    a trashed paper answers *yes* to the first and *no* to the second.
+
+    Keeping that distinction is what lets identity resolution become live-only without a candidate
+    the user deliberately trashed silently reappearing as a novel discovery. Callers derive the
+    legacy ``in_library`` boolean as ``state != "absent"`` so unmigrated consumers are unchanged,
+    and a migrated surface can distinguish "active" from "trashed" and offer restore instead of add.
+    """
+    match = find_existing_paper_by_identity(conn, **identity, include_trashed=True)
+    if match is None:
+        return "absent", None
+    row = match[1]
+    return ("trashed" if row["deleted_at"] is not None else "active"), row
+
+
+def find_trashed_identifier_holder(
+    conn: Connection,
+    *,
+    openalex_work_id: str | None = None,
+    semantic_scholar_paper_id: str | None = None,
+    zotero_library_id: str | None = None,
+    zotero_item_key: str | None = None,
+) -> tuple[str, RowMapping] | None:
+    """A **trashed** paper already holding one of the UNIQUE identifier columns a create would claim.
+
+    Soft-delete keeps the row, so ``uq_papers_openalex_work_id`` / ``uq_papers_semantic_scholar_paper_id``
+    / ``uq_papers_zotero_identity`` still bind against papers in the Trash — the same collision
+    ``paper_merge`` avoids by nulling a husk's identifier columns before the survivor adopts them.
+
+    Since ``find_existing_paper_by_identity`` no longer returns trashed rows, a path that creates a
+    paper carrying any of these identifiers must check here first, or it raises ``IntegrityError``
+    (an uncaught 500 on the Zotero resolve/import paths). The honest outcome is to surface the
+    trashed paper — it *is* the same work — never to silently write to it or duplicate it.
+
+    Deliberately narrow: DOI and title/year/author are **not** consulted, because neither is UNIQUE
+    (``papers.doi`` intentionally so, migration ``0040``) and so neither can block a create. Widening
+    it would quietly restore the silent-suppression bug this check exists to avoid.
+    """
+    trashed = papers.c.deleted_at.is_not(None)
+    lookups = [
+        ("openalex_work_id", papers.c.openalex_work_id == openalex_work_id if openalex_work_id else None),
+        (
+            "semantic_scholar_paper_id",
+            papers.c.semantic_scholar_paper_id == semantic_scholar_paper_id if semantic_scholar_paper_id else None,
+        ),
+        (
+            "zotero_key",
+            and_(
+                papers.c.zotero_library_id == zotero_library_id,
+                papers.c.zotero_item_key == zotero_item_key,
+            )
+            if zotero_library_id and zotero_item_key
+            else None,
+        ),
+    ]
+    for reason, predicate in lookups:
+        if predicate is None:
+            continue
+        row = conn.execute(select(papers).where(and_(predicate, trashed)).limit(1)).mappings().first()
         if row is not None:
             return reason, row
     return None

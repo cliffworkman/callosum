@@ -18,8 +18,10 @@ from sqlalchemy.exc import NoResultFound
 
 from app.backend import app_settings
 from app.backend.api.dependencies import get_connection, get_engine
+from app.backend.api.routers.library import _embedding_model, _vector_store
 from app.backend.clustering.axis_assignments import add_manual_assignment, remove_assignment
 from app.backend.clustering.my_publications import MY_PUBLICATIONS_KIND
+from app.backend.embeddings.admission import ensure_paper_indexed
 from app.backend.metadata.doi_add import add_paper_by_doi
 from app.backend.metadata.enrichment import AI_AGENT_SOURCE, AI_AGENT_TAG_SOURCE
 from app.backend.persistence.agent_repo import (
@@ -132,6 +134,13 @@ def agent_save_reference(body: RefBody, request: Request, conn: Connection = Dep
         tool="save_reference",
     )
     conn.commit()
+    if created:
+        ensure_paper_indexed(
+            request.app.state.engine,
+            result.paper_id,
+            model=_embedding_model(request.app),
+            vector_store=_vector_store(request.app),
+        )
     return {"write_id": write_id, "paper_id": result.paper_id, "created": created}
 
 

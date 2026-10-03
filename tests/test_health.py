@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import logging
 import re
 from pathlib import Path
 
+import pytest
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 
@@ -105,6 +107,118 @@ def test_health_app_version_falls_back_to_a_dev_git_identifier_outside_the_shell
     version = TestClient(create_app(db_url=temp_db_url)).get("/health").json()["app_version"]
     assert version is not None
     assert re.fullmatch(r"dev-[0-9a-f]+\+?", version), version
+
+
+# ---- instance role: which backend process this is (browser-capture prerequisite, #61) ----------------------
+#
+# The desktop shell spawns several children that all serve THIS SAME FastAPI app, so port and version
+# cannot tell them apart -- and the Word HTTPS companion deliberately runs with the Remote Access gate
+# disabled. A future connector host must identify the canonical UI backend, not whichever sibling answers.
+
+
+@pytest.mark.parametrize("role", ["ui", "word-https", "tunnel-target"])
+def test_health_reports_the_role_its_launcher_declared(temp_db_url: str, monkeypatch, role: str) -> None:
+    monkeypatch.setenv("CALLOSUM_INSTANCE_ROLE", role)
+    assert TestClient(create_app(db_url=temp_db_url)).get("/health").json()["instance_role"] == role
+
+
+def test_health_sibling_roles_stay_distinguishable_on_the_same_app(temp_db_url: str, monkeypatch) -> None:
+    """The point of the whole contract: same FastAPI app, same version -- still tellable apart."""
+    seen = {}
+    for role in ("ui", "word-https", "tunnel-target"):
+        monkeypatch.setenv("CALLOSUM_INSTANCE_ROLE", role)
+        monkeypatch.setenv("CALLOSUM_APP_VERSION", "0.5.15")  # identical build identity across siblings
+        body = TestClient(create_app(db_url=temp_db_url)).get("/health").json()
+        seen[role] = (body["instance_role"], body["app_version"])
+
+    assert len({value[0] for value in seen.values()}) == 3, "roles must be pairwise distinct"
+    assert len({value[1] for value in seen.values()}) == 1, "...even though app_version is identical"
+
+
+def test_health_reports_no_role_when_no_launcher_declared_one(temp_db_url: str, monkeypatch) -> None:
+    """A bare uvicorn, an older packaged build, or a launcher that forgets: null, never a real role."""
+    monkeypatch.delenv("CALLOSUM_INSTANCE_ROLE", raising=False)
+    assert TestClient(create_app(db_url=temp_db_url)).get("/health").json()["instance_role"] is None
+
+
+@pytest.mark.parametrize("raw", ["", "   ", "UI", "word_https", "canonical", "ui-backend"])
+def test_health_rejects_an_out_of_vocabulary_role(temp_db_url: str, monkeypatch, raw: str) -> None:
+    """Unrecognized -> null, not a guess. Note "UI" and "word_https" are rejected: the vocabulary is exact."""
+    from app.backend.api.routers import health as health_module
+
+    health_module._warn_invalid_instance_role_once.cache_clear()
+    monkeypatch.setenv("CALLOSUM_INSTANCE_ROLE", raw)
+    assert TestClient(create_app(db_url=temp_db_url)).get("/health").json()["instance_role"] is None
+
+
+def test_health_missing_role_is_never_equivalent_to_the_ui_backend(temp_db_url: str, monkeypatch) -> None:
+    """The fail-safe, stated as its own assertion: absence must not pass for the canonical UI instance.
+
+    A connector requires a specific role explicitly, so an undeclared or misconfigured process can never
+    be mistaken for the one backend permitted to receive browser capture.
+    """
+    from app.backend.api.routers import health as health_module
+
+    health_module._warn_invalid_instance_role_once.cache_clear()
+    for setup in (
+        lambda: monkeypatch.delenv("CALLOSUM_INSTANCE_ROLE", raising=False),
+        lambda: monkeypatch.setenv("CALLOSUM_INSTANCE_ROLE", "not-a-real-role"),
+    ):
+        setup()
+        role = TestClient(create_app(db_url=temp_db_url)).get("/health").json()["instance_role"]
+        assert role is None
+        assert role != "ui"
+
+
+def test_health_warns_once_per_process_for_an_invalid_role(temp_db_url: str, monkeypatch, caplog) -> None:
+    """A connector may poll /health often; a bad env var must not flood the log on every request."""
+    from app.backend.api.routers import health as health_module
+
+    health_module._warn_invalid_instance_role_once.cache_clear()
+    monkeypatch.setenv("CALLOSUM_INSTANCE_ROLE", "bogus-role")
+    client = TestClient(create_app(db_url=temp_db_url))
+    with caplog.at_level(logging.WARNING, logger=health_module.__name__):
+        for _ in range(5):
+            assert client.get("/health").json()["instance_role"] is None
+
+    warnings = [record for record in caplog.records if "bogus-role" in record.getMessage()]
+    assert len(warnings) == 1, f"expected exactly one warning, got {len(warnings)}"
+
+
+def test_health_role_is_independent_of_build_identity(temp_db_url: str, monkeypatch) -> None:
+    """Role is PROCESS identity; app_version is BUILD identity. "ui" means the same in dev and packaged.
+
+    Composing them into an eligibility rule belongs to the consumer: a production connector requires this
+    role AND an approved packaged identity, while a development connector may accept this role with a dev
+    identity. The backend reports both facts and enforces neither.
+    """
+    from app.backend.api.routers import health as health_module
+
+    health_module._dev_git_version.cache_clear()
+    monkeypatch.setenv("CALLOSUM_INSTANCE_ROLE", "ui")
+
+    monkeypatch.setenv("CALLOSUM_APP_VERSION", "0.5.15")
+    packaged = TestClient(create_app(db_url=temp_db_url)).get("/health").json()
+
+    monkeypatch.delenv("CALLOSUM_APP_VERSION", raising=False)
+    health_module._dev_git_version.cache_clear()
+    dev = TestClient(create_app(db_url=temp_db_url)).get("/health").json()
+
+    assert packaged["instance_role"] == dev["instance_role"] == "ui"  # role unchanged by build identity
+    assert packaged["app_version"] == "0.5.15"
+    assert dev["app_version"].startswith("dev-")  # the separate axis a consumer composes with
+
+
+def test_health_role_does_not_disturb_existing_fields(temp_db_url: str, monkeypatch) -> None:
+    monkeypatch.setenv("CALLOSUM_INSTANCE_ROLE", "ui")
+    body = TestClient(create_app(db_url=temp_db_url)).get("/health").json()
+
+    assert body["app"] == "callosum"
+    assert body["db_reachable"] is True
+    assert body["db_migrated"] is True
+    assert body["db_revision"] == HEAD
+    assert body["read_only"] is False
+    assert "onboarding_completed" in body and "onboarding_version" in body
 
 
 def test_health_app_version_dev_fallback_is_none_when_git_is_unavailable(temp_db_url: str, monkeypatch) -> None:

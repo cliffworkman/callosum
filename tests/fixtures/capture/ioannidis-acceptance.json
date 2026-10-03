@@ -1,0 +1,54 @@
+{
+  "source_commit": "c7a7c10b16e01e587c5b69e0d3212987bae106ad",
+  "artifact_id": "385d21d3095f46c4a126cf973216ee34",
+  "pdf_sha256": "ffc1005680cb620eec4c913437dfabbf311b535cfe16cbaeb2faec1f92afc362",
+  "evidence": {
+    "schema_version": 1,
+    "candidates": [
+      {
+        "doi": "10.1371/journal.pmed.0020124",
+        "page": 1,
+        "position_class": "body",
+        "disposition": "observed"
+      },
+      {
+        "doi": "10.1371/journal.pmed.0020124.t001",
+        "page": 2,
+        "position_class": "body",
+        "disposition": "observed"
+      },
+      {
+        "doi": "10.1371/journal.pmed.0020124.t002",
+        "page": 2,
+        "position_class": "body",
+        "disposition": "observed"
+      },
+      {
+        "doi": "10.1371/journal.pmed.0020124.g001",
+        "page": 3,
+        "position_class": "body",
+        "disposition": "observed"
+      },
+      {
+        "doi": "10.1371/journal.pmed.0020124.t003",
+        "page": 3,
+        "position_class": "body",
+        "disposition": "observed"
+      }
+    ],
+    "title_candidates": [
+      "PLME0208_696-701.indd"
+    ],
+    "resolutions": [],
+    "decision": "promoted",
+    "decision_reason": "user-confirmed candidate: 10.1371/journal.pmed.0020124",
+    "user_actions": [
+      {
+        "action": "user_entered_doi",
+        "doi": "10.1371/journal.pmed.0020124",
+        "disposition": "pending_admission",
+        "at": "2026-09-24T22:54:36.707717+00:00"
+      }
+    ]
+  }
+}

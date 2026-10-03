@@ -7,11 +7,12 @@
     "pyproject.toml",
     "uv.lock",
     "app/desktop-shell/packaging/smoke_test_backend.py",
+    "app/desktop-shell/packaging/check_macos_runtime_linkage.py",
     "app/desktop-shell/packaging/package_python_runtime.py"
   ],
   "platforms": {
     "windows-x86_64": {
-      "runtime_id": "win-x86_64-py3.11-s1-962dfec5237a5e93",
+      "runtime_id": "win-x86_64-py3.11-s1-2094b5a287a1dd54",
       "os": "windows",
       "arch": "x86_64",
       "python_version": "3.11.15",
@@ -23,7 +24,7 @@
       "dependency_recipe": "cpu-torch-2.13.0-then-frozen-uv-export-without-dependency-resolution"
     },
     "macos-aarch64": {
-      "runtime_id": "macos-aarch64-py3.11-s1-c382a287dade03b9",
+      "runtime_id": "macos-aarch64-py3.11-s1-1e588472d8125324",
       "os": "macos",
       "arch": "aarch64",
       "python_version": "3.11.15",
@@ -35,7 +36,7 @@
       "dependency_recipe": "cpu-torch-2.13.0-then-frozen-uv-export-without-dependency-resolution"
     },
     "macos-x86_64": {
-      "runtime_id": "macos-x86_64-py3.11-s1-6d36a5056fd72fbd",
+      "runtime_id": "macos-x86_64-py3.11-s1-bb4609aaf91bc315",
       "os": "macos",
       "arch": "x86_64",
       "python_version": "3.11.15",
@@ -47,7 +48,7 @@
       "dependency_recipe": "numpy-1x-and-cpu-torch-2.2.2-then-frozen-uv-export-without-dependency-resolution"
     },
     "linux-x86_64": {
-      "runtime_id": "linux-x86_64-py3.11-s1-fac12cb5788842a3",
+      "runtime_id": "linux-x86_64-py3.11-s1-3f1825380a8001da",
       "os": "linux",
       "arch": "x86_64",
       "python_version": "3.11.15",

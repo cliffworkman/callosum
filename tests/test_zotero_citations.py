@@ -6,6 +6,7 @@ from sqlalchemy import select
 from app.backend.api.app import create_app
 from app.backend.importers.zotero import normalize_zotero_csl_item
 from app.backend.persistence.database import make_engine
+from app.backend.persistence.paper_lifecycle_repo import soft_delete_paper
 from app.backend.persistence.repository import create_paper
 from app.backend.persistence.schema import papers
 
@@ -115,6 +116,45 @@ def test_resolve_matches_existing_paper_by_zotero_key_from_uri(temp_db_url):
     result = resp.json()
     assert result[0]["paper_id"] == paper_id
     assert result[0]["created"] is False
+
+
+def test_resolve_does_not_500_when_a_trashed_paper_holds_the_zotero_key(temp_db_url):
+    """Trashed papers stopped being identity matches; the UNIQUE Zotero key they still hold must not 500.
+
+    Soft-delete keeps the row, so ``uq_papers_zotero_identity`` is still live. Resolving a citation
+    whose key belongs to a trashed paper must produce an intelligible outcome, never an uncaught
+    IntegrityError from ``create_paper``.
+    """
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        trashed_id = create_paper(
+            conn,
+            title="Trashed Keyed Paper",
+            csl_json={"title": "Trashed Keyed Paper"},
+            zotero_library_id="123",
+            zotero_item_key="TRASHED1",
+        )
+        soft_delete_paper(conn, trashed_id)
+    engine.dispose()
+
+    client = TestClient(create_app(db_url=temp_db_url))
+    resp = client.post(
+        "/citations/zotero/resolve",
+        json={
+            "items": [
+                {
+                    "item_data": {"title": "Trashed Keyed Paper"},
+                    "uris": ["http://zotero.org/users/123/items/TRASHED1"],
+                }
+            ]
+        },
+    )
+
+    assert resp.status_code != 500, "a trashed paper holding the UNIQUE key must not crash the resolve"
+    assert resp.status_code == 200
+    # The trashed paper is surfaced rather than duplicated or silently written to.
+    assert resp.json()[0]["paper_id"] == trashed_id
+    assert resp.json()[0]["created"] is False
 
 
 def test_resolve_matches_existing_paper_by_title_year_author(temp_db_url):

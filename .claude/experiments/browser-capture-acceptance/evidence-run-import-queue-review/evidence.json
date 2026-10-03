@@ -1,0 +1,107 @@
+{
+  "cases": [
+    {
+      "case": "R1",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC1817752/pdf/pone.0000308.pdf",
+      "click_result": "RESULT:CLICKED_VIA_MENU via keyboard",
+      "click_log": "WINDOW_NAME:pone.0000308 1..5 - Profile 1 - Microsoft? Edge\nANCHORED_FOCUS_VIA_ADDRESS_BAR at 392,70\nTAB 0 -> 'Add this page to favorites (Ctrl+D)'\nTAB 1 -> 'Extensions'\nOPENED_EXT_MENU\nMENU_TAB 0 -> 'Callosum Capture (dev) Allowed only when clicked New Extension'\nRESULT:CLICKED_VIA_MENU via keyboard\n",
+      "extension_state_raw": "RESULT:{\"id\":2,\"result\":{\"result\":{\"type\":\"string\",\"value\":\"[\\\"Saved to your Callosum Import Queue for review \\u2014 identity couldn't be confirmed automatically.\\\",\\\"OK\\\"]\"}}}\nAdd-Type : Cannot add type. One or more required assemblies are missing.\nAt C:\\Users\\cliff\\Dropbox\\Dropbox\\01_Work\\callosum\\.claude\\worktrees\\browser-capture-research\\.claude\\experiments\\brows\ner-capture-acceptance\\read_extension_state.ps1:8 char:1\n+ Add-Type -AssemblyName System.Net.WebSockets.Client -ErrorAction Sile ...\n+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n    + CategoryInfo          : InvalidData: (:) [Add-Type], InvalidOperationException\n    + FullyQualifiedErrorId : ASSEMBLY_LOAD_ERRORS,Microsoft.PowerShell.Commands.AddTypeCommand\n \n",
+      "screenshot": "C:\\Users\\cliff\\Dropbox\\Dropbox\\01_Work\\callosum\\.claude\\worktrees\\browser-capture-research\\.claude\\experiments\\browser-capture-acceptance\\evidence-run-import-queue-review\\case_R1_after_click.png",
+      "db_before": {
+        "total_papers": 0
+      },
+      "db_after": {
+        "total_papers": 1,
+        "confirm_result": {
+          "identity_state": "resolved",
+          "promotion_state": "processing_failed",
+          "resolved_paper_id": 1
+        },
+        "retry_result": {
+          "identity_state": "resolved",
+          "promotion_state": "processing_failed",
+          "resolved_paper_id": 1
+        },
+        "decision_reason_if_not_promoted": "[Errno 22] Invalid argument",
+        "import_queue_files": [
+          "5e4e7463ce9a44d69eb0719cebaa0cf0.pdf"
+        ],
+        "canonical_capture_files": []
+      },
+      "notes": [
+        "r1_confirmed_paper_id=None"
+      ]
+    },
+    {
+      "case": "R2",
+      "url": "http://127.0.0.1:61391/conflict_real_identity.pdf",
+      "click_result": "RESULT:CLICKED_VIA_MENU via keyboard",
+      "click_log": "WINDOW_NAME:Finite element analysis of annuloplasty and papillary muscle relocation on a patient-specific mitral regurgitation model - Profile 1 - Microsoft? Edge\nANCHORED_FOCUS_VIA_ADDRESS_BAR at 392,70\nTAB 0 -> 'Add this page to favorites (Ctrl+D)'\nTAB 1 -> 'Extensions'\nOPENED_EXT_MENU\nMENU_TAB 0 -> 'Callosum Capture (dev) Allowed on this site New Extension'\nRESULT:CLICKED_VIA_MENU via keyboard\n",
+      "extension_state_raw": "RESULT:{\"id\":2,\"result\":{\"result\":{\"type\":\"string\",\"value\":\"[\\\"Saved to your Callosum Import Queue \\u2014 matched a paper, but couldn't attach automatically.\\\",\\\"OK\\\"]\"}}}\nAdd-Type : Cannot add type. One or more required assemblies are missing.\nAt C:\\Users\\cliff\\Dropbox\\Dropbox\\01_Work\\callosum\\.claude\\worktrees\\browser-capture-research\\.claude\\experiments\\brows\ner-capture-acceptance\\read_extension_state.ps1:8 char:1\n+ Add-Type -AssemblyName System.Net.WebSockets.Client -ErrorAction Sile ...\n+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n    + CategoryInfo          : InvalidData: (:) [Add-Type], InvalidOperationException\n    + FullyQualifiedErrorId : ASSEMBLY_LOAD_ERRORS,Microsoft.PowerShell.Commands.AddTypeCommand\n \n",
+      "screenshot": "C:\\Users\\cliff\\Dropbox\\Dropbox\\01_Work\\callosum\\.claude\\worktrees\\browser-capture-research\\.claude\\experiments\\browser-capture-acceptance\\evidence-run-import-queue-review\\case_R2_after_click.png",
+      "db_before": {
+        "existing_paper_id": 2,
+        "attachment_count": 1
+      },
+      "db_after": {
+        "promotion_state": "attachment_conflict",
+        "attachment_count_after_delete": 1
+      },
+      "notes": []
+    },
+    {
+      "case": "R3",
+      "url": "http://127.0.0.1:61391/no_identity.pdf",
+      "click_result": "RESULT:CLICKED_VIA_MENU via keyboard",
+      "click_log": "WINDOW_NAME:no_identity.pdf - Profile 1 - Microsoft? Edge\nANCHORED_FOCUS_VIA_ADDRESS_BAR at 392,70\nTAB 0 -> 'Add this page to favorites (Ctrl+D)'\nTAB 1 -> 'Extensions'\nOPENED_EXT_MENU\nMENU_TAB 0 -> 'Callosum Capture (dev) Allowed on this site New Extension'\nRESULT:CLICKED_VIA_MENU via keyboard\n",
+      "extension_state_raw": "RESULT:{\"id\":2,\"result\":{\"result\":{\"type\":\"string\",\"value\":\"[\\\"Saved to your Callosum Import Queue for review \\u2014 identity couldn't be confirmed automatically.\\\",\\\"OK\\\"]\"}}}\nAdd-Type : Cannot add type. One or more required assemblies are missing.\nAt C:\\Users\\cliff\\Dropbox\\Dropbox\\01_Work\\callosum\\.claude\\worktrees\\browser-capture-research\\.claude\\experiments\\brows\ner-capture-acceptance\\read_extension_state.ps1:8 char:1\n+ Add-Type -AssemblyName System.Net.WebSockets.Client -ErrorAction Sile ...\n+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n    + CategoryInfo          : InvalidData: (:) [Add-Type], InvalidOperationException\n    + FullyQualifiedErrorId : ASSEMBLY_LOAD_ERRORS,Microsoft.PowerShell.Commands.AddTypeCommand\n \n",
+      "screenshot": "C:\\Users\\cliff\\Dropbox\\Dropbox\\01_Work\\callosum\\.claude\\worktrees\\browser-capture-research\\.claude\\experiments\\browser-capture-acceptance\\evidence-run-import-queue-review\\case_R3_after_click.png",
+      "db_before": {},
+      "db_after": {
+        "deleted": true,
+        "remaining_import_queue_files": [
+          "5e4e7463ce9a44d69eb0719cebaa0cf0.pdf"
+        ]
+      },
+      "notes": []
+    },
+    {
+      "case": "R4",
+      "url": "http://127.0.0.1:61391/restart_test.pdf",
+      "click_result": "RESULT:CLICKED_VIA_MENU via keyboard",
+      "click_log": "WINDOW_NAME:restart_test.pdf - Profile 1 - Microsoft? Edge\nANCHORED_FOCUS_VIA_ADDRESS_BAR at 392,70\nTAB 0 -> 'Add this page to favorites (Ctrl+D)'\nTAB 1 -> 'Extensions'\nOPENED_EXT_MENU\nMENU_TAB 0 -> 'Callosum Capture (dev) Allowed on this site New Extension'\nRESULT:CLICKED_VIA_MENU via keyboard\n",
+      "extension_state_raw": "RESULT:{\"id\":2,\"result\":{\"result\":{\"type\":\"string\",\"value\":\"[\\\"Saved to your Callosum Import Queue for review \\u2014 identity couldn't be confirmed automatically.\\\",\\\"OK\\\"]\"}}}\nAdd-Type : Cannot add type. One or more required assemblies are missing.\nAt C:\\Users\\cliff\\Dropbox\\Dropbox\\01_Work\\callosum\\.claude\\worktrees\\browser-capture-research\\.claude\\experiments\\brows\ner-capture-acceptance\\read_extension_state.ps1:8 char:1\n+ Add-Type -AssemblyName System.Net.WebSockets.Client -ErrorAction Sile ...\n+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n    + CategoryInfo          : InvalidData: (:) [Add-Type], InvalidOperationException\n    + FullyQualifiedErrorId : ASSEMBLY_LOAD_ERRORS,Microsoft.PowerShell.Commands.AddTypeCommand\n \n",
+      "screenshot": "C:\\Users\\cliff\\Dropbox\\Dropbox\\01_Work\\callosum\\.claude\\worktrees\\browser-capture-research\\.claude\\experiments\\browser-capture-acceptance\\evidence-run-import-queue-review\\case_R4_after_click.png",
+      "db_before": {
+        "artifact_id": "028edffd479f40ffa8b884e92223f877",
+        "evidence_before_restart": {
+          "artifact_id": "028edffd479f40ffa8b884e92223f877",
+          "identity_state": "unresolved",
+          "promotion_state": "pending_review",
+          "resolved_paper_id": null,
+          "resolved_paper_title": null,
+          "encounter_count": 1,
+          "first_captured_at": "2026-09-17 10:55:49",
+          "last_captured_at": "2026-09-17 10:55:49",
+          "last_source_url": "http://127.0.0.1:61391/restart_test.pdf",
+          "last_original_filename": "restart_test.pdf",
+          "best_candidate": null,
+          "explanation": "No DOI-shaped text was found in this PDF's first pages.",
+          "evidence": {
+            "schema_version": 1,
+            "candidates": [],
+            "title_candidates": [],
+            "resolutions": [],
+            "decision": "queued",
+            "decision_reason": "no uniquely strong front-matter DOI candidate"
+          }
+        }
+      },
+      "db_after": {
+        "still_listed_after_restart": true,
+        "pdf_bytes_streamable_after_restart": true
+      },
+      "notes": []
+    }
+  ]
+}

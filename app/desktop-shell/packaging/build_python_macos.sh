@@ -61,8 +61,15 @@ else
 fi
 # The frozen export contains every direct/transitive dependency. --no-deps preserves the selected
 # CPU-only torch wheel rather than letting pip resolve a second platform-specific graph.
-"$PYTHON_BIN" -m pip install --no-cache-dir --no-deps -r "$RESOLVED_REQUIREMENTS"
+# Never compile cryptography against the builder's OpenSSL. Fail closed if the locked version has
+# no compatible wheel. Preserve wheel URLs/hashes in the integrity-covered runtime tree.
+"$PYTHON_BIN" -m pip install --no-cache-dir --no-deps --only-binary=cryptography \
+  --report "$RUNTIME_DIR/package-install-report.json" -r "$RESOLVED_REQUIREMENTS"
 rm "$RESOLVED_REQUIREMENTS"
+
+"$PYTHON_BIN" -c "from cryptography.hazmat.bindings._rust import exceptions; print('cryptography Rust binding import OK')"
+"$PYTHON_BIN" -m pip check
+python3 "$SCRIPT_DIR/check_macos_runtime_linkage.py" "$RUNTIME_DIR"
 
 # See build_python_windows.ps1's matching comment: torch vendors ~100 deeply-nested license copies
 # for its internal C++ profiler's (kineto) own vendored build/test tools — pure attribution text,

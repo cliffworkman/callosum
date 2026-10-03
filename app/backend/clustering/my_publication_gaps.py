@@ -210,6 +210,7 @@ def _already_in_library(conn: Connection, meta: dict[str, Any]) -> bool:
             title=meta.get("title"),
             year=meta.get("year"),
             first_author_family_name=first_family,
+            include_trashed=True,
         )
         is not None
     )

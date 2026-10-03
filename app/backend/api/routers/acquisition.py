@@ -24,6 +24,8 @@ from app.backend.acquisition.openurl import build_openurl
 from app.backend.acquisition.registry import PaperRef, build_default_registry
 from app.backend.api.dependencies import get_connection
 from app.backend.api.job_store import JobStore
+from app.backend.api.routers.library import _embedding_model, _vector_store
+from app.backend.embeddings.admission import ensure_paper_indexed
 from app.backend.metadata.doi_add import add_paper_by_doi
 from app.backend.methods.retraction import auto_check_retractions
 from app.backend.persistence.repository import get_paper
@@ -120,6 +122,15 @@ def add_paper_by_doi_endpoint(
             detail=f"Could not resolve '{result.doi}' to a record. Nothing was added — check the DOI and try again.",
         )
     conn.commit()  # persist the created/looked-up paper before returning and before the OA job's own connection runs
+    # Post-admission indexing invariant (#61): a paper is indexed regardless of which front end admitted it.
+    # After the commit, in its own transaction, and never fatal to an otherwise-successful import.
+    if result.status == "created":
+        ensure_paper_indexed(
+            request.app.state.engine,
+            result.paper_id,
+            model=_embedding_model(request.app),
+            vector_store=_vector_store(request.app),
+        )
     acquire_job_id: str | None = None
     if result.status == "created" and body.acquire_oa:
         # Same per-paper dedup as acquire_oa_start (inc 587) — defensive/consistent (a brand-new paper has
@@ -232,7 +243,13 @@ def _run_acquire_job(app: FastAPI, job_id: str, paper_id: int) -> None:
         location, temp_path = outcome.location, outcome.temp_path
         with engine.begin() as conn:
             result = import_oa_pdf(
-                conn, location, temp_path, paper_id=paper_id, crossref_client=app.state.crossref_client
+                conn,
+                location,
+                temp_path,
+                paper_id=paper_id,
+                crossref_client=app.state.crossref_client,
+                vector_store=_vector_store(app),
+                embedding_model=_embedding_model(app),
             )
             # inc 224: a freshly OA-acquired paper was just Crossref-enriched (DOI populated) — auto-check
             # retraction now (the inc-134 on-import hook; best-effort, swallows per-paper errors → can't break

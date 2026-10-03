@@ -30,6 +30,8 @@ def import_acquired_registration(
     acquired: AcquiredRegistration,
     temp_path: Path,
     managed_path: Path,
+    vector_store,
+    embedding_model,
 ) -> dict:
     shutil.move(str(temp_path), str(managed_path))
     kwargs = {
@@ -39,7 +41,9 @@ def import_acquired_registration(
         "role": "preregistration",
     }
     if acquired.file_suffix.casefold() == ".pdf":
-        return attach_pdf_to_paper(conn, paper_id, managed_path, **kwargs)
+        return attach_pdf_to_paper(
+            conn, paper_id, managed_path, vector_store=vector_store, embedding_model=embedding_model, **kwargs
+        )
     return attach_text_document_to_paper(
         conn,
         paper_id,

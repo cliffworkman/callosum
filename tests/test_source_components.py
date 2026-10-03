@@ -44,6 +44,7 @@ from app.backend.persistence.source_components_repo import (
     replace_attachment_source,
     source_page_for,
 )
+from tests.api_helpers import indexing_collaborators
 
 # --- literal page-dict builders (no PDF, no database) ---
 
@@ -640,7 +641,9 @@ def test_a_source_component_failure_never_rolls_back_the_chunk_write(temp_db_url
     with caplog.at_level(logging.WARNING):
         with engine.begin() as conn:
             paper_id = create_paper(conn, title="Isolation fixture", csl_json={"title": "Isolation fixture"})
-            result = ingest_module.attach_pdf_to_paper(conn, paper_id, str(Path("tests/fixtures/seed.pdf").resolve()))
+            result = ingest_module.attach_pdf_to_paper(
+                conn, paper_id, str(Path("tests/fixtures/seed.pdf").resolve()), **indexing_collaborators()
+            )
 
     assert result["chunk_ids"], "the chunk write must survive a source-component failure"
     with engine.begin() as conn:
@@ -659,7 +662,9 @@ def test_a_normal_ingest_records_source_components_alongside_its_chunks(temp_db_
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:
         paper_id = create_paper(conn, title="Ingest fixture", csl_json={"title": "Ingest fixture"})
-        result = attach_pdf_to_paper(conn, paper_id, str(Path("tests/fixtures/seed.pdf").resolve()))
+        result = attach_pdf_to_paper(
+            conn, paper_id, str(Path("tests/fixtures/seed.pdf").resolve()), **indexing_collaborators()
+        )
 
     with engine.begin() as conn:
         assert conn.execute(select(func.count()).select_from(source_pages)).scalar_one() > 0

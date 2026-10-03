@@ -25,6 +25,7 @@ from app.backend.summarization.verification import (
     SupportScorer,
     VerificationConfig,
 )
+from tests.api_helpers import indexing_collaborators
 
 
 @dataclass(frozen=True)
@@ -361,7 +362,7 @@ def _migrated_engine(tmp_path: Path):
 
 def _ingest_nli_fixture(conn, tmp_path: Path) -> dict[str, int]:
     pdf_path = _make_nli_pdf(tmp_path / "nli-fixture.pdf")
-    ingest = ingest_pdf_scaffold(conn, pdf_path, title="NLI Fixture")
+    ingest = ingest_pdf_scaffold(conn, pdf_path, title="NLI Fixture", **indexing_collaborators())
     row = (
         conn.execute(
             select(chunks).where(

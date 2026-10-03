@@ -197,6 +197,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                     statcheckFlagged, onShowStatcheckFlagged, retractionFlagged, onShowRetractionFlagged,
                     openDataDetected, onShowTransparencyReview, lmmFlagged, onShowLmmFlagged, metaFlagged, onShowMetaFlagged, bayesFlagged, onShowBayesFlagged,
                     findingsToReview, onShowFindingsToReview, findingsByPaper, referenceWarningsByPaper,
+                    importQueueCount, onImportQueueChanged,
                     onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenScan, onOpenImport, onOpenAddDoi, onOpenImportZotero, onOpenImportBundle, onOpenSharedWithMe, onExportBundle,
                     onCitationsRefreshed, onEnriched, onRetractionRan, onOpenTextHealth, onOpenReferenceWarnings,
                     savedSearches, onApplySavedSearch, onSaveSearch, onDeleteSavedSearch, readOnly, onReadingChanged,
@@ -289,6 +290,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                   <button className="trash-toggle findings-chip" onClick={onShowFindingsToReview}
                     title="Findings you haven't marked reviewed yet — your review queue, separate from the check signals; open each paper's Review section">📋 Review · {findingsToReview}</button>}
               </span>}
+            {!trashView && <ImportQueuePanel count={importQueueCount} onChanged={onImportQueueChanged} onOpenPaper={onOpenPdf} />}
             {!trashView && (demoMode
               ? <DemoLockedLibraryButton label="Unsorted" path="/papers?needs_review=true"
                   message="All five curated demo records have resolved metadata. In local Callosum, Unsorted isolates raw imports and unresolved identifiers for review." />

@@ -176,32 +176,11 @@ suppressed_paper_tags = Table(
     Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
 )
 
-# Saved searches (inc 208, A1): a named bundle of the existing library facets (q / search_field / item_type / axis /
-# tag / needs_review / signal / sort), stored as a JSON `params` blob and recalled from the library header. A metadata
-# predicate over the existing GET /papers filters — NOT a semantic lens (that's an axis). Local; name is UNIQUE.
-saved_searches = Table(
-    "saved_searches",
-    metadata,
-    Column("id", Integer, primary_key=True),
-    Column("name", Text, nullable=False),
-    Column("params", JSON, nullable=False),
-    Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
-    UniqueConstraint("name", name="uq_saved_searches_name"),
-)
+# Saved searches (inc 208, A1) and the reading queue (inc 219) -- the user's personal library lists -- were split into
+# schema_library_lists.py (rule #1, 600-line cap); re-exported here where they used to be defined.
+from app.backend.persistence.schema_library_lists import reading_queue, saved_searches  # noqa: E402,F401
 
-# Reading queue (inc 219): a personal, ordered to-read list — papers the user wants to read, drag-to-reorder. NOT an
-# axis (no semantic scoring) — its own small table + its own left-pane "Queue" tab. One row per paper (UNIQUE);
-# `position` drives the manual order (the inc-211 curated-axis pattern); CASCADE drops a row when its paper is purged.
-reading_queue = Table(
-    "reading_queue",
-    metadata,
-    Column("id", Integer, primary_key=True),
-    Column("paper_id", Integer, ForeignKey("papers.id", ondelete="CASCADE"), nullable=False),
-    Column("position", Integer),
-    Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
-    UniqueConstraint("paper_id", name="uq_reading_queue_paper"),
-)
-
+# isort: split
 # Freeform notes + PDF highlights/annotations — split into schema_annotations.py (inc 467, over the 600-line cap).
 from app.backend.persistence.schema_annotations import annotations, notes  # noqa: E402,F401
 
@@ -527,6 +506,13 @@ from app.backend.persistence.schema_merge import (  # noqa: E402,F401
 
 # First-class extra URLs for paper Details.
 from app.backend.persistence.schema_paper_urls import paper_urls  # noqa: E402,F401
+
+# Provisional direct-PDF capture (#61 provisional ingestion): one row per distinct captured-PDF
+# object, one row per encounter with it — see schema_provisional_artifacts.py's own docstring.
+from app.backend.persistence.schema_provisional_artifacts import (  # noqa: E402,F401
+    capture_events,
+    provisional_artifacts,
+)
 
 # Reference-integrity tables (Meta Reference List) — shared entity identity, per-citation review state.
 from app.backend.persistence.schema_reference_integrity import (  # noqa: E402,F401

@@ -61,6 +61,7 @@ from app.backend.persistence.source_components_repo import (
     source_representation_for,
     source_representation_report,
 )
+from tests.api_helpers import indexing_collaborators
 
 SEED_PDF = Path("tests/fixtures/seed.pdf")
 
@@ -696,7 +697,7 @@ def test_persisted_chunk_text_is_untouched_by_a_source_representation_write(temp
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:
         paper_id = create_paper(conn, title="Invariant fixture", csl_json={"title": "Invariant fixture"})
-        result = attach_pdf_to_paper(conn, paper_id, str(SEED_PDF.resolve()))
+        result = attach_pdf_to_paper(conn, paper_id, str(SEED_PDF.resolve()), **indexing_collaborators())
 
     def chunk_digest():
         with engine.begin() as conn:

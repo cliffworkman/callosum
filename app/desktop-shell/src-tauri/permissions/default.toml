@@ -73,6 +73,11 @@ identifier = "allow-stop-local-ai"
 description = "Allows the packaged Settings window to stop its app-owned Local AI runtime."
 commands.allow = ["stop_local_ai"]
 
+[[permission]]
+identifier = "allow-browser-preview"
+description = "Fixed preview actions; command also checks main window and exact live backend origin."
+commands.allow = ["browser_preview"]
+
 [default]
 description = "Default permissions for callosum-shell's own commands: backend retry + the auto-updater's manual-check/install/release-page actions."
 permissions = [

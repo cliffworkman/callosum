@@ -11,6 +11,15 @@ application.** Temporary scripts, backups, research, audits, and plan files all 
 
 ---
 
+## Browser Capture preview work (2026-09-27)
+
+The scoped `feat/browser-capture-preview-0516` work builds on local DOI fix `f3ccab44`.
+Design/security/release ordering: [manual preview](docs/research/2026-09-27_browser-capture-preview.md).
+Normal packaged connector permits a separate, opt-in preview identity; development tooling
+remains separate. Settings file preparation uses a fixed Tauri command, not a backend HTTP
+writer. Real-browser acceptance and clean immutable-runtime release validation are separate
+gates. No production IDs, runtime publication, merge, tag or release is authorized by this work.
+
 ## Project overview
 
 **callosum** is a **local-first scholarly research environment** that keeps literature, evidence,
@@ -40,6 +49,18 @@ the full per-increment narrative for all other increments now lives in the reloc
 
 **Stack:**
 - **Backend:** Python 3.11+, FastAPI + Uvicorn (`app/backend/api/app.py`).
+- **Browser-capture visibility (#103):** capture commits wake bounded async observers via
+  `/library/capture-updates`; the UI retrieves authoritative queue state and invalidates Library.
+  Reuse the existing auth-fetch and single-worker contract; a notification carries only an opaque
+  revision, never paper data or credentials. See `.claude/LATENCY.md` and QA route 27.
+- **Provisional DOI review:** observed DOI text is not canonical identity. A unique unverified
+  non-reference/non-component DOI may be offered for explicit lookup and confirmation;
+  body observations remain ineligible for automatic promotion. See the Ioannidis regression
+  fixture and `docs/research/2026-09-24_ioannidis-doi-review.md` for the exact acceptance cause.
+  Once canonical admission commits, the common attach seam calls `ensure_paper_indexed` for new
+  and reused papers (inc 604). Chunk indexing alone does not satisfy the paper-level invariant.
+  After restoring confirmation/retry actions, refresh the provenance sidecar from the committed
+  DB (inc 605). The JSON file is a nonfatal mirror, never independent confirmation authority.
 - **Generation output ceilings must cover what the schema permits (inc 575).** `_PRIMARY_SYNTHESIS_SCHEMA`
   allows 7 claims × 3 citations, and the "no quote may exceed 80 words" instruction is *prose the grammar
   does not enforce* — so an unbounded `quote` string could consume the whole allowance. A citation-dense
@@ -1226,6 +1247,13 @@ the full per-increment narrative for all other increments now lives in the reloc
   local app-data dir — signature (the *existing* Tauri updater key) → archive sha256 → canonical digest
   of the extracted tree → smoke test → atomic activation, preserving any previous known-good runtime.
   An upgrade from a bundled install reuses the on-disk runtime instead of downloading, on all platforms.
+  **Intel macOS cryptography (#106):** the frozen lock selects 48.0.1 only on Intel macOS; other
+  platforms retain 50.0.0. The macOS recipe requires a cryptography binary wheel, checks the Rust
+  binding and `pip check`, and records all Mach-O load commands in `native-dependencies.json` before
+  packaging/signing. Absolute non-system dylib loads fail the build. Library IDs and unused search
+  hints are recorded separately; this guard does not establish an older macOS compatibility floor.
+  Shared dependency-input changes regenerate every platform's immutable ID. Publish those artifacts
+  before advancing an app branch that references them; never overwrite an existing runtime release.
   Two standing constraints that are invisible in the code and **will** be re-broken otherwise:
   **(a) both Linux lanes must build at the glibc floor** — `ubuntu-latest` is Ubuntu 24.04/glibc 2.39,
   and Rust std's `pidfd_spawnp`/`pidfd_getpid` then make the binary refuse to start on Debian 12 (2.36).
@@ -1684,7 +1712,7 @@ latency regressions.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 575). Each increment of real work
+callosum is built in **numbered increments** (605 on this scoped branch). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

@@ -21,8 +21,14 @@ from typing import Any
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 
+from app.backend.api.routers.library import _embedding_model, _vector_store
+from app.backend.embeddings.admission import ensure_papers_indexed
 from app.backend.importers.zotero import normalize_zotero_csl_item
-from app.backend.persistence.repository import create_paper, find_existing_paper_by_identity
+from app.backend.persistence.repository import (
+    create_paper,
+    find_existing_paper_by_identity,
+    find_trashed_identifier_holder,
+)
 
 router = APIRouter()
 
@@ -46,6 +52,7 @@ class ZoteroResolveResult(BaseModel):
 @router.post("/citations/zotero/resolve", response_model=list[ZoteroResolveResult])
 def resolve_zotero_citations(payload: ZoteroResolveRequest, request: Request) -> list[ZoteroResolveResult]:
     results: list[ZoteroResolveResult] = []
+    created_ids: list[int] = []
     with request.app.state.engine.begin() as conn:
         for item in payload.items:
             canonical = normalize_zotero_csl_item(item.item_data, item.uris)
@@ -58,9 +65,28 @@ def resolve_zotero_citations(payload: ZoteroResolveRequest, request: Request) ->
                 year=canonical["year"],
                 first_author_family_name=canonical["first_author_family_name"],
             )
+            if existing is None:
+                # Identity resolution returns live papers only, but a trashed paper still holds its UNIQUE
+                # Zotero key — creating beside it raises IntegrityError (an uncaught 500 on this batch path).
+                # Surface that paper instead: the document's citation refers to that same work, and the user
+                # can restore it from Trash. Never a silent write to it, never a duplicate.
+                existing = find_trashed_identifier_holder(
+                    conn,
+                    zotero_library_id=canonical["zotero_library_id"],
+                    zotero_item_key=canonical["zotero_item_key"],
+                )
             if existing is not None:
                 results.append(ZoteroResolveResult(paper_id=int(existing[1]["id"]), created=False))
                 continue
             paper_id = create_paper(conn, **canonical)
+            created_ids.append(paper_id)
             results.append(ZoteroResolveResult(paper_id=paper_id, created=True))
+    # Post-admission indexing invariant (#61), after the batch transaction commits and in its own
+    # per-paper transactions: a resolved citation's new paper is searchable like any other admission.
+    ensure_papers_indexed(
+        request.app.state.engine,
+        created_ids,
+        model=_embedding_model(request.app),
+        vector_store=_vector_store(request.app),
+    )
     return results

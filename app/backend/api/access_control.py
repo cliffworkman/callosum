@@ -107,6 +107,15 @@ class RateLimiter:
             dq.append(now)
             return True
 
+    def reset(self) -> None:
+        """Drop all recorded hits, as if freshly constructed. Test-only: the module-level capture
+        limiter is a shared, sliding-window singleton with no per-test scoping otherwise, so a test
+        file exercising enough `/capture/item`-family requests within one `window` can spuriously
+        429 for an unrelated, later test -- found by #61's direct-PDF regression tests tipping an
+        already-near-budget test file over the edge."""
+        with self._lock:
+            self._hits.clear()
+
 
 def _bearer(header: str | None) -> str | None:
     if not header:

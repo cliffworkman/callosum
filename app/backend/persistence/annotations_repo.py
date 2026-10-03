@@ -125,3 +125,25 @@ def update_annotation(
     values["updated_at"] = func.current_timestamp()
     result = conn.execute(update(annotations).where(annotations.c.id == annotation_id).values(**values))
     return bool(result.rowcount)
+
+
+def count_all_annotations_for_paper(conn: Connection, paper_id: int) -> int:
+    """EVERY annotation row on this paper — deliberately NOT the viewer's visibility rule.
+
+    ``list_annotations_for_paper`` answers "what should render over this PDF", so it filters to
+    ``NATIVE_ANNOTATION_SOURCES`` plus Zotero rows that are attachment-scoped with translated geometry.
+    That is right for a viewer and wrong for a safety gate: an imported-but-untranslated Zotero
+    annotation would read as "no annotations", and browser capture would then attach new bytes to a
+    paper that does carry user work.
+
+    Browser capture (#61 Phase 1) refuses to attach a PDF to any paper with existing annotations,
+    because rows with a NULL ``attachment_id`` render against whatever PDF the paper owns — and those
+    are still written by supported workflows (``library_bundle`` does it by design on every bundle or
+    share import). Until that lifecycle is repaired (#72), the conservative question is "does this
+    paper carry ANY annotation state at all", which is what this counts.
+    """
+    return int(
+        conn.execute(
+            select(func.count()).select_from(annotations).where(annotations.c.paper_id == paper_id)
+        ).scalar_one()
+    )

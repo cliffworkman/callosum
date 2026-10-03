@@ -3,6 +3,7 @@
   "productName": "Callosum",
   "version": "0.5.15",
   "identifier": "com.callosum.desktop",
+  "mainBinaryName": "callosum-shell",
   "build": {
     "frontendDist": "../splash"
   },

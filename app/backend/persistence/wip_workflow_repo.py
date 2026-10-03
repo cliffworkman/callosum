@@ -166,12 +166,24 @@ def _compact_sections(conn: Connection, manuscript_id: int) -> None:
 
 
 def list_tasks(conn: Connection, manuscript_id: int) -> list[dict]:
+    """A manuscript's tasks: open before completed, then by due date, then newest first.
+
+    ``created_at`` is SQLite's one-second ``CURRENT_TIMESTAMP``, so two tasks made in the same second (or on either side of a
+    second boundary) are indistinguishable by it. ``id`` -- the INTEGER PRIMARY KEY, i.e. SQLite's rowid, which records
+    insertion order -- is the FINAL tie-break only, keeping "newest first" deterministic; it never outranks completion state,
+    due date or ``created_at`` (#102).
+    """
     return [
         _serializable(row)
         for row in conn.execute(
             select(wip_tasks)
             .where(wip_tasks.c.manuscript_id == manuscript_id)
-            .order_by(wip_tasks.c.completed_at.is_not(None), wip_tasks.c.due_date, wip_tasks.c.created_at.desc())
+            .order_by(
+                wip_tasks.c.completed_at.is_not(None),
+                wip_tasks.c.due_date,
+                wip_tasks.c.created_at.desc(),
+                wip_tasks.c.id.desc(),
+            )
         ).mappings()
     ]
 

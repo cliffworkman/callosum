@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import collections
+import json
 import os
 import socket
 import subprocess
@@ -65,6 +66,25 @@ def _health_check(url: str) -> bool:
         return False
 
 
+def _health_instance_role(url: str) -> str | None:
+    """The `instance_role` the backend reports, or None if unavailable/unparseable.
+
+    Packaged coverage for the browser-capture prerequisite (#61): a connector host identifies the
+    canonical UI backend by this field, so the packaged launch contract is worth asserting here rather
+    than only in the unit tests — this is the one check that runs against a real bundled runtime.
+    """
+    try:
+        result = subprocess.run(
+            ["curl", "-s", "--max-time", "2", url],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        return json.loads(result.stdout).get("instance_role")
+    except (subprocess.TimeoutExpired, OSError, json.JSONDecodeError, AttributeError):
+        return None
+
+
 def _free_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("127.0.0.1", 0))
@@ -116,6 +136,9 @@ def main() -> int:
         env = dict(os.environ)
         env["CALLOSUM_DB_URL"] = db_url
         env["CALLOSUM_LIBRARY_DIR"] = str(library_dir)
+        # The real launcher declares an instance role (browser-capture prerequisite, #61); mirror it so
+        # this smoke test exercises the same launch contract the packaged UI backend actually gets.
+        env["CALLOSUM_INSTANCE_ROLE"] = "ui"
         proc = subprocess.Popen(
             [
                 str(python_exe),
@@ -148,6 +171,16 @@ def main() -> int:
                     return 1
                 if _health_check(url):
                     print(f"OK: {url} -> 200")
+                    role = _health_instance_role(url)
+                    if role != "ui":
+                        print(
+                            f"FAIL: {url} reported instance_role={role!r}, expected 'ui'. The packaged UI "
+                            "backend must identify itself so a browser connector can never mistake a "
+                            "sibling process for it (#61).",
+                            file=sys.stderr,
+                        )
+                        return 1
+                    print("OK: instance_role -> ui")
                     return 0
                 time.sleep(0.4)
             print(

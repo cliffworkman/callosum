@@ -150,10 +150,19 @@ def attach_pdf_to_paper(
     import_source: str = "pdf-scaffold",
     role: str = "primary",
     chunking_strategy: str = DEFAULT_CHUNKING_STRATEGY,
+    vector_store: "VectorStore",
+    embedding_model: "EmbeddingModel",
 ) -> dict[str, Any]:
-    """Attach a local PDF to an EXISTING paper: create the attachment, extract + chunk, refresh the tier.
+    """Attach a local PDF to an EXISTING paper: create the attachment, extract + chunk, embed, refresh the tier.
 
     Does NOT create a paper. Returns ``{attachment_id, chunk_ids, checksum, chunk_version}``.
+
+    ``vector_store`` / ``embedding_model`` are REQUIRED, matching ``reprocess_pdf_attachment``'s
+    contract, so a new attach path cannot forget to index and no caller has to remember: indexing is
+    a property of attaching, not a convention each front end re-implements. Before this, OA
+    acquisition and registration upload created chunks and never embedded them, leaving the paper
+    ``fully-chunked`` with zero chunk embeddings and invisible to ``search_similar`` consumers
+    (citation suggest, re-verify), which — unlike synthesis and axis scoring — have no lazy backfill.
     """
     path = Path(pdf_path)
     checksum = file_sha256(path)
@@ -201,6 +210,13 @@ def attach_pdf_to_paper(
         _registration_references_for_role(role, drafts, hyperlinks=extraction.links),
     )
     _persist_source_components(conn, attachment_id, extraction, checksum)
+    # Embed the new chunks here, for the same reason reprocess does: without it the paper is chunked but
+    # absent from vector search. embed_chunks is idempotent per chunk_version, so a caller that also
+    # embeds (the OCR job, the scan/import job loops) is a cheap no-op rather than duplicated work.
+    if chunk_ids:
+        from app.backend.embeddings.pipeline import embed_chunks
+
+        embed_chunks(conn, model=embedding_model, vector_store=vector_store, chunk_ids=chunk_ids)
     refresh_processing_tier(conn, paper_id)
     return {
         "attachment_id": attachment_id,
@@ -370,6 +386,8 @@ def ingest_pdf_scaffold(
     *,
     title: str | None = None,
     chunking_strategy: str = DEFAULT_CHUNKING_STRATEGY,
+    vector_store: "VectorStore",
+    embedding_model: "EmbeddingModel",
 ) -> dict[str, Any]:
     """Create a paper, linked attachment, and chunks for one local PDF (vertical-slice scaffold)."""
     path = Path(pdf_path)
@@ -391,5 +409,7 @@ def ingest_pdf_scaffold(
         import_source="pdf-scaffold",
         role="primary",
         chunking_strategy=chunking_strategy,
+        vector_store=vector_store,
+        embedding_model=embedding_model,
     )
     return {"paper_id": paper_id, **result}

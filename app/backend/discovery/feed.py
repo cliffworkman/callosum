@@ -215,7 +215,12 @@ def feed_view(
     for r in rows:
         authors = list(r["authors"] or [])
         existing = find_existing_paper_by_identity(
-            conn, doi=r["doi"], title=r["title"], year=r["year"], first_author_family_name=_first_family(authors)
+            conn,
+            doi=r["doi"],
+            title=r["title"],
+            year=r["year"],
+            first_author_family_name=_first_family(authors),
+            include_trashed=True,
         )
         out.append(
             {

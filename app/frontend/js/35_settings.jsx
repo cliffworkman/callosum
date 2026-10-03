@@ -521,6 +521,7 @@ function SettingsView({ theme, onTheme, hideUncertainDefault, onHideUncertainDef
             <div className="settings-section"><LibreOfficeSettings /></div>
             <div className="settings-section"><WordSettings /></div>
             <div className="settings-section"><RemoteAccessSettings /></div>
+            <div className="settings-section settings-section-wide"><BrowserCaptureSettings /></div>
           </div>
         </SettingsCard>
 

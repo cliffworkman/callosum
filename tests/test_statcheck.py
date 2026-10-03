@@ -17,6 +17,7 @@ from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import create_attachment, create_chunk, create_paper, list_papers
 from app.backend.persistence.schema import open_science_signals
 from app.backend.persistence.signals_repo import get_statcheck_summary, store_statcheck
+from tests.api_helpers import indexing_collaborators
 
 
 def _chunk(text, page=1, section=None):
@@ -319,7 +320,7 @@ def test_statcheck_endpoint_reads_real_pdf_table_with_row_provenance(temp_db_url
             title="Table Stats",
             csl_json={"type": "article-journal", "title": "Table Stats"},
         )
-        attachment_id = attach_pdf_to_paper(conn, paper_id, pdf_path)["attachment_id"]
+        attachment_id = attach_pdf_to_paper(conn, paper_id, pdf_path, **indexing_collaborators())["attachment_id"]
 
     data = TestClient(create_app(db_url=temp_db_url)).get(f"/papers/{paper_id}/statcheck").json()
     table_results = [result for result in data["results"] if result["source_kind"] == "table"]

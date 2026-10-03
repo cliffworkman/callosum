@@ -15,6 +15,7 @@ from app.backend.pdf_processing.library_scan import scan_library_folder
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import create_attachment, create_paper
 from app.backend.persistence.schema import attachments, chunks, embeddings, papers
+from tests.api_helpers import indexing_collaborators
 
 
 def _make_pdf(path: Path, text: str) -> Path:
@@ -54,7 +55,9 @@ def test_scan_adds_new_skips_unchanged_flags_removed(temp_db_url, tmp_path):
     _make_pdf(folder / "b.pdf", "Beta computation memoir two.")
     engine = make_engine(temp_db_url)
 
-    first = scan_library_folder(engine, folder)  # inc A2: owns its own per-file transactions
+    first = scan_library_folder(
+        engine, folder, **indexing_collaborators()
+    )  # inc A2: owns its own per-file transactions
     assert len(first["added"]) == 2 and not first["unchanged"] and not first["removed"]
     # every added paper has a linked attachment with a checksum
     with engine.connect() as conn:
@@ -63,11 +66,13 @@ def test_scan_adds_new_skips_unchanged_flags_removed(temp_db_url, tmp_path):
         )
     assert all(r[0] == "linked" and r[1] and r[2] == "library-scan" for r in rows)
 
-    again = scan_library_folder(engine, folder)  # re-scan → all unchanged (content dedup by checksum)
+    again = scan_library_folder(
+        engine, folder, **indexing_collaborators()
+    )  # re-scan → all unchanged (content dedup by checksum)
     assert len(again["unchanged"]) == 2 and not again["added"]
 
     (folder / "b.pdf").unlink()  # remove one on disk → flagged missing (non-destructive)
-    third = scan_library_folder(engine, folder)
+    third = scan_library_folder(engine, folder, **indexing_collaborators())
     with engine.connect() as conn:
         missing = list(conn.execute(select(attachments.c.availability).where(attachments.c.availability == "missing")))
     assert len(third["removed"]) == 1 and len(third["unchanged"]) == 1 and len(missing) == 1
@@ -106,7 +111,7 @@ def test_scan_dedups_same_content_from_different_source_path_and_provenance(temp
             role="primary",
         )
 
-    scanned = scan_library_folder(engine, scan_dir)
+    scanned = scan_library_folder(engine, scan_dir, **indexing_collaborators())
     with engine.connect() as conn:
         paper_count = conn.execute(select(func.count()).select_from(papers)).scalar_one()
 
@@ -128,7 +133,7 @@ def test_scan_reconnects_exact_moved_pdf_without_reprocessing(temp_db_url, tmp_p
     original = _make_pdf(original_dir / "paper.pdf", "The attachment and its chunks must survive relocation.")
     engine = make_engine(temp_db_url)
 
-    first = scan_library_folder(engine, original_dir)
+    first = scan_library_folder(engine, original_dir, **indexing_collaborators())
     assert len(first["added"]) == 1
     paper_id = first["added"][0]["paper_id"]
     with engine.connect() as conn:
@@ -139,7 +144,7 @@ def test_scan_reconnects_exact_moved_pdf_without_reprocessing(temp_db_url, tmp_p
 
     recovered = recovered_dir / "renamed.pdf"
     original.replace(recovered)
-    second = scan_library_folder(engine, recovered_dir)
+    second = scan_library_folder(engine, recovered_dir, **indexing_collaborators())
 
     assert not second["added"] and not second["removed"] and not second["unchanged"]
     assert len(second["relinked"]) == 1
@@ -163,7 +168,7 @@ def test_scan_endpoint_reports_reconnected_pdf_and_serves_it(temp_db_url, tmp_pa
     recovered_dir.mkdir()
     original = _make_pdf(original_dir / "paper.pdf", "An API-level reconnection regression fixture.")
     engine = make_engine(temp_db_url)
-    first = scan_library_folder(engine, original_dir)
+    first = scan_library_folder(engine, original_dir, **indexing_collaborators())
     paper_id = first["added"][0]["paper_id"]
     recovered = recovered_dir / "paper.pdf"
     original.replace(recovered)
@@ -193,9 +198,9 @@ def test_scanning_one_watched_folder_does_not_mark_another_folder_missing(temp_d
     _make_pdf(folder_b / "b.pdf", "Beta lives in watched folder B.")
     engine = make_engine(temp_db_url)
 
-    scan_library_folder(engine, folder_a)
-    scan_library_folder(engine, folder_b)
-    rescanned = scan_library_folder(engine, folder_a)
+    scan_library_folder(engine, folder_a, **indexing_collaborators())
+    scan_library_folder(engine, folder_b, **indexing_collaborators())
+    rescanned = scan_library_folder(engine, folder_a, **indexing_collaborators())
 
     assert not rescanned["removed"]
     with engine.connect() as conn:
@@ -210,7 +215,12 @@ def test_scan_progress_reports_the_per_file_basename(temp_db_url, tmp_path):
     _make_pdf(folder / "alpha.pdf", "Alpha one.")
     _make_pdf(folder / "beta.pdf", "Beta two.")
     calls: list[tuple[int, int, str]] = []
-    scan_library_folder(make_engine(temp_db_url), folder, on_progress=lambda c, t, name: calls.append((c, t, name)))
+    scan_library_folder(
+        make_engine(temp_db_url),
+        folder,
+        on_progress=lambda c, t, name: calls.append((c, t, name)),
+        **indexing_collaborators(),
+    )
     assert [c[2] for c in calls] == ["alpha.pdf", "beta.pdf"]  # sorted; basenames, not full paths
     assert all(c[1] == 2 for c in calls)  # total carried through
 
@@ -313,7 +323,7 @@ def test_scan_commits_each_file_itself(temp_db_url, tmp_path):
     _make_pdf(folder / "a.pdf", "Alpha analytical engine study one.")
     _make_pdf(folder / "b.pdf", "Beta computation memoir two.")
     engine = make_engine(temp_db_url)
-    scanned = scan_library_folder(engine, folder)  # no caller transaction
+    scanned = scan_library_folder(engine, folder, **indexing_collaborators())  # no caller transaction
     assert len(scanned["added"]) == 2
     with engine.connect() as conn:  # a fresh connection sees them → each file was committed by the function
         assert conn.execute(select(func.count()).select_from(papers)).scalar() == 2

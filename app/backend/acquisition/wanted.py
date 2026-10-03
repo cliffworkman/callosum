@@ -44,6 +44,8 @@ def run_recheck(
     crossref_client: Any | None = None,
     download: Callable[[OaLocation], Any] = download_oa_pdf,
     import_: Callable[..., dict[str, Any]] = import_oa_pdf,
+    vector_store: Any = None,
+    embedding_model: Any = None,
 ) -> dict[str, Any]:
     """Re-check every open wanted row, auto-acquiring authorized OA copies. Returns a summary dict."""
     with engine.connect() as conn:
@@ -93,7 +95,15 @@ def run_recheck(
             location, temp_path = outcome.location, outcome.temp_path
             with engine.begin() as conn:
                 paper_id = row["paper_id"] if row["paper_id"] is not None else _create_paper_for_wanted(conn, row)
-                import_(conn, location, temp_path, paper_id=paper_id, crossref_client=crossref_client)
+                import_(
+                    conn,
+                    location,
+                    temp_path,
+                    paper_id=paper_id,
+                    crossref_client=crossref_client,
+                    vector_store=vector_store,
+                    embedding_model=embedding_model,
+                )
                 wanted_repo.mark_fulfilled(
                     conn,
                     row["id"],

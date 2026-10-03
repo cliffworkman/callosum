@@ -38,7 +38,9 @@ dependencies = [
     # Lazy-imported in app/backend/api/auth/oidc.py — the app + hermetic suite run without it.
     "pyjwt[crypto]>=2.8,<3",
     # Packaged desktop Word: local-only X.509 leaf generation (trust-store mutation remains explicit/OS-owned).
-    "cryptography>=46,<51",
+    # 49+ no longer ships Intel macOS wheels; a source build can inherit runner Homebrew linkage (#106).
+    "cryptography>=48.0.1,<49; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    "cryptography>=46,<51; sys_platform != 'darwin' or platform_machine != 'x86_64'",
 ]
 
 [project.optional-dependencies]

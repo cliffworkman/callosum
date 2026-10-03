@@ -121,9 +121,11 @@ def compute_overlooked(
 
 
 def _in_library(conn: Connection, work) -> bool:
-    if work.doi and find_existing_paper_by_identity(conn, doi=work.doi) is not None:
+    if work.doi and find_existing_paper_by_identity(conn, doi=work.doi, include_trashed=True) is not None:
         return True
-    return find_existing_paper_by_identity(conn, openalex_work_id=work.openalex_work_id) is not None
+    return (
+        find_existing_paper_by_identity(conn, openalex_work_id=work.openalex_work_id, include_trashed=True) is not None
+    )
 
 
 def _l2(vector: list[float]) -> list[float]:

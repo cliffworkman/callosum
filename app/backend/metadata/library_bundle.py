@@ -22,7 +22,11 @@ from app.backend.clustering.axis_assignments import CURATED_KIND, add_manual_ass
 from app.backend.clustering.axis_scoring import create_axis
 from app.backend.metadata.citation_import import csl_record_to_paper_fields
 from app.backend.persistence import annotations_repo, tags_repo
-from app.backend.persistence.repository import create_paper, find_existing_paper_by_identity
+from app.backend.persistence.repository import (
+    create_paper,
+    find_existing_paper_by_identity,
+    find_trashed_identifier_holder,
+)
 from app.backend.persistence.schema import (
     axes,
     chunks,
@@ -326,6 +330,15 @@ def import_bundle(conn: Connection, bundle: dict[str, Any], *, source: str = BUN
                     first_author_family_name=ident.get("first_author_family_name")
                     or (fields or {}).get("first_author_family_name"),
                 )
+                if existing is None:
+                    # Identity resolution is live-only now; a trashed paper still holds its UNIQUE
+                    # openalex/semantic-scholar id, so creating beside it would raise IntegrityError.
+                    # Treat it as the merge target — it is the same work.
+                    existing = find_trashed_identifier_holder(
+                        conn,
+                        openalex_work_id=ident.get("openalex_work_id"),
+                        semantic_scholar_paper_id=ident.get("semantic_scholar_paper_id"),
+                    )
                 if existing is not None:
                     paper_id = int(existing[1]["id"])  # merge target — metadata untouched
                     summary["papers_merged"] += 1

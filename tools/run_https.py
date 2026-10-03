@@ -62,6 +62,12 @@ def main() -> int:
     # module docstring) -- unconditionally exempt it from the Remote Access token gate in its OWN environment
     # only, so desktop Word works regardless of whether Remote Access happens to be on for a tunnel elsewhere.
     os.environ["CALLOSUM_DISABLE_REMOTE_ACCESS"] = "1"
+    # Declare the same instance role the packaged Word HTTPS companion carries (browser-capture
+    # prerequisite, #61), so this process is identifiable as a sibling and a connector can refuse it by
+    # role rather than inferring it from the gate flag above. Set unconditionally: run_dev spawns this
+    # child from a shared environment where the HTTP child's "ui" may already be present, and this
+    # process is never that one.
+    os.environ["CALLOSUM_INSTANCE_ROLE"] = "word-https"
     import uvicorn
 
     print(f"Serving callosum over HTTPS at https://localhost:{port}  (Ctrl-C to stop)")

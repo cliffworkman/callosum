@@ -12,6 +12,8 @@ __pycache__/
 *.pdf
 # …except the committed QA/test fixture PDF (a tiny real 2-page doc the seed renders; inc 120)
 !tests/fixtures/seed.pdf
+# Exact CC-BY publisher PDF used for the Ioannidis DOI-review regression.
+!tests/fixtures/capture/ioannidis-pmed.0020124.pdf
 # Public demo documents are individually license-audited and checksum-pinned by the whitelist exporter.
 !demo/documents/*.pdf
 
@@ -87,7 +89,9 @@ app/desktop-shell/resources/
 # Built installers themselves (a local copy for handoff convenience; not for the public repo — the
 # real distribution channel is a GitHub Actions artifact / release, not a committed binary).
 app/desktop-shell/dist-windows/
+# Generated from connector/identity.json by packaging/generate_connector_nsh.py (#61 Phase 2) —
+# build-time payload, not source; regenerate rather than hand-edit.
+app/desktop-shell/src-tauri/windows/connector-identity.generated.nsh
 app/desktop-shell/dist-macos/
 # Downloaded CI verification screenshots/logs (diagnostic, reviewed locally each run, not source).
 app/desktop-shell/ci-screenshots/
-

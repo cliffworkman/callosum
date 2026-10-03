@@ -30,4 +30,3 @@ api: POST /papers/{paper_id}/registration-comparisons, GET /registration-compari
 
 The crosswalk is versioned, paired-evidence-first, reviewable, and stale-aware; bounded statuses stay cautious; no
 document content leaves the machine; and there is no paper/author verdict or overall score.
-
