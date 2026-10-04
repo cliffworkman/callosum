@@ -1698,3 +1698,32 @@ its preserved run directory are unchanged and remain part of the record, per Cli
 not to erase or reclassify it. No tracked pipeline module, frozen contract, or pin touched; the Attempt-2
 scratch runner, recorder output, authorization record, and raw run directory remain uncommitted under
 `.local/e2e-runs/phase28-live-parent-synthesis-attempt2-20261004T014500Z/`.
+
+---
+
+## Phase 29 -- question-organized answer architecture: fresh-context design audit, no implementation (appended 2026-10-04; preserves all prior entries unchanged)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-10-04 | Product-level failure identified from the live Phase-28 output; desired answer structure, progressive-disclosure direction, and the requirement that unanswered subquestions be stated explicitly | Cliff Workman |
+| 2026-10-04 | Formalization of the distinction between exhaustive evidence authority and selective, question-responsive synthesis; the AnswerPlan, claimability, referential-closure, and bounded multi-claim realization ideas | ChatGPT (formalization), with Cliff Workman |
+| 2026-10-04 | Repository, code, and artifact audit; concrete design and recommendation (`PHASE29_QUESTION_ORGANIZED_ANSWER_ARCHITECTURE_AUDIT.md`) | Claude |
+
+**Product direction (Cliff Workman).** Identified from the live Phase-28 output that the ledger was exhaustive but not
+an answer: organized by internal claim structure, not by the researcher's subquestions; repetitive; leaking internal
+ontology; contextless; and silent about subquestions it could not answer. Specified the target shape (a short parent
+synthesis, then one visible answer per confirmed subquestion, with nested questions kept nested), the forward-answer and
+backward-evidence principle, and the instruction that exhaustive evidence may move behind progressive disclosure but must
+not be discarded.
+
+**Formalization (ChatGPT, with Cliff Workman).** Helped formalize the architectural distinction between exhaustive
+evidence authority and selective, question-responsive synthesis, and the AnswerPlan, claimability, referential-closure,
+and bounded multi-claim realization ideas that the audit builds on.
+
+**Audit and design (Claude).** Read the preserved Attempt-2 artifacts and the relevant code without running models, and
+verified the mechanisms behind the observed failures (including deterministic-binder predicates, the sufficiency engine's
+joint-witness exemption for parent-context operands, and the frozen contract's human-review classes). The audit records
+upstream defects (U1-U15) that the answer layer must expose rather than repair, a Phase-28 counterfactual prototype built
+only from preserved evidence, and a recommendation: NOT READY for the full child-answer and parent-synthesis stages; READY
+for an offline, deterministic Step 1, conditional on three recorded decisions. No production code, prompt, pin, frozen
+contract, or model run was changed or executed.
