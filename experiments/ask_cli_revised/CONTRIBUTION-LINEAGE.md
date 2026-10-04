@@ -1648,3 +1648,53 @@ live call, or set `HF_HUB_OFFLINE=1`/`TRANSFORMERS_OFFLINE=1` first, matching
 `contract_directed/offline_pytest.py`'s own existing precedent). No tracked pipeline module, frozen
 contract, or pin was touched; the scratch runner, recorder output, and raw run directory remain
 uncommitted under `.local/e2e-runs/phase28-live-parent-synthesis-20261003T223145Z/`.
+
+---
+
+## Phase 28, Attempt 2 -- live parent-synthesis SUCCESS: complete pipeline through S2, one call, 7/21 claims grounded (appended 2026-10-04; preserves all prior entries unchanged)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-10-04 | Harness correction direction + fresh authorization | Cliff Workman |
+| 2026-10-04 | Pre-authorization reproduction, execution, forensic analysis, reports | Claude |
+
+**Design direction (Cliff Workman).** After Attempt 1's authorized live run failed before any pipeline
+stage completed (a harness bug, not a pipeline finding -- see the entry above), Cliff Workman required a
+**second, separately-authorized** attempt rather than a retry under the consumed authorization, with one
+specific harness-only correction: keep `endpoint_guard.isolated_only()` around the live call rather than
+dropping it, and instead set the repository's own established offline-testing environment
+(`HF_HUB_OFFLINE=1`/`TRANSFORMERS_OFFLINE=1`, exact form from `offline_pytest.py`) before any runtime
+construction -- proven, before authorization, by a standalone reproduction of the exact failure seam under
+the stricter `refuse_all()` guard. No change to profile, question, flags, the pins=None seam, the library,
+role bindings, prompts, thresholds, synthesis logic, or recorder semantics between the two attempts.
+
+**Evidence and outcome (Claude).** A new scratch runner (`phase28_runner.py`, attempt-2 directory, SHA-256
+`12db54131eda9389ab2d0f99a3ecd2711e7c558a99e3fb7cc15ee118f25ccc51`) carried the harness correction and was
+frozen after an offline self-test embedding the exact pre-authorization smoke test proved it resolved.
+The one live call **completed successfully in 1657.3 seconds**: W1 (313.1s) -> C1 (151.3s, phi4:14b) -> U1
+(69.1s, 18 fresh nominations) -> P1 (88.6s, gemma3:12b, a real DEEPEN-for-all-11 decision with stated
+rationale) -> W2 (671.0s, 20 targeted recovery searches, 14 adding new verified evidence) -> C2 (154.5s,
+all 11 children now judged_responsive) -> U2 (68.7s, 31 scopes remapped) -> eleven real S1 child syntheses
+(all mechanically usable; two, c5 and c9, honestly produced zero grounded sentences) -> the deterministic
+21-claim parent ledger -> **exactly one S2 call** (independently witnessed by the same
+`SupervisorCallRecorder` design as Attempt 1 -- 15 total Supervisor calls recorded, zero mechanical
+failures, the S2 prompt's independently-captured hash matching the production record's own self-report
+exactly). S2 realized **7 of 21 claims grounded**; the other 14 fell back to the deterministic literal
+rendering (11 withheld by the NLI/lexical screens, 3 caught by the structural per-item check) -- per-claim
+fallback worked exactly as designed, with zero cross-contamination between claims. `library_unchanged_
+after_run: true`; zero tracked code changed.
+
+**Post-run-only comparison against Phase 23A** found the c8 category-boundary tracer
+("undesirable behaviors" mislabeled as a trait/construct) **recurs**, traced through a complete pipeline
+for the first time: it is introduced at U1/U2's role nomination, not by the parent ledger, S2, or the
+fallback renderer, all of which faithfully propagate it -- confirming the earliest-error methodology's own
+design intent. Phase 23A's separate c12 contamination (an off-topic COVID-19 paper) did **not** recur, but
+under a materially different retrieval/recovery path, so this is not read as a fix. One new, bounded,
+non-blocking mechanical finding was surfaced and reported without being patched: 13 of 626 `hierarchy_
+carriage`-checked calls (all `recovery_query` worker calls for c4/c5/c6/c11/c12) were missing their
+child's exact item line. Full narrative in `PHASE28_ATTEMPT2_LIVE_PARENT_SYNTHESIS_FORENSIC_REPORT.md`;
+compact handback in `PHASE28_ATTEMPT2_LIVE_PARENT_SYNTHESIS_RESULTS.md`. Attempt 1's own two documents and
+its preserved run directory are unchanged and remain part of the record, per Cliff's explicit instruction
+not to erase or reclassify it. No tracked pipeline module, frozen contract, or pin touched; the Attempt-2
+scratch runner, recorder output, authorization record, and raw run directory remain uncommitted under
+`.local/e2e-runs/phase28-live-parent-synthesis-attempt2-20261004T014500Z/`.
