@@ -1,0 +1,4327 @@
+{
+  "plan_version": "answer-plan-step1-v1",
+  "inputs": {
+    "replay_authorization_sha256": "74ecd832ea88fce183e7c72762a926d84c61e77578ce73e20885389671a61509",
+    "overlay_sha256": "3cca99b5ac7078f4ae7633f4e4b53360f0e5cd1ff6e0972e9cce7f71d0979c96",
+    "sealed_hash": "1dce0e1c2dead992c631f9eb9bfaaa4fc29cabb30ec9304687df515cd4abeef8",
+    "sufficiency_map_sha256": "28478500e485137cd6930b8010d274bb1da3afd48e7f4a6208dd183610d9ca0b",
+    "hierarchy_contract_frozen_sha256": "3e86cb8f0d7816bbc9aeac7d717e9ea4a709981a1e98406c577b8623aab1d0f2"
+  },
+  "overlay_status": "REPLAY_ONLY_OFFLINE_OVERLAY",
+  "nodes": [
+    {
+      "label": "1",
+      "parent": null,
+      "nesting": "top_level",
+      "literal_text": "How does the anomalous-is-bad bias manifest in / relate to measures of brain structure and function across regions and networks?",
+      "owning_child_ids": [
+        "c1"
+      ],
+      "status": "not_established",
+      "facets": [
+        {
+          "facet_id": "c1#suff:neural-manifestation",
+          "phrase": "a specific neural finding about the bias",
+          "state": "not_established",
+          "covered_roles": [],
+          "required_roles": [
+            "neural_manifestation_evidence"
+          ],
+          "relation_status": null,
+          "claim_ids": [
+            "role_value::8d0ce9c4405f714b",
+            "role_value::57b25a887d32ec58"
+          ],
+          "displayed_render_count": 0,
+          "disclosures": [
+            "The retrieved evidence does not establish a specific neural finding about the bias.",
+            "A passage gives only a general summary, without a specific measure or result, so it is listed in the supporting evidence instead.",
+            "Earlier work reports this, and the retrieved text does not present it as this study's result, so it is listed in the supporting evidence."
+          ]
+        }
+      ],
+      "statements": [],
+      "disclosures": [
+        "The retrieved evidence does not establish a specific neural finding about the bias.",
+        "A passage gives only a general summary, without a specific measure or result, so it is listed in the supporting evidence instead.",
+        "Earlier work reports this, and the retrieved text does not present it as this study's result, so it is listed in the supporting evidence."
+      ],
+      "not_assessed": [],
+      "term_support": [],
+      "qualifications": [],
+      "qualification_candidates": []
+    },
+    {
+      "label": "2",
+      "parent": null,
+      "nesting": "top_level",
+      "literal_text": "How does it manifest in / relate to measures of behavior?",
+      "owning_child_ids": [
+        "c2"
+      ],
+      "status": "not_established",
+      "facets": [
+        {
+          "facet_id": "c2#suff:behavioral-manifestation",
+          "phrase": "a specific behavioral finding about the bias",
+          "state": "not_established",
+          "covered_roles": [],
+          "required_roles": [
+            "behavior_or_behavioral_measure",
+            "behavioral_manifestation_evidence"
+          ],
+          "relation_status": "incomplete",
+          "claim_ids": [
+            "role_value::b9591e4fba42edb1",
+            "category_list::10ddc38dbb7cb05e"
+          ],
+          "displayed_render_count": 0,
+          "disclosures": [
+            "The retrieved evidence does not establish a specific behavioral finding about the bias.",
+            "A passage gives only a general summary, without a specific measure or result, so it is listed in the supporting evidence instead.",
+            "Earlier work reports this, and the retrieved text does not present it as this study's result, so it is listed in the supporting evidence."
+          ]
+        }
+      ],
+      "statements": [],
+      "disclosures": [
+        "The retrieved evidence does not establish a specific behavioral finding about the bias.",
+        "A passage gives only a general summary, without a specific measure or result, so it is listed in the supporting evidence instead.",
+        "Earlier work reports this, and the retrieved text does not present it as this study's result, so it is listed in the supporting evidence."
+      ],
+      "not_assessed": [
+        "This run did not assess the choice of behavioral measures."
+      ],
+      "term_support": [],
+      "qualifications": [],
+      "qualification_candidates": []
+    },
+    {
+      "label": "3",
+      "parent": null,
+      "nesting": "top_level",
+      "literal_text": "How does it manifest in / relate to implicit and explicit attitudes?",
+      "owning_child_ids": [
+        "c3"
+      ],
+      "status": "partial",
+      "facets": [
+        {
+          "facet_id": "c3#suff:attitude-manifestation",
+          "phrase": "a specific attitude finding about the bias",
+          "state": "not_established",
+          "covered_roles": [],
+          "required_roles": [
+            "attitude_manifestation_evidence"
+          ],
+          "relation_status": null,
+          "claim_ids": [
+            "role_value::34d05796cc1dd8a3"
+          ],
+          "displayed_render_count": 0,
+          "disclosures": [
+            "The retrieved evidence does not establish a specific attitude finding about the bias.",
+            "A passage gives only a general summary, without a specific measure or result, so it is listed in the supporting evidence instead.",
+            "Earlier work reports this, and the retrieved text does not present it as this study's result, so it is listed in the supporting evidence."
+          ]
+        },
+        {
+          "facet_id": "c3#suff:implicit-explicit-coverage",
+          "phrase": "implicit and explicit attitude findings",
+          "state": "answered",
+          "covered_roles": [
+            "category_evidence"
+          ],
+          "required_roles": [
+            "category_evidence"
+          ],
+          "relation_status": null,
+          "claim_ids": [
+            "category_list::9fd341f1bbff788b"
+          ],
+          "displayed_render_count": 1,
+          "disclosures": []
+        }
+      ],
+      "statements": [
+        {
+          "claim_id": "category_list::9fd341f1bbff788b",
+          "facet_id": "c3#suff:implicit-explicit-coverage",
+          "kind": "value_sentence",
+          "text": "Participants expressed explicit biases against people with facial anomalies, but their implicit biases were slight and not significant.",
+          "prop_ids": [
+            "p36"
+          ],
+          "attribution": "this_study_result",
+          "edits": [],
+          "facet_state": "answered",
+          "subject": null,
+          "span_id": null,
+          "paper_id": null,
+          "span_text": null,
+          "values": [
+            "implicit",
+            "explicit"
+          ]
+        }
+      ],
+      "disclosures": [
+        "The retrieved evidence does not establish a specific attitude finding about the bias.",
+        "A passage gives only a general summary, without a specific measure or result, so it is listed in the supporting evidence instead.",
+        "Earlier work reports this, and the retrieved text does not present it as this study's result, so it is listed in the supporting evidence."
+      ],
+      "not_assessed": [
+        "This run did not assess the choice of implicit and explicit attitude measures."
+      ],
+      "term_support": [],
+      "qualifications": [],
+      "qualification_candidates": [
+        {
+          "span_id": "e11",
+          "paper_id": 67,
+          "text": "It may be that the Dictator and/or Ultimatum Games are poor proxies for the kinds of real-world discriminatory behaviors associated with the “anomalous-is-bad” bias.2–6 Another possibility is that our sample was too small to achieve the statistical power needed for adequate sensitivity.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::9fd341f1bbff788b",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e12",
+          "paper_id": 67,
+          "text": "A meta-analysis of studies on the consequences of intergroup bias for economic game behavior found wide variation in average effect sizes depending on the specific group-based identity made salient (i.e., d = −0.177 to 0.551, or from small to medium in magnitude).43 Coun- terintuitively, stronger discrimination in economic games was detected for experimentally contrived groups than for facets of identity like ethnicity and nationality that some participants might not find particularly salient.43 It remains to be seen whether increasing the salience of facial anoma- lies exacerbates intergroup biases as expressed in economic games.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::9fd341f1bbff788b",
+          "shared_content_words": [
+            "biases",
+            "expressed",
+            "facial"
+          ],
+          "attached": false,
+          "excluded_as_background": true,
+          "scope_qualifier": false,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e1",
+          "paper_id": 67,
+          "text": "Several limitations to the current research neces- sitate discussion.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::9fd341f1bbff788b",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e10",
+          "paper_id": 67,
+          "text": "Many of the best- known databases of standardized face photographs comprise almost exclusively younger adults and feature only limited racial and/or ethnic diversity.28",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::9fd341f1bbff788b",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e1",
+          "paper_id": 67,
+          "text": "Several limitations to the current research neces- sitate discussion.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::9fd341f1bbff788b",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e10",
+          "paper_id": 67,
+          "text": "Many of the best- known databases of standardized face photographs comprise almost exclusively younger adults and feature only limited racial and/or ethnic diversity.28",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::9fd341f1bbff788b",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e1",
+          "paper_id": 67,
+          "text": "Several limitations to the current research neces- sitate discussion.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::9fd341f1bbff788b",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e10",
+          "paper_id": 67,
+          "text": "Many of the best- known databases of standardized face photographs comprise almost exclusively younger adults and feature only limited racial and/or ethnic diversity.28",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::9fd341f1bbff788b",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e1",
+          "paper_id": 67,
+          "text": "Several limitations to the current research neces- sitate discussion.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::9fd341f1bbff788b",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e10",
+          "paper_id": 67,
+          "text": "Many of the best- known databases of standardized face photographs comprise almost exclusively younger adults and feature only limited racial and/or ethnic diversity.28",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::9fd341f1bbff788b",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e1",
+          "paper_id": 67,
+          "text": "Several limitations to the current research neces- sitate discussion.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::9fd341f1bbff788b",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e10",
+          "paper_id": 67,
+          "text": "Many of the best- known databases of standardized face photographs comprise almost exclusively younger adults and feature only limited racial and/or ethnic diversity.28",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::9fd341f1bbff788b",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e1",
+          "paper_id": 67,
+          "text": "Several limitations to the current research neces- sitate discussion.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::9fd341f1bbff788b",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e10",
+          "paper_id": 67,
+          "text": "Many of the best- known databases of standardized face photographs comprise almost exclusively younger adults and feature only limited racial and/or ethnic diversity.28",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::9fd341f1bbff788b",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e1",
+          "paper_id": 67,
+          "text": "Several limitations to the current research neces- sitate discussion.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::9fd341f1bbff788b",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e10",
+          "paper_id": 67,
+          "text": "Many of the best- known databases of standardized face photographs comprise almost exclusively younger adults and feature only limited racial and/or ethnic diversity.28",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::9fd341f1bbff788b",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e1",
+          "paper_id": 67,
+          "text": "Several limitations to the current research neces- sitate discussion.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::9fd341f1bbff788b",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e10",
+          "paper_id": 67,
+          "text": "Many of the best- known databases of standardized face photographs comprise almost exclusively younger adults and feature only limited racial and/or ethnic diversity.28",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::9fd341f1bbff788b",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e1",
+          "paper_id": 67,
+          "text": "Several limitations to the current research neces- sitate discussion.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::9fd341f1bbff788b",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e10",
+          "paper_id": 67,
+          "text": "Many of the best- known databases of standardized face photographs comprise almost exclusively younger adults and feature only limited racial and/or ethnic diversity.28",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::9fd341f1bbff788b",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e1",
+          "paper_id": 67,
+          "text": "Several limitations to the current research neces- sitate discussion.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::9fd341f1bbff788b",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e10",
+          "paper_id": 67,
+          "text": "Many of the best- known databases of standardized face photographs comprise almost exclusively younger adults and feature only limited racial and/or ethnic diversity.28",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::9fd341f1bbff788b",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e11",
+          "paper_id": 67,
+          "text": "It may be that the Dictator and/or Ultimatum Games are poor proxies for the kinds of real-world discriminatory behaviors associated with the “anomalous-is-bad” bias.2–6 Another possibility is that our sample was too small to achieve the statistical power needed for adequate sensitivity.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::9fd341f1bbff788b",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e12",
+          "paper_id": 67,
+          "text": "A meta-analysis of studies on the consequences of intergroup bias for economic game behavior found wide variation in average effect sizes depending on the specific group-based identity made salient (i.e., d = −0.177 to 0.551, or from small to medium in magnitude).43 Coun- terintuitively, stronger discrimination in economic games was detected for experimentally contrived groups than for facets of identity like ethnicity and nationality that some participants might not find particularly salient.43 It remains to be seen whether increasing the salience of facial anoma- lies exacerbates intergroup biases as expressed in economic games.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::9fd341f1bbff788b",
+          "shared_content_words": [
+            "biases",
+            "expressed",
+            "facial"
+          ],
+          "attached": false,
+          "excluded_as_background": true,
+          "scope_qualifier": false,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e5",
+          "paper_id": 67,
+          "text": "and may not completely capture the proximate cause of the stereotype, however, which could instead emerge from diminished prosocial emo- tions (i.e., empathic concern) and/or from social values.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::9fd341f1bbff788b",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": false,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e5",
+          "paper_id": 67,
+          "text": "and may not completely capture the proximate cause of the stereotype, however, which could instead emerge from diminished prosocial emo- tions (i.e., empathic concern) and/or from social values.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::9fd341f1bbff788b",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": false,
+          "standalone": true,
+          "promoted_to_layer1": false
+        }
+      ]
+    },
+    {
+      "label": "4",
+      "parent": null,
+      "nesting": "top_level",
+      "literal_text": "Which specific brain areas or networks are implicated?",
+      "owning_child_ids": [
+        "c4"
+      ],
+      "status": "not_established",
+      "facets": [
+        {
+          "facet_id": "c4#suff:specific-region",
+          "phrase": "a specific named brain area or network, and how it bears on the bias",
+          "state": "not_established",
+          "covered_roles": [],
+          "required_roles": [
+            "named_brain_region_or_network",
+            "region_bears_on_bias_evidence"
+          ],
+          "relation_status": "witnessed",
+          "claim_ids": [
+            "relational::5d178917787a4805",
+            "role_value::161d9d5825b7df74",
+            "role_value::1f1af648ebc4dd29"
+          ],
+          "displayed_render_count": 0,
+          "disclosures": [
+            "The retrieved evidence does not establish a specific named brain area or network, and how it bears on the bias.",
+            "A passage that bears on this question depends on context that is not in the retrieved text, so it is not stated as an answer.",
+            "Earlier work reports this, and the retrieved text does not present it as this study's result, so it is listed in the supporting evidence."
+          ]
+        }
+      ],
+      "statements": [],
+      "disclosures": [
+        "The retrieved evidence does not establish a specific named brain area or network, and how it bears on the bias.",
+        "A passage that bears on this question depends on context that is not in the retrieved text, so it is not stated as an answer.",
+        "Earlier work reports this, and the retrieved text does not present it as this study's result, so it is listed in the supporting evidence."
+      ],
+      "not_assessed": [],
+      "term_support": [],
+      "qualifications": [],
+      "qualification_candidates": []
+    },
+    {
+      "label": "4A",
+      "parent": "4",
+      "nesting": "nested_under_4",
+      "literal_text": "How do specific brain areas/networks relate to behavioral measures, including direction where established?",
+      "owning_child_ids": [
+        "c5"
+      ],
+      "status": "not_established",
+      "facets": [
+        {
+          "facet_id": "c5#suff:brain-behavior",
+          "phrase": "how that brain area or network relates to behavioral measures",
+          "state": "not_established",
+          "covered_roles": [],
+          "required_roles": [
+            "named_brain_region_or_network",
+            "behavior_or_behavioral_measure"
+          ],
+          "relation_status": "unwitnessed_complete",
+          "claim_ids": [
+            "category_list::7af59a3e5749152a"
+          ],
+          "displayed_render_count": 0,
+          "disclosures": [
+            "The retrieved evidence does not establish how the brain area or network named for this question and the behavioral measure relate.",
+            "Related evidence on a different construct is listed in the supporting evidence and does not answer this question."
+          ]
+        }
+      ],
+      "statements": [],
+      "disclosures": [
+        "The retrieved evidence does not establish how the brain area or network named for this question and the behavioral measure relate.",
+        "Related evidence on a different construct is listed in the supporting evidence and does not answer this question."
+      ],
+      "not_assessed": [
+        "This run did not assess the choice of behavioral measures.",
+        "This run did not assess the documented nature or direction of a relationship, where supported."
+      ],
+      "term_support": [],
+      "qualifications": [],
+      "qualification_candidates": []
+    },
+    {
+      "label": "4B",
+      "parent": "4",
+      "nesting": "nested_under_4",
+      "literal_text": "How do specific brain areas/networks relate to implicit and explicit attitude measures, including direction where established?",
+      "owning_child_ids": [
+        "c6"
+      ],
+      "status": "partial",
+      "facets": [
+        {
+          "facet_id": "c6#suff:brain-attitude",
+          "phrase": "how that brain area or network relates to attitude measures",
+          "state": "partial",
+          "covered_roles": [
+            "attitude_type_or_measure"
+          ],
+          "required_roles": [
+            "named_brain_region_or_network",
+            "attitude_type_or_measure"
+          ],
+          "relation_status": "unwitnessed_complete",
+          "claim_ids": [
+            "direction_or_effectiveness::97e9b66f0fd3c1c2",
+            "category_list::f453ebb75104e61d"
+          ],
+          "displayed_render_count": 1,
+          "disclosures": [
+            "The retrieved evidence does not establish how the brain area or network named for this question and the attitude measure relate."
+          ]
+        },
+        {
+          "facet_id": "c6#suff:implicit-explicit-coverage",
+          "phrase": "implicit and explicit attitude measures",
+          "state": "partial",
+          "covered_roles": [
+            "category_evidence"
+          ],
+          "required_roles": [
+            "category_evidence"
+          ],
+          "relation_status": null,
+          "claim_ids": [
+            "role_value::c33c4ccf244a45a8"
+          ],
+          "displayed_render_count": 0,
+          "disclosures": [
+            "The retrieved evidence does not establish implicit attitude findings."
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "claim_id": "direction_or_effectiveness::97e9b66f0fd3c1c2",
+          "facet_id": "c6#suff:brain-attitude",
+          "kind": "value_level_valence",
+          "text": "Nevertheless, we found evidence for the “anomalous-is-bad” stereotype in explicit negative attitudes about people with facial anoma- lies both as individuals (i.e., character inferences) and as a group (i.e., scores on the Explicit Bias Questionnaire).",
+          "prop_ids": [
+            "p14"
+          ],
+          "attribution": "this_study_result",
+          "edits": [],
+          "facet_state": "partial",
+          "subject": "Explicit Bias Questionnaire",
+          "span_id": null,
+          "paper_id": null,
+          "span_text": null,
+          "values": [
+            "negative",
+            "Explicit Bias Questionnaire",
+            "explicit"
+          ]
+        }
+      ],
+      "disclosures": [
+        "The retrieved evidence does not establish how the brain area or network named for this question and the attitude measure relate.",
+        "The retrieved evidence does not establish implicit attitude findings."
+      ],
+      "not_assessed": [
+        "This run did not assess the choice of implicit and explicit attitude measures.",
+        "This run did not assess the documented nature or direction of a relationship, where supported."
+      ],
+      "term_support": [],
+      "qualifications": [],
+      "qualification_candidates": [
+        {
+          "span_id": "e11",
+          "paper_id": 67,
+          "text": "It may be that the Dictator and/or Ultimatum Games are poor proxies for the kinds of real-world discriminatory behaviors associated with the “anomalous-is-bad” bias.2–6 Another possibility is that our sample was too small to achieve the statistical power needed for adequate sensitivity.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "direction_or_effectiveness::97e9b66f0fd3c1c2",
+          "shared_content_words": [
+            "anomalous"
+          ],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e12",
+          "paper_id": 67,
+          "text": "A meta-analysis of studies on the consequences of intergroup bias for economic game behavior found wide variation in average effect sizes depending on the specific group-based identity made salient (i.e., d = −0.177 to 0.551, or from small to medium in magnitude).43 Coun- terintuitively, stronger discrimination in economic games was detected for experimentally contrived groups than for facets of identity like ethnicity and nationality that some participants might not find particularly salient.43 It remains to be seen whether increasing the salience of facial anoma- lies exacerbates intergroup biases as expressed in economic games.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "direction_or_effectiveness::97e9b66f0fd3c1c2",
+          "shared_content_words": [
+            "anoma",
+            "facial",
+            "group"
+          ],
+          "attached": false,
+          "excluded_as_background": true,
+          "scope_qualifier": false,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e1",
+          "paper_id": 67,
+          "text": "Several limitations to the current research neces- sitate discussion.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "direction_or_effectiveness::97e9b66f0fd3c1c2",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e10",
+          "paper_id": 67,
+          "text": "Many of the best- known databases of standardized face photographs comprise almost exclusively younger adults and feature only limited racial and/or ethnic diversity.28",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "direction_or_effectiveness::97e9b66f0fd3c1c2",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e1",
+          "paper_id": 67,
+          "text": "Several limitations to the current research neces- sitate discussion.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "direction_or_effectiveness::97e9b66f0fd3c1c2",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e10",
+          "paper_id": 67,
+          "text": "Many of the best- known databases of standardized face photographs comprise almost exclusively younger adults and feature only limited racial and/or ethnic diversity.28",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "direction_or_effectiveness::97e9b66f0fd3c1c2",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e1",
+          "paper_id": 67,
+          "text": "Several limitations to the current research neces- sitate discussion.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "direction_or_effectiveness::97e9b66f0fd3c1c2",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e10",
+          "paper_id": 67,
+          "text": "Many of the best- known databases of standardized face photographs comprise almost exclusively younger adults and feature only limited racial and/or ethnic diversity.28",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "direction_or_effectiveness::97e9b66f0fd3c1c2",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e1",
+          "paper_id": 67,
+          "text": "Several limitations to the current research neces- sitate discussion.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "direction_or_effectiveness::97e9b66f0fd3c1c2",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e10",
+          "paper_id": 67,
+          "text": "Many of the best- known databases of standardized face photographs comprise almost exclusively younger adults and feature only limited racial and/or ethnic diversity.28",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "direction_or_effectiveness::97e9b66f0fd3c1c2",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e1",
+          "paper_id": 67,
+          "text": "Several limitations to the current research neces- sitate discussion.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "direction_or_effectiveness::97e9b66f0fd3c1c2",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e10",
+          "paper_id": 67,
+          "text": "Many of the best- known databases of standardized face photographs comprise almost exclusively younger adults and feature only limited racial and/or ethnic diversity.28",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "direction_or_effectiveness::97e9b66f0fd3c1c2",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e1",
+          "paper_id": 67,
+          "text": "Several limitations to the current research neces- sitate discussion.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "direction_or_effectiveness::97e9b66f0fd3c1c2",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e10",
+          "paper_id": 67,
+          "text": "Many of the best- known databases of standardized face photographs comprise almost exclusively younger adults and feature only limited racial and/or ethnic diversity.28",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "direction_or_effectiveness::97e9b66f0fd3c1c2",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e1",
+          "paper_id": 67,
+          "text": "Several limitations to the current research neces- sitate discussion.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "direction_or_effectiveness::97e9b66f0fd3c1c2",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e10",
+          "paper_id": 67,
+          "text": "Many of the best- known databases of standardized face photographs comprise almost exclusively younger adults and feature only limited racial and/or ethnic diversity.28",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "direction_or_effectiveness::97e9b66f0fd3c1c2",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e1",
+          "paper_id": 67,
+          "text": "Several limitations to the current research neces- sitate discussion.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "direction_or_effectiveness::97e9b66f0fd3c1c2",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e10",
+          "paper_id": 67,
+          "text": "Many of the best- known databases of standardized face photographs comprise almost exclusively younger adults and feature only limited racial and/or ethnic diversity.28",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "direction_or_effectiveness::97e9b66f0fd3c1c2",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e1",
+          "paper_id": 67,
+          "text": "Several limitations to the current research neces- sitate discussion.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "direction_or_effectiveness::97e9b66f0fd3c1c2",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e10",
+          "paper_id": 67,
+          "text": "Many of the best- known databases of standardized face photographs comprise almost exclusively younger adults and feature only limited racial and/or ethnic diversity.28",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "direction_or_effectiveness::97e9b66f0fd3c1c2",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e1",
+          "paper_id": 67,
+          "text": "Several limitations to the current research neces- sitate discussion.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "direction_or_effectiveness::97e9b66f0fd3c1c2",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e10",
+          "paper_id": 67,
+          "text": "Many of the best- known databases of standardized face photographs comprise almost exclusively younger adults and feature only limited racial and/or ethnic diversity.28",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "direction_or_effectiveness::97e9b66f0fd3c1c2",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e11",
+          "paper_id": 67,
+          "text": "It may be that the Dictator and/or Ultimatum Games are poor proxies for the kinds of real-world discriminatory behaviors associated with the “anomalous-is-bad” bias.2–6 Another possibility is that our sample was too small to achieve the statistical power needed for adequate sensitivity.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "direction_or_effectiveness::97e9b66f0fd3c1c2",
+          "shared_content_words": [
+            "anomalous"
+          ],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e12",
+          "paper_id": 67,
+          "text": "A meta-analysis of studies on the consequences of intergroup bias for economic game behavior found wide variation in average effect sizes depending on the specific group-based identity made salient (i.e., d = −0.177 to 0.551, or from small to medium in magnitude).43 Coun- terintuitively, stronger discrimination in economic games was detected for experimentally contrived groups than for facets of identity like ethnicity and nationality that some participants might not find particularly salient.43 It remains to be seen whether increasing the salience of facial anoma- lies exacerbates intergroup biases as expressed in economic games.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "direction_or_effectiveness::97e9b66f0fd3c1c2",
+          "shared_content_words": [
+            "anoma",
+            "facial",
+            "group"
+          ],
+          "attached": false,
+          "excluded_as_background": true,
+          "scope_qualifier": false,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e5",
+          "paper_id": 67,
+          "text": "and may not completely capture the proximate cause of the stereotype, however, which could instead emerge from diminished prosocial emo- tions (i.e., empathic concern) and/or from social values.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "direction_or_effectiveness::97e9b66f0fd3c1c2",
+          "shared_content_words": [
+            "stereotype"
+          ],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": false,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e5",
+          "paper_id": 67,
+          "text": "and may not completely capture the proximate cause of the stereotype, however, which could instead emerge from diminished prosocial emo- tions (i.e., empathic concern) and/or from social values.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "direction_or_effectiveness::97e9b66f0fd3c1c2",
+          "shared_content_words": [
+            "stereotype"
+          ],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": false,
+          "standalone": true,
+          "promoted_to_layer1": false
+        }
+      ]
+    },
+    {
+      "label": "5",
+      "parent": null,
+      "nesting": "top_level",
+      "literal_text": "Which specific personality / individual-difference traits relate to its manifestation, and which scales measured them?",
+      "owning_child_ids": [
+        "c8",
+        "c9"
+      ],
+      "status": "not_established",
+      "facets": [
+        {
+          "facet_id": "c8#suff:trait-construct",
+          "phrase": "a specific personality or individual-difference trait related to the bias",
+          "state": "not_established",
+          "covered_roles": [],
+          "required_roles": [
+            "individual_difference_trait_or_construct",
+            "relationship_to_bias_manifestation"
+          ],
+          "relation_status": "witnessed",
+          "claim_ids": [
+            "relational::6d3e9d91766ca2c1",
+            "relational::bac1b3e1196e3527",
+            "relational::99d44d22bc14a8e3",
+            "relational::629c3c06bf89e330",
+            "relational::6e5d1f4ca6697f91",
+            "category_list::f1f51b4ba55bad3c"
+          ],
+          "displayed_render_count": 0,
+          "disclosures": [
+            "The retrieved evidence does not establish a specific personality or individual-difference trait related to the bias.",
+            "A rating of stimuli is not stated as a characteristic of people.",
+            "The authors present this as a suggestion or a study aim, so it is not stated as a result."
+          ]
+        },
+        {
+          "facet_id": "c9#suff:trait-scale-pairing",
+          "phrase": "a scale that measured such a trait",
+          "state": "not_established",
+          "covered_roles": [],
+          "required_roles": [
+            "individual_difference_trait_or_construct",
+            "named_scale_or_instrument"
+          ],
+          "relation_status": "incomplete",
+          "claim_ids": [],
+          "displayed_render_count": 0,
+          "disclosures": [
+            "The retrieved evidence does not establish how the personality or individual-difference trait and the scale or instrument relate."
+          ]
+        }
+      ],
+      "statements": [],
+      "disclosures": [
+        "The retrieved evidence does not establish a specific personality or individual-difference trait related to the bias.",
+        "A rating of stimuli is not stated as a characteristic of people.",
+        "The authors present this as a suggestion or a study aim, so it is not stated as a result.",
+        "The retrieved evidence does not establish how the personality or individual-difference trait and the scale or instrument relate."
+      ],
+      "not_assessed": [],
+      "term_support": [
+        {
+          "term": "DG",
+          "supported": false,
+          "support": null
+        },
+        {
+          "term": "EBQ",
+          "supported": true,
+          "support": {
+            "term": "EBQ",
+            "expansion": "The Explicit Bias Questionnaire",
+            "paper_id": 67,
+            "same_paper": true,
+            "matched": "The Explicit Bias Questionnaire (EBQ)"
+          }
+        },
+        {
+          "term": "IAT",
+          "supported": true,
+          "support": {
+            "term": "IAT",
+            "expansion": "The Implicit Association Test",
+            "paper_id": 67,
+            "same_paper": true,
+            "matched": "The Implicit Association Test (IAT)"
+          }
+        }
+      ],
+      "qualifications": [],
+      "qualification_candidates": []
+    },
+    {
+      "label": "6",
+      "parent": null,
+      "nesting": "top_level",
+      "literal_text": "Is there cross-cultural evidence bearing on generalizability? Which cultures/populations, and how was the bias measured/operationalized?",
+      "owning_child_ids": [
+        "c10",
+        "c11"
+      ],
+      "status": "not_established",
+      "facets": [
+        {
+          "facet_id": "c10#suff:culture-existence",
+          "phrase": "a named culture or population with evidence on the bias",
+          "state": "not_established",
+          "covered_roles": [],
+          "required_roles": [
+            "named_culture_or_population",
+            "bias_evidence_in_population"
+          ],
+          "relation_status": "incomplete",
+          "claim_ids": [
+            "category_list::775fda7778860372"
+          ],
+          "displayed_render_count": 0,
+          "disclosures": [
+            "The retrieved evidence does not establish a named culture or population with evidence on the bias.",
+            "A passage that may bear on this question ends before its finding is complete, so it is not stated."
+          ]
+        },
+        {
+          "facet_id": "c11#suff:culture-operationalization-pairing",
+          "phrase": "how the bias was measured in that culture or population",
+          "state": "not_established",
+          "covered_roles": [],
+          "required_roles": [
+            "culture_or_population",
+            "operationalization_or_measure"
+          ],
+          "relation_status": "incomplete",
+          "claim_ids": [],
+          "displayed_render_count": 0,
+          "disclosures": [
+            "The retrieved evidence does not establish how the culture or population and how the bias was measured relate."
+          ]
+        }
+      ],
+      "statements": [],
+      "disclosures": [
+        "The retrieved evidence does not establish a named culture or population with evidence on the bias.",
+        "A passage that may bear on this question ends before its finding is complete, so it is not stated.",
+        "The retrieved evidence does not establish how the culture or population and how the bias was measured relate."
+      ],
+      "not_assessed": [],
+      "term_support": [],
+      "qualifications": [],
+      "qualification_candidates": []
+    },
+    {
+      "label": "7",
+      "parent": null,
+      "nesting": "top_level",
+      "literal_text": "Are there effective interventions aimed at reducing manifestations of the bias?",
+      "owning_child_ids": [
+        "c12"
+      ],
+      "status": "partial",
+      "facets": [
+        {
+          "facet_id": "c12#suff:intervention-effectiveness",
+          "phrase": "an intervention aimed at reducing the bias, and its observed effect",
+          "state": "partial",
+          "covered_roles": [
+            "observed_effect_or_outcome"
+          ],
+          "required_roles": [
+            "intervention",
+            "target_manifestation",
+            "observed_effect_or_outcome"
+          ],
+          "relation_status": "incomplete",
+          "claim_ids": [
+            "category_list::d47465340e922bca"
+          ],
+          "displayed_render_count": 2,
+          "disclosures": [
+            "The retrieved evidence does not establish how the intervention, which aspect of the bias the intervention targets and the observed effect relate.",
+            "A passage gives only a general summary, without a specific measure or result, so it is listed in the supporting evidence instead.",
+            "Earlier work reports this, and the retrieved text does not present it as this study's result, so it is listed in the supporting evidence."
+          ]
+        }
+      ],
+      "statements": [
+        {
+          "claim_id": "category_list::d47465340e922bca",
+          "facet_id": "c12#suff:intervention-effectiveness",
+          "kind": "value_sentence",
+          "text": "We also observed that the anomalous faces variant of the NAME intervention produced a clear reduction in implicit bias against people with anomalous faces, whereas bias toward people of color in that condition remained essentially unchanged.",
+          "prop_ids": [
+            "p30"
+          ],
+          "attribution": "this_study_result",
+          "edits": [
+            {
+              "kind": "run_in_heading_removed",
+              "removed": "Specificity and generalization of intervention effects"
+            }
+          ],
+          "facet_state": "partial",
+          "subject": null,
+          "span_id": null,
+          "paper_id": null,
+          "span_text": null,
+          "values": [
+            "Specificity and generalization of intervention effects We also observed that the anomalous faces variant of the NAME intervention produced a clear reduction in implicit bias against people with anomalous faces, whereas bias toward people of color in that condition remained essentially unchanged."
+          ]
+        },
+        {
+          "claim_id": "category_list::d47465340e922bca",
+          "facet_id": "c12#suff:intervention-effectiveness",
+          "kind": "value_sentence",
+          "text": "Taken together, our data are consistent with the possibility that repeated, targeted exposure to individuals with facial dif- ferences, embedded in positive narratives and opportu- nities for perspective taking, can help reduce negative implicit biases associated with limited contact, while also leaving room for more general repetition-based mecha- nisms to contribute.",
+          "prop_ids": [
+            "p31"
+          ],
+          "attribution": "this_study_result",
+          "edits": [],
+          "facet_state": "partial",
+          "subject": null,
+          "span_id": null,
+          "paper_id": null,
+          "span_text": null,
+          "values": [
+            "Taken together, our data are consistent with the possibility that repeated, targeted exposure to individuals with facial dif- ferences, embedded in positive narratives and opportu- nities for perspective taking, can help reduce negative implicit biases associated with limited contact, while also leaving room for more general repetition-based mecha- nisms to contribute."
+          ]
+        },
+        {
+          "claim_id": "qualification:e13",
+          "facet_id": "c12#suff:intervention-effectiveness",
+          "kind": "qualification_sentence",
+          "text": "Another, not mutually exclusive, possibility is that the control intervention generalized more strongly across groups than the anomalous faces intervention.",
+          "prop_ids": [],
+          "attribution": "qualification",
+          "edits": [],
+          "facet_state": null,
+          "subject": null,
+          "span_id": "e13",
+          "paper_id": 248,
+          "span_text": "Another, not mutually exclusive, possibility is that the control intervention generalized more strongly across groups than the anomalous faces intervention.",
+          "values": null
+        },
+        {
+          "claim_id": "qualification:e4",
+          "facet_id": "c12#suff:intervention-effectiveness",
+          "kind": "qualification_sentence",
+          "text": "Because we did not measure par- ticipants’ behavior, we cannot determine whether the observed changes in implicit bias translated into more prosocial actions toward people with facial anomalies.",
+          "prop_ids": [],
+          "attribution": "qualification",
+          "edits": [],
+          "facet_state": null,
+          "subject": null,
+          "span_id": "e4",
+          "paper_id": 248,
+          "span_text": "Because we did not measure par- ticipants’ behavior, we cannot determine whether the observed changes in implicit bias translated into more prosocial actions toward people with facial anomalies.",
+          "values": null
+        },
+        {
+          "claim_id": "qualification:e24",
+          "facet_id": "c12#suff:intervention-effectiveness",
+          "kind": "qualification_sentence",
+          "text": "We therefore cannot determine whether the observed reductions in implicit bias are driven primarily by moral-exemplar content, by associating people with facial anomalies with socially valued occu- pations, or by increased individuating information and familiarity.",
+          "prop_ids": [],
+          "attribution": "qualification",
+          "edits": [],
+          "facet_state": null,
+          "subject": null,
+          "span_id": "e24",
+          "paper_id": 248,
+          "span_text": "We therefore cannot determine whether the observed reductions in implicit bias are driven primarily by moral-exemplar content, by associating people with facial anomalies with socially valued occu- pations, or by increased individuating information and familiarity.",
+          "values": null
+        }
+      ],
+      "disclosures": [
+        "The retrieved evidence does not establish how the intervention, which aspect of the bias the intervention targets and the observed effect relate.",
+        "A passage gives only a general summary, without a specific measure or result, so it is listed in the supporting evidence instead.",
+        "Earlier work reports this, and the retrieved text does not present it as this study's result, so it is listed in the supporting evidence.",
+        "The paper adds a qualification to this result; it is listed in the supporting evidence."
+      ],
+      "not_assessed": [],
+      "term_support": [
+        {
+          "term": "NAME",
+          "supported": true,
+          "support": {
+            "term": "NAME",
+            "expansion": "Normalizing Anomalies with Mobile Exposure",
+            "paper_id": 248,
+            "same_paper": true,
+            "matched": "Normalizing Anomalies with Mobile Exposure” (NAME)"
+          }
+        }
+      ],
+      "qualifications": [
+        {
+          "span_id": "e13",
+          "paper_id": 248,
+          "text": "Another, not mutually exclusive, possibility is that the control intervention generalized more strongly across groups than the anomalous faces intervention.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "anomalous",
+            "faces",
+            "intervention"
+          ],
+          "attached": true,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": true
+        },
+        {
+          "span_id": "e15",
+          "paper_id": 248,
+          "text": "Accordingly, they should be interpreted as an initial demonstration rather than as definitive evidence regarding the mechanisms, scope, or generalizability of bias reduction toward facial anomalies.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "reduction",
+            "toward"
+          ],
+          "attached": true,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e13",
+          "paper_id": 248,
+          "text": "Another, not mutually exclusive, possibility is that the control intervention generalized more strongly across groups than the anomalous faces intervention.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "anomalous",
+            "faces",
+            "intervention"
+          ],
+          "attached": true,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": true
+        },
+        {
+          "span_id": "e13",
+          "paper_id": 248,
+          "text": "Another, not mutually exclusive, possibility is that the control intervention generalized more strongly across groups than the anomalous faces intervention.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "anomalous",
+            "faces",
+            "intervention"
+          ],
+          "attached": true,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": true
+        },
+        {
+          "span_id": "e13",
+          "paper_id": 248,
+          "text": "Another, not mutually exclusive, possibility is that the control intervention generalized more strongly across groups than the anomalous faces intervention.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "anomalous",
+            "faces",
+            "intervention"
+          ],
+          "attached": true,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": true
+        },
+        {
+          "span_id": "e15",
+          "paper_id": 248,
+          "text": "Accordingly, they should be interpreted as an initial demonstration rather than as definitive evidence regarding the mechanisms, scope, or generalizability of bias reduction toward facial anomalies.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "reduction",
+            "toward"
+          ],
+          "attached": true,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e13",
+          "paper_id": 248,
+          "text": "Another, not mutually exclusive, possibility is that the control intervention generalized more strongly across groups than the anomalous faces intervention.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "anomalous",
+            "faces",
+            "intervention"
+          ],
+          "attached": true,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": true
+        },
+        {
+          "span_id": "e15",
+          "paper_id": 248,
+          "text": "Accordingly, they should be interpreted as an initial demonstration rather than as definitive evidence regarding the mechanisms, scope, or generalizability of bias reduction toward facial anomalies.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "reduction",
+            "toward"
+          ],
+          "attached": true,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e4",
+          "paper_id": 248,
+          "text": "Because we did not measure par- ticipants’ behavior, we cannot determine whether the observed changes in implicit bias translated into more prosocial actions toward people with facial anomalies.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "implicit",
+            "observed",
+            "people",
+            "toward"
+          ],
+          "attached": true,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": true
+        },
+        {
+          "span_id": "e4",
+          "paper_id": 248,
+          "text": "Because we did not measure par- ticipants’ behavior, we cannot determine whether the observed changes in implicit bias translated into more prosocial actions toward people with facial anomalies.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "facial",
+            "implicit"
+          ],
+          "attached": true,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": true
+        },
+        {
+          "span_id": "e24",
+          "paper_id": 248,
+          "text": "Another, not mutually exclusive, possibility is that the control intervention generalized more strongly across groups than the anomalous faces intervention.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "anomalous",
+            "faces",
+            "intervention"
+          ],
+          "attached": true,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": true
+        },
+        {
+          "span_id": "e24",
+          "paper_id": 248,
+          "text": "We therefore cannot determine whether the observed reductions in implicit bias are driven primarily by moral-exemplar content, by associating people with facial anomalies with socially valued occu- pations, or by increased individuating information and familiarity.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "implicit",
+            "observed",
+            "people"
+          ],
+          "attached": true,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": true
+        },
+        {
+          "span_id": "e24",
+          "paper_id": 248,
+          "text": "We therefore cannot determine whether the observed reductions in implicit bias are driven primarily by moral-exemplar content, by associating people with facial anomalies with socially valued occu- pations, or by increased individuating information and familiarity.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "facial",
+            "implicit"
+          ],
+          "attached": true,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": true
+        }
+      ],
+      "qualification_candidates": [
+        {
+          "span_id": "e13",
+          "paper_id": 248,
+          "text": "Another, not mutually exclusive, possibility is that the control intervention generalized more strongly across groups than the anomalous faces intervention.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "anomalous",
+            "faces",
+            "intervention"
+          ],
+          "attached": true,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": true
+        },
+        {
+          "span_id": "e13",
+          "paper_id": 248,
+          "text": "Another, not mutually exclusive, possibility is that the control intervention generalized more strongly across groups than the anomalous faces intervention.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "possibility"
+          ],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e16",
+          "paper_id": 248,
+          "text": "Future research with designs that directly test asymmetric generalization across multiple out-groups will be needed to adjudicate between these mechanisms.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e16",
+          "paper_id": 248,
+          "text": "Future research with designs that directly test asymmetric generalization across multiple out-groups will be needed to adjudicate between these mechanisms.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e25",
+          "paper_id": 248,
+          "text": "Limits and future directions We measured implicit bias using the Implicit Association Test (IAT), a well-known yet sometimes controversial tool, as it does not always accurately predict real-world behavior [54].",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "implicit"
+          ],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": false,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e25",
+          "paper_id": 248,
+          "text": "Limits and future directions We measured implicit bias using the Implicit Association Test (IAT), a well-known yet sometimes controversial tool, as it does not always accurately predict real-world behavior [54].",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "implicit"
+          ],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": false,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e15",
+          "paper_id": 248,
+          "text": "Accordingly, they should be interpreted as an initial demonstration rather than as definitive evidence regarding the mechanisms, scope, or generalizability of bias reduction toward facial anomalies.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "reduction",
+            "toward"
+          ],
+          "attached": true,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e15",
+          "paper_id": 248,
+          "text": "Accordingly, they should be interpreted as an initial demonstration rather than as definitive evidence regarding the mechanisms, scope, or generalizability of bias reduction toward facial anomalies.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "facial"
+          ],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e13",
+          "paper_id": 248,
+          "text": "Another, not mutually exclusive, possibility is that the control intervention generalized more strongly across groups than the anomalous faces intervention.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "anomalous",
+            "faces",
+            "intervention"
+          ],
+          "attached": true,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": true
+        },
+        {
+          "span_id": "e13",
+          "paper_id": 248,
+          "text": "Another, not mutually exclusive, possibility is that the control intervention generalized more strongly across groups than the anomalous faces intervention.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "possibility"
+          ],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e16",
+          "paper_id": 248,
+          "text": "Future research with designs that directly test asymmetric generalization across multiple out-groups will be needed to adjudicate between these mechanisms.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e16",
+          "paper_id": 248,
+          "text": "Future research with designs that directly test asymmetric generalization across multiple out-groups will be needed to adjudicate between these mechanisms.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e25",
+          "paper_id": 248,
+          "text": "Limits and future directions We measured implicit bias using the Implicit Association Test (IAT), a well-known yet sometimes controversial tool, as it does not always accurately predict real-world behavior [54].",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "implicit"
+          ],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": false,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e25",
+          "paper_id": 248,
+          "text": "Limits and future directions We measured implicit bias using the Implicit Association Test (IAT), a well-known yet sometimes controversial tool, as it does not always accurately predict real-world behavior [54].",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "implicit"
+          ],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": false,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e33",
+          "paper_id": 248,
+          "text": "We therefore interpret IAT scores in the present study as indices of automatic evaluative associations rather than direct proxies for overt discriminatory behavior.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e33",
+          "paper_id": 248,
+          "text": "We therefore interpret IAT scores in the present study as indices of automatic evaluative associations rather than direct proxies for overt discriminatory behavior.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e13",
+          "paper_id": 248,
+          "text": "Another, not mutually exclusive, possibility is that the control intervention generalized more strongly across groups than the anomalous faces intervention.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "anomalous",
+            "faces",
+            "intervention"
+          ],
+          "attached": true,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": true
+        },
+        {
+          "span_id": "e13",
+          "paper_id": 248,
+          "text": "Another, not mutually exclusive, possibility is that the control intervention generalized more strongly across groups than the anomalous faces intervention.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "possibility"
+          ],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e16",
+          "paper_id": 248,
+          "text": "Future research with designs that directly test asymmetric generalization across multiple out-groups will be needed to adjudicate between these mechanisms.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e16",
+          "paper_id": 248,
+          "text": "Future research with designs that directly test asymmetric generalization across multiple out-groups will be needed to adjudicate between these mechanisms.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e25",
+          "paper_id": 248,
+          "text": "Limits and future directions We measured implicit bias using the Implicit Association Test (IAT), a well-known yet sometimes controversial tool, as it does not always accurately predict real-world behavior [54].",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "implicit"
+          ],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": false,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e25",
+          "paper_id": 248,
+          "text": "Limits and future directions We measured implicit bias using the Implicit Association Test (IAT), a well-known yet sometimes controversial tool, as it does not always accurately predict real-world behavior [54].",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "implicit"
+          ],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": false,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e13",
+          "paper_id": 248,
+          "text": "Another, not mutually exclusive, possibility is that the control intervention generalized more strongly across groups than the anomalous faces intervention.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "anomalous",
+            "faces",
+            "intervention"
+          ],
+          "attached": true,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": true
+        },
+        {
+          "span_id": "e13",
+          "paper_id": 248,
+          "text": "Another, not mutually exclusive, possibility is that the control intervention generalized more strongly across groups than the anomalous faces intervention.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "possibility"
+          ],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e16",
+          "paper_id": 248,
+          "text": "Future research with designs that directly test asymmetric generalization across multiple out-groups will be needed to adjudicate between these mechanisms.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e16",
+          "paper_id": 248,
+          "text": "Future research with designs that directly test asymmetric generalization across multiple out-groups will be needed to adjudicate between these mechanisms.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e25",
+          "paper_id": 248,
+          "text": "Limits and future directions We measured implicit bias using the Implicit Association Test (IAT), a well-known yet sometimes controversial tool, as it does not always accurately predict real-world behavior [54].",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "implicit"
+          ],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": false,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e25",
+          "paper_id": 248,
+          "text": "Limits and future directions We measured implicit bias using the Implicit Association Test (IAT), a well-known yet sometimes controversial tool, as it does not always accurately predict real-world behavior [54].",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "implicit"
+          ],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": false,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e15",
+          "paper_id": 248,
+          "text": "Accordingly, they should be interpreted as an initial demonstration rather than as definitive evidence regarding the mechanisms, scope, or generalizability of bias reduction toward facial anomalies.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "reduction",
+            "toward"
+          ],
+          "attached": true,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e15",
+          "paper_id": 248,
+          "text": "Accordingly, they should be interpreted as an initial demonstration rather than as definitive evidence regarding the mechanisms, scope, or generalizability of bias reduction toward facial anomalies.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "facial"
+          ],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e13",
+          "paper_id": 248,
+          "text": "Another, not mutually exclusive, possibility is that the control intervention generalized more strongly across groups than the anomalous faces intervention.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "anomalous",
+            "faces",
+            "intervention"
+          ],
+          "attached": true,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": true
+        },
+        {
+          "span_id": "e13",
+          "paper_id": 248,
+          "text": "Another, not mutually exclusive, possibility is that the control intervention generalized more strongly across groups than the anomalous faces intervention.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "possibility"
+          ],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e16",
+          "paper_id": 248,
+          "text": "Future research with designs that directly test asymmetric generalization across multiple out-groups will be needed to adjudicate between these mechanisms.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e16",
+          "paper_id": 248,
+          "text": "Future research with designs that directly test asymmetric generalization across multiple out-groups will be needed to adjudicate between these mechanisms.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e25",
+          "paper_id": 248,
+          "text": "Limits and future directions We measured implicit bias using the Implicit Association Test (IAT), a well-known yet sometimes controversial tool, as it does not always accurately predict real-world behavior [54].",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "implicit"
+          ],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": false,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e25",
+          "paper_id": 248,
+          "text": "Limits and future directions We measured implicit bias using the Implicit Association Test (IAT), a well-known yet sometimes controversial tool, as it does not always accurately predict real-world behavior [54].",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "implicit"
+          ],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": false,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e15",
+          "paper_id": 248,
+          "text": "Accordingly, they should be interpreted as an initial demonstration rather than as definitive evidence regarding the mechanisms, scope, or generalizability of bias reduction toward facial anomalies.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "reduction",
+            "toward"
+          ],
+          "attached": true,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e15",
+          "paper_id": 248,
+          "text": "Accordingly, they should be interpreted as an initial demonstration rather than as definitive evidence regarding the mechanisms, scope, or generalizability of bias reduction toward facial anomalies.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "facial"
+          ],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": false,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e17",
+          "paper_id": 248,
+          "text": "This question was moti- vated by work on intergroup contact and cross-category generalization, which suggests that different forms of contact can sometimes show different levels of specific- ity, but did not lead us to a strong directional prediction.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e17",
+          "paper_id": 248,
+          "text": "This question was moti- vated by work on intergroup contact and cross-category generalization, which suggests that different forms of contact can sometimes show different levels of specific- ity, but did not lead us to a strong directional prediction.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "contact"
+          ],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e19",
+          "paper_id": 248,
+          "text": "We expected any effects to be strongest for the bias directly targeted by a given inter- vention, while remaining agnostic about how much they might generalize across categories.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e19",
+          "paper_id": 248,
+          "text": "We expected any effects to be strongest for the bias directly targeted by a given inter- vention, while remaining agnostic about how much they might generalize across categories.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "targeted"
+          ],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e4",
+          "paper_id": 248,
+          "text": "Because we did not measure par- ticipants’ behavior, we cannot determine whether the observed changes in implicit bias translated into more prosocial actions toward people with facial anomalies.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "implicit",
+            "observed",
+            "people",
+            "toward"
+          ],
+          "attached": true,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": true
+        },
+        {
+          "span_id": "e4",
+          "paper_id": 248,
+          "text": "Because we did not measure par- ticipants’ behavior, we cannot determine whether the observed changes in implicit bias translated into more prosocial actions toward people with facial anomalies.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "facial",
+            "implicit"
+          ],
+          "attached": true,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": true
+        },
+        {
+          "span_id": "e24",
+          "paper_id": 248,
+          "text": "Another, not mutually exclusive, possibility is that the control intervention generalized more strongly across groups than the anomalous faces intervention.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "anomalous",
+            "faces",
+            "intervention"
+          ],
+          "attached": true,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": true
+        },
+        {
+          "span_id": "e24",
+          "paper_id": 248,
+          "text": "Another, not mutually exclusive, possibility is that the control intervention generalized more strongly across groups than the anomalous faces intervention.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "possibility"
+          ],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e27",
+          "paper_id": 248,
+          "text": "Future research with designs that directly test asymmetric generalization across multiple out-groups will be needed to adjudicate between these mechanisms.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e27",
+          "paper_id": 248,
+          "text": "Future research with designs that directly test asymmetric generalization across multiple out-groups will be needed to adjudicate between these mechanisms.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e12",
+          "paper_id": 248,
+          "text": "A key question for further research is whether these short-term gains persist over longer peri- ods.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e12",
+          "paper_id": 248,
+          "text": "A key question for further research is whether these short-term gains persist over longer peri- ods.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e13",
+          "paper_id": 248,
+          "text": "Our follow-up assessment took place within a few days of the final session, so we cannot say how durable these changes are over weeks or months.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e13",
+          "paper_id": 248,
+          "text": "Our follow-up assessment took place within a few days of the final session, so we cannot say how durable these changes are over weeks or months.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e17",
+          "paper_id": 248,
+          "text": "A further limitation concerns our assessment of explicit attitudes.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e17",
+          "paper_id": 248,
+          "text": "A further limitation concerns our assessment of explicit attitudes.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e21",
+          "paper_id": 248,
+          "text": "A further limitation concerns the structure of the nar- ratives used in the NAME intervention.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "intervention"
+          ],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e21",
+          "paper_id": 248,
+          "text": "A further limitation concerns the structure of the nar- ratives used in the NAME intervention.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e24",
+          "paper_id": 248,
+          "text": "We therefore cannot determine whether the observed reductions in implicit bias are driven primarily by moral-exemplar content, by associating people with facial anomalies with socially valued occu- pations, or by increased individuating information and familiarity.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "implicit",
+            "observed",
+            "people"
+          ],
+          "attached": true,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": true
+        },
+        {
+          "span_id": "e24",
+          "paper_id": 248,
+          "text": "We therefore cannot determine whether the observed reductions in implicit bias are driven primarily by moral-exemplar content, by associating people with facial anomalies with socially valued occu- pations, or by increased individuating information and familiarity.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "facial",
+            "implicit"
+          ],
+          "attached": true,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": true
+        },
+        {
+          "span_id": "e30",
+          "paper_id": 248,
+          "text": "However, this limits the generalizability of our findings to such types of interventions.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e30",
+          "paper_id": 248,
+          "text": "However, this limits the generalizability of our findings to such types of interventions.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e32",
+          "paper_id": 248,
+          "text": "Another limitation of our study is that the intervention was tested on a single sample drawn from one cultural and national context—the United States—and the control set of facial photographs was also region-specific.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "intervention"
+          ],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e32",
+          "paper_id": 248,
+          "text": "Another limitation of our study is that the intervention was tested on a single sample drawn from one cultural and national context—the United States—and the control set of facial photographs was also region-specific.",
+          "sentence_kind": "unknown",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "facial"
+          ],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e35",
+          "paper_id": 248,
+          "text": "Scars may carry dis- tinct social and moral connotations (e.g., associations with violence, danger, or victimization) that differ from those attached to other kinds of visible differences, which may limit the generalizability of our findings to all people with facial anomalies.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "people"
+          ],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        },
+        {
+          "span_id": "e35",
+          "paper_id": 248,
+          "text": "Scars may carry dis- tinct social and moral connotations (e.g., associations with violence, danger, or victimization) that differ from those attached to other kinds of visible differences, which may limit the generalizability of our findings to all people with facial anomalies.",
+          "sentence_kind": "this_study_result",
+          "qualifies_claim_id": "category_list::d47465340e922bca",
+          "shared_content_words": [
+            "facial"
+          ],
+          "attached": false,
+          "excluded_as_background": false,
+          "scope_qualifier": true,
+          "standalone": true,
+          "promoted_to_layer1": false
+        }
+      ]
+    }
+  ],
+  "claim_roles": [
+    {
+      "claim_id": "relational::5d178917787a4805",
+      "claim_kind": "relational",
+      "child_ids": [
+        "c4"
+      ],
+      "requirement_ids": [
+        "c4#suff:specific-region"
+      ],
+      "role_in_claim": null,
+      "facet_id": "c4#suff:specific-region",
+      "role": "suppressed",
+      "layer": "layer2",
+      "reasons": [
+        "referentially_closed"
+      ],
+      "value_results": [],
+      "sentence_attempts": [
+        {
+          "prop_id": "p11",
+          "reasons": [
+            "referentially_closed"
+          ]
+        }
+      ],
+      "render_status": [],
+      "admissible_proposition_ids": [
+        "p11"
+      ],
+      "attached_unit": null,
+      "enumeration_candidate": null,
+      "direction_sign": null
+    },
+    {
+      "claim_id": "relational::6d3e9d91766ca2c1",
+      "claim_kind": "relational",
+      "child_ids": [
+        "c8"
+      ],
+      "requirement_ids": [
+        "c8#suff:trait-construct"
+      ],
+      "role_in_claim": null,
+      "facet_id": "c8#suff:trait-construct",
+      "role": "suppressed",
+      "layer": "layer2",
+      "reasons": [
+        "not_stimulus_rating"
+      ],
+      "value_results": [],
+      "sentence_attempts": [
+        {
+          "prop_id": "p41",
+          "reasons": [
+            "not_stimulus_rating"
+          ]
+        }
+      ],
+      "render_status": [],
+      "admissible_proposition_ids": [
+        "p41"
+      ],
+      "attached_unit": null,
+      "enumeration_candidate": null,
+      "direction_sign": null
+    },
+    {
+      "claim_id": "relational::bac1b3e1196e3527",
+      "claim_kind": "relational",
+      "child_ids": [
+        "c8"
+      ],
+      "requirement_ids": [
+        "c8#suff:trait-construct"
+      ],
+      "role_in_claim": null,
+      "facet_id": "c8#suff:trait-construct",
+      "role": "suppressed",
+      "layer": "layer2",
+      "reasons": [
+        "not_stimulus_rating"
+      ],
+      "value_results": [],
+      "sentence_attempts": [
+        {
+          "prop_id": "p41",
+          "reasons": [
+            "not_stimulus_rating"
+          ]
+        }
+      ],
+      "render_status": [],
+      "admissible_proposition_ids": [
+        "p41"
+      ],
+      "attached_unit": null,
+      "enumeration_candidate": null,
+      "direction_sign": null
+    },
+    {
+      "claim_id": "relational::99d44d22bc14a8e3",
+      "claim_kind": "relational",
+      "child_ids": [
+        "c8"
+      ],
+      "requirement_ids": [
+        "c8#suff:trait-construct"
+      ],
+      "role_in_claim": null,
+      "facet_id": "c8#suff:trait-construct",
+      "role": "suppressed",
+      "layer": "layer2",
+      "reasons": [
+        "not_stimulus_rating"
+      ],
+      "value_results": [],
+      "sentence_attempts": [
+        {
+          "prop_id": "p41",
+          "reasons": [
+            "not_stimulus_rating"
+          ]
+        }
+      ],
+      "render_status": [],
+      "admissible_proposition_ids": [
+        "p41"
+      ],
+      "attached_unit": null,
+      "enumeration_candidate": null,
+      "direction_sign": null
+    },
+    {
+      "claim_id": "relational::629c3c06bf89e330",
+      "claim_kind": "relational",
+      "child_ids": [
+        "c8"
+      ],
+      "requirement_ids": [
+        "c8#suff:trait-construct"
+      ],
+      "role_in_claim": null,
+      "facet_id": "c8#suff:trait-construct",
+      "role": "suppressed",
+      "layer": "layer2",
+      "reasons": [
+        "not_stimulus_rating"
+      ],
+      "value_results": [],
+      "sentence_attempts": [
+        {
+          "prop_id": "p41",
+          "reasons": [
+            "not_stimulus_rating"
+          ]
+        }
+      ],
+      "render_status": [],
+      "admissible_proposition_ids": [
+        "p41"
+      ],
+      "attached_unit": null,
+      "enumeration_candidate": null,
+      "direction_sign": null
+    },
+    {
+      "claim_id": "relational::6e5d1f4ca6697f91",
+      "claim_kind": "relational",
+      "child_ids": [
+        "c8"
+      ],
+      "requirement_ids": [
+        "c8#suff:trait-construct"
+      ],
+      "role_in_claim": null,
+      "facet_id": "c8#suff:trait-construct",
+      "role": "suppressed",
+      "layer": "layer2",
+      "reasons": [
+        "not_stimulus_rating"
+      ],
+      "value_results": [],
+      "sentence_attempts": [
+        {
+          "prop_id": "p41",
+          "reasons": [
+            "not_stimulus_rating"
+          ]
+        }
+      ],
+      "render_status": [],
+      "admissible_proposition_ids": [
+        "p41"
+      ],
+      "attached_unit": null,
+      "enumeration_candidate": null,
+      "direction_sign": null
+    },
+    {
+      "claim_id": "direction_or_effectiveness::97e9b66f0fd3c1c2",
+      "claim_kind": "direction_or_effectiveness",
+      "child_ids": [
+        "c6"
+      ],
+      "requirement_ids": [
+        "c6#suff:brain-attitude"
+      ],
+      "role_in_claim": null,
+      "facet_id": "c6#suff:brain-attitude",
+      "role": "value_level",
+      "layer": "layer1",
+      "reasons": [],
+      "value_results": [],
+      "sentence_attempts": [],
+      "render_status": [
+        {
+          "text": "Nevertheless, we found evidence for the “anomalous-is-bad” stereotype in explicit negative attitudes about people with facial anoma- lies both as individuals (i.e., character inferences) and as a group (i.e., scores on the Explicit Bias Questionnaire).",
+          "status": "displayed",
+          "duplicate_of": null,
+          "subsumed_by": null
+        }
+      ],
+      "admissible_proposition_ids": [
+        "p14",
+        "p26"
+      ],
+      "attached_unit": null,
+      "enumeration_candidate": null,
+      "direction_sign": "negative"
+    },
+    {
+      "claim_id": "role_value::8d0ce9c4405f714b",
+      "claim_kind": "role_value",
+      "child_ids": [
+        "c1"
+      ],
+      "requirement_ids": [
+        "c1#suff:neural-manifestation"
+      ],
+      "role_in_claim": "neural_manifestation_evidence",
+      "facet_id": "c1#suff:neural-manifestation",
+      "role": "suppressed",
+      "layer": "layer2",
+      "reasons": [
+        "passage_not_generic_summary",
+        "attribution_prior_work"
+      ],
+      "value_results": [
+        {
+          "value": "This research confirmed earlier reports that people with anomalous faces are imbued with negative personality characteristics, detected explicit biases against people with facial anomalies, and described a behavioral manifestation of the “anomalous-is- bad” stereotype affecting prosociality.",
+          "ok": false,
+          "reasons": [
+            "passage_not_generic_summary",
+            "attribution_prior_work"
+          ]
+        }
+      ],
+      "sentence_attempts": [],
+      "render_status": [],
+      "admissible_proposition_ids": [
+        "p1"
+      ],
+      "attached_unit": null,
+      "enumeration_candidate": null,
+      "direction_sign": null
+    },
+    {
+      "claim_id": "role_value::57b25a887d32ec58",
+      "claim_kind": "role_value",
+      "child_ids": [
+        "c1"
+      ],
+      "requirement_ids": [
+        "c1#suff:neural-manifestation"
+      ],
+      "role_in_claim": "brain_region_or_network",
+      "facet_id": "c1#suff:neural-manifestation",
+      "role": "suppressed",
+      "layer": "layer2",
+      "reasons": [
+        "referentially_closed"
+      ],
+      "value_results": [
+        {
+          "value": "the specific amygdala response",
+          "ok": false,
+          "reasons": [
+            "referentially_closed"
+          ]
+        }
+      ],
+      "sentence_attempts": [],
+      "render_status": [],
+      "admissible_proposition_ids": [
+        "p11",
+        "p2"
+      ],
+      "attached_unit": null,
+      "enumeration_candidate": null,
+      "direction_sign": null
+    },
+    {
+      "claim_id": "role_value::b9591e4fba42edb1",
+      "claim_kind": "role_value",
+      "child_ids": [
+        "c2"
+      ],
+      "requirement_ids": [
+        "c2#suff:behavioral-manifestation"
+      ],
+      "role_in_claim": "behavioral_manifestation_evidence",
+      "facet_id": "c2#suff:behavioral-manifestation",
+      "role": "suppressed",
+      "layer": "layer2",
+      "reasons": [
+        "passage_not_generic_summary",
+        "attribution_prior_work"
+      ],
+      "value_results": [
+        {
+          "value": "This research confirmed earlier reports that people with anomalous faces are imbued with negative personality characteristics, detected explicit biases against people with facial anomalies, and described a behavioral manifestation of the “anomalous-is- bad” stereotype affecting prosociality.",
+          "ok": false,
+          "reasons": [
+            "passage_not_generic_summary",
+            "attribution_prior_work"
+          ]
+        }
+      ],
+      "sentence_attempts": [],
+      "render_status": [],
+      "admissible_proposition_ids": [
+        "p4"
+      ],
+      "attached_unit": null,
+      "enumeration_candidate": null,
+      "direction_sign": null
+    },
+    {
+      "claim_id": "role_value::34d05796cc1dd8a3",
+      "claim_kind": "role_value",
+      "child_ids": [
+        "c3"
+      ],
+      "requirement_ids": [
+        "c3#suff:attitude-manifestation"
+      ],
+      "role_in_claim": "attitude_manifestation_evidence",
+      "facet_id": "c3#suff:attitude-manifestation",
+      "role": "suppressed",
+      "layer": "layer2",
+      "reasons": [
+        "passage_not_generic_summary",
+        "attribution_prior_work"
+      ],
+      "value_results": [
+        {
+          "value": "This research confirmed earlier reports that people with anomalous faces are imbued with negative personality characteristics, detected explicit biases against people with facial anomalies, and described a behavioral manifestation of the “anomalous-is- bad” stereotype affecting prosociality.",
+          "ok": false,
+          "reasons": [
+            "passage_not_generic_summary",
+            "attribution_prior_work"
+          ]
+        }
+      ],
+      "sentence_attempts": [],
+      "render_status": [],
+      "admissible_proposition_ids": [
+        "p8"
+      ],
+      "attached_unit": null,
+      "enumeration_candidate": null,
+      "direction_sign": null
+    },
+    {
+      "claim_id": "role_value::161d9d5825b7df74",
+      "claim_kind": "role_value",
+      "child_ids": [
+        "c4"
+      ],
+      "requirement_ids": [
+        "c4#suff:specific-region"
+      ],
+      "role_in_claim": "named_brain_region_or_network",
+      "facet_id": "c4#suff:specific-region",
+      "role": "attributed_only",
+      "layer": "layer2",
+      "reasons": [
+        "attribution_prior_work"
+      ],
+      "value_results": [
+        {
+          "value": "increased amygdala reactiv- ity",
+          "ok": false,
+          "reasons": [
+            "attribution_prior_work"
+          ]
+        }
+      ],
+      "sentence_attempts": [],
+      "render_status": [],
+      "admissible_proposition_ids": [
+        "p40"
+      ],
+      "attached_unit": null,
+      "enumeration_candidate": null,
+      "direction_sign": null
+    },
+    {
+      "claim_id": "role_value::1f1af648ebc4dd29",
+      "claim_kind": "role_value",
+      "child_ids": [
+        "c4"
+      ],
+      "requirement_ids": [
+        "c4#suff:specific-region"
+      ],
+      "role_in_claim": "region_bears_on_bias_evidence",
+      "facet_id": "c4#suff:specific-region",
+      "role": "suppressed",
+      "layer": "layer2",
+      "reasons": [
+        "referentially_closed"
+      ],
+      "value_results": [
+        {
+          "value": "Across these levels of organization, the specific amygdala response to facial anomalies correlated with stronger just-world beliefs (i.e., people get what they deserve), less dispositional empathic concern, and less prosociality toward people with facial anomalies.",
+          "ok": false,
+          "reasons": [
+            "referentially_closed"
+          ]
+        }
+      ],
+      "sentence_attempts": [],
+      "render_status": [],
+      "admissible_proposition_ids": [
+        "p11"
+      ],
+      "attached_unit": null,
+      "enumeration_candidate": null,
+      "direction_sign": null
+    },
+    {
+      "claim_id": "role_value::c33c4ccf244a45a8",
+      "claim_kind": "role_value",
+      "child_ids": [
+        "c6"
+      ],
+      "requirement_ids": [
+        "c6#suff:implicit-explicit-coverage"
+      ],
+      "role_in_claim": "category_evidence",
+      "facet_id": "c6#suff:implicit-explicit-coverage",
+      "role": "primary",
+      "layer": "layer1",
+      "reasons": [],
+      "value_results": [
+        {
+          "value": "explicit",
+          "ok": true
+        }
+      ],
+      "sentence_attempts": [],
+      "render_status": [
+        {
+          "text": "Nevertheless, we found evidence for the “anomalous-is-bad” stereotype in explicit negative attitudes about people with facial anoma- lies both as individuals (i.e., character inferences) and as a group (i.e., scores on the Explicit Bias Questionnaire).",
+          "status": "duplicate",
+          "duplicate_of": "direction_or_effectiveness::97e9b66f0fd3c1c2",
+          "subsumed_by": null
+        }
+      ],
+      "admissible_proposition_ids": [
+        "p17"
+      ],
+      "attached_unit": null,
+      "enumeration_candidate": null,
+      "direction_sign": null
+    },
+    {
+      "claim_id": "category_list::775fda7778860372",
+      "claim_kind": "category_list",
+      "child_ids": [
+        "c10"
+      ],
+      "requirement_ids": [
+        "c10#suff:culture-existence"
+      ],
+      "role_in_claim": "named_culture_or_population",
+      "facet_id": "c10#suff:culture-existence",
+      "role": "suppressed",
+      "layer": "layer2",
+      "reasons": [
+        "passage_complete"
+      ],
+      "value_results": [
+        {
+          "value": "Hadza",
+          "ok": false,
+          "reasons": [
+            "passage_complete"
+          ]
+        }
+      ],
+      "sentence_attempts": [],
+      "render_status": [],
+      "admissible_proposition_ids": [
+        "p29",
+        "p53"
+      ],
+      "attached_unit": null,
+      "enumeration_candidate": null,
+      "direction_sign": null
+    },
+    {
+      "claim_id": "category_list::d47465340e922bca",
+      "claim_kind": "category_list",
+      "child_ids": [
+        "c12"
+      ],
+      "requirement_ids": [
+        "c12#suff:intervention-effectiveness"
+      ],
+      "role_in_claim": "observed_effect_or_outcome",
+      "facet_id": "c12#suff:intervention-effectiveness",
+      "role": "primary",
+      "layer": "layer1",
+      "reasons": [],
+      "value_results": [
+        {
+          "value": "This research confirmed earlier reports that people with anomalous faces are imbued with negative personality characteristics, detected explicit biases against people with facial anomalies, and described a behavioral manifestation of the “anomalous-is- bad” stereotype affecting prosociality.",
+          "ok": false,
+          "reasons": [
+            "passage_not_generic_summary",
+            "attribution_prior_work"
+          ]
+        },
+        {
+          "value": "Specificity and generalization of intervention effects We also observed that the anomalous faces variant of the NAME intervention produced a clear reduction in implicit bias against people with anomalous faces, whereas bias toward people of color in that condition remained essentially unchanged.",
+          "ok": true
+        },
+        {
+          "value": "Taken together, our data are consistent with the possibility that repeated, targeted exposure to individuals with facial dif- ferences, embedded in positive narratives and opportu- nities for perspective taking, can help reduce negative implicit biases associated with limited contact, while also leaving room for more general repetition-based mecha- nisms to contribute.",
+          "ok": true
+        }
+      ],
+      "sentence_attempts": [],
+      "render_status": [
+        {
+          "text": "We also observed that the anomalous faces variant of the NAME intervention produced a clear reduction in implicit bias against people with anomalous faces, whereas bias toward people of color in that condition remained essentially unchanged.",
+          "status": "displayed",
+          "duplicate_of": null,
+          "subsumed_by": null
+        },
+        {
+          "text": "Taken together, our data are consistent with the possibility that repeated, targeted exposure to individuals with facial dif- ferences, embedded in positive narratives and opportu- nities for perspective taking, can help reduce negative implicit biases associated with limited contact, while also leaving room for more general repetition-based mecha- nisms to contribute.",
+          "status": "displayed",
+          "duplicate_of": null,
+          "subsumed_by": null
+        }
+      ],
+      "admissible_proposition_ids": [
+        "p24",
+        "p30",
+        "p31"
+      ],
+      "attached_unit": null,
+      "enumeration_candidate": {
+        "values": [
+          "Specificity and generalization of intervention effects We also observed that the anomalous faces variant of the NAME intervention produced a clear reduction in implicit bias against people with anomalous faces, whereas bias toward people of color in that condition remained essentially unchanged.",
+          "Taken together, our data are consistent with the possibility that repeated, targeted exposure to individuals with facial dif- ferences, embedded in positive narratives and opportu- nities for perspective taking, can help reduce negative implicit biases associated with limited contact, while also leaving room for more general repetition-based mecha- nisms to contribute."
+        ],
+        "eligible": true
+      },
+      "direction_sign": null
+    },
+    {
+      "claim_id": "category_list::10ddc38dbb7cb05e",
+      "claim_kind": "category_list",
+      "child_ids": [
+        "c2"
+      ],
+      "requirement_ids": [
+        "c2#suff:behavioral-manifestation"
+      ],
+      "role_in_claim": "behavior_or_behavioral_measure",
+      "facet_id": "c2#suff:behavioral-manifestation",
+      "role": "suppressed",
+      "layer": "layer2",
+      "reasons": [
+        "requested_construct_direct"
+      ],
+      "value_results": [
+        {
+          "value": "decisions that were incongruent with behavioral bias (share with bad partner and keep with good partner versus the alternative choices)",
+          "ok": false,
+          "reasons": [
+            "requested_construct_direct"
+          ]
+        },
+        {
+          "value": "share decisions between partners (good versus bad)",
+          "ok": false,
+          "reasons": [
+            "requested_construct_direct"
+          ]
+        },
+        {
+          "value": "faster to share when playing with the good partner compared to the bad",
+          "ok": false,
+          "reasons": [
+            "requested_construct_direct"
+          ]
+        }
+      ],
+      "sentence_attempts": [],
+      "render_status": [],
+      "admissible_proposition_ids": [
+        "p35",
+        "p46",
+        "p47"
+      ],
+      "attached_unit": null,
+      "enumeration_candidate": null,
+      "direction_sign": null
+    },
+    {
+      "claim_id": "category_list::9fd341f1bbff788b",
+      "claim_kind": "category_list",
+      "child_ids": [
+        "c3"
+      ],
+      "requirement_ids": [
+        "c3#suff:implicit-explicit-coverage"
+      ],
+      "role_in_claim": "category_evidence",
+      "facet_id": "c3#suff:implicit-explicit-coverage",
+      "role": "primary",
+      "layer": "layer1",
+      "reasons": [],
+      "value_results": [
+        {
+          "value": "implicit",
+          "ok": true
+        },
+        {
+          "value": "explicit",
+          "ok": true
+        }
+      ],
+      "sentence_attempts": [],
+      "render_status": [
+        {
+          "text": "Participants expressed explicit biases against people with facial anomalies, but their implicit biases were slight and not significant.",
+          "status": "displayed",
+          "duplicate_of": null,
+          "subsumed_by": null
+        }
+      ],
+      "admissible_proposition_ids": [
+        "p36",
+        "p8"
+      ],
+      "attached_unit": null,
+      "enumeration_candidate": null,
+      "direction_sign": null
+    },
+    {
+      "claim_id": "category_list::f1f51b4ba55bad3c",
+      "claim_kind": "category_list",
+      "child_ids": [
+        "c8"
+      ],
+      "requirement_ids": [
+        "c8#suff:trait-construct"
+      ],
+      "role_in_claim": "individual_difference_trait_or_construct",
+      "facet_id": "c8#suff:trait-construct",
+      "role": "suppressed",
+      "layer": "layer2",
+      "reasons": [
+        "attribution_aim_or_hypothesis"
+      ],
+      "value_results": [
+        {
+          "value": "emotional dispositions (affective empathy)",
+          "ok": false,
+          "reasons": [
+            "attribution_aim_or_hypothesis"
+          ]
+        },
+        {
+          "value": "negative attitudes (IAT and EBQ)",
+          "ok": false,
+          "reasons": [
+            "attribution_aim_or_hypothesis"
+          ]
+        },
+        {
+          "value": "social cognitive biases (just-world beliefs)",
+          "ok": false,
+          "reasons": [
+            "attribution_aim_or_hypothesis"
+          ]
+        },
+        {
+          "value": "undesirable behaviors (less generosity in the DG)",
+          "ok": false,
+          "reasons": [
+            "attribution_aim_or_hypothesis"
+          ]
+        }
+      ],
+      "sentence_attempts": [],
+      "render_status": [],
+      "admissible_proposition_ids": [
+        "p20",
+        "p9"
+      ],
+      "attached_unit": null,
+      "enumeration_candidate": null,
+      "direction_sign": null
+    },
+    {
+      "claim_id": "category_list::7af59a3e5749152a",
+      "claim_kind": "category_list",
+      "child_ids": [
+        "c5"
+      ],
+      "requirement_ids": [
+        "c5#suff:brain-behavior"
+      ],
+      "role_in_claim": "behavior_or_behavioral_measure",
+      "facet_id": "c5#suff:brain-behavior",
+      "role": "suppressed",
+      "layer": "layer2",
+      "reasons": [
+        "requested_construct_direct"
+      ],
+      "value_results": [
+        {
+          "value": "participants made more share decisions overall when playing with the good partner than with the bad",
+          "ok": false,
+          "reasons": [
+            "requested_construct_direct"
+          ]
+        },
+        {
+          "value": "participants were faster to share when playing with the good partner compared to the bad",
+          "ok": false,
+          "reasons": [
+            "requested_construct_direct"
+          ]
+        }
+      ],
+      "sentence_attempts": [],
+      "render_status": [],
+      "admissible_proposition_ids": [
+        "p46",
+        "p47"
+      ],
+      "attached_unit": null,
+      "enumeration_candidate": null,
+      "direction_sign": null
+    },
+    {
+      "claim_id": "category_list::f453ebb75104e61d",
+      "claim_kind": "category_list",
+      "child_ids": [
+        "c6"
+      ],
+      "requirement_ids": [
+        "c6#suff:brain-attitude"
+      ],
+      "role_in_claim": "attitude_type_or_measure",
+      "facet_id": "c6#suff:brain-attitude",
+      "role": "primary",
+      "layer": "layer1",
+      "reasons": [],
+      "value_results": [
+        {
+          "value": "Explicit Bias Questionnaire",
+          "ok": true
+        }
+      ],
+      "sentence_attempts": [],
+      "render_status": [
+        {
+          "text": "Nevertheless, we found evidence for the “anomalous-is-bad” stereotype in explicit negative attitudes about people with facial anoma- lies both as individuals (i.e., character inferences) and as a group (i.e., scores on the Explicit Bias Questionnaire).",
+          "status": "duplicate",
+          "duplicate_of": "direction_or_effectiveness::97e9b66f0fd3c1c2",
+          "subsumed_by": null
+        }
+      ],
+      "admissible_proposition_ids": [
+        "p14",
+        "p17",
+        "p26",
+        "p3",
+        "p7"
+      ],
+      "attached_unit": null,
+      "enumeration_candidate": null,
+      "direction_sign": null
+    }
+  ],
+  "relation_units": [
+    {
+      "child_id": "c10",
+      "requirement_id": "c10#suff:culture-existence",
+      "instance_key": "i::e506b4436247cda9",
+      "engine_complete": false,
+      "required_roles": [
+        "named_culture_or_population",
+        "bias_evidence_in_population"
+      ],
+      "operands": [
+        {
+          "role": "named_culture_or_population",
+          "source": "own",
+          "proposition_id": "p29",
+          "exact_text": "Hadza",
+          "support": [
+            "p29"
+          ]
+        }
+      ],
+      "parent_context_operand_roles": [],
+      "witness_ids": [],
+      "status": "incomplete"
+    },
+    {
+      "child_id": "c10",
+      "requirement_id": "c10#suff:culture-existence",
+      "instance_key": "i::22b9d69edba8b78a",
+      "engine_complete": false,
+      "required_roles": [
+        "named_culture_or_population",
+        "bias_evidence_in_population"
+      ],
+      "operands": [
+        {
+          "role": "named_culture_or_population",
+          "source": "own",
+          "proposition_id": "p53",
+          "exact_text": "Hadza",
+          "support": [
+            "p53"
+          ]
+        }
+      ],
+      "parent_context_operand_roles": [],
+      "witness_ids": [],
+      "status": "incomplete"
+    },
+    {
+      "child_id": "c11",
+      "requirement_id": "c11#suff:culture-operationalization-pairing",
+      "instance_key": "U9",
+      "engine_complete": false,
+      "required_roles": [
+        "culture_or_population",
+        "operationalization_or_measure"
+      ],
+      "operands": [],
+      "parent_context_operand_roles": [],
+      "witness_ids": [],
+      "status": "incomplete"
+    },
+    {
+      "child_id": "c11",
+      "requirement_id": "c11#suff:culture-operationalization-pairing",
+      "instance_key": "U10",
+      "engine_complete": false,
+      "required_roles": [
+        "culture_or_population",
+        "operationalization_or_measure"
+      ],
+      "operands": [],
+      "parent_context_operand_roles": [],
+      "witness_ids": [],
+      "status": "incomplete"
+    },
+    {
+      "child_id": "c11",
+      "requirement_id": "c11#suff:culture-operationalization-pairing",
+      "instance_key": "U13",
+      "engine_complete": false,
+      "required_roles": [
+        "culture_or_population",
+        "operationalization_or_measure"
+      ],
+      "operands": [],
+      "parent_context_operand_roles": [],
+      "witness_ids": [],
+      "status": "incomplete"
+    },
+    {
+      "child_id": "c12",
+      "requirement_id": "c12#suff:intervention-effectiveness",
+      "instance_key": "U1",
+      "engine_complete": false,
+      "required_roles": [
+        "intervention",
+        "target_manifestation",
+        "observed_effect_or_outcome"
+      ],
+      "operands": [
+        {
+          "role": "observed_effect_or_outcome",
+          "source": "own",
+          "proposition_id": "p24",
+          "exact_text": "This research confirmed earlier reports that people with anomalous faces are imbued with negative personality characteristics, detected explicit biases against people with facial anomalies, and described a behavioral manifestation of the “anomalous-is- bad” stereotype affecting prosociality.",
+          "support": [
+            "p24"
+          ]
+        }
+      ],
+      "parent_context_operand_roles": [],
+      "witness_ids": [],
+      "status": "incomplete"
+    },
+    {
+      "child_id": "c12",
+      "requirement_id": "c12#suff:intervention-effectiveness",
+      "instance_key": "U5",
+      "engine_complete": false,
+      "required_roles": [
+        "intervention",
+        "target_manifestation",
+        "observed_effect_or_outcome"
+      ],
+      "operands": [],
+      "parent_context_operand_roles": [],
+      "witness_ids": [],
+      "status": "incomplete"
+    },
+    {
+      "child_id": "c12",
+      "requirement_id": "c12#suff:intervention-effectiveness",
+      "instance_key": "U14",
+      "engine_complete": false,
+      "required_roles": [
+        "intervention",
+        "target_manifestation",
+        "observed_effect_or_outcome"
+      ],
+      "operands": [
+        {
+          "role": "observed_effect_or_outcome",
+          "source": "own",
+          "proposition_id": "p30",
+          "exact_text": "Specificity and generalization of intervention effects We also observed that the anomalous faces variant of the NAME intervention produced a clear reduction in implicit bias against people with anomalous faces, whereas bias toward people of color in that condition remained essentially unchanged.",
+          "support": [
+            "p30"
+          ]
+        }
+      ],
+      "parent_context_operand_roles": [],
+      "witness_ids": [],
+      "status": "incomplete"
+    },
+    {
+      "child_id": "c12",
+      "requirement_id": "c12#suff:intervention-effectiveness",
+      "instance_key": "U15",
+      "engine_complete": false,
+      "required_roles": [
+        "intervention",
+        "target_manifestation",
+        "observed_effect_or_outcome"
+      ],
+      "operands": [
+        {
+          "role": "observed_effect_or_outcome",
+          "source": "own",
+          "proposition_id": "p31",
+          "exact_text": "Taken together, our data are consistent with the possibility that repeated, targeted exposure to individuals with facial dif- ferences, embedded in positive narratives and opportu- nities for perspective taking, can help reduce negative implicit biases associated with limited contact, while also leaving room for more general repetition-based mecha- nisms to contribute.",
+          "support": [
+            "p31"
+          ]
+        }
+      ],
+      "parent_context_operand_roles": [],
+      "witness_ids": [],
+      "status": "incomplete"
+    },
+    {
+      "child_id": "c12",
+      "requirement_id": "c12#suff:intervention-effectiveness",
+      "instance_key": "U16",
+      "engine_complete": false,
+      "required_roles": [
+        "intervention",
+        "target_manifestation",
+        "observed_effect_or_outcome"
+      ],
+      "operands": [],
+      "parent_context_operand_roles": [],
+      "witness_ids": [],
+      "status": "incomplete"
+    },
+    {
+      "child_id": "c12",
+      "requirement_id": "c12#suff:intervention-effectiveness",
+      "instance_key": "U17",
+      "engine_complete": false,
+      "required_roles": [
+        "intervention",
+        "target_manifestation",
+        "observed_effect_or_outcome"
+      ],
+      "operands": [],
+      "parent_context_operand_roles": [],
+      "witness_ids": [],
+      "status": "incomplete"
+    },
+    {
+      "child_id": "c2",
+      "requirement_id": "c2#suff:behavioral-manifestation",
+      "instance_key": "i::4125e0971e5bae7d",
+      "engine_complete": false,
+      "required_roles": [
+        "behavior_or_behavioral_measure",
+        "behavioral_manifestation_evidence"
+      ],
+      "operands": [
+        {
+          "role": "behavior_or_behavioral_measure",
+          "source": "own",
+          "proposition_id": "p35",
+          "exact_text": "decisions that were incongruent with behavioral bias (share with bad partner and keep with good partner versus the alternative choices)",
+          "support": [
+            "p35"
+          ]
+        },
+        {
+          "role": "behavioral_manifestation_evidence",
+          "source": "own",
+          "proposition_id": "p4",
+          "exact_text": "This research confirmed earlier reports that people with anomalous faces are imbued with negative personality characteristics, detected explicit biases against people with facial anomalies, and described a behavioral manifestation of the “anomalous-is- bad” stereotype affecting prosociality.",
+          "support": [
+            "p4"
+          ]
+        }
+      ],
+      "parent_context_operand_roles": [],
+      "witness_ids": [],
+      "status": "incomplete"
+    },
+    {
+      "child_id": "c2",
+      "requirement_id": "c2#suff:behavioral-manifestation",
+      "instance_key": "i::e4b7654effad92a2",
+      "engine_complete": false,
+      "required_roles": [
+        "behavior_or_behavioral_measure",
+        "behavioral_manifestation_evidence"
+      ],
+      "operands": [
+        {
+          "role": "behavior_or_behavioral_measure",
+          "source": "own",
+          "proposition_id": "p46",
+          "exact_text": "share decisions between partners (good versus bad)",
+          "support": [
+            "p46"
+          ]
+        },
+        {
+          "role": "behavioral_manifestation_evidence",
+          "source": "own",
+          "proposition_id": "p4",
+          "exact_text": "This research confirmed earlier reports that people with anomalous faces are imbued with negative personality characteristics, detected explicit biases against people with facial anomalies, and described a behavioral manifestation of the “anomalous-is- bad” stereotype affecting prosociality.",
+          "support": [
+            "p4"
+          ]
+        }
+      ],
+      "parent_context_operand_roles": [],
+      "witness_ids": [],
+      "status": "incomplete"
+    },
+    {
+      "child_id": "c2",
+      "requirement_id": "c2#suff:behavioral-manifestation",
+      "instance_key": "i::62074f9e8af5ba77",
+      "engine_complete": false,
+      "required_roles": [
+        "behavior_or_behavioral_measure",
+        "behavioral_manifestation_evidence"
+      ],
+      "operands": [
+        {
+          "role": "behavior_or_behavioral_measure",
+          "source": "own",
+          "proposition_id": "p47",
+          "exact_text": "faster to share when playing with the good partner compared to the bad",
+          "support": [
+            "p47"
+          ]
+        },
+        {
+          "role": "behavioral_manifestation_evidence",
+          "source": "own",
+          "proposition_id": "p4",
+          "exact_text": "This research confirmed earlier reports that people with anomalous faces are imbued with negative personality characteristics, detected explicit biases against people with facial anomalies, and described a behavioral manifestation of the “anomalous-is- bad” stereotype affecting prosociality.",
+          "support": [
+            "p4"
+          ]
+        }
+      ],
+      "parent_context_operand_roles": [],
+      "witness_ids": [],
+      "status": "incomplete"
+    },
+    {
+      "child_id": "c4",
+      "requirement_id": "c4#suff:specific-region",
+      "instance_key": "i::b140e60509ac4c8b",
+      "engine_complete": true,
+      "required_roles": [
+        "named_brain_region_or_network",
+        "region_bears_on_bias_evidence"
+      ],
+      "operands": [
+        {
+          "role": "named_brain_region_or_network",
+          "source": "own",
+          "proposition_id": "p11",
+          "exact_text": "the specific amygdala response",
+          "support": [
+            "p11",
+            "p2"
+          ]
+        },
+        {
+          "role": "region_bears_on_bias_evidence",
+          "source": "own",
+          "proposition_id": "p11",
+          "exact_text": "Across these levels of organization, the specific amygdala response to facial anomalies correlated with stronger just-world beliefs (i.e., people get what they deserve), less dispositional empathic concern, and less prosociality toward people with facial anomalies.",
+          "support": [
+            "p11"
+          ]
+        }
+      ],
+      "parent_context_operand_roles": [],
+      "witness_ids": [
+        "p11"
+      ],
+      "status": "witnessed"
+    },
+    {
+      "child_id": "c4",
+      "requirement_id": "c4#suff:specific-region",
+      "instance_key": "i::8682cefed10ff0d8",
+      "engine_complete": false,
+      "required_roles": [
+        "named_brain_region_or_network",
+        "region_bears_on_bias_evidence"
+      ],
+      "operands": [
+        {
+          "role": "named_brain_region_or_network",
+          "source": "own",
+          "proposition_id": "p40",
+          "exact_text": "increased amygdala reactiv- ity",
+          "support": [
+            "p40"
+          ]
+        },
+        {
+          "role": "region_bears_on_bias_evidence",
+          "source": "own",
+          "proposition_id": "p11",
+          "exact_text": "Across these levels of organization, the specific amygdala response to facial anomalies correlated with stronger just-world beliefs (i.e., people get what they deserve), less dispositional empathic concern, and less prosociality toward people with facial anomalies.",
+          "support": [
+            "p11"
+          ]
+        }
+      ],
+      "parent_context_operand_roles": [],
+      "witness_ids": [],
+      "status": "incomplete"
+    },
+    {
+      "child_id": "c5",
+      "requirement_id": "c5#suff:brain-behavior",
+      "instance_key": "i::b140e60509ac4c8b::4a3f8a1c59aaa360",
+      "engine_complete": true,
+      "required_roles": [
+        "named_brain_region_or_network",
+        "behavior_or_behavioral_measure"
+      ],
+      "operands": [
+        {
+          "role": "named_brain_region_or_network",
+          "source": "parent_context",
+          "proposition_id": "p11",
+          "exact_text": "the specific amygdala response",
+          "support": [
+            "p11"
+          ]
+        },
+        {
+          "role": "behavior_or_behavioral_measure",
+          "source": "own",
+          "proposition_id": "p46",
+          "exact_text": "participants made more share decisions overall when playing with the good partner than with the bad",
+          "support": [
+            "p46"
+          ]
+        }
+      ],
+      "parent_context_operand_roles": [
+        "named_brain_region_or_network"
+      ],
+      "witness_ids": [],
+      "status": "unwitnessed_complete"
+    },
+    {
+      "child_id": "c5",
+      "requirement_id": "c5#suff:brain-behavior",
+      "instance_key": "i::b140e60509ac4c8b::e4796948ec530e13",
+      "engine_complete": true,
+      "required_roles": [
+        "named_brain_region_or_network",
+        "behavior_or_behavioral_measure"
+      ],
+      "operands": [
+        {
+          "role": "named_brain_region_or_network",
+          "source": "parent_context",
+          "proposition_id": "p11",
+          "exact_text": "the specific amygdala response",
+          "support": [
+            "p11"
+          ]
+        },
+        {
+          "role": "behavior_or_behavioral_measure",
+          "source": "own",
+          "proposition_id": "p47",
+          "exact_text": "participants were faster to share when playing with the good partner compared to the bad",
+          "support": [
+            "p47"
+          ]
+        }
+      ],
+      "parent_context_operand_roles": [
+        "named_brain_region_or_network"
+      ],
+      "witness_ids": [],
+      "status": "unwitnessed_complete"
+    },
+    {
+      "child_id": "c6",
+      "requirement_id": "c6#suff:brain-attitude",
+      "instance_key": "i::b140e60509ac4c8b::2f2b08aa35e6e926",
+      "engine_complete": true,
+      "required_roles": [
+        "named_brain_region_or_network",
+        "attitude_type_or_measure"
+      ],
+      "operands": [
+        {
+          "role": "named_brain_region_or_network",
+          "source": "parent_context",
+          "proposition_id": "p11",
+          "exact_text": "the specific amygdala response",
+          "support": [
+            "p11"
+          ]
+        },
+        {
+          "role": "attitude_type_or_measure",
+          "source": "own",
+          "proposition_id": "p14",
+          "exact_text": "Explicit Bias Questionnaire",
+          "support": [
+            "p14",
+            "p17",
+            "p3",
+            "p7"
+          ]
+        }
+      ],
+      "parent_context_operand_roles": [
+        "named_brain_region_or_network"
+      ],
+      "witness_ids": [],
+      "status": "unwitnessed_complete"
+    },
+    {
+      "child_id": "c6",
+      "requirement_id": "c6#suff:brain-attitude",
+      "instance_key": "i::b140e60509ac4c8b::9fe92674ba934ce3",
+      "engine_complete": true,
+      "required_roles": [
+        "named_brain_region_or_network",
+        "attitude_type_or_measure"
+      ],
+      "operands": [
+        {
+          "role": "named_brain_region_or_network",
+          "source": "parent_context",
+          "proposition_id": "p11",
+          "exact_text": "the specific amygdala response",
+          "support": [
+            "p11"
+          ]
+        },
+        {
+          "role": "attitude_type_or_measure",
+          "source": "own",
+          "proposition_id": "p26",
+          "exact_text": "Explicit Bias Questionnaire",
+          "support": [
+            "p26"
+          ]
+        }
+      ],
+      "parent_context_operand_roles": [
+        "named_brain_region_or_network"
+      ],
+      "witness_ids": [],
+      "status": "unwitnessed_complete"
+    },
+    {
+      "child_id": "c8",
+      "requirement_id": "c8#suff:trait-construct",
+      "instance_key": "U6::b2958c5ad5164563",
+      "engine_complete": false,
+      "required_roles": [
+        "individual_difference_trait_or_construct",
+        "relationship_to_bias_manifestation"
+      ],
+      "operands": [
+        {
+          "role": "individual_difference_trait_or_construct",
+          "source": "own",
+          "proposition_id": "p20",
+          "exact_text": "negative attitudes (IAT and EBQ)",
+          "support": [
+            "p20",
+            "p9"
+          ]
+        }
+      ],
+      "parent_context_operand_roles": [],
+      "witness_ids": [],
+      "status": "incomplete"
+    },
+    {
+      "child_id": "c8",
+      "requirement_id": "c8#suff:trait-construct",
+      "instance_key": "U6::ce8933c59b53a00f",
+      "engine_complete": false,
+      "required_roles": [
+        "individual_difference_trait_or_construct",
+        "relationship_to_bias_manifestation"
+      ],
+      "operands": [
+        {
+          "role": "individual_difference_trait_or_construct",
+          "source": "own",
+          "proposition_id": "p20",
+          "exact_text": "social cognitive biases (just-world beliefs)",
+          "support": [
+            "p20",
+            "p9"
+          ]
+        }
+      ],
+      "parent_context_operand_roles": [],
+      "witness_ids": [],
+      "status": "incomplete"
+    },
+    {
+      "child_id": "c8",
+      "requirement_id": "c8#suff:trait-construct",
+      "instance_key": "U6::da37435ef9b489b6",
+      "engine_complete": false,
+      "required_roles": [
+        "individual_difference_trait_or_construct",
+        "relationship_to_bias_manifestation"
+      ],
+      "operands": [
+        {
+          "role": "individual_difference_trait_or_construct",
+          "source": "own",
+          "proposition_id": "p20",
+          "exact_text": "emotional dispositions (affective empathy)",
+          "support": [
+            "p20",
+            "p9"
+          ]
+        }
+      ],
+      "parent_context_operand_roles": [],
+      "witness_ids": [],
+      "status": "incomplete"
+    },
+    {
+      "child_id": "c8",
+      "requirement_id": "c8#suff:trait-construct",
+      "instance_key": "U6::d41542e10edf3ea7",
+      "engine_complete": false,
+      "required_roles": [
+        "individual_difference_trait_or_construct",
+        "relationship_to_bias_manifestation"
+      ],
+      "operands": [
+        {
+          "role": "individual_difference_trait_or_construct",
+          "source": "own",
+          "proposition_id": "p20",
+          "exact_text": "undesirable behaviors (less generosity in the DG)",
+          "support": [
+            "p20",
+            "p9"
+          ]
+        }
+      ],
+      "parent_context_operand_roles": [],
+      "witness_ids": [],
+      "status": "incomplete"
+    },
+    {
+      "child_id": "c8",
+      "requirement_id": "c8#suff:trait-construct",
+      "instance_key": "U7",
+      "engine_complete": false,
+      "required_roles": [
+        "individual_difference_trait_or_construct",
+        "relationship_to_bias_manifestation"
+      ],
+      "operands": [],
+      "parent_context_operand_roles": [],
+      "witness_ids": [],
+      "status": "incomplete"
+    },
+    {
+      "child_id": "c8",
+      "requirement_id": "c8#suff:trait-construct",
+      "instance_key": "U23::313bd6d8a8225859",
+      "engine_complete": true,
+      "required_roles": [
+        "individual_difference_trait_or_construct",
+        "relationship_to_bias_manifestation"
+      ],
+      "operands": [
+        {
+          "role": "individual_difference_trait_or_construct",
+          "source": "own",
+          "proposition_id": "p41",
+          "exact_text": "attractiveness",
+          "support": [
+            "p41"
+          ]
+        },
+        {
+          "role": "relationship_to_bias_manifestation",
+          "source": "own",
+          "proposition_id": "p41",
+          "exact_text": "Results: Across the ratings for all faces, Spearman correlations revealed greater proportionality was associated with attrac- tiveness (ρ = 0.292, P < 0.001) and trustworthiness (ρ = 0.193, P < 0.001), while lesser proportionality was associated with impressions of anger (ρ = 0.132, P = 0.001), dominance (ρ = 0.259, P < 0.001), and threateningness (ρ = 0.234, P < 0.001).",
+          "support": [
+            "p41"
+          ]
+        }
+      ],
+      "parent_context_operand_roles": [],
+      "witness_ids": [
+        "p41"
+      ],
+      "status": "witnessed"
+    },
+    {
+      "child_id": "c8",
+      "requirement_id": "c8#suff:trait-construct",
+      "instance_key": "U23::8c0c360f15addd4a",
+      "engine_complete": true,
+      "required_roles": [
+        "individual_difference_trait_or_construct",
+        "relationship_to_bias_manifestation"
+      ],
+      "operands": [
+        {
+          "role": "individual_difference_trait_or_construct",
+          "source": "own",
+          "proposition_id": "p41",
+          "exact_text": "trustworthiness",
+          "support": [
+            "p41"
+          ]
+        },
+        {
+          "role": "relationship_to_bias_manifestation",
+          "source": "own",
+          "proposition_id": "p41",
+          "exact_text": "Results: Across the ratings for all faces, Spearman correlations revealed greater proportionality was associated with attrac- tiveness (ρ = 0.292, P < 0.001) and trustworthiness (ρ = 0.193, P < 0.001), while lesser proportionality was associated with impressions of anger (ρ = 0.132, P = 0.001), dominance (ρ = 0.259, P < 0.001), and threateningness (ρ = 0.234, P < 0.001).",
+          "support": [
+            "p41"
+          ]
+        }
+      ],
+      "parent_context_operand_roles": [],
+      "witness_ids": [
+        "p41"
+      ],
+      "status": "witnessed"
+    },
+    {
+      "child_id": "c8",
+      "requirement_id": "c8#suff:trait-construct",
+      "instance_key": "U23::8cf0ad0452a402ec",
+      "engine_complete": true,
+      "required_roles": [
+        "individual_difference_trait_or_construct",
+        "relationship_to_bias_manifestation"
+      ],
+      "operands": [
+        {
+          "role": "individual_difference_trait_or_construct",
+          "source": "own",
+          "proposition_id": "p41",
+          "exact_text": "anger",
+          "support": [
+            "p41"
+          ]
+        },
+        {
+          "role": "relationship_to_bias_manifestation",
+          "source": "own",
+          "proposition_id": "p41",
+          "exact_text": "Results: Across the ratings for all faces, Spearman correlations revealed greater proportionality was associated with attrac- tiveness (ρ = 0.292, P < 0.001) and trustworthiness (ρ = 0.193, P < 0.001), while lesser proportionality was associated with impressions of anger (ρ = 0.132, P = 0.001), dominance (ρ = 0.259, P < 0.001), and threateningness (ρ = 0.234, P < 0.001).",
+          "support": [
+            "p41"
+          ]
+        }
+      ],
+      "parent_context_operand_roles": [],
+      "witness_ids": [
+        "p41"
+      ],
+      "status": "witnessed"
+    },
+    {
+      "child_id": "c8",
+      "requirement_id": "c8#suff:trait-construct",
+      "instance_key": "U23::ca4ec660cdb1a0de",
+      "engine_complete": true,
+      "required_roles": [
+        "individual_difference_trait_or_construct",
+        "relationship_to_bias_manifestation"
+      ],
+      "operands": [
+        {
+          "role": "individual_difference_trait_or_construct",
+          "source": "own",
+          "proposition_id": "p41",
+          "exact_text": "dominance",
+          "support": [
+            "p41"
+          ]
+        },
+        {
+          "role": "relationship_to_bias_manifestation",
+          "source": "own",
+          "proposition_id": "p41",
+          "exact_text": "Results: Across the ratings for all faces, Spearman correlations revealed greater proportionality was associated with attrac- tiveness (ρ = 0.292, P < 0.001) and trustworthiness (ρ = 0.193, P < 0.001), while lesser proportionality was associated with impressions of anger (ρ = 0.132, P = 0.001), dominance (ρ = 0.259, P < 0.001), and threateningness (ρ = 0.234, P < 0.001).",
+          "support": [
+            "p41"
+          ]
+        }
+      ],
+      "parent_context_operand_roles": [],
+      "witness_ids": [
+        "p41"
+      ],
+      "status": "witnessed"
+    },
+    {
+      "child_id": "c8",
+      "requirement_id": "c8#suff:trait-construct",
+      "instance_key": "U23::0ae6b077fe124a0e",
+      "engine_complete": true,
+      "required_roles": [
+        "individual_difference_trait_or_construct",
+        "relationship_to_bias_manifestation"
+      ],
+      "operands": [
+        {
+          "role": "individual_difference_trait_or_construct",
+          "source": "own",
+          "proposition_id": "p41",
+          "exact_text": "threateningness",
+          "support": [
+            "p41"
+          ]
+        },
+        {
+          "role": "relationship_to_bias_manifestation",
+          "source": "own",
+          "proposition_id": "p41",
+          "exact_text": "Results: Across the ratings for all faces, Spearman correlations revealed greater proportionality was associated with attrac- tiveness (ρ = 0.292, P < 0.001) and trustworthiness (ρ = 0.193, P < 0.001), while lesser proportionality was associated with impressions of anger (ρ = 0.132, P = 0.001), dominance (ρ = 0.259, P < 0.001), and threateningness (ρ = 0.234, P < 0.001).",
+          "support": [
+            "p41"
+          ]
+        }
+      ],
+      "parent_context_operand_roles": [],
+      "witness_ids": [
+        "p41"
+      ],
+      "status": "witnessed"
+    },
+    {
+      "child_id": "c8",
+      "requirement_id": "c8#suff:trait-construct",
+      "instance_key": "U24",
+      "engine_complete": false,
+      "required_roles": [
+        "individual_difference_trait_or_construct",
+        "relationship_to_bias_manifestation"
+      ],
+      "operands": [],
+      "parent_context_operand_roles": [],
+      "witness_ids": [],
+      "status": "incomplete"
+    },
+    {
+      "child_id": "c9",
+      "requirement_id": "c9#suff:trait-scale-pairing",
+      "instance_key": "U23::0ae6b077fe124a0e",
+      "engine_complete": false,
+      "required_roles": [
+        "individual_difference_trait_or_construct",
+        "named_scale_or_instrument"
+      ],
+      "operands": [
+        {
+          "role": "individual_difference_trait_or_construct",
+          "source": "parent_context",
+          "proposition_id": "p41",
+          "exact_text": "threateningness",
+          "support": [
+            "p41"
+          ]
+        }
+      ],
+      "parent_context_operand_roles": [
+        "individual_difference_trait_or_construct"
+      ],
+      "witness_ids": [],
+      "status": "incomplete"
+    },
+    {
+      "child_id": "c9",
+      "requirement_id": "c9#suff:trait-scale-pairing",
+      "instance_key": "U23::313bd6d8a8225859",
+      "engine_complete": false,
+      "required_roles": [
+        "individual_difference_trait_or_construct",
+        "named_scale_or_instrument"
+      ],
+      "operands": [
+        {
+          "role": "individual_difference_trait_or_construct",
+          "source": "parent_context",
+          "proposition_id": "p41",
+          "exact_text": "attractiveness",
+          "support": [
+            "p41"
+          ]
+        }
+      ],
+      "parent_context_operand_roles": [
+        "individual_difference_trait_or_construct"
+      ],
+      "witness_ids": [],
+      "status": "incomplete"
+    },
+    {
+      "child_id": "c9",
+      "requirement_id": "c9#suff:trait-scale-pairing",
+      "instance_key": "U23::8c0c360f15addd4a",
+      "engine_complete": false,
+      "required_roles": [
+        "individual_difference_trait_or_construct",
+        "named_scale_or_instrument"
+      ],
+      "operands": [
+        {
+          "role": "individual_difference_trait_or_construct",
+          "source": "parent_context",
+          "proposition_id": "p41",
+          "exact_text": "trustworthiness",
+          "support": [
+            "p41"
+          ]
+        }
+      ],
+      "parent_context_operand_roles": [
+        "individual_difference_trait_or_construct"
+      ],
+      "witness_ids": [],
+      "status": "incomplete"
+    },
+    {
+      "child_id": "c9",
+      "requirement_id": "c9#suff:trait-scale-pairing",
+      "instance_key": "U23::8cf0ad0452a402ec",
+      "engine_complete": false,
+      "required_roles": [
+        "individual_difference_trait_or_construct",
+        "named_scale_or_instrument"
+      ],
+      "operands": [
+        {
+          "role": "individual_difference_trait_or_construct",
+          "source": "parent_context",
+          "proposition_id": "p41",
+          "exact_text": "anger",
+          "support": [
+            "p41"
+          ]
+        }
+      ],
+      "parent_context_operand_roles": [
+        "individual_difference_trait_or_construct"
+      ],
+      "witness_ids": [],
+      "status": "incomplete"
+    },
+    {
+      "child_id": "c9",
+      "requirement_id": "c9#suff:trait-scale-pairing",
+      "instance_key": "U23::ca4ec660cdb1a0de",
+      "engine_complete": false,
+      "required_roles": [
+        "individual_difference_trait_or_construct",
+        "named_scale_or_instrument"
+      ],
+      "operands": [
+        {
+          "role": "individual_difference_trait_or_construct",
+          "source": "parent_context",
+          "proposition_id": "p41",
+          "exact_text": "dominance",
+          "support": [
+            "p41"
+          ]
+        }
+      ],
+      "parent_context_operand_roles": [
+        "individual_difference_trait_or_construct"
+      ],
+      "witness_ids": [],
+      "status": "incomplete"
+    }
+  ],
+  "disagreements": [
+    {
+      "child_id": "c5",
+      "requirement_id": "c5#suff:brain-behavior",
+      "instance_key": "i::b140e60509ac4c8b::4a3f8a1c59aaa360",
+      "engine_complete": true,
+      "answerplan_relation_witnessed": false,
+      "parent_context_operand_roles": [
+        "named_brain_region_or_network"
+      ]
+    },
+    {
+      "child_id": "c5",
+      "requirement_id": "c5#suff:brain-behavior",
+      "instance_key": "i::b140e60509ac4c8b::e4796948ec530e13",
+      "engine_complete": true,
+      "answerplan_relation_witnessed": false,
+      "parent_context_operand_roles": [
+        "named_brain_region_or_network"
+      ]
+    },
+    {
+      "child_id": "c6",
+      "requirement_id": "c6#suff:brain-attitude",
+      "instance_key": "i::b140e60509ac4c8b::2f2b08aa35e6e926",
+      "engine_complete": true,
+      "answerplan_relation_witnessed": false,
+      "parent_context_operand_roles": [
+        "named_brain_region_or_network"
+      ]
+    },
+    {
+      "child_id": "c6",
+      "requirement_id": "c6#suff:brain-attitude",
+      "instance_key": "i::b140e60509ac4c8b::9fe92674ba934ce3",
+      "engine_complete": true,
+      "answerplan_relation_witnessed": false,
+      "parent_context_operand_roles": [
+        "named_brain_region_or_network"
+      ]
+    }
+  ],
+  "parent": {
+    "allowed_statement_ids": [
+      "3:0",
+      "4B:0",
+      "7:0",
+      "7:1",
+      "7:2",
+      "7:3",
+      "7:4"
+    ],
+    "node_state_counts": {
+      "answered": 0,
+      "partial": 3,
+      "not_established": 6,
+      "searched_empty": 0
+    },
+    "note": "Stored only. No count sentence is rendered in Layer 1 at Step 1 (Phase-30 D10)."
+  },
+  "plan_sha256": "f083139b84f5d9b68f57375feb2e84eddac978e0f2d97be965a670795ed6a750"
+}

@@ -1,0 +1,139 @@
+{
+  "overlay_version": "phase30-replay-decomposition-overlay-v1",
+  "status": "REPLAY_ONLY_OFFLINE_OVERLAY",
+  "scope_statement": "Offline historical replay of the preserved Phase-28 Attempt-2 artifacts only. Records the decomposition the researcher has now explicitly confirmed. Its confirmation POSTDATES the Phase-28 live run (2026-10-04). It is NOT a claim that the Phase-28 live run carried this authorization, and it does not modify any Phase-28 artifact. Future live runs must use the canonical confirmed decomposition before retrieval.",
+  "confirmed_by": "Cliff Workman",
+  "mapping_confirmation": {
+    "confirmed_by": "Cliff Workman",
+    "status": "confirmed",
+    "c9_to_visible_question": "5",
+    "c11_to_visible_question": "6",
+    "note": "The scale (c9) and operationalization (c11) requirements belong to visible questions 5 and 6, as overlaid."
+  },
+  "confirmation_source": "Phase-30 brief, decision D2 (modified): explicit replay overlay for the confirmed visible structure",
+  "postdates_phase28_attempt2_live_run": true,
+  "phase28_run_id": "phase28-live-parent-synthesis-attempt2-20261004T014500Z",
+  "nodes": [
+    {
+      "label": "1",
+      "parent": null,
+      "nesting": "top_level",
+      "literal_text": "How does the anomalous-is-bad bias manifest in / relate to measures of brain structure and function across regions and networks?",
+      "owning_child_ids": ["c1"],
+      "human_review_obligations": []
+    },
+    {
+      "label": "2",
+      "parent": null,
+      "nesting": "top_level",
+      "literal_text": "How does it manifest in / relate to measures of behavior?",
+      "owning_child_ids": ["c2"],
+      "human_review_obligations": ["RC-9#scope:measures-of-behavior"]
+    },
+    {
+      "label": "3",
+      "parent": null,
+      "nesting": "top_level",
+      "literal_text": "How does it manifest in / relate to implicit and explicit attitudes?",
+      "owning_child_ids": ["c3"],
+      "human_review_obligations": ["RC-8#scope:measures-implicit-explicit"]
+    },
+    {
+      "label": "4",
+      "parent": null,
+      "nesting": "top_level",
+      "literal_text": "Which specific brain areas or networks are implicated?",
+      "owning_child_ids": ["c4"],
+      "human_review_obligations": []
+    },
+    {
+      "label": "4A",
+      "parent": "4",
+      "nesting": "nested_under_4",
+      "literal_text": "How do specific brain areas/networks relate to behavioral measures, including direction where established?",
+      "owning_child_ids": ["c5"],
+      "human_review_obligations": ["RC-9#scope:measures-of-behavior", "RC-9#scope:documented-nature-direction"]
+    },
+    {
+      "label": "4B",
+      "parent": "4",
+      "nesting": "nested_under_4",
+      "literal_text": "How do specific brain areas/networks relate to implicit and explicit attitude measures, including direction where established?",
+      "owning_child_ids": ["c6"],
+      "human_review_obligations": ["RC-8#scope:measures-implicit-explicit", "RC-8#scope:documented-nature-direction"]
+    },
+    {
+      "label": "5",
+      "parent": null,
+      "nesting": "top_level",
+      "literal_text": "Which specific personality / individual-difference traits relate to its manifestation, and which scales measured them?",
+      "owning_child_ids": ["c8", "c9"],
+      "human_review_obligations": []
+    },
+    {
+      "label": "6",
+      "parent": null,
+      "nesting": "top_level",
+      "literal_text": "Is there cross-cultural evidence bearing on generalizability? Which cultures/populations, and how was the bias measured/operationalized?",
+      "owning_child_ids": ["c10", "c11"],
+      "human_review_obligations": []
+    },
+    {
+      "label": "7",
+      "parent": null,
+      "nesting": "top_level",
+      "literal_text": "Are there effective interventions aimed at reducing manifestations of the bias?",
+      "owning_child_ids": ["c12"],
+      "human_review_obligations": []
+    }
+  ],
+  "folded_child_ids": {"c8": ["c7"]},
+  "facet_phrases": {
+    "c1#suff:neural-manifestation": "a specific neural finding about the bias",
+    "c2#suff:behavioral-manifestation": "a specific behavioral finding about the bias",
+    "c3#suff:attitude-manifestation": "a specific attitude finding about the bias",
+    "c3#suff:implicit-explicit-coverage": "implicit and explicit attitude findings",
+    "c4#suff:specific-region": "a specific named brain area or network, and how it bears on the bias",
+    "c5#suff:brain-behavior": "how that brain area or network relates to behavioral measures",
+    "c6#suff:brain-attitude": "how that brain area or network relates to attitude measures",
+    "c6#suff:implicit-explicit-coverage": "implicit and explicit attitude measures",
+    "c8#suff:trait-construct": "a specific personality or individual-difference trait related to the bias",
+    "c9#suff:trait-scale-pairing": "a scale that measured such a trait",
+    "c10#suff:culture-existence": "a named culture or population with evidence on the bias",
+    "c11#suff:culture-operationalization-pairing": "how the bias was measured in that culture or population",
+    "c12#suff:intervention-effectiveness": "an intervention aimed at reducing the bias, and its observed effect"
+  },
+  "role_phrases": {
+    "neural_measure_or_modality": "the neural measurement method",
+    "brain_region_or_network": "the brain area or network named",
+    "neural_manifestation_evidence": "a neural finding about the bias",
+    "behavior_or_behavioral_measure": "the behavioral measure",
+    "behavioral_manifestation_evidence": "a behavioral finding about the bias",
+    "attitude_manifestation_evidence": "an attitude finding about the bias",
+    "category_evidence": "the attitude category",
+    "named_brain_region_or_network": "the brain area or network named for this question",
+    "region_bears_on_bias_evidence": "evidence that the brain area bears on the bias",
+    "attitude_type_or_measure": "the attitude measure",
+    "individual_difference_trait_or_construct": "the personality or individual-difference trait",
+    "relationship_to_bias_manifestation": "how the trait relates to the bias",
+    "named_scale_or_instrument": "the scale or instrument",
+    "named_culture_or_population": "the culture or population",
+    "bias_evidence_in_population": "evidence on the bias in that population",
+    "culture_or_population": "the culture or population",
+    "operationalization_or_measure": "how the bias was measured",
+    "intervention": "the intervention",
+    "target_manifestation": "which aspect of the bias the intervention targets",
+    "observed_effect_or_outcome": "the observed effect"
+  },
+  "category_phrases": {
+    "implicit": "implicit attitude findings",
+    "explicit": "explicit attitude findings"
+  },
+  "requested_construct_terms": ["anomal", "facial"],
+  "obligation_phrases": {
+    "RC-9#scope:measures-of-behavior": "the choice of behavioral measures",
+    "RC-8#scope:measures-implicit-explicit": "the choice of implicit and explicit attitude measures",
+    "RC-9#scope:documented-nature-direction": "the documented nature or direction of a relationship, where supported",
+    "RC-8#scope:documented-nature-direction": "the documented nature or direction of a relationship, where supported"
+  }
+}

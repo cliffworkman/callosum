@@ -1,0 +1,86 @@
+{
+  "record": "replay_decomposition_authorization",
+  "status": "REPLAY_ONLY_OFFLINE_OVERLAY",
+  "overlay_sha256": "3cca99b5ac7078f4ae7633f4e4b53360f0e5cd1ff6e0972e9cce7f71d0979c96",
+  "confirmed_by": "Cliff Workman",
+  "postdates_phase28_attempt2_live_run": true,
+  "phase28_run_id": "phase28-live-parent-synthesis-attempt2-20261004T014500Z",
+  "scope_statement": "Offline historical replay of the preserved Phase-28 Attempt-2 artifacts only. Records the decomposition the researcher has now explicitly confirmed. Its confirmation POSTDATES the Phase-28 live run (2026-10-04). It is NOT a claim that the Phase-28 live run carried this authorization, and it does not modify any Phase-28 artifact. Future live runs must use the canonical confirmed decomposition before retrieval.",
+  "does_not_claim": "that the Phase-28 live run carried this authorization; no Phase-28 artifact is modified",
+  "bound_inputs": {
+    "sealed_hash": "1dce0e1c2dead992c631f9eb9bfaaa4fc29cabb30ec9304687df515cd4abeef8",
+    "sufficiency_map_sha256": "28478500e485137cd6930b8010d274bb1da3afd48e7f4a6208dd183610d9ca0b",
+    "hierarchy_contract_frozen_sha256": "3e86cb8f0d7816bbc9aeac7d717e9ea4a709981a1e98406c577b8623aab1d0f2",
+    "parent_claim_ledger_sha256": "8ee2e937756fb0762a3673112834b97c15cabd344f373b2555cde631b6db7ff0"
+  },
+  "historical_decomposition_status": [
+    {
+      "child_id": "c1",
+      "frozen_execution_state": "runnable_by_construction",
+      "frozen_approval_ref": null,
+      "sealed_ledger_status": "candidate"
+    },
+    {
+      "child_id": "c2",
+      "frozen_execution_state": "runnable_by_construction",
+      "frozen_approval_ref": null,
+      "sealed_ledger_status": "candidate"
+    },
+    {
+      "child_id": "c3",
+      "frozen_execution_state": "runnable_by_construction",
+      "frozen_approval_ref": null,
+      "sealed_ledger_status": "candidate"
+    },
+    {
+      "child_id": "c4",
+      "frozen_execution_state": "researcher_approved",
+      "frozen_approval_ref": "CD-4",
+      "sealed_ledger_status": "researcher_supplied"
+    },
+    {
+      "child_id": "c5",
+      "frozen_execution_state": "researcher_approved",
+      "frozen_approval_ref": "CD-5",
+      "sealed_ledger_status": "candidate"
+    },
+    {
+      "child_id": "c6",
+      "frozen_execution_state": "researcher_approved",
+      "frozen_approval_ref": null,
+      "sealed_ledger_status": "candidate"
+    },
+    {
+      "child_id": "c8",
+      "frozen_execution_state": "runnable_by_construction",
+      "frozen_approval_ref": null,
+      "sealed_ledger_status": "candidate"
+    },
+    {
+      "child_id": "c9",
+      "frozen_execution_state": "researcher_approved",
+      "frozen_approval_ref": "CD-1",
+      "sealed_ledger_status": "pending_researcher_confirmation"
+    },
+    {
+      "child_id": "c10",
+      "frozen_execution_state": "runnable_by_construction",
+      "frozen_approval_ref": null,
+      "sealed_ledger_status": "candidate"
+    },
+    {
+      "child_id": "c11",
+      "frozen_execution_state": "researcher_approved",
+      "frozen_approval_ref": "CD-3",
+      "sealed_ledger_status": "pending_researcher_confirmation"
+    },
+    {
+      "child_id": "c12",
+      "frozen_execution_state": "researcher_approved",
+      "frozen_approval_ref": "CD-5",
+      "sealed_ledger_status": "candidate"
+    }
+  ],
+  "historical_status_note": "Recorded, not resolved. This overlay governs the offline replay only (Phase-30 U13).",
+  "authorization_sha256": "74ecd832ea88fce183e7c72762a926d84c61e77578ce73e20885389671a61509"
+}

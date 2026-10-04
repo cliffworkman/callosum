@@ -1727,3 +1727,22 @@ upstream defects (U1-U15) that the answer layer must expose rather than repair, 
 only from preserved evidence, and a recommendation: NOT READY for the full child-answer and parent-synthesis stages; READY
 for an offline, deterministic Step 1, conditional on three recorded decisions. No production code, prompt, pin, frozen
 contract, or model run was changed or executed.
+
+---
+
+## Phase 30 -- deterministic AnswerPlan and Layer-1 replay, Step 1 only (appended 2026-10-04; preserves all prior entries unchanged)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| 2026-10-04 | Accepted the Phase-29 audit with decisions D1-D11; specified the replay-only decomposition overlay approach, the joint-witness rule over all operands, the verbatim-authority rule, and the "do not repair U-stage mapping in the answer layer" constraint | Cliff Workman |
+| 2026-10-04 | Implementation of the offline deterministic AnswerPlan, the replay driver, the synthetic and replay tests, the Layer-1/2/3 outputs, and the results document (`PHASE30_DETERMINISTIC_ANSWERPLAN_RESULTS.md`) | Claude |
+
+**Decisions and constraints (Cliff Workman).** Cliff accepted the Phase-29 audit with the decisions recorded in the Phase-30 brief,
+modified where stated (D2 and D10). Specified that the replay may be substantially more conservative than the Phase-29 prototype,
+that the answer layer must not manually route a relation the authorized semantic map does not bind, and that the confirmed
+decomposition for this offline replay is recorded in a hash-bound overlay whose confirmation postdates the Phase-28 live run.
+
+**Implementation and mapping (Claude).** Implemented the deterministic checks, the claim classification, the replay driver, and the
+outputs. The mapping of the scale and operationalization requirements to visible items 5 and 6 (c9 and c11) is Claude's reading of the
+requirement wording, recorded in the overlay for confirmation. Every result in the results document is derived from the preserved
+artifacts by the code in this increment; no model was called and no production code, prompt, pin, or frozen contract was changed.
