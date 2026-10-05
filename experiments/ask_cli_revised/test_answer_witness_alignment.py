@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 
 from experiments.ask_cli_revised import relation_witness as rw
+from experiments.ask_cli_revised import sufficiency_engine as se
 from experiments.ask_cli_revised.answer_plan import relations as rel
 from experiments.ask_cli_revised.test_relation_witness import (
     _as_smap,
@@ -31,11 +32,25 @@ from experiments.ask_cli_revised.test_relation_witness import (
 )
 
 
+def _units(smap, sealed):
+    return rel.relation_units(smap, sealed, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION)
+
+
+def _attach(mapped, sealed):
+    rw.attach_relation_witnesses(mapped, sealed, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION)
+
+
+def _witness(requirement, instance, proposition_by_id):
+    return rw.witness_instance(
+        requirement, instance, proposition_by_id, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+    )
+
+
 def _unit(bindings, props, *, engine_complete: bool = True) -> dict:
     requirement, instance = _relational(bindings)
     instance["complete"] = engine_complete
     sealed = {"verified_propositions": props}
-    return rel.relation_units(_as_smap(requirement, instance), sealed)[0]
+    return _units(_as_smap(requirement, instance), sealed)[0]
 
 
 def _claim(unit: dict) -> dict:
@@ -137,10 +152,10 @@ def test_historical_map_without_i1_metadata_follows_the_same_semantics():
     bindings, props = _case1()
     requirement, instance = _relational(bindings)
     sealed = {"verified_propositions": props}
-    historical = rel.relation_units(_as_smap(requirement, instance), sealed)
+    historical = _units(_as_smap(requirement, instance), sealed)
     stamped_smap = _as_smap(requirement, instance)
-    rw.attach_relation_witnesses(stamped_smap, sealed)
-    stamped = rel.relation_units(stamped_smap, sealed)
+    _attach(stamped_smap, sealed)
+    stamped = _units(stamped_smap, sealed)
     assert historical == stamped
     assert all("metadata_check" not in unit for unit in historical)
 
@@ -150,8 +165,8 @@ def test_consistent_upstream_metadata_produces_no_metadata_check():
     requirement, instance = _relational(bindings)
     sealed = {"verified_propositions": props}
     smap = _as_smap(requirement, instance)
-    rw.attach_relation_witnesses(smap, sealed)
-    (unit,) = rel.relation_units(smap, sealed)
+    _attach(smap, sealed)
+    (unit,) = _units(smap, sealed)
     assert "metadata_check" not in unit
     assert unit["status"] == "witnessed"
 
@@ -160,7 +175,7 @@ def _stamped(bindings, props):
     requirement, instance = _relational(bindings)
     sealed = {"verified_propositions": props}
     smap = _as_smap(requirement, instance)
-    rw.attach_relation_witnesses(smap, sealed)
+    _attach(smap, sealed)
     return smap, sealed
 
 
@@ -169,7 +184,7 @@ def test_tampered_witness_flag_fails_closed():
     smap, sealed = _stamped(bindings, props)
     instance = next(iter(smap["syn"]["requirements"][0]["instances"]))
     instance["relation_witnessed"] = False  # contradicts the derivation from the bindings
-    (unit,) = rel.relation_units(smap, sealed)
+    (unit,) = _units(smap, sealed)
     assert unit["metadata_check"] == "disagrees"
     assert unit["status"] == "incomplete"
     assert rel.claim_witnessed([unit], _claim(unit)) is False
@@ -180,7 +195,7 @@ def test_stale_witness_ids_fail_closed():
     smap, sealed = _stamped(bindings, props)
     instance = next(iter(smap["syn"]["requirements"][0]["instances"]))
     instance["witness_ids"] = ["STALE"]
-    (unit,) = rel.relation_units(smap, sealed)
+    (unit,) = _units(smap, sealed)
     assert unit["metadata_check"] == "disagrees"
     assert unit["status"] == "incomplete"
 
@@ -190,7 +205,7 @@ def test_stale_provenance_failure_reason_is_reported():
     smap, sealed = _stamped(bindings, props)
     instance = next(iter(smap["syn"]["requirements"][0]["instances"]))
     instance["witness_provenance"]["failure_reason"] = None  # claims witnessed; the derivation says otherwise
-    (unit,) = rel.relation_units(smap, sealed)
+    (unit,) = _units(smap, sealed)
     assert unit["metadata_check"] == "disagrees"
     assert unit["status"] == "incomplete"
 
@@ -200,7 +215,7 @@ def test_malformed_witness_metadata_fails_closed():
     smap, sealed = _stamped(bindings, props)
     instance = next(iter(smap["syn"]["requirements"][0]["instances"]))
     instance["witness_ids"] = "C1"  # a string, not a list
-    (unit,) = rel.relation_units(smap, sealed)
+    (unit,) = _units(smap, sealed)
     assert unit["metadata_check"] == "malformed"
     assert unit["status"] == "incomplete"
 
@@ -210,7 +225,7 @@ def test_partial_metadata_is_malformed():
     smap, sealed = _stamped(bindings, props)
     instance = next(iter(smap["syn"]["requirements"][0]["instances"]))
     del instance["witness_ids"]  # flag present, ids missing
-    (unit,) = rel.relation_units(smap, sealed)
+    (unit,) = _units(smap, sealed)
     assert unit["metadata_check"] == "malformed"
 
 
@@ -221,7 +236,7 @@ def test_answer_layer_result_does_not_depend_on_trusting_stored_metadata():
     smap, sealed = _stamped(bindings, props)
     instance = next(iter(smap["syn"]["requirements"][0]["instances"]))
     instance["witness_ids"] = ["STALE"]
-    (unit,) = rel.relation_units(smap, sealed)
+    (unit,) = _units(smap, sealed)
     assert unit["witness_ids"] == ["C1"]
 
 
@@ -248,18 +263,18 @@ _needs_preserved = pytest.mark.skipif(
 def test_preserved_units_are_identical_with_and_without_stored_metadata():
     smap = json.loads(_PRESERVED_MAP.read_text(encoding="utf-8"))
     sealed = json.loads(_PRESERVED_LEDGER.read_text(encoding="utf-8"))
-    historical = rel.relation_units(copy.deepcopy(smap), sealed)
+    historical = _units(copy.deepcopy(smap), sealed)
     stamped_smap = copy.deepcopy(smap)
-    rw.attach_relation_witnesses(stamped_smap, sealed)
-    assert historical == rel.relation_units(stamped_smap, sealed)
+    _attach(stamped_smap, sealed)
+    assert historical == _units(stamped_smap, sealed)
 
 
 @_needs_preserved
 def test_preserved_witnessed_and_unwitnessed_sets_are_unchanged_by_the_alignment():
     smap = json.loads(_PRESERVED_MAP.read_text(encoding="utf-8"))
     sealed = json.loads(_PRESERVED_LEDGER.read_text(encoding="utf-8"))
-    rw.attach_relation_witnesses(smap, sealed)
-    units = rel.relation_units(smap, sealed)
+    _attach(smap, sealed)
+    units = _units(smap, sealed)
     assert len(units) == 36
     witnessed = {(u["child_id"], u["instance_key"]) for u in units if u["status"] == "witnessed"}
     assert {cid for cid, _ in witnessed} == {"c4", "c8"}

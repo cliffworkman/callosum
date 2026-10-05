@@ -23,7 +23,8 @@ Operand source (Phase-31 section 7):
 Witness rule for a relational instance:
 - ``relation_witnessed`` iff at least one OWN operand exists AND one admissible verified proposition ``p`` satisfies
   every OWN operand by support membership AND contains every INHERITED referent surface (canonical containment of the
-  parent binding's verbatim ``exact_text``; I1 deliberately does not normalise it).
+  parent binding's verbatim ``exact_text``). The containment predicate is version-dispatched (I1d): v1 is
+  case-sensitive, v2 (current) folds case on both sides. Nothing else is normalised by either version.
 - The all-inherited guard: with no OWN operand the relation is never witnessed, however the inherited surfaces co-occur.
 - No distributed witness: a single ``p`` must satisfy all operands. Two propositions cannot jointly witness.
 - Admissibility: a candidate must be a sealed verified proposition. A continuation join is admissible only when every
@@ -36,6 +37,8 @@ from __future__ import annotations
 import copy
 
 from app.backend.pdf_processing.extraction import canonical_text_contains
+from experiments.ask_cli_revised import sufficiency_engine as se
+from experiments.ask_cli_revised import sufficiency_identity as si
 
 RULE = "operand_source_witness"  # a descriptive label for audit, not a semantic version
 PARENT_CONTEXT = "parent_context"
@@ -83,14 +86,50 @@ def is_admissible(proposition: dict | None) -> bool:
     return True
 
 
-def _referent_present(surface: str | None, quote: str) -> bool:
-    if not surface:
-        return False
+def _contains_case_sensitive(surface: str, quote: str) -> bool:
+    """sufficiency-semantics-v1 (I1c): canonical containment exactly as I1 applied it."""
     return canonical_text_contains(needle=surface, haystack=quote)
 
 
-def witness_instance(requirement: dict, instance: dict, proposition_by_id: dict[str, dict]) -> dict:
-    """The I1 fields for one relational instance. Pure: reads the requirement, instance and sealed propositions."""
+def _contains_case_insensitive(surface: str, quote: str) -> bool:
+    """sufficiency-semantics-v2 (I1d): the same canonical containment, applied to Unicode case-folded forms of BOTH
+    sides. Changes casing only: no whitespace, punctuation, hyphenation, morphology, alias or paraphrase normalisation
+    is added here."""
+    return canonical_text_contains(needle=surface.casefold(), haystack=quote.casefold())
+
+
+# The one place the inherited-referent predicate varies by semantics version. The witness algorithm is the same for
+# every version. An unknown version has no rule and fails closed (see referent_present).
+_REFERENT_CONTAINMENT = {
+    se.SUFFICIENCY_SEMANTICS_V1: _contains_case_sensitive,
+    se.SUFFICIENCY_SEMANTICS_V2: _contains_case_insensitive,
+}
+
+
+def referent_present(surface: str | None, quote: str, *, semantics_version: str) -> bool:
+    """Whether the inherited referent ``surface`` is contained in ``quote`` under the named semantics version."""
+    try:
+        contains = _REFERENT_CONTAINMENT[semantics_version]
+    except KeyError:
+        raise si.SemanticsIdentityError(
+            f"no inherited-referent containment rule for sufficiency-semantics version {semantics_version!r}"
+        ) from None
+    if not surface:
+        return False
+    return contains(surface, quote)
+
+
+def witness_instance(
+    requirement: dict, instance: dict, proposition_by_id: dict[str, dict], *, semantics_version: str
+) -> dict:
+    """The I1 fields for one relational instance. Pure: reads the requirement, instance and sealed propositions.
+
+    ``semantics_version`` selects the inherited-referent containment rule (I1d). It is required, never defaulted, so a
+    caller cannot silently apply one version's behaviour under another's identity."""
+    if semantics_version not in _REFERENT_CONTAINMENT:
+        raise si.SemanticsIdentityError(
+            f"no inherited-referent containment rule for sufficiency-semantics version {semantics_version!r}"
+        )
     required = sorted(requirement["role_completion"]["required_roles"])
     bindings = instance["role_bindings"]
     sources = {role: operand_source(bindings.get(role) or {}) for role in required}
@@ -138,7 +177,9 @@ def witness_instance(requirement: dict, instance: dict, proposition_by_id: dict[
             any_admissible = True
             quote = proposition["quote"]
             for role in inherited_roles:
-                check["inherited_referent_present"][role] = _referent_present(bindings[role].get("exact_text"), quote)
+                check["inherited_referent_present"][role] = referent_present(
+                    bindings[role].get("exact_text"), quote, semantics_version=semantics_version
+                )
             if all(check["inherited_referent_present"].values()):
                 admissible_witnesses.append(pid)
         provenance["candidate_checks"].append(check)
@@ -149,15 +190,20 @@ def witness_instance(requirement: dict, instance: dict, proposition_by_id: dict[
     return _finish(None, admissible_witnesses)
 
 
-def attach_relation_witnesses(mapped: dict, sealed: dict) -> None:
-    """Write the I1 fields onto every relational instance of every mapped contract, in place. Adds keys only."""
+def attach_relation_witnesses(mapped: dict, sealed: dict, *, semantics_version: str) -> None:
+    """Write the I1 fields onto every relational instance of every mapped contract, in place. Adds keys only.
+
+    ``semantics_version`` is required: production passes the current version, and a historical reproduction passes the
+    version it reproduces (I1d)."""
     proposition_by_id = {row["proposition_id"]: row for row in sealed.get("verified_propositions", [])}
     for contract in mapped.values():
         for requirement in contract["requirements"]:
             if not is_relational(requirement):
                 continue
             for instance in requirement["instances"]:
-                instance.update(witness_instance(requirement, instance, proposition_by_id))
+                instance.update(
+                    witness_instance(requirement, instance, proposition_by_id, semantics_version=semantics_version)
+                )
 
 
 def project_out_i1(smap: dict) -> dict:

@@ -1,7 +1,7 @@
-"""Sufficiency-semantics identity (Phase 32 / I1c). One stamping path, one reader, explicit fail-closed rules.
+"""Sufficiency-semantics identity (Phase 32 / I1c, versioned in I1d). One stamping path, one reader, explicit fail-closed rules.
 
-What the identity answers: which mapping, completion, recovery and stop-search semantics produced a diagnostic sufficiency
-map. It is separate from two other identities:
+What the identity answers: which mapping, completion, recovery, stop-search and witness semantics produced a diagnostic
+sufficiency map. It is separate from two other identities:
 
 - frozen contract identity: authored content (the frozen v9 contract and its review), changed only by a new frozen version;
 - code revision: external git provenance. This module does not record a commit hash, to avoid self-reference and
@@ -10,15 +10,17 @@ map. It is separate from two other identities:
 Authored contracts (sufficiency_authoring.build_qaib_contract) are NOT stamped. They feed the frozen artifact, and stamping
 them would change frozen content. Only produced diagnostic maps are stamped, through ``stamp_map``.
 
-Three states are distinguished, and they are never inferred from one another:
+Four states are distinguished. None is inferred from another:
 
-- ``current``: every child contract carries a supported SUFFICIENCY_SEMANTICS_VERSION.
-- ``historical_unversioned``: no child contract carries the key. This is a historical map (for example the preserved
-  Phase-28 map). It is recognised explicitly. It is never treated as current merely because the key is absent.
-- anything else (mixed, partial, unsupported, non-string): an error, in every mode.
+- ``current``: every child carries SUFFICIENCY_SEMANTICS_VERSION (the only version new production accepts).
+- ``historical_versioned``: every child carries a supported HISTORICAL version (for example v1). It is readable only
+  through an explicit historical path, and its exact version is recorded. It is never current.
+- ``historical_unversioned``: no child carries the key. Recognised only through an explicit historical path. It is never
+  treated as current, and its semantics are not attributed to any version the artifact does not record.
+- anything else (mixed, partial, unknown, non-string): an error in every mode.
 
-Production rule: a new artifact must be ``current``. Only an explicit historical compatibility path may accept
-``historical_unversioned``.
+Membership in ``SUPPORTED_SUFFICIENCY_SEMANTICS_VERSIONS`` means only that a version can be READ. It does not make a
+version current.
 """
 
 from __future__ import annotations
@@ -28,6 +30,7 @@ import copy
 from experiments.ask_cli_revised import sufficiency_engine as se
 
 STATUS_CURRENT = "current"
+STATUS_HISTORICAL_VERSIONED = "historical_versioned"
 STATUS_HISTORICAL_UNVERSIONED = "historical_unversioned"
 _MISSING = object()
 
@@ -43,10 +46,16 @@ def stamp_map(mapped: dict) -> dict:
     return mapped
 
 
-def read_map_identity(smap: dict, *, require_current: bool = False) -> dict:
+def read_map_identity(
+    smap: dict,
+    *,
+    accept_historical_versioned: bool = False,
+    accept_historical_unversioned: bool = False,
+) -> dict:
     """Return ``{"status": ..., "version": ...}`` for a map. Raises ``SemanticsIdentityError`` on any inconsistency.
 
-    ``require_current=True`` is the production rule: a historical or unversioned map is an error.
+    ``current`` is always accepted. The historical states are accepted only when their explicit flag is set. With both
+    flags false (production), anything other than the current version is an error.
     """
     if not smap:
         raise SemanticsIdentityError("an empty sufficiency map carries no semantics identity")
@@ -57,11 +66,12 @@ def read_map_identity(smap: dict, *, require_current: bool = False) -> dict:
         values.append(contract.get(se.SEMANTICS_VERSION_KEY, _MISSING))
     present = [value for value in values if value is not _MISSING]
     if not present:
-        if require_current:
-            raise SemanticsIdentityError(
-                "production requires a current sufficiency-semantics identity; this map is historical_unversioned"
-            )
-        return {"status": STATUS_HISTORICAL_UNVERSIONED, "version": None}
+        if accept_historical_unversioned:
+            return {"status": STATUS_HISTORICAL_UNVERSIONED, "version": None}
+        raise SemanticsIdentityError(
+            "this map has no sufficiency-semantics identity (historical_unversioned); it is not accepted without an "
+            "explicit historical-unversioned path"
+        )
     if len(present) != len(values):
         raise SemanticsIdentityError("partial sufficiency-semantics identity: some children are unversioned")
     if any(not isinstance(value, str) for value in present):
@@ -69,16 +79,41 @@ def read_map_identity(smap: dict, *, require_current: bool = False) -> dict:
     if len(set(present)) != 1:
         raise SemanticsIdentityError("mixed sufficiency-semantics versions across children")
     (version,) = set(present)
-    if version not in se.SUPPORTED_SUFFICIENCY_SEMANTICS_VERSIONS:
-        raise SemanticsIdentityError(f"unsupported sufficiency-semantics version {version!r}")
-    return {"status": STATUS_CURRENT, "version": version}
+    if version == se.SUFFICIENCY_SEMANTICS_VERSION:
+        return {"status": STATUS_CURRENT, "version": version}
+    if version in se.HISTORICAL_SUFFICIENCY_SEMANTICS_VERSIONS:
+        if accept_historical_versioned:
+            return {"status": STATUS_HISTORICAL_VERSIONED, "version": version}
+        raise SemanticsIdentityError(
+            f"sufficiency-semantics version {version!r} is a historical version and is not current; it is not accepted "
+            "without an explicit historical-versioned path"
+        )
+    raise SemanticsIdentityError(f"unsupported sufficiency-semantics version {version!r}")
+
+
+def applied_containment_version(identity: dict) -> str:
+    """The inherited-referent containment rule the answer layer applies for a map with this identity. Pure.
+
+    - current and historical_versioned: the map's own recorded version. That version's behaviour is what the map encodes.
+    - historical_unversioned: the CONTEMPORARY rule, applied explicitly. The artifact does not record a version, so it is
+      not attributed one. The application is recorded in the replay identity (see answer_plan.replay).
+    """
+    status = identity.get("status")
+    if status in (STATUS_CURRENT, STATUS_HISTORICAL_VERSIONED):
+        return identity["version"]
+    if status == STATUS_HISTORICAL_UNVERSIONED:
+        return se.SUFFICIENCY_SEMANTICS_VERSION
+    raise SemanticsIdentityError(f"unknown sufficiency-semantics identity status {status!r}")
 
 
 def check_authorization_binding(bound: dict, smap: dict) -> None:
-    """A replay authorization's recorded identity must equal the identity read from the map it binds. Mismatch fails closed."""
+    """A replay authorization's recorded identity must equal the identity read from the map it binds. Mismatch fails closed.
+
+    Any of the three states is accepted here: this checks consistency of the binding, not whether a path may use the map.
+    """
     if not isinstance(bound, dict) or set(bound) != {"status", "version"}:
         raise SemanticsIdentityError("authorization carries a malformed sufficiency-semantics binding")
-    actual = read_map_identity(smap)
+    actual = read_map_identity(smap, accept_historical_versioned=True, accept_historical_unversioned=True)
     if bound != actual:
         raise SemanticsIdentityError(
             f"authorization binds sufficiency-semantics {bound!r} but the map carries {actual!r}"

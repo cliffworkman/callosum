@@ -59,8 +59,11 @@ def _stored_metadata_check(instance: dict, derived: dict) -> str | None:
     return "disagrees"
 
 
-def relation_units(smap: dict, sealed: dict) -> list[dict]:
-    """One unit per (requirement, instance) of every requirement that requires two or more roles."""
+def relation_units(smap: dict, sealed: dict, *, semantics_version: str) -> list[dict]:
+    """One unit per (requirement, instance) of every requirement that requires two or more roles.
+
+    ``semantics_version`` selects the inherited-referent containment rule (Phase 32 / I1d). It is required: the caller
+    decides which rule applies (see replay: the map's own version, or the contemporary rule applied explicitly)."""
     proposition_by_id = {row["proposition_id"]: row for row in sealed.get("verified_propositions", [])}
     units: list[dict] = []
     for child in sorted(smap):
@@ -86,7 +89,9 @@ def relation_units(smap: dict, sealed: dict) -> list[dict]:
                     )
                 engine_complete = bool(instance.get("complete"))
                 all_filled = len(operands) == len(required)
-                derived = rw.witness_instance(requirement, instance, proposition_by_id)
+                derived = rw.witness_instance(
+                    requirement, instance, proposition_by_id, semantics_version=semantics_version
+                )
                 witnessed = derived["relation_witnessed"]
                 if not all_filled:
                     status = "incomplete"

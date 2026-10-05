@@ -155,8 +155,9 @@ def compute_diagnostic_sufficiency_map(
             new_requirements.append(_stamp_model_dependency_origins(mapped_req, child_id))
         mapped[child_id] = se.new_contract(child_id, new_requirements)
     # Phase 32 / I1: additive runtime witness metadata on relational instances. Adds keys only; `complete` and
-    # every other field are untouched, and nothing downstream reads these keys yet.
-    rw.attach_relation_witnesses(mapped, sealed)
+    # every other field are untouched, and nothing downstream reads these keys yet. Phase 32 / I1d: written under the
+    # current semantics version, which is also the version stamped below.
+    rw.attach_relation_witnesses(mapped, sealed, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION)
     # Phase 32 / I1c: the single stamping path for produced diagnostic maps (authored contracts are never stamped).
     si.stamp_map(mapped)
     return mapped

@@ -17,7 +17,9 @@ from experiments.ask_cli_revised.answer_plan import relations as rel
 from experiments.ask_cli_revised.answer_plan import step2 as st
 from experiments.ask_cli_revised.answer_plan import text as tx
 
-PLAN_VERSION = "answer-plan-step2-v2"
+# v3 (Phase 32 / I1d): inherited-referent containment is version-dispatched through relation_witness, and the
+# containment rule actually applied is recorded in the plan (``containment_semantics``). v2 was case-sensitive.
+PLAN_VERSION = "answer-plan-step2-v3"
 
 # Fixed, human-language disclosure per candidate-rejection reason. Never a role name, claim id or reason code.
 REASON_TEXT = {
@@ -64,9 +66,13 @@ def build_plan(
     frozen_contract: dict | None = None,
     inputs: dict | None = None,
     labels: dict | None = None,
+    containment_semantics: str,
 ) -> dict:
     """`labels` maps paper id -> citeproc-style label record (source_metadata.labels_for). Papers without a label get the
-    neutral label, so a missing metadata extract never blocks a replay."""
+    neutral label, so a missing metadata extract never blocks a replay.
+
+    `containment_semantics` is the inherited-referent containment rule applied to witnesses (Phase 32 / I1d). Required:
+    the caller states which rule it applies, and the plan records it."""
     if frozen_contract is not None:
         problems = ov.validate_overlay(overlay, smap, frozen_contract)
         if problems:
@@ -99,7 +105,7 @@ def build_plan(
         for span in sealed["evidence_spans"]
     ]
     claims = psl.build_claim_ledger(smap, sealed)
-    units = rel.relation_units(smap, sealed)
+    units = rel.relation_units(smap, sealed, semantics_version=containment_semantics)
     evaluations = {claim["claim_id"]: cl.evaluate_claim(claim, ctx, units) for claim in claims}
     facets = _build_facets(smap, overlay, units)
     for claim in claims:
@@ -121,6 +127,7 @@ def build_plan(
     step2 = st.finalize(nodes, ctx, props, _set_aside_by_node(overlay, smap, facets, evaluations, ctx))
     plan = {
         "plan_version": PLAN_VERSION,
+        "containment_semantics": containment_semantics,
         "inputs": dict(inputs or {}),
         "overlay_status": overlay["status"],
         "source_labels": {str(pid): labels[pid] for pid in sorted(labels)},

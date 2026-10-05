@@ -5,19 +5,44 @@ Vocabulary: "alpha", "beta", "gamma", "IAT"/"DG" stand in for any domain. Builde
 
 from __future__ import annotations
 
+from experiments.ask_cli_revised import relation_witness as rw
+from experiments.ask_cli_revised import sufficiency_engine as se
 from experiments.ask_cli_revised import test_answer_plan as fx
 from experiments.ask_cli_revised.answer_plan import classify as cl
 from experiments.ask_cli_revised.answer_plan import plan as pl
+from experiments.ask_cli_revised.answer_plan import relations as rel
 from experiments.ask_cli_revised.answer_plan import render as rd
 from experiments.ask_cli_revised.answer_plan import source_metadata as sm
 from experiments.ask_cli_revised.answer_plan import step2 as st
 from experiments.ask_cli_revised.answer_plan import text as tx
 
 
+def _units(smap, sealed):
+    return rel.relation_units(smap, sealed, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION)
+
+
+def _attach(mapped, sealed):
+    rw.attach_relation_witnesses(mapped, sealed, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION)
+
+
+def _witness(requirement, instance, proposition_by_id):
+    return rw.witness_instance(
+        requirement, instance, proposition_by_id, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+    )
+
+
 def _run(props, spans, smap, nodes, facet_ids, role_ids, labels=None):
     srcs = fx.sealed(props, spans)
     over = fx.overlay_for(nodes, facet_ids, role_ids)
-    plan = pl.build_plan(srcs, smap, over, scoped_final={}, inputs={"test": True}, labels=labels)
+    plan = pl.build_plan(
+        srcs,
+        smap,
+        over,
+        scoped_final={},
+        inputs={"test": True},
+        containment_semantics=se.SUFFICIENCY_SEMANTICS_VERSION,
+        labels=labels,
+    )
     props_by_id = {row["proposition_id"]: row for row in props}
     return plan, props_by_id
 

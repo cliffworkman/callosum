@@ -5,12 +5,29 @@ Vocabulary: "alpha", "beta", "gamma" stand in for any domain. Each test states t
 
 from __future__ import annotations
 
+from experiments.ask_cli_revised import relation_witness as rw
+
+# ---------------------------------------------------------------- builders
+from experiments.ask_cli_revised import sufficiency_engine as se
 from experiments.ask_cli_revised.answer_plan import overlay as ov
 from experiments.ask_cli_revised.answer_plan import plan as pl
+from experiments.ask_cli_revised.answer_plan import relations as rel
 from experiments.ask_cli_revised.answer_plan import render as rd
 from experiments.ask_cli_revised.answer_plan import text as tx
 
-# ---------------------------------------------------------------- builders
+
+def _units(smap, sealed):
+    return rel.relation_units(smap, sealed, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION)
+
+
+def _attach(mapped, sealed):
+    rw.attach_relation_witnesses(mapped, sealed, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION)
+
+
+def _witness(requirement, instance, proposition_by_id):
+    return rw.witness_instance(
+        requirement, instance, proposition_by_id, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+    )
 
 
 def prop(pid, paper, quote, span="s1", page=1):
@@ -114,7 +131,18 @@ def one_node(child, label="1", literal="A synthetic question?", obligations=()):
 def build(props, spans, smap, nodes, facet_ids, role_ids, scoped=None):
     srcs = sealed(props, spans)
     over = overlay_for(nodes, facet_ids, role_ids)
-    return pl.build_plan(srcs, smap, over, scoped_final=scoped or {}, inputs={"test": True}), srcs, over
+    return (
+        pl.build_plan(
+            srcs,
+            smap,
+            over,
+            scoped_final=scoped or {},
+            inputs={"test": True},
+            containment_semantics=se.SUFFICIENCY_SEMANTICS_VERSION,
+        ),
+        srcs,
+        over,
+    )
 
 
 def claims_by_role(plan):

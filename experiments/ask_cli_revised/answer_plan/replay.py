@@ -111,12 +111,19 @@ def _comparison(plan: dict, claims: list[dict]) -> list[str]:
 
 
 def verify_replay_authorization(authorization: dict, smap: dict) -> None:
-    """Recompute the authorization digest and check its bound sufficiency-semantics identity against the map.
-    Any mismatch raises ``si.SemanticsIdentityError`` (fail closed)."""
+    """Recompute the authorization digest, check its bound sufficiency-semantics identity against the map, and check that
+    the recorded containment rule is the one that identity implies. Any mismatch raises ``si.SemanticsIdentityError``."""
     body = {key: value for key, value in authorization.items() if key != "authorization_sha256"}
     if ov.sha256_obj(body) != authorization.get("authorization_sha256"):
         raise si.SemanticsIdentityError("replay authorization digest does not match its body (tampered or stale)")
-    si.check_authorization_binding(body["bound_inputs"]["sufficiency_semantics"], smap)
+    bound_inputs = body["bound_inputs"]
+    si.check_authorization_binding(bound_inputs["sufficiency_semantics"], smap)
+    expected = si.applied_containment_version(bound_inputs["sufficiency_semantics"])
+    if bound_inputs.get("answer_containment_semantics") != expected:
+        raise si.SemanticsIdentityError(
+            f"replay authorization records containment {bound_inputs.get('answer_containment_semantics')!r} but its "
+            f"bound identity implies {expected!r}"
+        )
 
 
 def main(argv=None) -> int:
@@ -125,9 +132,16 @@ def main(argv=None) -> int:
     parser.add_argument("--out-dir", type=Path, default=DEFAULT_OUT)
     parser.add_argument("--source-extract", type=Path, default=DEFAULT_SOURCE_EXTRACT)
     parser.add_argument(
+        "--allow-historical-versioned",
+        action="store_true",
+        help="explicit historical path: accept a map stamped with a historical sufficiency-semantics version (v1); "
+        "that version's containment rule is applied and recorded",
+    )
+    parser.add_argument(
         "--allow-historical-unversioned-map",
         action="store_true",
-        help="explicit historical compatibility path: accept a map that predates the sufficiency-semantics identity",
+        help="explicit historical compatibility path: accept a map that predates the sufficiency-semantics identity; "
+        "the contemporary containment rule is applied and recorded, not attributed to the map",
     )
     args = parser.parse_args(argv)
     run, out = args.run_dir, args.out_dir
@@ -135,7 +149,12 @@ def main(argv=None) -> int:
 
     sealed = _load(run, "11_verified_ledger.json")
     smap = _load(run, "17_sufficiency_map.json")
-    semantics = si.read_map_identity(smap, require_current=not args.allow_historical_unversioned_map)
+    semantics = si.read_map_identity(
+        smap,
+        accept_historical_versioned=args.allow_historical_versioned,
+        accept_historical_unversioned=args.allow_historical_unversioned_map,
+    )
+    applied_containment = si.applied_containment_version(semantics)
     scoped = _load(run, "13c_scoped_search.json").get("final") or {}
     preserved_ledger = _load(run, "15a_parent_synthesis.json")
     frozen = json.loads(FROZEN_CONTRACT.read_text(encoding="utf-8"))
@@ -175,6 +194,9 @@ def main(argv=None) -> int:
             "hierarchy_contract_frozen_sha256": ov.sha256_file(FROZEN_CONTRACT),
             "parent_claim_ledger_sha256": ov.sha256_obj(preserved_ledger["claim_ledger"]),
             "sufficiency_semantics": semantics,
+            # The containment rule the AnswerPlan actually applied. For an unversioned map this is the contemporary rule,
+            # applied explicitly; it is never attributed to the map itself (I1d).
+            "answer_containment_semantics": applied_containment,
         },
         "historical_decomposition_status": historical,
         "historical_status_note": "Recorded, not resolved. This overlay governs the offline replay only (Phase-30 U13).",
@@ -192,10 +214,24 @@ def main(argv=None) -> int:
     }
 
     plan = pl.build_plan(
-        sealed, smap, overlay, scoped_final=scoped, frozen_contract=frozen, inputs=inputs, labels=labels
+        sealed,
+        smap,
+        overlay,
+        scoped_final=scoped,
+        frozen_contract=frozen,
+        inputs=inputs,
+        labels=labels,
+        containment_semantics=applied_containment,
     )
     plan_again = pl.build_plan(
-        sealed, smap, overlay, scoped_final=scoped, frozen_contract=frozen, inputs=inputs, labels=labels
+        sealed,
+        smap,
+        overlay,
+        scoped_final=scoped,
+        frozen_contract=frozen,
+        inputs=inputs,
+        labels=labels,
+        containment_semantics=applied_containment,
     )
     deterministic = plan["plan_sha256"] == plan_again["plan_sha256"]
 

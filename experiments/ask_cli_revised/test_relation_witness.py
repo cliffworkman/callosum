@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 from experiments.ask_cli_revised import relation_witness as rw
+from experiments.ask_cli_revised import sufficiency_engine as se
 from experiments.ask_cli_revised.answer_plan import relations as rel
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -21,6 +22,20 @@ from experiments.ask_cli_revised.answer_plan import relations as rel
 # ---------------------------------------------------------------------------------------------------------------------
 
 _DEFAULT_PROVENANCE = {"detail": "", "model": None}
+
+
+def _units(smap, sealed):
+    return rel.relation_units(smap, sealed, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION)
+
+
+def _attach(mapped, sealed):
+    rw.attach_relation_witnesses(mapped, sealed, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION)
+
+
+def _upstream(requirement, instance, proposition_by_id):
+    return rw.witness_instance(
+        requirement, instance, proposition_by_id, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+    )
 
 
 def _prop(pid: str, quote: str, *, anchors=None, status: str = "verified") -> dict:
@@ -62,7 +77,7 @@ def _relational(bindings: list[tuple[str, dict]], required: list[str] | None = N
 
 def _witness(bindings, propositions, required=None) -> dict:
     requirement, instance = _relational(bindings, required)
-    return rw.witness_instance(requirement, instance, {row["proposition_id"]: row for row in propositions})
+    return _upstream(requirement, instance, {row["proposition_id"]: row for row in propositions})
 
 
 def _as_smap(requirement: dict, instance: dict) -> dict:
@@ -249,7 +264,7 @@ def test_non_relational_instances_receive_no_relational_keys():
     requirement = {"id": "syn#single", "role_completion": {"required_roles": ["only_role"]}}
     instance = {"instance_key": "i", "complete": True, "role_bindings": {"only_role": _own("only_role", "C1", "x")[1]}}
     contract = {"syn": {"child_id": "syn", "requirements": [{**requirement, "instances": [instance]}]}}
-    rw.attach_relation_witnesses(contract, {"verified_propositions": [_prop("C1", "x")]})
+    _attach(contract, {"verified_propositions": [_prop("C1", "x")]})
     assert set(contract["syn"]["requirements"][0]["instances"][0]) == {"instance_key", "complete", "role_bindings"}
 
 
@@ -259,7 +274,7 @@ def test_attach_adds_keys_only_and_never_touches_complete_or_bindings():
     instance["complete"] = False  # engine says incomplete; the I1 metadata must not alter that
     before = copy.deepcopy(instance)
     contract = {"syn": {"child_id": "syn", "requirements": [{**requirement, "instances": [copy.deepcopy(instance)]}]}}
-    rw.attach_relation_witnesses(contract, {"verified_propositions": props})
+    _attach(contract, {"verified_propositions": props})
     after = contract["syn"]["requirements"][0]["instances"][0]
     assert after["complete"] is False
     assert after["role_bindings"] == before["role_bindings"]
@@ -295,7 +310,7 @@ _EXPECTED = [
 
 def _answer_layer_witness(bindings, props):
     requirement, instance = _relational(bindings)
-    unit = rel.relation_units(_as_smap(requirement, instance), {"verified_propositions": props})[0]
+    unit = _units(_as_smap(requirement, instance), {"verified_propositions": props})[0]
     return bool(unit["witness_ids"]), unit["witness_ids"]
 
 
@@ -303,7 +318,7 @@ def _answer_layer_witness(bindings, props):
 def test_upstream_and_answer_layer_both_implement_the_section7_expectation(make_case, expected, expected_ids):
     bindings, props = make_case()
     requirement, instance = _relational(bindings)
-    upstream = rw.witness_instance(requirement, instance, {p["proposition_id"]: p for p in props})
+    upstream = _upstream(requirement, instance, {p["proposition_id"]: p for p in props})
     answer_witnessed, answer_ids = _answer_layer_witness(bindings, props)
     assert upstream["relation_witnessed"] is expected
     assert upstream["witness_ids"] == expected_ids
@@ -316,7 +331,7 @@ def test_all_inherited_shared_parent_is_not_witnessed_by_either_layer():
     bindings = [_inherited("entity_x", "P1", "alpha signal"), _inherited("measure_y", "P1", "beta score")]
     props = [_prop("P1", "The alpha signal predicted the beta score.")]
     requirement, instance = _relational(bindings)
-    upstream = rw.witness_instance(requirement, instance, {p["proposition_id"]: p for p in props})
+    upstream = _upstream(requirement, instance, {p["proposition_id"]: p for p in props})
     answer_witnessed, _ = _answer_layer_witness(bindings, props)
     assert upstream["relation_witnessed"] is False
     assert answer_witnessed is False
@@ -350,7 +365,7 @@ def test_preserved_map_projection_round_trips_exactly():
     smap = json.loads(_PRESERVED_MAP.read_text(encoding="utf-8"))
     sealed = json.loads(_PRESERVED_LEDGER.read_text(encoding="utf-8"))
     work = copy.deepcopy(smap)
-    rw.attach_relation_witnesses(work, sealed)
+    _attach(work, sealed)
     assert _canon(rw.project_out_i1(work)) == _canon(smap)
 
 
@@ -358,7 +373,7 @@ def test_preserved_map_projection_round_trips_exactly():
 def test_preserved_phase28_engine_complete_but_unwitnessed_instances_are_exactly_c5_and_c6():
     smap = json.loads(_PRESERVED_MAP.read_text(encoding="utf-8"))
     sealed = json.loads(_PRESERVED_LEDGER.read_text(encoding="utf-8"))
-    rw.attach_relation_witnesses(smap, sealed)
+    _attach(smap, sealed)
     unwitnessed = set()
     for cid, child in smap.items():
         for requirement in child["requirements"]:
@@ -375,7 +390,7 @@ def test_preserved_phase28_engine_complete_but_unwitnessed_instances_are_exactly
 def test_preserved_c4_region_instance_is_witnessed_by_its_own_passage():
     smap = json.loads(_PRESERVED_MAP.read_text(encoding="utf-8"))
     sealed = json.loads(_PRESERVED_LEDGER.read_text(encoding="utf-8"))
-    rw.attach_relation_witnesses(smap, sealed)
+    _attach(smap, sealed)
     c4 = next(i for i in smap["c4"]["requirements"][0]["instances"] if i["instance_key"] == "i::b140e60509ac4c8b")
     assert c4["relation_witnessed"] is True
     assert c4["witness_ids"] == ["p11"]
@@ -387,8 +402,8 @@ def test_preserved_answer_layer_derivation_agrees_with_stored_metadata_on_every_
     # metadata, both booleans and witness ids, on every preserved relational instance. No unit may carry a metadata anomaly.
     smap = json.loads(_PRESERVED_MAP.read_text(encoding="utf-8"))
     sealed = json.loads(_PRESERVED_LEDGER.read_text(encoding="utf-8"))
-    rw.attach_relation_witnesses(smap, sealed)
-    units = {(u["child_id"], u["requirement_id"], u["instance_key"]): u for u in rel.relation_units(smap, sealed)}
+    _attach(smap, sealed)
+    units = {(u["child_id"], u["requirement_id"], u["instance_key"]): u for u in _units(smap, sealed)}
     assert not [key for key, unit in units.items() if "metadata_check" in unit]
     disagreements = []
     for cid, child in smap.items():
@@ -414,7 +429,7 @@ def test_preserved_c8_trait_relations_are_witnessed_by_the_shared_rating_passage
     # trait bearer is right is the separate measurement-subject problem (audit section 9), which I1 does not solve.
     smap = json.loads(_PRESERVED_MAP.read_text(encoding="utf-8"))
     sealed = json.loads(_PRESERVED_LEDGER.read_text(encoding="utf-8"))
-    rw.attach_relation_witnesses(smap, sealed)
+    _attach(smap, sealed)
     witnessed = {i["instance_key"] for i in smap["c8"]["requirements"][0]["instances"] if i["relation_witnessed"]}
     assert len(witnessed) == 5
     assert all(

@@ -82,17 +82,31 @@ CANDIDATE_SOURCES = ("deterministic_mapping", "model_mapping", "parent_context")
 
 RELATIONSHIP_VERIFIERS = ("same_proposition", "contract_directed_links")
 
-# Phase 32 / I1c: identity of the CURRENT mapping, completion, recovery and stop-search semantics of the sufficiency
-# layer. "sufficiency-semantics-v1" identifies the semantics at HEAD 0f494288, including every behaviour that existed
-# before this constant. I1, I1a and I1b did not change sufficiency semantics (they added runtime metadata or changed the
-# answer layer), so they are not represented here.
+# Phase 32 / I1c: identity of the sufficiency layer's mapping, completion, recovery, stop-search and witness semantics.
+# A produced map records the version under which it was computed.
+#
+# Versions (each identifies actual behaviour, not merely a label):
+#   sufficiency-semantics-v1 (I1c, HEAD 144cc965 and earlier): inherited-referent containment is case-sensitive.
+#       Every other behaviour existed before the constant.
+#   sufficiency-semantics-v2 (I1d, CURRENT): inherited-referent containment is case-insensitive literal containment
+#       (Unicode case folding of both the referent surface and the candidate quote, then the unchanged canonical
+#       containment test). Whitespace, punctuation, hyphenation, morphology, aliases and paraphrase are NOT normalised
+#       by this change. Every other behaviour is unchanged from v1.
+#
+# CURRENT is the only version new production accepts. SUPPORTED lists every version this code can READ; membership in
+# it does not make a version current. Historical versions are readable only through an explicit historical path.
 #
 # INVARIANT (do not weaken): ANY future change to mapping derivation, binding admissibility, semantic satisfaction,
-# relation completion semantics, recovery, stop-search, or direction/effectiveness semantics in this layer MUST bump
-# SUFFICIENCY_SEMANTICS_VERSION. Authored contract changes need a new frozen contract version instead (Phase 31 section 17).
-# The two identify different things. Neither replaces the other.
-SUFFICIENCY_SEMANTICS_VERSION = "sufficiency-semantics-v1"
-SUPPORTED_SUFFICIENCY_SEMANTICS_VERSIONS = frozenset({SUFFICIENCY_SEMANTICS_VERSION})
+# relation completion semantics, recovery, stop-search, witness or direction/effectiveness semantics in this layer MUST
+# bump SUFFICIENCY_SEMANTICS_VERSION. Authored contract changes need a new frozen contract version instead (Phase 31
+# section 17). The two identify different things. Neither replaces the other.
+SUFFICIENCY_SEMANTICS_V1 = "sufficiency-semantics-v1"
+SUFFICIENCY_SEMANTICS_V2 = "sufficiency-semantics-v2"
+SUFFICIENCY_SEMANTICS_VERSION = SUFFICIENCY_SEMANTICS_V2
+HISTORICAL_SUFFICIENCY_SEMANTICS_VERSIONS = frozenset({SUFFICIENCY_SEMANTICS_V1})
+SUPPORTED_SUFFICIENCY_SEMANTICS_VERSIONS = (
+    frozenset({SUFFICIENCY_SEMANTICS_VERSION}) | HISTORICAL_SUFFICIENCY_SEMANTICS_VERSIONS
+)
 # Where the version is recorded: at the top level of every per-child contract in a produced map. The map keeps its
 # child-keyed shape, which every existing consumer indexes by child.
 SEMANTICS_VERSION_KEY = "sufficiency_semantics_version"

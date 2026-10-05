@@ -18,7 +18,8 @@ from experiments.ask_cli_revised import sufficiency_identity as si
 from experiments.ask_cli_revised import sufficiency_recovery_targets as srt
 from experiments.ask_cli_revised.answer_plan import relations as rel
 
-CURRENT = "sufficiency-semantics-v1"
+CURRENT = "sufficiency-semantics-v2"
+HISTORICAL_V1 = "sufficiency-semantics-v1"
 RUN = (
     Path(__file__).resolve().parents[2]
     / ".local"
@@ -52,13 +53,15 @@ def _synthetic_map() -> dict:
 def test_a_stamped_map_carries_the_semantics_version_on_every_child():
     stamped = si.stamp_map(_synthetic_map())
     assert all(contract[se.SEMANTICS_VERSION_KEY] == CURRENT for contract in stamped.values())
-    assert si.read_map_identity(stamped, require_current=True) == {"status": "current", "version": CURRENT}
+    assert si.read_map_identity(stamped) == {"status": "current", "version": CURRENT}
 
 
 def test_the_constant_and_its_key_are_the_documented_values():
-    assert se.SUFFICIENCY_SEMANTICS_VERSION == CURRENT
+    assert se.SUFFICIENCY_SEMANTICS_VERSION == CURRENT == "sufficiency-semantics-v2"
     assert se.SEMANTICS_VERSION_KEY == "sufficiency_semantics_version"
-    assert se.SUPPORTED_SUFFICIENCY_SEMANTICS_VERSIONS == frozenset({CURRENT})
+    assert se.HISTORICAL_SUFFICIENCY_SEMANTICS_VERSIONS == frozenset({HISTORICAL_V1})
+    # Readable is not current: the supported set contains the historical version too.
+    assert se.SUPPORTED_SUFFICIENCY_SEMANTICS_VERSIONS == frozenset({CURRENT, HISTORICAL_V1})
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -78,14 +81,20 @@ def test_b_same_inputs_and_version_produce_deterministic_output():
 
 
 def test_c_a_map_without_the_field_is_historical_unversioned_not_current():
-    identity = si.read_map_identity(_synthetic_map())
+    identity = si.read_map_identity(_synthetic_map(), accept_historical_unversioned=True)
     assert identity == {"status": "historical_unversioned", "version": None}
     assert identity["status"] != "current"
 
 
 def test_c_absence_is_not_inferred_as_current_even_for_a_non_empty_map():
     historical = _synthetic_map()
-    assert si.read_map_identity(historical)["status"] == si.STATUS_HISTORICAL_UNVERSIONED
+    assert (
+        si.read_map_identity(historical, accept_historical_unversioned=True)["status"]
+        == si.STATUS_HISTORICAL_UNVERSIONED
+    )
+    # Without the explicit path, absence is refused rather than read as current.
+    with pytest.raises(si.SemanticsIdentityError, match="not accepted"):
+        si.read_map_identity(historical)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -94,8 +103,8 @@ def test_c_absence_is_not_inferred_as_current_even_for_a_non_empty_map():
 
 
 def test_d_production_refuses_a_missing_version():
-    with pytest.raises(si.SemanticsIdentityError, match="requires a current"):
-        si.read_map_identity(_synthetic_map(), require_current=True)
+    with pytest.raises(si.SemanticsIdentityError, match="not accepted"):
+        si.read_map_identity(_synthetic_map())
 
 
 def test_d_partial_identity_is_an_error_in_every_mode():
@@ -156,7 +165,7 @@ def _current_run_dir(tmp_path: Path) -> Path:
         (run / name).write_bytes((RUN / name).read_bytes())
     smap = json.loads(PRESERVED_MAP.read_text(encoding="utf-8"))
     sealed = json.loads(PRESERVED_LEDGER.read_text(encoding="utf-8"))
-    rw_mod.attach_relation_witnesses(smap, sealed)
+    rw_mod.attach_relation_witnesses(smap, sealed, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION)
     si.stamp_map(smap)
     (run / "17_sufficiency_map.json").write_text(json.dumps(smap, indent=2, ensure_ascii=False), encoding="utf-8")
     return run
@@ -204,7 +213,7 @@ def test_g_tampered_authorization_version_fails_closed(tmp_path):
 def test_g_the_strict_replay_refuses_the_unversioned_preserved_map(tmp_path):
     from experiments.ask_cli_revised.answer_plan import replay
 
-    with pytest.raises(si.SemanticsIdentityError, match="requires a current"):
+    with pytest.raises(si.SemanticsIdentityError, match="not accepted"):
         replay.main(["--run-dir", str(RUN), "--out-dir", str(tmp_path / "out")])
 
 
@@ -241,10 +250,12 @@ def test_i_the_version_changes_no_witness_recovery_stop_search_or_parent_claim_o
 
     sealed = json.loads(PRESERVED_LEDGER.read_text(encoding="utf-8"))
     plain = json.loads(PRESERVED_MAP.read_text(encoding="utf-8"))
-    rw.attach_relation_witnesses(plain, sealed)
+    rw.attach_relation_witnesses(plain, sealed, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION)
     stamped = si.stamp_map(copy.deepcopy(plain))
 
-    assert _canon(rel.relation_units(stamped, sealed)) == _canon(rel.relation_units(plain, sealed))
+    assert _canon(rel.relation_units(stamped, sealed, semantics_version=CURRENT)) == _canon(
+        rel.relation_units(plain, sealed, semantics_version=CURRENT)
+    )
     assert _canon(psl.build_claim_ledger(stamped, sealed)) == _canon(psl.build_claim_ledger(plain, sealed))
     assert _canon(srt.compute_recovery_targets(stamped, {})) == _canon(srt.compute_recovery_targets(plain, {}))
 
