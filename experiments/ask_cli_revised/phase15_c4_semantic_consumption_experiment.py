@@ -104,6 +104,7 @@ from experiments.ask_cli_revised import backends, e2e_contracts, library_copy
 from experiments.ask_cli_revised import hierarchy_contract as hc
 from experiments.ask_cli_revised import sufficiency_diagnostic as sd
 from experiments.ask_cli_revised import sufficiency_engine as se
+from experiments.ask_cli_revised import sufficiency_identity as si
 from experiments.ask_cli_revised import sufficiency_mapping as sm
 from experiments.ask_cli_revised import sufficiency_phase5_replay as replay_mod
 from experiments.ask_cli_revised import topology as topo
@@ -397,6 +398,7 @@ def build_map(sealed: dict, contract_by_child: dict, parent_of: dict, *, target_
             new_requirements.append(sd._stamp_model_dependency_origins(mapped_req, child_id))
         mapped[child_id] = se.new_contract(child_id, new_requirements)
     sd.compute_direction_and_effectiveness(sealed, mapped)
+    si.stamp_map(mapped)  # Phase 32 / I1c: same stamping path as production
     return mapped, calls_log
 
 

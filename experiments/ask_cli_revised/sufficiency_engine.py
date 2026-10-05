@@ -82,6 +82,21 @@ CANDIDATE_SOURCES = ("deterministic_mapping", "model_mapping", "parent_context")
 
 RELATIONSHIP_VERIFIERS = ("same_proposition", "contract_directed_links")
 
+# Phase 32 / I1c: identity of the CURRENT mapping, completion, recovery and stop-search semantics of the sufficiency
+# layer. "sufficiency-semantics-v1" identifies the semantics at HEAD 0f494288, including every behaviour that existed
+# before this constant. I1, I1a and I1b did not change sufficiency semantics (they added runtime metadata or changed the
+# answer layer), so they are not represented here.
+#
+# INVARIANT (do not weaken): ANY future change to mapping derivation, binding admissibility, semantic satisfaction,
+# relation completion semantics, recovery, stop-search, or direction/effectiveness semantics in this layer MUST bump
+# SUFFICIENCY_SEMANTICS_VERSION. Authored contract changes need a new frozen contract version instead (Phase 31 section 17).
+# The two identify different things. Neither replaces the other.
+SUFFICIENCY_SEMANTICS_VERSION = "sufficiency-semantics-v1"
+SUPPORTED_SUFFICIENCY_SEMANTICS_VERSIONS = frozenset({SUFFICIENCY_SEMANTICS_VERSION})
+# Where the version is recorded: at the top level of every per-child contract in a produced map. The map keeps its
+# child-keyed shape, which every existing consumer indexes by child.
+SEMANTICS_VERSION_KEY = "sufficiency_semantics_version"
+
 
 # ---------------------------------------------------------------------------------------------
 # Builders -- plain dicts, mirroring hierarchy_contract.py's own house style

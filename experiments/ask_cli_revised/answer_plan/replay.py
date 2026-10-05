@@ -15,6 +15,7 @@ import json
 from pathlib import Path
 
 from experiments.ask_cli_revised import parent_synthesis_ledger as psl
+from experiments.ask_cli_revised import sufficiency_identity as si
 from experiments.ask_cli_revised.answer_plan import overlay as ov
 from experiments.ask_cli_revised.answer_plan import plan as pl
 from experiments.ask_cli_revised.answer_plan import render as rd
@@ -109,17 +110,32 @@ def _comparison(plan: dict, claims: list[dict]) -> list[str]:
     return rows
 
 
+def verify_replay_authorization(authorization: dict, smap: dict) -> None:
+    """Recompute the authorization digest and check its bound sufficiency-semantics identity against the map.
+    Any mismatch raises ``si.SemanticsIdentityError`` (fail closed)."""
+    body = {key: value for key, value in authorization.items() if key != "authorization_sha256"}
+    if ov.sha256_obj(body) != authorization.get("authorization_sha256"):
+        raise si.SemanticsIdentityError("replay authorization digest does not match its body (tampered or stale)")
+    si.check_authorization_binding(body["bound_inputs"]["sufficiency_semantics"], smap)
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-dir", type=Path, default=DEFAULT_RUN)
     parser.add_argument("--out-dir", type=Path, default=DEFAULT_OUT)
     parser.add_argument("--source-extract", type=Path, default=DEFAULT_SOURCE_EXTRACT)
+    parser.add_argument(
+        "--allow-historical-unversioned-map",
+        action="store_true",
+        help="explicit historical compatibility path: accept a map that predates the sufficiency-semantics identity",
+    )
     args = parser.parse_args(argv)
     run, out = args.run_dir, args.out_dir
     out.mkdir(parents=True, exist_ok=True)
 
     sealed = _load(run, "11_verified_ledger.json")
     smap = _load(run, "17_sufficiency_map.json")
+    semantics = si.read_map_identity(smap, require_current=not args.allow_historical_unversioned_map)
     scoped = _load(run, "13c_scoped_search.json").get("final") or {}
     preserved_ledger = _load(run, "15a_parent_synthesis.json")
     frozen = json.loads(FROZEN_CONTRACT.read_text(encoding="utf-8"))
@@ -158,10 +174,12 @@ def main(argv=None) -> int:
             "sufficiency_map_sha256": ov.sha256_file(run / "17_sufficiency_map.json"),
             "hierarchy_contract_frozen_sha256": ov.sha256_file(FROZEN_CONTRACT),
             "parent_claim_ledger_sha256": ov.sha256_obj(preserved_ledger["claim_ledger"]),
+            "sufficiency_semantics": semantics,
         },
         "historical_decomposition_status": historical,
         "historical_status_note": "Recorded, not resolved. This overlay governs the offline replay only (Phase-30 U13).",
     }
+    si.check_authorization_binding(authorization_body["bound_inputs"]["sufficiency_semantics"], smap)
     authorization = {**authorization_body, "authorization_sha256": ov.sha256_obj(authorization_body)}
     inputs = {
         "replay_authorization_sha256": authorization["authorization_sha256"],

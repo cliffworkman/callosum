@@ -457,6 +457,7 @@ def test_pipeline_projection_matches_pre_i1_baseline():
     from experiments.ask_cli_revised import sufficiency_diagnostic as sd
     from experiments.ask_cli_revised import sufficiency_engine as se
     from experiments.ask_cli_revised import sufficiency_freeze as sf
+    from experiments.ask_cli_revised import sufficiency_identity as si
     from experiments.ask_cli_revised import sufficiency_recovery_targets as srt
     from experiments.ask_cli_revised.question import BENCHMARK_QUESTION
 
@@ -474,7 +475,7 @@ def test_pipeline_projection_matches_pre_i1_baseline():
         for req in child["requirements"]
     }
     observed = {
-        "map_projected_sha": _sha(rw.project_out_i1(mapped)),
+        "map_projected_sha": _sha(si.strip_identity(rw.project_out_i1(mapped))),
         "claims_sha": _sha(psl.build_claim_ledger(mapped, sealed, parent_of)),
         "recovery_sha": _sha(srt.compute_recovery_targets(mapped, parent_of)),
         "stop_sha": _sha(stop),

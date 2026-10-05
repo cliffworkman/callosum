@@ -244,7 +244,7 @@ def test_preserved_direction_claim_stays_a_value_level_operand_valence(tmp_path)
     run_dir = Path(__file__).resolve().parents[2] / ".local" / "phase32" / "run_i1"
     if not run_dir.is_dir():
         pytest.skip("the I1 run directory (preserved map with I1 fields) is not present in this checkout")
-    replay.main(["--run-dir", str(run_dir), "--out-dir", str(tmp_path)])
+    replay.main(["--run-dir", str(run_dir), "--out-dir", str(tmp_path), "--allow-historical-unversioned-map"])
     plan = json.loads((tmp_path / "answer_plan.json").read_text(encoding="utf-8"))
     (claim,) = [r for r in plan["claim_roles"] if r.get("claim_kind") == "direction_or_effectiveness"]
     assert claim["role"] == "value_level"

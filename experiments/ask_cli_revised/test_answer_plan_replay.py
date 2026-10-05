@@ -19,7 +19,7 @@ pytestmark = pytest.mark.skipif(not (RUN / "11_verified_ledger.json").exists(), 
 @pytest.fixture(scope="module")
 def replay_out(tmp_path_factory):
     out = tmp_path_factory.mktemp("phase30_replay")
-    assert rp.main(["--run-dir", str(RUN), "--out-dir", str(out)]) == 0
+    assert rp.main(["--run-dir", str(RUN), "--out-dir", str(out), "--allow-historical-unversioned-map"]) == 0
     return out
 
 
@@ -111,7 +111,7 @@ def test_replay_authorization_is_bound_to_the_overlay_and_does_not_claim_the_liv
 
 
 def test_plan_is_identical_across_two_builds(replay_out, tmp_path):
-    assert rp.main(["--run-dir", str(RUN), "--out-dir", str(tmp_path)]) == 0
+    assert rp.main(["--run-dir", str(RUN), "--out-dir", str(tmp_path), "--allow-historical-unversioned-map"]) == 0
     first = json.loads((replay_out / "answer_plan.json").read_text(encoding="utf-8"))
     second = json.loads((tmp_path / "answer_plan.json").read_text(encoding="utf-8"))
     assert first["plan_sha256"] == second["plan_sha256"]
