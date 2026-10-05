@@ -8,16 +8,16 @@ passages; a direction is never printed without its operands.
 
 from __future__ import annotations
 
-import re
 from collections import defaultdict
 
 from experiments.ask_cli_revised import parent_synthesis_ledger as psl
 from experiments.ask_cli_revised.answer_plan import classify as cl
 from experiments.ask_cli_revised.answer_plan import overlay as ov
 from experiments.ask_cli_revised.answer_plan import relations as rel
+from experiments.ask_cli_revised.answer_plan import step2 as st
 from experiments.ask_cli_revised.answer_plan import text as tx
 
-PLAN_VERSION = "answer-plan-step1-v1"
+PLAN_VERSION = "answer-plan-step2-v1"
 
 # Fixed, human-language disclosure per candidate-rejection reason. Never a role name, claim id or reason code.
 REASON_TEXT = {
@@ -63,17 +63,20 @@ def build_plan(
     scoped_final: dict | None = None,
     frozen_contract: dict | None = None,
     inputs: dict | None = None,
+    labels: dict | None = None,
 ) -> dict:
+    """`labels` maps paper id -> citeproc-style label record (source_metadata.labels_for). Papers without a label get the
+    neutral label, so a missing metadata extract never blocks a replay."""
     if frozen_contract is not None:
         problems = ov.validate_overlay(overlay, smap, frozen_contract)
         if problems:
             raise ValueError("overlay invalid: " + "; ".join(problems))
+    labels = dict(labels or {})
     props = {row["proposition_id"]: row for row in sealed["verified_propositions"]}
     span_texts: dict = defaultdict(list)
     for span in sealed["evidence_spans"]:
         span_texts[span["paper_id"]].append(span["text"])
     facet_terms = {}
-    facet_phrases = overlay["facet_phrases"]
     for child in smap:
         for requirement in smap[child]["requirements"]:
             facet_terms[requirement["id"]] = list(overlay["requested_construct_terms"])
@@ -82,18 +85,22 @@ def build_plan(
         span_texts_by_paper=dict(span_texts),
         generic_map=cl.build_generic_map(smap, props),
         facet_terms=facet_terms,
-        facet_phrases=facet_phrases,
+        facet_phrases=overlay["facet_phrases"],
         corpus_words=tx.corpus_word_set([span["text"] for span in sealed["evidence_spans"]]),
+        labels=labels,
     )
-    claims = psl.build_claim_ledger(smap, sealed)
-    units = rel.relation_units(smap)
-    claim_by_id = {claim["claim_id"]: claim for claim in claims}
-    evaluations = {claim["claim_id"]: cl.evaluate_claim(claim, ctx, units) for claim in claims}
-
     ctx.span_rows = [
-        {"paper_id": span["paper_id"], "span_id": span["span_id"], "text": span["text"]}
+        {
+            "paper_id": span["paper_id"],
+            "span_id": span["span_id"],
+            "text": span["text"],
+            "section_family": span.get("section_family"),
+        }
         for span in sealed["evidence_spans"]
     ]
+    claims = psl.build_claim_ledger(smap, sealed)
+    units = rel.relation_units(smap)
+    evaluations = {claim["claim_id"]: cl.evaluate_claim(claim, ctx, units) for claim in claims}
     facets = _build_facets(smap, overlay, units)
     for claim in claims:
         evaluation = evaluations[claim["claim_id"]]
@@ -110,23 +117,21 @@ def build_plan(
         facet_ids = [r["id"] for child in node["owning_child_ids"] for r in smap[child]["requirements"]]
         _dedupe_node(facet_ids, facets)
 
-    nodes = []
-    for node in overlay["nodes"]:
-        nodes.append(_build_node(node, facets, evaluations, claim_by_id, units, ctx, overlay, resolved, smap))
-
-    layer1_checked = [s for n in nodes for s in n["statement_texts"]]
+    nodes = [_build_node(node, facets, evaluations, ctx, overlay, resolved, smap) for node in overlay["nodes"]]
+    step2 = st.finalize(nodes, ctx, props, _set_aside_by_node(overlay, smap, facets, evaluations, ctx))
     plan = {
         "plan_version": PLAN_VERSION,
         "inputs": dict(inputs or {}),
         "overlay_status": overlay["status"],
-        "nodes": [{k: v for k, v in node.items() if k != "statement_texts"} for node in nodes],
-        "claim_roles": [_claim_role_record(claim, evaluations[claim["claim_id"]], claim_by_id) for claim in claims],
+        "source_labels": {str(pid): labels[pid] for pid in sorted(labels)},
+        "nodes": nodes,
+        "step2": step2,
+        "claim_roles": [_claim_role_record(claim, evaluations[claim["claim_id"]]) for claim in claims],
         "relation_units": units,
         "disagreements": _disagreements(units),
         "parent": _parent_plan(nodes),
-        "_layer1_check_texts": layer1_checked,
     }
-    plan["plan_sha256"] = ov.sha256_obj({k: v for k, v in plan.items() if k != "_layer1_check_texts"})
+    plan["plan_sha256"] = ov.sha256_obj(plan)
     return plan
 
 
@@ -256,174 +261,86 @@ def _facet_state(facet: dict, displayed: list[dict], resolved: set[str]) -> dict
     return result
 
 
-def _reason_lines(facet_claims: list[dict], claim_by_id: dict, evaluations: dict) -> list[str]:
-    reasons: list[str] = []
-    for cid in facet_claims:
-        evaluation = evaluations[cid]
-        for reason in evaluation.get("reasons", []):
-            if reason not in reasons:
-                reasons.append(reason)
-        for result in evaluation.get("value_results", []):
-            for reason in result.get("reasons", []):
-                if reason not in reasons:
-                    reasons.append(reason)
-    lines = []
-    for reason in reasons:
-        if reason in REASON_TEXT and reason not in SILENT_REASONS and REASON_TEXT[reason] not in lines:
-            lines.append(REASON_TEXT[reason])
-    return lines
-
-
 def _join_phrases(phrases: list[str]) -> str:
     if len(phrases) <= 1:
         return "".join(phrases)
     return ", ".join(phrases[:-1]) + " and " + phrases[-1]
 
 
-def _disclosures(
-    facet: dict, state: dict, displayed: list[dict], facet_claims, claim_by_id, evaluations, ctx, overlay
-) -> list[str]:
-    """Fixed human-language lines for one facet. Never a role name, code, or id. A relational facet whose relation is not
-    witnessed always says so (Phase-30 D3), naming the operands the answer layer could and could not establish."""
+def _reasons(facet_claims: list[str], evaluations: dict) -> list[str]:
+    """Distinct reason codes across a facet's claims, in first-seen order. Silent codes carry no user-facing text."""
+    codes: list[str] = []
+    for cid in facet_claims:
+        evaluation = evaluations[cid]
+        found = list(evaluation.get("reasons", []))
+        for result in evaluation.get("value_results", []):
+            found.extend(result.get("reasons", []))
+        for code in found:
+            if code in REASON_TEXT and code not in SILENT_REASONS and code not in codes:
+                codes.append(code)
+    return codes
+
+
+def _disclosure_items(facet: dict, state: dict, displayed: list[dict], evaluations: dict, overlay: dict) -> list[dict]:
+    """Structured per-facet disclosure items (Step 2, A). Each item keeps one facet's own state, so consolidation in step2.py
+    may word items together but never drops or merges their states. `text` is the item's standalone wording."""
     roles_phrase = overlay["role_phrases"]
-    lines: list[str] = []
+    items: list[dict] = []
+
+    def add(kind: str, text: str, phrase: str | None = None, **extra) -> None:
+        items.append({"kind": kind, "facet_id": facet["facet_id"], "phrase": phrase, "text": text, **extra})
+
     if state["state"] == ANSWERED:
-        return lines
+        return items
     if state["state"] == SEARCHED_EMPTY:
-        return [f"The scoped search completed without establishing {facet['phrase']}."]
+        add("searched_empty", f"The scoped search completed without establishing {facet['phrase']}.", facet["phrase"])
+        return items
     required = facet["required_roles"]
     covered = set(state["covered_roles"])
     if facet["cardinality"]:
         if not displayed:
-            lines.append(f"The retrieved evidence does not establish {facet['phrase']}.")
-        for key in state.get("uncovered_categories", []):
-            lines.append(
-                f"The retrieved evidence does not establish {overlay['category_phrases'].get(key, key + ' findings')}."
-            )
+            add("not_established", f"The retrieved evidence does not establish {facet['phrase']}.", facet["phrase"])
+        else:
+            for key in state.get("uncovered_categories", []):
+                phrase = overlay["category_phrases"].get(key, key + " findings")
+                add("not_established", f"The retrieved evidence does not establish {phrase}.", phrase, category=key)
     elif facet["relation_required"] and facet["relation_status"] != "witnessed":
         phrases = [roles_phrase[r] for r in required]
         if set(required) <= covered:
-            lines.append(
-                f"The retrieved evidence reports {_join_phrases(phrases)} separately, but does not establish how they relate."
-            )
+            text = f"The retrieved evidence reports {_join_phrases(phrases)} separately, but does not establish how they relate."
         else:
-            lines.append(f"The retrieved evidence does not establish how {_join_phrases(phrases)} relate.")
+            text = f"The retrieved evidence does not establish how {_join_phrases(phrases)} relate."
+        add("relation_unwitnessed", text)
+    elif not displayed:
+        add("not_established", f"The retrieved evidence does not establish {facet['phrase']}.", facet["phrase"])
     else:
-        if not displayed:
-            lines.append(f"The retrieved evidence does not establish {facet['phrase']}.")
-        elif state.get("uncovered_roles"):
-            for role in state["uncovered_roles"]:
-                lines.append(f"The retrieved evidence does not state {roles_phrase[role]} as a separate finding.")
-    for line in _reason_lines(facet_claims, claim_by_id, evaluations)[:2]:
-        if line not in lines:
-            lines.append(line)
-    return lines
-
-
-_QUALIFICATION_CUE = re.compile(
-    r"\b(?:limit\w*|proxies|proxy|may not|might not|cannot|further research|caveat|generaliz\w*)\b", re.IGNORECASE
-)
-_STOP = frozenset(
-    "about after again against among because before being between could during every from have into more most other "
-    "over same should some such than that their there these they this those through under until very when where which "
-    "while with within would participants study research results were found been also".split()
-)
-
-
-def _content_tokens(text: str) -> set[str]:
-    return {t.lower() for t in re.findall(r"[A-Za-z]{5,}", text) if t.lower() not in _STOP}
-
-
-def _loose(text: str) -> str:
-    """Comparison-only normalization: joins PDF line-break hyphens, drops punctuation, lowercases. It decides whether a
-    sentence is contained in a verified quote. It is never used for display or for the rendered text."""
-    joined = re.sub(r"(\w)-\s+(\w)", r"\1\2", text)
-    return " ".join(re.sub(r"[^A-Za-z0-9]+", " ", joined).lower().split())
-
-
-_SCOPE_QUALIFIER = re.compile(
-    r"\b(?:initial|preliminary|tentative\w*|rather than|interpret\w*|limitations?|limited|cannot|generaliz\w*|"
-    r"further research|future research|durability|directly test\w*|possibility|alternative|explanation)\b",
-    re.IGNORECASE,
-)
-
-
-_LITERATURE = re.compile(
-    r"\b(?:meta-analys\w*|systematic review|(?:many|several|other|multiple|previous|prior|earlier|recent|existing)\s+"
-    r"(?:studies|study|research|work|reports?|findings|investigations?)|studies (?:on|of)|the literature)\b",
-    re.IGNORECASE,
-)
-_RATIONALE = re.compile(
-    r"\b(?:motivated|we expected|expected|predict\w*|prediction|hypothes\w*|agnostic|anticipat\w*|expectation)\b",
-    re.IGNORECASE,
-)
-
-
-def _qualification_candidates(statements: list[dict], props: dict, ctx: "cl.Ctx") -> tuple[list[dict], list[dict]]:
-    """D6. A sealed SENTENCE that is not contained in any verified proposition's quote may QUALIFY (never create) a
-    displayed finding. It must: carry an explicit limitation cue; come from the same paper; share at least two content
-    words with the finding; and not be background or a stated aim (prior-work and aim sentences are literature, not
-    qualifications). A qualifier is PROMOTED to Layer 1 only when it carries a scope qualifier AND stands on its own
-    (closed, complete); otherwise the node carries a fixed pointer to it. Returns (attached, every decision)."""
-    verified_quotes = [_loose(row["quote"]) for row in props.values()]
-    attached: list[dict] = []
-    decisions: list[dict] = []
-    for span in ctx.span_rows:
-        for sentence in tx.split_sentences(span["text"]):
-            if not _QUALIFICATION_CUE.search(sentence):
-                continue
-            if any(_loose(sentence) in quote for quote in verified_quotes):
-                continue
-            kind = tx.attribution_kind(sentence, caption=False)
-            background = (
-                kind in ("prior_work", "aim_or_hypothesis")
-                or bool(_LITERATURE.search(sentence))
-                or bool(_RATIONALE.search(sentence))
+        for role in state.get("uncovered_roles", []):
+            add(
+                "role_missing",
+                f"The retrieved evidence does not state {roles_phrase[role]} as a separate finding.",
+                role=role,
             )
-            standalone = not tx.closure_failures(sentence) and sentence.rstrip()[-1:] in '.!?)"”'
-            scope = bool(_SCOPE_QUALIFIER.search(sentence))
-            for statement in statements:
-                paper = props[statement["prop_ids"][0]]["paper_id"]
-                if span["paper_id"] != paper:
-                    continue
-                shared = sorted(_content_tokens(sentence) & _content_tokens(statement["text"]))
-                record = {
-                    "span_id": span["span_id"],
-                    "paper_id": span["paper_id"],
-                    "text": sentence,
-                    "sentence_kind": kind,
-                    "qualifies_claim_id": statement["claim_id"],
-                    "shared_content_words": shared,
-                    "attached": len(shared) >= 2 and not background,
-                    "excluded_as_background": background and len(shared) >= 2,
-                    "scope_qualifier": scope,
-                    "standalone": standalone,
-                    "promoted_to_layer1": len(shared) >= 2 and not background and scope and standalone,
+    reason_items: list[dict] = []
+    for code in _reasons(facet["claim_ids"], evaluations):
+        if all(item["text"] != REASON_TEXT[code] for item in reason_items):
+            reason_items.append(
+                {
+                    "kind": "reason",
+                    "facet_id": facet["facet_id"],
+                    "phrase": None,
+                    "text": REASON_TEXT[code],
+                    "code": code,
                 }
-                decisions.append(record)
-                if record["attached"]:
-                    attached.append(record)
-    return attached, decisions
+            )
+    items.extend(reason_items[:2])
+    return items
 
 
-def _term_support(items: list[tuple], ctx: "cl.Ctx") -> list[dict]:
-    """U11. Every acronym in a displayed or candidate passage, with the explicit definitional support (if any) found in
-    sealed text. Support is reported, never used to expand a term in a sentence the source did not expand."""
-    found: dict[str, dict] = {}
-    for text_item, paper in items:
-        for term in tx.acronyms(text_item):
-            if term not in found or not found[term]["supported"]:
-                hit = tx.expansion_support(term, ctx.span_texts_by_paper, paper)
-                found[term] = {"term": term, "supported": hit is not None, "support": hit}
-    return [found[t] for t in sorted(found)]
-
-
-def _build_node(node, facets, evaluations, claim_by_id, units, ctx, overlay, resolved, smap) -> dict:
+def _build_node(node, facets, evaluations, ctx, overlay, resolved, smap) -> dict:
     facet_rows = []
     statements: list[dict] = []
-    disclosures: list[str] = []
+    items: list[dict] = []
     facet_states = []
-    node_facet_ids = [r["id"] for child in node["owning_child_ids"] for r in smap[child]["requirements"]]
     kept_by_claim = {
         r["claim_id"]: r
         for child in node["owning_child_ids"]
@@ -437,25 +354,25 @@ def _build_node(node, facets, evaluations, claim_by_id, units, ctx, overlay, res
             pool = _coverage_pool(facet, kept_by_claim)
             state = _facet_state(facet, pool, resolved)
             facet_states.append(state["state"])
-            lines = _disclosures(facet, state, pool, facet["claim_ids"], claim_by_id, evaluations, ctx, overlay)
+            facet_items = _disclosure_items(facet, state, pool, evaluations, overlay)
+            items.extend(facet_items)
             facet_rows.append(
                 {
                     "facet_id": facet["facet_id"],
                     "phrase": facet["phrase"],
                     "state": state["state"],
                     "covered_roles": state["covered_roles"],
+                    "uncovered_roles": state.get("uncovered_roles", []),
                     "required_roles": facet["required_roles"],
+                    "covered_categories": state.get("covered_categories", []),
+                    "uncovered_categories": state.get("uncovered_categories", []),
                     "relation_status": facet["relation_status"],
                     "claim_ids": facet["claim_ids"],
                     "displayed_render_count": len(displayed),
-                    "disclosures": lines,
+                    "disclosures": [item["text"] for item in facet_items],
                 }
             )
-            for render in displayed:
-                statements.append({**render, "facet_state": state["state"]})
-            for line in lines:
-                if line not in disclosures:
-                    disclosures.append(line)
+            statements.extend({**render, "facet_state": state["state"]} for render in displayed)
     if all(s == ANSWERED for s in facet_states):
         status = ANSWERED
     elif any(s in (ANSWERED, PARTIAL) for s in facet_states):
@@ -464,48 +381,9 @@ def _build_node(node, facets, evaluations, claim_by_id, units, ctx, overlay, res
         status = SEARCHED_EMPTY
     else:
         status = NOT_ESTABLISHED
-    obligations = []
-    for obligation in node["human_review_obligations"]:
-        phrase = overlay["obligation_phrases"][obligation]
-        line = f"This run did not assess {phrase}."
-        if line not in disclosures:
-            obligations.append(line)
-    qualifications, qualification_decisions = _qualification_candidates(
-        [_statement_record(s) for s in statements], ctx.props, ctx
-    )
-    facet_of_claim = {s["claim_id"]: s["facet_id"] for s in statements}
-    seen_qualifications: set = set()
-    qualification_pointer = False
-    promoted: list[dict] = []
-    for record in qualifications:
-        key = tx.normalized_key(record["text"])
-        if key in seen_qualifications:
-            continue
-        seen_qualifications.add(key)
-        if record["promoted_to_layer1"]:
-            promoted.append(
-                {
-                    "claim_id": f"qualification:{record['span_id']}",
-                    "facet_id": facet_of_claim.get(record["qualifies_claim_id"], node_facet_ids[0]),
-                    "kind": "qualification_sentence",
-                    "text": record["text"],
-                    "prop_ids": [],
-                    "span_id": record["span_id"],
-                    "paper_id": record["paper_id"],
-                    "span_text": record["text"],
-                    "attribution": "qualification",
-                    "edits": [],
-                    "facet_state": None,
-                    "subject": None,
-                }
-            )
-        else:
-            qualification_pointer = True
-    statements = statements + promoted
-    if qualification_pointer:
-        pointer = "The paper adds a qualification to this result; it is listed in the supporting evidence."
-        if pointer not in disclosures:
-            disclosures.append(pointer)
+    obligations = [
+        f"This run did not assess {overlay['obligation_phrases'][o]}." for o in node["human_review_obligations"]
+    ]
     return {
         "label": node["label"],
         "parent": node["parent"],
@@ -515,25 +393,51 @@ def _build_node(node, facets, evaluations, claim_by_id, units, ctx, overlay, res
         "status": status,
         "facets": facet_rows,
         "statements": [_statement_record(s) for s in statements],
-        "disclosures": disclosures,
+        "disclosure_items": items,
         "not_assessed": obligations,
-        "statement_texts": [s["text"] for s in statements],
-        "term_support": _term_support(
-            [
-                (s["text"], s["paper_id"] if "paper_id" in s else ctx.props[s["prop_ids"][0]]["paper_id"])
-                for s in statements
-            ]
-            + [
-                (ctx.props[pid]["quote"], ctx.props[pid]["paper_id"])
-                for fid in node_facet_ids
-                for cid in facets[fid]["claim_ids"]
-                for pid in evaluations[cid].get("admissible_proposition_ids", [])
-            ],
-            ctx,
-        ),
-        "qualifications": qualifications,
-        "qualification_candidates": qualification_decisions,
+        "disclosures": [],
     }
+
+
+def _set_aside_by_node(overlay: dict, smap: dict, facets: dict, evaluations: dict, ctx) -> dict:
+    """Layer-2 records of candidate passages that were not stated as an answer: attributed, adjacent, duplicate, subsumed,
+    or suppressed. Each keeps its verbatim passage and the fixed human reasons (none is a claim id or a role name)."""
+    out: dict = {}
+    for node in overlay["nodes"]:
+        entries: list[dict] = []
+        seen: set = set()
+        for child in node["owning_child_ids"]:
+            for requirement in smap[child]["requirements"]:
+                for cid in facets[requirement["id"]]["claim_ids"]:
+                    evaluation = evaluations[cid]
+                    statuses = {r.get("status") for r in evaluation.get("renders", [])}
+                    if "displayed" in statuses:
+                        continue
+                    if "duplicate" in statuses:
+                        basis = "the same sentence is stated under another item"
+                    elif "subsumed" in statuses:
+                        basis = "the sentence is contained in a relation stated above"
+                    else:
+                        basis = None
+                    reasons = [REASON_TEXT[code] for code in _reasons([cid], evaluations)]
+                    for pid in evaluation.get("admissible_proposition_ids") or []:
+                        key = tx.normalized_key(ctx.props[pid]["quote"])
+                        if key in seen:
+                            continue
+                        seen.add(key)
+                        entries.append(
+                            {
+                                "claim_id": cid,
+                                "proposition_id": pid,
+                                "paper_id": ctx.props[pid]["paper_id"],
+                                "quote": ctx.props[pid]["quote"],
+                                "role": evaluation.get("role"),
+                                "basis": basis,
+                                "reasons": reasons,
+                            }
+                        )
+        out[node["label"]] = entries
+    return out
 
 
 def _statement_record(render: dict) -> dict:
@@ -554,7 +458,7 @@ def _statement_record(render: dict) -> dict:
     }
 
 
-def _claim_role_record(claim: dict, evaluation: dict, claim_by_id: dict) -> dict:
+def _claim_role_record(claim: dict, evaluation: dict) -> dict:
     renders = evaluation.get("renders", [])
     return {
         "claim_id": claim["claim_id"],
@@ -607,5 +511,5 @@ def _parent_plan(nodes: list[dict]) -> dict:
     return {
         "allowed_statement_ids": allowed,
         "node_state_counts": counts,
-        "note": "Stored only. No count sentence is rendered in Layer 1 at Step 1 (Phase-30 D10).",
+        "note": "Stored only. No count sentence is rendered in Layer 1 (Phase-30 D10).",
     }

@@ -1,6 +1,6 @@
 {
   "record": "answer_plan_audit",
-  "plan_sha256": "f083139b84f5d9b68f57375feb2e84eddac978e0f2d97be965a670795ed6a750",
+  "plan_sha256": "d965a6144377de37f2c688df3cd59a7f8c2354c54c3103b1dfbe61f2207d6c0c",
   "plan_deterministic": true,
   "parent_claim_ledger_identical_to_phase28_record": true,
   "invariant_checks": [
@@ -21,6 +21,11 @@
     },
     {
       "check": "layer1_no_internal_terms_or_templates",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "layer1_fixed_text_has_no_layer3_vocabulary",
       "passed": true,
       "detail": []
     },
@@ -46,6 +51,45 @@
       "check": "no_acronym_expansion_printed",
       "passed": true,
       "detail": []
+    },
+    {
+      "check": "parenthetical_acronyms_are_grounded",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "expansion_printed:IAT",
+      "passed": true,
+      "detail": "Implicit Association Test (IAT)"
+    },
+    {
+      "check": "expansion_printed:NAME",
+      "passed": true,
+      "detail": "Normalizing Anomalies with Mobile Exposure (NAME)"
+    },
+    {
+      "check": "layer1_uses_source_labels_not_paper_numbers",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "generic_explanation_stated_once_per_answer",
+      "passed": true,
+      "detail": {}
+    },
+    {
+      "check": "every_attached_limitation_records_why",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "every_facet_has_a_recorded_state",
+      "passed": true,
+      "detail": [
+        "answered",
+        "not_established",
+        "partial"
+      ]
     },
     {
       "check": "verbatim_from_passage:category_list::9fd341f1bbff788b",
@@ -88,17 +132,22 @@
       "detail": null
     },
     {
-      "check": "verbatim_from_passage:qualification:e13",
+      "check": "verbatim_from_passage:limitation:e13:another, not mut",
       "passed": true,
       "detail": null
     },
     {
-      "check": "verbatim_from_passage:qualification:e4",
+      "check": "verbatim_from_passage:limitation:e4:because we did n",
       "passed": true,
       "detail": null
     },
     {
-      "check": "verbatim_from_passage:qualification:e24",
+      "check": "verbatim_from_passage:limitation:e7:accordingly, the",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "verbatim_from_passage:limitation:e24:we therefore can",
       "passed": true,
       "detail": null
     },
@@ -177,7 +226,7 @@
     {
       "check": "replay_plan_deterministic",
       "passed": true,
-      "detail": "f083139b84f5d9b68f57375feb2e84eddac978e0f2d97be965a670795ed6a750"
+      "detail": "d965a6144377de37f2c688df3cd59a7f8c2354c54c3103b1dfbe61f2207d6c0c"
     },
     {
       "check": "parent_claim_ledger_rebuilds_identically",
@@ -191,6 +240,92 @@
     }
   ],
   "failed_checks": [],
+  "layer1_body_words": 900,
+  "step2": {
+    "grounded_terms": [
+      "IAT",
+      "NAME"
+    ],
+    "introduced_terms": {
+      "IAT": {
+        "kind": "acronym_expansion_introduced",
+        "from": "IAT",
+        "to": "Implicit Association Test (IAT)",
+        "long_form": "Implicit Association Test",
+        "span_id": "e25",
+        "paper_id": 248,
+        "applied": "expanded_at_first_use"
+      },
+      "NAME": {
+        "kind": "acronym_expansion_introduced",
+        "from": "NAME",
+        "to": "Normalizing Anomalies with Mobile Exposure (NAME)",
+        "long_form": "Normalizing Anomalies with Mobile Exposure",
+        "span_id": "e3",
+        "paper_id": 248,
+        "applied": "expanded_at_first_use"
+      }
+    },
+    "promoted_count": 4,
+    "discovered_candidate_count": 158,
+    "structural_metadata_available": false
+  },
+  "source_labels": {
+    "14": {
+      "narrative": "Delgado et al. (2005)",
+      "parenthetical": "(Delgado et al., 2005)",
+      "list": "Delgado et al., 2005",
+      "neutral": false
+    },
+    "20": {
+      "narrative": "Giacomucci et al. (2022)",
+      "parenthetical": "(Giacomucci et al., 2022)",
+      "list": "Giacomucci et al., 2022",
+      "neutral": false
+    },
+    "25": {
+      "narrative": "He et al. (2024)",
+      "parenthetical": "(He et al., 2024)",
+      "list": "He et al., 2024",
+      "neutral": false
+    },
+    "60": {
+      "narrative": "Villavisanis et al. (2022)",
+      "parenthetical": "(Villavisanis et al., 2022)",
+      "list": "Villavisanis et al., 2022",
+      "neutral": false
+    },
+    "61": {
+      "narrative": "Villavisanis et al. (2023)",
+      "parenthetical": "(Villavisanis et al., 2023)",
+      "list": "Villavisanis et al., 2023",
+      "neutral": false
+    },
+    "67": {
+      "narrative": "Workman et al. (2021)",
+      "parenthetical": "(Workman et al., 2021)",
+      "list": "Workman et al., 2021",
+      "neutral": false
+    },
+    "68": {
+      "narrative": "Workman et al. (2022)",
+      "parenthetical": "(Workman et al., 2022)",
+      "list": "Workman et al., 2022",
+      "neutral": false
+    },
+    "107": {
+      "narrative": "Paruzel-Czachura et al. (2025)",
+      "parenthetical": "(Paruzel-Czachura et al., 2025)",
+      "list": "Paruzel-Czachura et al., 2025",
+      "neutral": false
+    },
+    "248": {
+      "narrative": "Bilici et al. (2026)",
+      "parenthetical": "(Bilici et al., 2026)",
+      "list": "Bilici et al., 2026",
+      "neutral": false
+    }
+  },
   "disagreements_engine_complete_vs_witnessed": [
     {
       "child_id": "c5",

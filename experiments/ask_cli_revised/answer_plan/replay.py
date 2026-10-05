@@ -1,9 +1,11 @@
-"""Phase-30 Step-1 offline replay driver. Reads ONLY the preserved Phase-28 Attempt-2 artifacts; no model, no network.
+"""Phase-30 Step-2 offline replay driver. Reads ONLY the preserved Phase-28 Attempt-2 artifacts and the committed citation-
+metadata extract; no model, no network.
 
-    python -m experiments.ask_cli_revised.answer_plan.replay [--run-dir DIR] [--out-dir DIR]
+    python -m experiments.ask_cli_revised.answer_plan.replay [--run-dir DIR] [--out-dir DIR] [--source-extract FILE]
 
 Writes: replay_decomposition_authorization.json, answer_plan.json, deterministic_layer1.md, deterministic_layer2.md,
-answer_plan_audit.json, comparison_against_phase29_hand_audit.md. The preserved run directory is never modified.
+deterministic_layer3.md, answer_plan_audit.json, comparison_against_phase29_hand_audit.md. The preserved run directory
+is never modified.
 """
 
 from __future__ import annotations
@@ -16,11 +18,13 @@ from experiments.ask_cli_revised import parent_synthesis_ledger as psl
 from experiments.ask_cli_revised.answer_plan import overlay as ov
 from experiments.ask_cli_revised.answer_plan import plan as pl
 from experiments.ask_cli_revised.answer_plan import render as rd
+from experiments.ask_cli_revised.answer_plan import source_metadata as sm
 from experiments.ask_cli_revised.answer_plan import text as tx
 
 ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_RUN = ROOT / ".local" / "e2e-runs" / "phase28-live-parent-synthesis-attempt2-20261004T014500Z" / "run"
 DEFAULT_OUT = ROOT / "experiments" / "ask_cli_revised" / "phase30_replay"
+DEFAULT_SOURCE_EXTRACT = DEFAULT_OUT / "source_metadata_extract.json"
 FROZEN_CONTRACT = ROOT / "experiments" / "ask_cli_revised" / "hierarchy_contract.frozen.json"
 
 # Phase-29 hand audit, Appendix A, transcribed. Keyed by (kind, child ids, sorted admissible propositions).
@@ -109,6 +113,7 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-dir", type=Path, default=DEFAULT_RUN)
     parser.add_argument("--out-dir", type=Path, default=DEFAULT_OUT)
+    parser.add_argument("--source-extract", type=Path, default=DEFAULT_SOURCE_EXTRACT)
     args = parser.parse_args(argv)
     run, out = args.run_dir, args.out_dir
     out.mkdir(parents=True, exist_ok=True)
@@ -120,6 +125,9 @@ def main(argv=None) -> int:
     frozen = json.loads(FROZEN_CONTRACT.read_text(encoding="utf-8"))
     overlay = ov.load_overlay()
     overlay_sha = ov.overlay_sha256(overlay)
+    extract = sm.load_extract(args.source_extract)
+    paper_ids = sorted({row["paper_id"] for row in sealed["verified_propositions"]})
+    labels = sm.labels_for(extract, paper_ids)
 
     problems = ov.validate_overlay(overlay, smap, frozen)
     if problems:
@@ -161,10 +169,16 @@ def main(argv=None) -> int:
         "sealed_hash": sealed["sealed_hash"],
         "sufficiency_map_sha256": authorization_body["bound_inputs"]["sufficiency_map_sha256"],
         "hierarchy_contract_frozen_sha256": authorization_body["bound_inputs"]["hierarchy_contract_frozen_sha256"],
+        "source_metadata_sha256": ov.sha256_file(args.source_extract),
+        "library_fingerprint_sha256": extract.get("library_fingerprint_sha256"),
     }
 
-    plan = pl.build_plan(sealed, smap, overlay, scoped_final=scoped, frozen_contract=frozen, inputs=inputs)
-    plan_again = pl.build_plan(sealed, smap, overlay, scoped_final=scoped, frozen_contract=frozen, inputs=inputs)
+    plan = pl.build_plan(
+        sealed, smap, overlay, scoped_final=scoped, frozen_contract=frozen, inputs=inputs, labels=labels
+    )
+    plan_again = pl.build_plan(
+        sealed, smap, overlay, scoped_final=scoped, frozen_contract=frozen, inputs=inputs, labels=labels
+    )
     deterministic = plan["plan_sha256"] == plan_again["plan_sha256"]
 
     rebuilt = psl.build_claim_ledger(smap, sealed)
@@ -176,6 +190,7 @@ def main(argv=None) -> int:
     corpus_words = tx.corpus_word_set([s["text"] for s in sealed["evidence_spans"]])
     layer1 = rd.render_layer1(plan, props, corpus_words)
     layer2 = rd.render_layer2(plan, props)
+    layer3 = rd.render_layer3(plan, authorization)
     checks = rd.invariant_report(plan, layer1, props)
     checks.append(
         {
@@ -191,7 +206,6 @@ def main(argv=None) -> int:
     checks.append({"check": "no_model_calls", "passed": True, "detail": "pure functions over preserved artifacts"})
     failed = [c["check"] for c in checks if not c["passed"]]
 
-    plan_out = {k: v for k, v in plan.items() if k != "_layer1_check_texts"}
     audit = {
         "record": "answer_plan_audit",
         "plan_sha256": plan["plan_sha256"],
@@ -199,6 +213,9 @@ def main(argv=None) -> int:
         "parent_claim_ledger_identical_to_phase28_record": ledger_identical,
         "invariant_checks": checks,
         "failed_checks": failed,
+        "layer1_body_words": rd.layer1_body_words(layer1),
+        "step2": plan["step2"],
+        "source_labels": plan["source_labels"],
         "disagreements_engine_complete_vs_witnessed": plan["disagreements"],
         "relation_units": plan["relation_units"],
         "historical_decomposition_status": historical,
@@ -210,9 +227,10 @@ def main(argv=None) -> int:
     (out / "replay_decomposition_authorization.json").write_text(
         json.dumps(authorization, indent=2, ensure_ascii=False), encoding="utf-8"
     )
-    (out / "answer_plan.json").write_text(json.dumps(plan_out, indent=2, ensure_ascii=False), encoding="utf-8")
+    (out / "answer_plan.json").write_text(json.dumps(plan, indent=2, ensure_ascii=False), encoding="utf-8")
     (out / "deterministic_layer1.md").write_text(layer1, encoding="utf-8")
     (out / "deterministic_layer2.md").write_text(layer2, encoding="utf-8")
+    (out / "deterministic_layer3.md").write_text(layer3, encoding="utf-8")
     (out / "answer_plan_audit.json").write_text(json.dumps(audit, indent=2, ensure_ascii=False), encoding="utf-8")
     comparison = [
         "# Comparison against the Phase-29 hand audit (Appendix A)",
@@ -230,6 +248,7 @@ def main(argv=None) -> int:
         "deterministic": deterministic,
         "ledger_identical": ledger_identical,
         "failed_checks": failed,
+        "layer1_body_words": audit["layer1_body_words"],
         "node_states": audit["node_states"],
         "claim_role_counts": _count([r["role"] for r in plan["claim_roles"]]),
         "out_dir": str(out),

@@ -1,0 +1,112 @@
+{
+  "record": "source_metadata_extract",
+  "source": "library copy opened read-only; citation fields only (no titles, no text)",
+  "library_fingerprint_sha256": "4f2e98a54c92790e791d841ef63e2fd60c4b411246f9c29590c19e56da892523",
+  "papers": {
+    "14": {
+      "authors": [
+        "Delgado",
+        "Frank",
+        "Phelps"
+      ],
+      "year": 2005
+    },
+    "20": {
+      "authors": [
+        "Giacomucci",
+        "Galdo",
+        "Polito",
+        "Berti",
+        "Padiglioni",
+        "Mazzeo",
+        "Chiaro",
+        "De Cristofaro",
+        "Bagnoli",
+        "Nacmias",
+        "Sorbi",
+        "Bessi"
+      ],
+      "year": 2022
+    },
+    "25": {
+      "authors": [
+        "He",
+        "Workman",
+        "He",
+        "Chatterjee"
+      ],
+      "year": 2024
+    },
+    "60": {
+      "authors": [
+        "Villavisanis",
+        "Workman",
+        "Cho",
+        "Zapatero",
+        "Wagner",
+        "Blum",
+        "Bartlett",
+        "Swanson",
+        "Chatterjee",
+        "Taylor"
+      ],
+      "year": 2022
+    },
+    "61": {
+      "authors": [
+        "Villavisanis",
+        "Workman",
+        "Zapatero",
+        "Vu",
+        "Humphries",
+        "Blum",
+        "Cho",
+        "Swanson",
+        "Bartlett",
+        "Chatterjee",
+        "Taylor"
+      ],
+      "year": 2023
+    },
+    "67": {
+      "authors": [
+        "Workman",
+        "Humphries",
+        "Hartung",
+        "Aguirre",
+        "Kable",
+        "Chatterjee"
+      ],
+      "year": 2021
+    },
+    "68": {
+      "authors": [
+        "Workman",
+        "Smith",
+        "Apicella",
+        "Chatterjee"
+      ],
+      "year": 2022
+    },
+    "107": {
+      "authors": [
+        "Paruzel-Czachura",
+        "Workman",
+        "Taylor",
+        "Chatterjee"
+      ],
+      "year": 2025
+    },
+    "248": {
+      "authors": [
+        "Bilici",
+        "Paruzel-Czachura",
+        "Workman",
+        "Humphries",
+        "Hamilton",
+        "Chatterjee"
+      ],
+      "year": 2026
+    }
+  }
+}

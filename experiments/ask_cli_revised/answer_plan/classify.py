@@ -25,8 +25,12 @@ class Ctx:
     facet_phrases: dict  # requirement_id -> human phrase
     corpus_words: set = field(default_factory=set)
 
+    labels: dict = field(default_factory=dict)  # paper id -> label record (source_metadata.label_for)
+
     def paper_label(self, paper_id) -> str:
-        return f"Paper {paper_id}"
+        """The narrative source label for a paper, from library metadata; neutral when metadata are absent."""
+        record = self.labels.get(paper_id)
+        return record["narrative"] if record else f"Source {paper_id}"
 
     def generic_requirements(self, quote: str) -> list[str]:
         return sorted(self.generic_map.get(canonicalize_quote_text(quote), ()))

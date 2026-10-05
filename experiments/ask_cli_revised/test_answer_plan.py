@@ -5,7 +5,6 @@ Vocabulary: "alpha", "beta", "gamma" stand in for any domain. Each test states t
 
 from __future__ import annotations
 
-from experiments.ask_cli_revised.answer_plan import classify as cl
 from experiments.ask_cli_revised.answer_plan import overlay as ov
 from experiments.ask_cli_revised.answer_plan import plan as pl
 from experiments.ask_cli_revised.answer_plan import render as rd
@@ -163,11 +162,11 @@ def test_display_joins_only_verified_hyphen_breaks_and_never_changes_meaning():
     assert tx.display_text("anomalous-is- bad stereotype", corpus) == "anomalous-is-bad stereotype"
 
 
-def test_acronym_expansion_requires_explicit_definitional_pattern():
-    texts = {1: ["We used the Implicit Association Test (IAT) for alpha."]}
-    supported = tx.expansion_support("IAT", texts, paper_id=1)
-    assert supported and supported["expansion"] == "Implicit Association Test"
-    assert tx.expansion_support("DG", texts, paper_id=1) is None  # no definition: never expanded
+def test_acronym_definition_requires_an_explicit_definitional_pattern():
+    spans = [{"paper_id": 1, "span_id": "s1", "text": "We used the Implicit Association Test (IAT) for alpha."}]
+    hits = tx.definition_hits("IAT", spans)
+    assert [h["long_form"] for h in hits] == ["Implicit Association Test"]
+    assert tx.definition_hits("DG", spans) == []  # no definition: never expanded
 
 
 def test_attribution_cues_are_lexical_and_never_guessed():
@@ -382,45 +381,9 @@ def test_searched_empty_is_stated_as_searched_not_absent():
     }
     state = pl._facet_state(facet, [], resolved={"f"})
     assert state["state"] == pl.SEARCHED_EMPTY
-    assert pl._disclosures(facet, state, [], [], {}, {}, None, {"role_phrases": {"rv": "x"}, "category_phrases": {}})[
-        0
-    ].startswith("The scoped search completed without establishing")
-
-
-# ---------------------------------------------------------------- qualifications (D6)
-
-
-def test_background_and_aim_sentences_never_qualify_and_scope_qualifiers_promote_only_when_standalone():
-    props = {"p1": prop("p1", 1, "The alpha response correlated with beta outcomes.")}
-    statement = {
-        "claim_id": "c",
-        "prop_ids": ["p1"],
-        "text": "The alpha response correlated with beta outcomes.",
-        "paper_id": 1,
-    }
-    ctx = cl.Ctx(props=props, span_texts_by_paper={}, generic_map={}, facet_terms={}, facet_phrases={})
-    ctx.span_rows = [
-        {
-            "paper_id": 1,
-            "span_id": "q1",
-            "text": "Previous studies reported limitations of the alpha response with beta outcomes.",
-        },
-        {
-            "paper_id": 1,
-            "span_id": "q2",
-            "text": "Accordingly, they should be interpreted as a preliminary limitation of the alpha response that correlated with beta outcomes.",
-        },
-        {
-            "paper_id": 1,
-            "span_id": "q3",
-            "text": "This preliminary limitation of the alpha response correlated with beta outcomes should be tested further.",
-        },
-    ]
-    attached, decisions = pl._qualification_candidates([statement], props, ctx)
-    by_span = {d["span_id"]: d for d in decisions}
-    assert by_span["q1"]["excluded_as_background"] is True
-    assert by_span["q2"]["attached"] and by_span["q2"]["promoted_to_layer1"] is False  # anaphoric: pointer only
-    assert by_span["q3"]["promoted_to_layer1"] is True
+    items = pl._disclosure_items(facet, state, [], {}, {"role_phrases": {"rv": "x"}, "category_phrases": {}})
+    assert items[0]["kind"] == "searched_empty"
+    assert items[0]["text"].startswith("The scoped search completed without establishing")
 
 
 # ---------------------------------------------------------------- overlay, determinism, rendering
@@ -459,32 +422,6 @@ def test_plan_is_deterministic_and_layer_one_contains_no_internal_identifiers():
     failing = [c["check"] for c in checks if not c["passed"]]
     assert failing == [], failing
     assert "p1" not in text_out.split() and "::" not in text_out
-
-
-def test_literature_and_design_rationale_are_never_qualifications():
-    props = {"p1": prop("p1", 1, "The alpha response correlated with beta outcomes.")}
-    statement = {
-        "claim_id": "c",
-        "prop_ids": ["p1"],
-        "text": "The alpha response correlated with beta outcomes.",
-        "paper_id": 1,
-    }
-    ctx = cl.Ctx(props=props, span_texts_by_paper={}, generic_map={}, facet_terms={}, facet_phrases={})
-    ctx.span_rows = [
-        {
-            "paper_id": 1,
-            "span_id": "m1",
-            "text": "A meta-analysis of studies found limitations in alpha response with beta outcomes.",
-        },
-        {
-            "paper_id": 1,
-            "span_id": "m2",
-            "text": "We expected the alpha response to be limited, but beta outcomes changed.",
-        },
-    ]
-    attached, decisions = pl._qualification_candidates([statement], props, ctx)
-    assert attached == []
-    assert {d["span_id"]: d["attached"] for d in decisions} == {"m1": False, "m2": False}
 
 
 def test_enumeration_refuses_a_value_that_is_a_whole_passage_or_a_sentence():

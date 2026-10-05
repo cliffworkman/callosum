@@ -129,6 +129,10 @@ def has_result_language(text: str) -> bool:
     return bool(attr.has_result_predicate(text) or _RESULT_EXTRA.search(text) or attr.has_statistics(text))
 
 
+def has_statistics(text: str) -> bool:
+    return bool(attr.has_statistics(text))
+
+
 def has_own_cue(text: str) -> bool:
     return bool(attr.detect_cues(text)["own"]) or bool(_SELF_STUDY.search(text))
 
@@ -170,28 +174,35 @@ def acronyms(text: str) -> list[str]:
     return sorted(set(_ACRONYM.findall(text)))
 
 
-def expansion_support(term: str, texts_by_paper: dict[int, list[str]], paper_id: int | None) -> dict | None:
-    """Explicit definitional support for an acronym, from sealed text only (Phase-30 U11). Accepts the two patterns a
-    definition takes in the source: "Long form (ABBR)" and "ABBR (long form)". Same-paper support is preferred."""
+def definition_hits(term: str, spans: list[dict]) -> list[dict]:
+    """Every explicit definitional construction for an acronym in sealed text (Phase-30 U11, Step-2 item C).
+
+    Two constructions are accepted and nothing else: "Long Form (ABBR)" (optionally quoted) and "ABBR (Long Form)". The
+    long form is the capitalized phrase that directly precedes the parenthesized acronym, so a sentence such as "We used the
+    Implicit Association Test (IAT)" yields "Implicit Association Test", not the whole sentence. Hits are returned in sealed
+    span order, so the result is deterministic."""
     capitalized_phrase = r"((?:[A-Z][\w\-]*)(?:\s+(?:[A-Z][\w\-]*|of|and|for|with|in|on|the|to|a))*)"
-    patterns = (
-        re.compile(capitalized_phrase + r"[\"“”']?\s*\(\s*" + re.escape(term) + r"\s*\)"),
-        re.compile(re.escape(term) + r"\s*\(\s*([^()]{4,120}?)\s*\)"),
-    )
-    papers = sorted(texts_by_paper, key=lambda pid: (pid != paper_id, pid))
-    for pid in papers:
-        for text in texts_by_paper[pid]:
-            for pattern in patterns:
-                match = pattern.search(text)
-                if match:
-                    return {
+    long_then_abbr = re.compile(capitalized_phrase + r"[\"“”']?\s*\(\s*" + re.escape(term) + r"\s*\)")
+    abbr_then_long = re.compile(re.escape(term) + r"\s*\(\s*([^()]{4,120}?)\s*\)")
+    hits: list[dict] = []
+    for span in sorted(spans, key=lambda row: (row["paper_id"], str(row["span_id"]))):
+        text_value = re.sub(r"\s+", " ", span["text"])
+        for pattern_name, pattern in (
+            ("long_form_then_acronym", long_then_abbr),
+            ("acronym_then_long_form", abbr_then_long),
+        ):
+            for match in pattern.finditer(text_value):
+                hits.append(
+                    {
                         "term": term,
-                        "expansion": match.group(1).strip(),
-                        "paper_id": pid,
-                        "same_paper": pid == paper_id,
+                        "long_form": match.group(1).strip(),
+                        "paper_id": span["paper_id"],
+                        "span_id": span["span_id"],
+                        "pattern": pattern_name,
                         "matched": match.group(0),
                     }
-    return None
+                )
+    return hits
 
 
 def same_text(a: str, b: str) -> bool:
