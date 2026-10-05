@@ -14,6 +14,7 @@ that on its own.
 from __future__ import annotations
 
 from experiments.ask_cli_revised import overview_evidence as oe
+from experiments.ask_cli_revised import relation_witness as rw
 from experiments.ask_cli_revised import sufficiency_engine as se
 from experiments.ask_cli_revised import sufficiency_mapping as sm
 
@@ -152,6 +153,9 @@ def compute_diagnostic_sufficiency_map(
             )
             new_requirements.append(_stamp_model_dependency_origins(mapped_req, child_id))
         mapped[child_id] = se.new_contract(child_id, new_requirements)
+    # Phase 32 / I1: additive runtime witness metadata on relational instances. Adds keys only; `complete` and
+    # every other field are untouched, and nothing downstream reads these keys yet.
+    rw.attach_relation_witnesses(mapped, sealed)
     return mapped
 
 
