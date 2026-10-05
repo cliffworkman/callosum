@@ -8,10 +8,10 @@ and, for multi-value category lists, an enumeration whose values are all verbati
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
 
 from app.backend.pdf_processing.extraction import canonicalize_quote_text
+from experiments.ask_cli_revised.answer_plan import direction_target as dt
 from experiments.ask_cli_revised.answer_plan import relations as rel
 from experiments.ask_cli_revised.answer_plan import text as tx
 
@@ -250,39 +250,65 @@ def _evaluate_values(claim, ctx, record, facet_id) -> dict:
     return record
 
 
+def _operand_surfaces(unit: dict) -> dict[str, str]:
+    return {op["role"]: op["exact_text"] for op in unit["operands"] if op.get("exact_text")}
+
+
 def _evaluate_direction(claim, ctx, units, record) -> dict:
+    """Phase 32 / I1b. A direction is attached to a relation only when the witness sentence itself targets the
+    relational predicate. An operand-targeted sign is rendered as valence of that operand, identified by role. Any other
+    sign is suppressed. A direction is never attached to a relation by proximity."""
     summary = claim["direction_or_effectiveness"]
     sign = summary.get("consensus_value")
     keys = set(claim["instance_keys"])
     admissible = set(claim["admissible_proposition_ids"])
     mine = [u for u in units if u["instance_key"] in keys and u["requirement_id"] in claim["requirement_ids"]]
-    attached = [u for u in mine if u["status"] == "witnessed" and admissible & set(u["witness_ids"])]
-    if attached:
-        record.update(
-            role="attached_to_relation",
-            attached_unit=f"{attached[0]['child_id']}/{attached[0]['requirement_id']}",
-            reasons=[],
-            layer="layer1_via_relation",
-        )
-        return record
-    subjects = [op["exact_text"] for u in mine for op in u["operands"] if op["source"] == "own" and op["exact_text"]]
-    attempts = []
-    if sign and subjects:
+    for unit in mine:
+        if unit["status"] != "witnessed":
+            continue
+        surfaces = _operand_surfaces(unit)
+        for pid in sorted(admissible & set(unit["witness_ids"])):
+            for sentence in tx.split_sentences(ctx.props[pid]["quote"]):
+                if dt.classify_sentence(sentence, surfaces, sign)["target"] == "relation":
+                    record.update(
+                        role="attached_to_relation",
+                        attached_unit=f"{unit['child_id']}/{unit['requirement_id']}",
+                        reasons=[],
+                        layer="layer1_via_relation",
+                        direction_target="relation",
+                    )
+                    return record
+    attempts: list[dict] = []
+    targets: list[str] = []
+    if sign:
         for pid in sorted(admissible):
             for sentence in tx.split_sentences(ctx.props[pid]["quote"]):
-                if re.search(r"\b" + re.escape(sign) + r"\b", sentence, re.IGNORECASE) and any(
-                    tx.contains(subject, sentence) for subject in subjects
-                ):
-                    attempts.append(evaluate_sentence(sentence, pid, ctx, claim["requirement_ids"]))
+                for unit in mine:
+                    surfaces = _operand_surfaces(unit)
+                    target = dt.classify_sentence(sentence, surfaces, sign)
+                    targets.append(target["target"])
+                    if target["target"] != "operand":
+                        continue
+                    subject = surfaces[target["role"]]
+                    if not tx.contains(subject, sentence):
+                        continue
+                    attempt = evaluate_sentence(sentence, pid, ctx, claim["requirement_ids"])
+                    attempt["subject"] = subject
+                    attempts.append(attempt)
     winner = next((a for a in attempts if a["ok"]), None)
     if winner:
         render = _render("value_level_valence", claim, winner, [sign], _primary_facet(claim))
-        render["subject"] = next(
-            s for s in subjects if tx.contains(s, winner["raw_sentence"]) or tx.contains(s, winner["sentence"])
-        )
+        render["subject"] = winner["subject"]
         record["renders"].append(render)
-        record.update(role="value_level", reasons=[], layer="layer1", direction_sign=sign)
+        record.update(role="value_level", reasons=[], layer="layer1", direction_sign=sign, direction_target="operand")
         return record
-    reasons = attempts[0]["reasons"] if attempts else ["direction_without_relation_or_subject"]
-    record.update(role="suppressed", reasons=reasons, layer="layer2", direction_sign=sign)
+    if "relation" in targets:
+        reasons, target = ["direction_relation_not_attachable"], "relation"
+    elif "unknown" in targets:
+        reasons, target = ["direction_target_unresolved"], "unknown"
+    elif attempts:
+        reasons, target = attempts[0]["reasons"], "operand"
+    else:
+        reasons, target = ["direction_without_relation_or_subject"], "none"
+    record.update(role="suppressed", reasons=reasons, layer="layer2", direction_sign=sign, direction_target=target)
     return record

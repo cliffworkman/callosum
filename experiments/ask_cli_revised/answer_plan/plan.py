@@ -17,7 +17,7 @@ from experiments.ask_cli_revised.answer_plan import relations as rel
 from experiments.ask_cli_revised.answer_plan import step2 as st
 from experiments.ask_cli_revised.answer_plan import text as tx
 
-PLAN_VERSION = "answer-plan-step2-v1"
+PLAN_VERSION = "answer-plan-step2-v2"
 
 # Fixed, human-language disclosure per candidate-rejection reason. Never a role name, claim id or reason code.
 REASON_TEXT = {
@@ -459,6 +459,13 @@ def _statement_record(render: dict) -> dict:
 
 
 def _claim_role_record(claim: dict, evaluation: dict) -> dict:
+    record = _claim_role_fields(claim, evaluation)
+    if "direction_target" in evaluation:  # Phase 32 / I1b: present on direction claims only
+        record["direction_target"] = evaluation["direction_target"]
+    return record
+
+
+def _claim_role_fields(claim: dict, evaluation: dict) -> dict:
     renders = evaluation.get("renders", [])
     return {
         "claim_id": claim["claim_id"],

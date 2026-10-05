@@ -230,7 +230,7 @@ def test_inherited_operand_without_joint_witness_is_not_claimable_and_is_recorde
     assert plan["disagreements"] and plan["disagreements"][0]["answerplan_relation_witnessed"] is False
 
 
-def test_direction_attaches_only_through_a_witnessed_relation_and_names_its_subject():
+def test_direction_is_not_attached_to_a_witnessed_relation_when_the_sign_modifies_an_operand_object():
     props = [prop("p1", 1, "Explicit negative attitudes toward alpha were found with the beta questionnaire.")]
     spans = [{"paper_id": 1, "span_id": "s1", "text": props[0]["quote"], "chunk_id": 1}]
     key = "k1"
@@ -266,11 +266,15 @@ def test_direction_attaches_only_through_a_witnessed_relation_and_names_its_subj
     )
     text_out = node_text(plan, "1")
     assert "A direction finding" not in text_out and "reported relationship" not in text_out
-    # Under the section-7 witness the inherited referent "alpha" is realised in this child passage, so the relation IS
-    # witnessed and the direction attaches through it (W8: relation-level direction requires W2). Which object the sign
-    # modifies is the separate direction-target question (I3), so no value-level statement is produced here.
-    assert [r for r in plan["claim_roles"] if r.get("role") == "attached_to_relation"]
+    # The section-7 witness realises the inherited referent "alpha", so the relation is witnessed. But the sign's grammatical
+    # object is "attitudes", not the relation and not a named operand. I1b fails closed: no relation attachment and no
+    # operand valence. The I1a over-attachment is closed here.
+    assert not [r for r in plan["claim_roles"] if r.get("role") == "attached_to_relation"]
     assert not [s for s in plan["nodes"][0]["statements"] if s["kind"] == "value_level_valence"]
+    directions = [r for r in plan["claim_roles"] if r.get("claim_kind") == "direction_or_effectiveness"]
+    assert directions and directions[0]["role"] == "suppressed"
+    assert directions[0]["direction_target"] == "unknown"
+    assert directions[0]["reasons"] == ["direction_target_unresolved"]
 
 
 def test_direction_is_value_level_when_the_inherited_referent_is_not_realised_in_the_witness_passage():
