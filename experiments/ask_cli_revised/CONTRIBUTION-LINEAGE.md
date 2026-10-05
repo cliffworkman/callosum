@@ -1746,3 +1746,17 @@ decomposition for this offline replay is recorded in a hash-bound overlay whose 
 outputs. The mapping of the scale and operationalization requirements to visible items 5 and 6 (c9 and c11) is Claude's reading of the
 requirement wording, recorded in the overlay for confirmation. Every result in the results document is derived from the preserved
 artifacts by the code in this increment; no model was called and no production code, prompt, pin, or frozen contract was changed.
+
+---
+
+## Phase 31 -- upstream semantic authority audit (docs only; appended 2026-10-05; preserves all prior entries unchanged)
+
+| Date | Role | Contributor(s) |
+|---|---|---|
+| Phase 31 kickoff | Identified that the finish line is question-organized synthesis, and approved the semantic-authority investigation after Phase 30 exposed the upstream gaps | Cliff Workman |
+| Phase 31 kickoff | Helped separate answer architecture from upstream semantic authority, and framed the failure classes and invariants | ChatGPT |
+| 2026-10-04 to 2026-10-05 | Repository and artifact audit: read-only forensics on preserved artifacts (the Hadza continuation join, the amygdala-plus-attitude spans, the duplicate sealed-span rows), the failure-class matrix, the object model, the relation-witness invariant, the null/polarity and measurement-subject designs, the versioning mechanism, and the concrete repair sequence. Written to `PHASE31_UPSTREAM_SEMANTIC_AUTHORITY_AUDIT.md` | Claude |
+
+**Decisions and constraints (Cliff Workman).** Cliff approved the revised audit. D1 (add `relation_witnessed` and its witness provenance as separate runtime fields, keeping `complete` unchanged) is approved for I1. D2 through D4 remain future decisions. D5 is resolved as the Phase-30 canonical hash-bound Answer Contract rule. Cliff also required an all-inherited relation guard: inherited referents alone cannot establish a child relation, and a relation with no OWN operand needs an explicitly declared verifier.
+
+**Audit and design (Claude).** Verified the Phase 31 claims against the preserved artifacts without running any model, changing any pin or frozen contract, or touching production code. The forensic reads established that the Hadza continuation was retrieved and verifiable but skipped by the sealing join chain, and that no admissible result-level passage witnesses the requested amygdala relations as bound. The audit also corrected earlier overcounts (duplicate sealed-span rows; a row count reported as a span count). Its outputs are the failure classes A through H with S, the repair sequence I1 through I8, and I1 as the only increment marked ready. No production code, prompt, pin, frozen contract, or model run was changed or executed.
