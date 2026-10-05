@@ -99,7 +99,7 @@ def build_plan(
         for span in sealed["evidence_spans"]
     ]
     claims = psl.build_claim_ledger(smap, sealed)
-    units = rel.relation_units(smap)
+    units = rel.relation_units(smap, sealed)
     evaluations = {claim["claim_id"]: cl.evaluate_claim(claim, ctx, units) for claim in claims}
     facets = _build_facets(smap, overlay, units)
     for claim in claims:

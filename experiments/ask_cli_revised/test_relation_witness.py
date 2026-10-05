@@ -278,61 +278,48 @@ def test_is_admissible_rejects_unverified_status_and_unverified_join():
 # cross-check against the Phase-30 answer-layer witness (answer_plan.relations)
 # ---------------------------------------------------------------------------------------------------------------------
 
-# Authoritative semantics (D6, resolved): Phase-31 section 7. Inherited operands supply referent identity. The legacy
-# Phase-30 answer-layer rule (answer_plan/relations.py) intersects supports over ALL operands, so it requires the parent
-# proposition to be shared. Where the two differ by design, the tests below CHARACTERIZE the difference. They are not
-# failures of I1. The answer-layer alignment is a separate, later increment (I1a).
+# Phase 32 / I1a: the answer layer now derives witnesses through the same section-7 implementation (relation_witness),
+# so the three I1 legacy divergences are ordinary agreement tests. The expected values below are written by hand from the
+# section-7 rules. They are not read back from either implementation.
 
-_AGREEMENT_CASES = [
-    pytest.param(_case2, id="agree-case2-beta-only-not-witnessed"),
-    pytest.param(lambda: _case3(), id="agree-case3-parent-only-not-witnessed"),
-    pytest.param(lambda: _case4(), id="agree-case4-separate-not-witnessed"),
-    pytest.param(lambda: _case5(False), id="agree-case5b-unverified-join-not-witnessed"),
-    pytest.param(_case6, id="agree-case6-all-inherited-distinct-parents-not-witnessed"),
+_EXPECTED = [
+    pytest.param(_case1, True, ["C1"], id="case1-inherited-referent-with-own-beta-proposition-witnessed"),
+    pytest.param(_case2, False, [], id="case2-child-mentions-beta-only"),
+    pytest.param(lambda: _case3(), False, [], id="case3-parent-proposition-is-not-evidence"),
+    pytest.param(lambda: _case4(), False, [], id="case4-distributed-propositions"),
+    pytest.param(lambda: _case5(True), True, ["J"], id="case5a-verified-joined-witnessed"),
+    pytest.param(lambda: _case5(False), False, [], id="case5b-unverified-join-not-witnessed"),
+    pytest.param(_case6, False, [], id="case6-all-inherited-not-witnessed"),
 ]
 
 
-def _upstream_and_legacy(bindings, props):
+def _answer_layer_witness(bindings, props):
     requirement, instance = _relational(bindings)
-    proposition_by_id = {row["proposition_id"]: row for row in props}
-    upstream = rw.witness_instance(requirement, instance, proposition_by_id)["relation_witnessed"]
-    legacy = bool(rel.relation_units(_as_smap(requirement, instance))[0]["witness_ids"])
-    return upstream, legacy
+    unit = rel.relation_units(_as_smap(requirement, instance), {"verified_propositions": props})[0]
+    return bool(unit["witness_ids"]), unit["witness_ids"]
 
 
-@pytest.mark.parametrize("make_case", _AGREEMENT_CASES)
-def test_upstream_and_legacy_agree_on_cases_where_the_semantics_coincide(make_case):
-    upstream, legacy = _upstream_and_legacy(*make_case())
-    assert upstream == legacy
+@pytest.mark.parametrize("make_case, expected, expected_ids", _EXPECTED)
+def test_upstream_and_answer_layer_both_implement_the_section7_expectation(make_case, expected, expected_ids):
+    bindings, props = make_case()
+    requirement, instance = _relational(bindings)
+    upstream = rw.witness_instance(requirement, instance, {p["proposition_id"]: p for p in props})
+    answer_witnessed, answer_ids = _answer_layer_witness(bindings, props)
+    assert upstream["relation_witnessed"] is expected
+    assert upstream["witness_ids"] == expected_ids
+    assert answer_witnessed is expected
+    assert answer_ids == expected_ids
 
 
-def test_legacy_characterization_inherited_referent_with_child_own_proposition_upstream_witnessed_legacy_not():
-    # Synthetic case 1: parent supplies alpha; the child's own beta proposition asserts the alpha-beta relation.
-    # Authoritative (section 7): witnessed, witness_ids == ["C1"]. Legacy Phase-30: not witnessed, because the parent
-    # proposition P1 is not in the support intersection. Expected divergence, recorded here.
-    upstream, legacy = _upstream_and_legacy(*_case1())
-    assert upstream is True
-    assert legacy is False
-
-
-def test_legacy_characterization_verified_joined_child_proposition_upstream_witnessed_legacy_not():
-    # Synthetic case 5a: a verified joined child proposition contains both operands. Authoritative: witnessed.
-    # Legacy Phase-30: not witnessed, for the same support-intersection reason. Expected divergence, recorded here.
-    upstream, legacy = _upstream_and_legacy(*_case5(True))
-    assert upstream is True
-    assert legacy is False
-
-
-def test_legacy_characterization_all_inherited_shared_parent_upstream_not_witnessed_legacy_is():
-    # Latent legacy behaviour surfaced by the all-inherited guard. Both operands are inherited from one parent
-    # proposition, and the child has no OWN operand. Authoritative (section 7, all-inherited guard): not witnessed.
-    # Legacy Phase-30: witnessed, because the shared parent proposition survives the support intersection. Expected
-    # divergence, recorded here, to be aligned in I1a.
+def test_all_inherited_shared_parent_is_not_witnessed_by_either_layer():
+    # Formerly the latent legacy divergence: both operands inherited from one parent proposition, no OWN operand.
     bindings = [_inherited("entity_x", "P1", "alpha signal"), _inherited("measure_y", "P1", "beta score")]
     props = [_prop("P1", "The alpha signal predicted the beta score.")]
-    upstream, legacy = _upstream_and_legacy(bindings, props)
-    assert upstream is False
-    assert legacy is True
+    requirement, instance = _relational(bindings)
+    upstream = rw.witness_instance(requirement, instance, {p["proposition_id"]: p for p in props})
+    answer_witnessed, _ = _answer_layer_witness(bindings, props)
+    assert upstream["relation_witnessed"] is False
+    assert answer_witnessed is False
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -395,14 +382,14 @@ def test_preserved_c4_region_instance_is_witnessed_by_its_own_passage():
 
 
 @_needs_preserved
-def test_preserved_upstream_witness_booleans_agree_with_phase30_on_every_relational_instance():
+def test_preserved_answer_layer_derivation_agrees_with_stored_metadata_on_every_relational_instance():
+    # I1a hard gate: the answer layer's derivation (shared section-7 semantics) must agree with the mapping-stage
+    # metadata, both booleans and witness ids, on every preserved relational instance. No unit may carry a metadata anomaly.
     smap = json.loads(_PRESERVED_MAP.read_text(encoding="utf-8"))
     sealed = json.loads(_PRESERVED_LEDGER.read_text(encoding="utf-8"))
     rw.attach_relation_witnesses(smap, sealed)
-    answer = {
-        (u["child_id"], u["requirement_id"], u["instance_key"]): bool(u["witness_ids"])
-        for u in rel.relation_units(smap)
-    }  # relation_units ignores the I1 keys
+    units = {(u["child_id"], u["requirement_id"], u["instance_key"]): u for u in rel.relation_units(smap, sealed)}
+    assert not [key for key, unit in units.items() if "metadata_check" in unit]
     disagreements = []
     for cid, child in smap.items():
         for requirement in child["requirements"]:
@@ -410,9 +397,14 @@ def test_preserved_upstream_witness_booleans_agree_with_phase30_on_every_relatio
                 continue
             for instance in requirement["instances"]:
                 key = (cid, requirement["id"], instance["instance_key"])
-                if answer[key] != instance["relation_witnessed"]:
+                unit = units[key]
+                if (
+                    bool(unit["witness_ids"]) != instance["relation_witnessed"]
+                    or unit["witness_ids"] != instance["witness_ids"]
+                ):
                     disagreements.append(key)
     assert disagreements == []
+    assert len(units) == 36
 
 
 @_needs_preserved

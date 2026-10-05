@@ -21,7 +21,7 @@ def prop(pid, paper, quote, span="s1", page=1):
         "proposition_text": quote,
         "evidence_span_id": span,
         "evidence_anchor_chunk_id": 1,
-        "verification": {"page_start": page},
+        "verification": {"status": "verified", "page_start": page},
     }
 
 
@@ -266,8 +266,56 @@ def test_direction_attaches_only_through_a_witnessed_relation_and_names_its_subj
     )
     text_out = node_text(plan, "1")
     assert "A direction finding" not in text_out and "reported relationship" not in text_out
+    # Under the section-7 witness the inherited referent "alpha" is realised in this child passage, so the relation IS
+    # witnessed and the direction attaches through it (W8: relation-level direction requires W2). Which object the sign
+    # modifies is the separate direction-target question (I3), so no value-level statement is produced here.
+    assert [r for r in plan["claim_roles"] if r.get("role") == "attached_to_relation"]
+    assert not [s for s in plan["nodes"][0]["statements"] if s["kind"] == "value_level_valence"]
+
+
+def test_direction_is_value_level_when_the_inherited_referent_is_not_realised_in_the_witness_passage():
+    # Same structure, but the child's own passage no longer realises the inherited referent. The relation is not
+    # witnessed, so the direction falls back to a value-level statement that names its own subject.
+    props = [prop("p1", 1, "Explicit negative attitudes were found with the beta questionnaire.")]
+    # The requested-construct term ("alpha") must still be present in the paper, but in a different sealed span, so the
+    # candidate passage itself does not realise the inherited referent.
+    spans = [
+        {"paper_id": 1, "span_id": "s1", "text": props[0]["quote"], "chunk_id": 1},
+        {"paper_id": 1, "span_id": "s2", "text": "The alpha site was described in the methods.", "chunk_id": 2},
+    ]
+    summary = {
+        "observed_values": ["negative"],
+        "consensus_value": "negative",
+        "has_within_instance_conflict": False,
+        "has_across_instance_heterogeneity": False,
+        "complete_instance_keys": ["k1"],
+        "instance_keys_with_observations": ["k1"],
+        "instance_keys_missing_observations": [],
+        "conflicted_instance_keys": [],
+    }
+    req = requirement(
+        "r::dir",
+        ["ra", "rb"],
+        [
+            instance(
+                "k1",
+                {
+                    "ra": binding("p0", "alpha", source="parent_context", supporting=["p0"]),
+                    "rb": binding("p1", "beta questionnaire", supporting=["p1"]),
+                },
+                direction=[{"reported": True, "sign": "negative", "proposition_id": "p1", "exact_text": "negative"}],
+            )
+        ],
+        kind="relational",
+        direction={"reported": True},
+        direction_summary=summary,
+    )
+    plan, _, _ = build(
+        props, spans, {"c1": {"child_id": "c1", "requirements": [req]}}, one_node("c1"), ["r::dir"], ["ra", "rb"]
+    )
     valence = [s for s in plan["nodes"][0]["statements"] if s["kind"] == "value_level_valence"]
     assert valence and valence[0]["subject"] == "beta questionnaire"
+    assert not [r for r in plan["claim_roles"] if r.get("role") == "attached_to_relation"]
 
 
 # ---------------------------------------------------------------- claim classification

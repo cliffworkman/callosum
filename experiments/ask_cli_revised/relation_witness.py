@@ -12,8 +12,8 @@ Writes three runtime fields onto each relational instance, and nothing else:
 Non-relational instances receive none of these keys. ``complete`` is neither read nor written here, and no
 existing field is modified. Nothing downstream consumes the new fields in I1: parent eligibility, recovery,
 stop-search, mapping, direction/effectiveness, ParentClaim construction, answerability, rendering and search are
-unaffected. The Phase-30 answer-layer witness (``answer_plan.relations``) remains the answer authority; it is only
-cross-checked against these fields in tests.
+unaffected. The answer layer (``answer_plan.relations``) derives witnesses through this module's
+``witness_instance`` and validates any stored metadata against that derivation (Phase 32 / I1a).
 
 Operand source (Phase-31 section 7):
 - OWN operand: binding source is not ``parent_context``. Its admissible support set is witness support.
@@ -61,9 +61,9 @@ def operand_source(binding: dict) -> str:
     return "inherited" if provenance.get("candidate_source") == PARENT_CONTEXT else "own"
 
 
-def _support_ids(binding: dict) -> frozenset[str]:
-    """Primary proposition id plus any collapsed supporting ids. Deliberately an independent copy of the engine's
-    support-set helper, so the cross-check against the answer layer is not circular."""
+def support_ids(binding: dict) -> frozenset[str]:
+    """Primary proposition id plus any collapsed supporting ids. The single support definition used by both the
+    mapping-stage metadata and the answer layer (Phase 32 / I1a removed the answer layer's separate copy)."""
     provenance = binding.get("provenance") or {}
     ids = set(provenance.get("supporting_proposition_ids") or [])
     if binding.get("proposition_id") is not None:
@@ -122,8 +122,8 @@ def witness_instance(requirement: dict, instance: dict, proposition_by_id: dict[
     if not own_roles:
         return _finish("no_own_operand")
     for role in own_roles:
-        provenance["own_support"][role] = sorted(_support_ids(bindings[role]))
-    shared = frozenset.intersection(*(_support_ids(bindings[role]) for role in own_roles))
+        provenance["own_support"][role] = sorted(support_ids(bindings[role]))
+    shared = frozenset.intersection(*(support_ids(bindings[role]) for role in own_roles))
     provenance["candidate_ids"] = sorted(shared)
     if not shared:
         return _finish("no_single_proposition")
