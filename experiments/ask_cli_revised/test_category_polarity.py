@@ -296,7 +296,11 @@ def test_module_is_not_imported_by_any_production_path():
     base = HERE
     offenders = []
     for path in base.rglob("*.py"):
-        if "__pycache__" in path.parts or path.name in {"category_polarity.py", "test_category_polarity.py"}:
+        if "__pycache__" in path.parts or path.name in {
+            "category_polarity.py",
+            "test_category_polarity.py",
+            "test_category_polarity_hardening.py",
+        }:
             continue
         if "category_polarity" in path.read_text(encoding="utf-8"):
             offenders.append(path.name)

@@ -36,7 +36,31 @@ MENTIONED = "mentioned_only"
 UNKNOWN = "unknown"
 CONTRARY_RESERVED = "contrary_finding"  # vocabulary reserved for a later semantic; never returned in I2-1
 
-WINDOW = 3  # token distance between a negation cue and a complement cue
+WINDOW = 3  # token distance between a negation cue and the complement cue it governs
+# Words that break negation-complement attachment: a negation before a coordinator or relativiser does not govern
+# a complement after it.
+GOVERNANCE_BREAKERS = frozenset({"and", "or", "that", "which", "who"})
+# Result-report structures for "found" (R5): "found that"/"found to" report a result; "<result noun> of|with|between|for
+# <term> ... was found" reports a result when not followed by a locative. Bare "found" is never a finding cue.
+RESULT_HEADS = frozenset(
+    {
+        "association",
+        "associations",
+        "evidence",
+        "effect",
+        "effects",
+        "relationship",
+        "relationships",
+        "correlation",
+        "correlations",
+        "difference",
+        "differences",
+    }
+)
+RESULT_HEAD_LINKS = frozenset({"of", "with", "between", "for"})
+LOCATIVES = frozenset(
+    {"in", "at", "on", "within", "from", "among", "into", "inside", "under", "across", "throughout", "near", "by"}
+)
 
 NEGATION_CUES = frozenset(
     {"not", "no", "never", "neither", "nor", "without", "fail", "failed", "fails", "lack", "lacked", "lacks"}
@@ -67,9 +91,6 @@ FINDING_CUES = frozenset(
         "observed",
         "observe",
         "observes",
-        "found",
-        "find",
-        "finds",
         "showed",
         "show",
         "shows",
@@ -144,7 +165,9 @@ FINDING_CUES = frozenset(
         "raises",
     }
 )
-DIRECTIONAL_CUES = FINDING_CUES | frozenset({"lower", "higher", "more", "less"})  # magnitude: never a finding
+DIRECTIONAL_CUES = FINDING_CUES | frozenset(
+    {"lower", "higher", "more", "less", "found", "find", "finds"}
+)  # never a finding; directional only
 MEASUREMENT_CUES = frozenset(
     {
         "measured",
@@ -254,9 +277,33 @@ def _finding_positions(words: list[str], cues: frozenset[str]) -> list[str]:
     purpose or procedure, not an asserted result, and is excluded (fail closed)."""
     found = []
     for index, word in enumerate(words):
-        if word in cues and not (index > 0 and words[index - 1] == "to"):
+        infinitive = index > 0 and words[index - 1] == "to"
+        # "found to <cue>" is a result complement, not a purpose: the cue after it is not procedural.
+        result_complement = index > 1 and words[index - 2] == "found" and infinitive
+        if word in cues and not (infinitive and not result_complement):
             found.append(word)
     return found
+
+
+def _token_spans(text: str) -> list[tuple[str, int, int]]:
+    return [(m.group(0).lower(), m.start(), m.end()) for m in _TOKEN_RE.finditer(text)]
+
+
+def _result_found(words: list[str], term_first: int, term_last: int) -> bool:
+    """Whether a "found" in this clause reports a result (R5). Structural only: "found that", "found to", or a
+    result-noun head before the term, linked by of/with/between/for, with "found" after the term and not followed by
+    a locative. Object-location and procedural uses ("found in the database", "found the questionnaire") do not match."""
+    for i, word in enumerate(words):
+        if word != "found":
+            continue
+        following = words[i + 1] if i + 1 < len(words) else None
+        if following in {"that", "to"}:
+            return True
+        if i > term_last and (following is None or following not in LOCATIVES):
+            for h in range(max(term_first - 1, 0)):
+                if words[h] in RESULT_HEADS and words[h + 1] in RESULT_HEAD_LINKS and h + 1 < term_first:
+                    return True
+    return False
 
 
 def _classify_occurrence(sentence: str, start: int, end: int, competing: tuple[str, ...], surface: str) -> dict:
@@ -290,7 +337,13 @@ def _classify_occurrence(sentence: str, start: int, end: int, competing: tuple[s
     negation = [i for i, w in enumerate(words) if w in NEGATION_CUES]
     self_null = [i for i, w in enumerate(words) if w in SELF_NULL_CUES]
     complement = [i for i, w in enumerate(words) if w in COMPLEMENT_CUES]
+    spans = _token_spans(term_clause["text"])
+    rel_start, rel_end = start - term_clause["start"], end - term_clause["start"]
+    overlap = [k for k, (_, s0, s1) in enumerate(spans) if s0 < rel_end and s1 > rel_start]
+    term_first, term_last = (overlap[0], overlap[-1]) if overlap else (0, 0)
     finding = _finding_positions(words, FINDING_CUES)
+    if _result_found(words, term_first, term_last):
+        finding = finding + ["found"]
     directional = _finding_positions(words, DIRECTIONAL_CUES)
     record["finding_cues"] = sorted(set(finding))
     record["directional_cues"] = sorted(set(directional))
@@ -313,7 +366,10 @@ def _classify_occurrence(sentence: str, start: int, end: int, competing: tuple[s
         return decide(NULL, "self_null_adjective")
     if negation:
         i = negation[0]
-        if any(abs(i - j) <= WINDOW for j in complement):
+        governed = any(
+            i < j <= i + WINDOW and not any(w in GOVERNANCE_BREAKERS for w in words[i + 1 : j]) for j in complement
+        )
+        if governed:
             return decide(NULL, "local_null_same_clause")
         if finding or directional:
             return decide(
