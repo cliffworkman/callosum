@@ -14,6 +14,8 @@ import re
 from pathlib import Path
 
 from experiments.ask_cli_revised import sufficiency_authoring as sa
+from experiments.ask_cli_revised import sufficiency_diagnostic as sd
+from experiments.ask_cli_revised import sufficiency_engine as se
 from experiments.ask_cli_revised import sufficiency_model_nomination_diagnostic as diag
 
 # Finding C changed exactly these 3 roles' category_description wording (v8 -> v9, verified by
@@ -82,6 +84,28 @@ class RecordedNominationClient:
         return parsed.get("nominations", [])
 
 
+def run_recorded_v9(*, run_dir: Path, contract_by_child: dict, model_client, model_name: str) -> dict:
+    """The nomination diagnostic over a PRESERVED v9 run, under that run's recorded historical semantics (v3).
+
+    Mirrors `sufficiency_model_nomination_diagnostic.run` exactly, except that the version is pinned to v3, the version the
+    recorded run was produced under. The production driver keeps the current constant and is never reused here (I2-2).
+    """
+    children = diag._load_children_by_id(run_dir)
+    sealed = diag._load_sealed(run_dir)
+    parent_of = diag._parent_of(children)
+    deterministic_only = sd.compute_diagnostic_sufficiency_map(
+        sealed, contract_by_child, parent_of, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+    )
+    with_model = sd.compute_diagnostic_sufficiency_map(
+        sealed,
+        contract_by_child,
+        parent_of,
+        model_client=model_client,
+        semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
+    )
+    return {"deterministic_only": deterministic_only, "with_model": with_model, "model_name": model_name}
+
+
 def replay(*, run_dir: Path, trace_path: Path | None = None) -> dict:
     """Runs deterministic-only AND corrected-mapper-over-RECORDED-outputs, mirroring
     `sufficiency_model_nomination_diagnostic.run`'s own shape exactly, but with
@@ -90,7 +114,7 @@ def replay(*, run_dir: Path, trace_path: Path | None = None) -> dict:
     CORRECTED mapper's structural accounting; it never re-authors the contract."""
     _frozen, contract_by_child = diag.load_frozen_contract()
     client = RecordedNominationClient(trace_path)
-    result = diag.run(
+    result = run_recorded_v9(
         run_dir=run_dir, contract_by_child=contract_by_child, model_client=client, model_name=client.model_name
     )
     return {**result, "replay_note": "structural accounting only -- not evidence v9 semantics solve Finding C"}

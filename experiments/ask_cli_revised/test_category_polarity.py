@@ -1,4 +1,4 @@
-"""Phase 33 / I2-1: pure observation-polarity classifier (unwired).
+"""Phase 33 / I2-1: pure observation-polarity classifier (wired only at the v4 mapping seam from I2-2).
 
 The expectations below were written from the approved Phase-33 audit BEFORE the classifier was implemented or run.
 Three tiers:
@@ -292,17 +292,29 @@ def test_module_is_pure_and_has_no_version_or_domain_authority():
         assert domain_word not in lowered, domain_word
 
 
-def test_module_is_not_imported_by_any_production_path():
-    base = HERE
-    offenders = []
-    for path in base.rglob("*.py"):
-        if "__pycache__" in path.parts or path.name in {
-            "category_polarity.py",
-            "test_category_polarity.py",
-            "test_category_polarity_hardening.py",
-            "test_category_polarity_result_complement.py",
-        }:
+def _imports_category_polarity(path: Path) -> bool:
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            if node.module == "experiments.ask_cli_revised.category_polarity":
+                return True
+            if node.module == "experiments.ask_cli_revised" and any(a.name == "category_polarity" for a in node.names):
+                return True
+        elif isinstance(node, ast.Import):
+            if any(a.name == "experiments.ask_cli_revised.category_polarity" for a in node.names):
+                return True
+    return False
+
+
+def test_only_the_v4_mapping_seam_imports_the_classifier():
+    """Phase 33 / I2-2 exact-authority guard (replaces the I2-1 'unwired' guard). The classifier has exactly one
+    production importer: the v4 category mapping seam. AnswerPlan, recovery and the engine must reach polarity only
+    through the mapping's recorded observations. Resolved from real import statements, never from substring matches
+    (the engine's comments legitimately name the vocabulary)."""
+    importers = set()
+    for path in HERE.rglob("*.py"):
+        if "__pycache__" in path.parts or path.name == "category_polarity.py" or path.name.startswith("test_"):
             continue
-        if "category_polarity" in path.read_text(encoding="utf-8"):
-            offenders.append(path.name)
-    assert offenders == [], offenders
+        if _imports_category_polarity(path):
+            importers.add(path.relative_to(HERE).as_posix())
+    assert importers == {"sufficiency_mapping.py"}, importers

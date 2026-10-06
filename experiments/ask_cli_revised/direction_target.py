@@ -49,6 +49,7 @@ _SINGLE_OPERAND_FALLBACK = {
     se.SUFFICIENCY_SEMANTICS_V1: True,
     se.SUFFICIENCY_SEMANTICS_V2: True,
     se.SUFFICIENCY_SEMANTICS_V3: False,
+    se.SUFFICIENCY_SEMANTICS_V4: False,  # v4 changes category semantics only; direction is the v3 rule
 }
 
 

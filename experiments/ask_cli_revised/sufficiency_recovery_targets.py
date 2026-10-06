@@ -53,6 +53,7 @@ REASONS = (
     "provisional_corroboration",
     "open_list_breadth",
     "cardinality_deficit",
+    "semantic_goal_unsatisfied",
 )
 
 # Drives BOTH target identity and hint-template dispatch (recovery_query_hint) -- one source of
@@ -244,6 +245,18 @@ def _instance_scope(requirement: dict, instance: dict) -> dict:
 
 
 def _incomplete_instance_targets(child_id: str, requirement: dict, instance: dict, *, semantics_version: str) -> list:
+    if semantics_version == se.SUFFICIENCY_SEMANTICS_V4 and se.is_category_requirement(requirement):
+        # I2-2: a bound category whose established_presence goal is unsatisfied is a semantic obligation, not a missing
+        # role. Its identity carries the goal in scope; it is terminal per target once its search completed.
+        role = requirement["role_completion"]["required_roles"][0]
+        bound = instance["role_bindings"].get(role, {}).get("state") == "filled"
+        if bound and not se.category_goal_satisfied(instance):
+            goal_scope = {**_instance_scope(requirement, instance), "semantic_goal": se.ESTABLISHED_PRESENCE}
+            return [
+                _build_target(
+                    child_id, child_id, requirement, [role], "semantic_goal_unsatisfied", "single_role", goal_scope
+                )
+            ]
     scope = _instance_scope(requirement, instance)
     relationship_roles = _relationship_unverified_roles(requirement["role_completion"], instance)
     if relationship_roles is not None:
@@ -527,12 +540,29 @@ def _merge_recovery_target(existing: dict, new: dict) -> dict:
     return {**existing, "affected_descendants": merged_descendants, "dependency_origins": merged_origins}
 
 
+def search_obligations(
+    recovery_targets_initial: dict | None, raw_final_targets: dict | None, *, semantics_version: str
+) -> dict:
+    """The recovery obligations whose search outcomes are accounted for (I2-2).
+
+    Historical v1-v3: the initial targets only, unchanged. v4: the initial targets plus every RAW final target (computed
+    without status suppression), keyed by its content-derived target_id. A target first exposed by the final map has no
+    recovery-log row, so its status is not_attempted and it stays recoverable. Nothing is fabricated for it."""
+    se.require_supported_semantics_version(semantics_version)
+    obligations = dict(recovery_targets_initial or {})
+    if semantics_version == se.SUFFICIENCY_SEMANTICS_V4:
+        for target_id, target in (raw_final_targets or {}).items():
+            obligations.setdefault(target_id, target)
+    return obligations
+
+
 def compute_recovery_targets(
     mapped_contract_by_child: dict,
     parent_of: dict,
     search_status_by_requirement: dict | None = None,
     *,
     semantics_version: str,
+    completed_target_ids: frozenset = frozenset(),
 ) -> dict:
     """`{target_id: RecoveryTarget}` -- the single generation primitive, called both to drive a
     recovery round's `gaps` and, afterward, to report what would still trigger recovery (one
@@ -608,6 +638,9 @@ def compute_recovery_targets(
                     )
 
             for target in generated:
+                if target["reason"] == "semantic_goal_unsatisfied" and target["target_id"] in completed_target_ids:
+                    # Target-scoped terminality (I2-2): a completed goal-unsatisfied obligation is not regenerated.
+                    continue
                 existing = targets.get(target["target_id"])
                 targets[target["target_id"]] = target if existing is None else _merge_recovery_target(existing, target)
     return targets
@@ -630,6 +663,11 @@ def recovery_query_hint(target: dict, mapped_contract_by_child: dict) -> str:
     is accepted for interface symmetry with the rest of this module and future extension; the
     current templates need nothing beyond what `target` itself already carries."""
     del mapped_contract_by_child
+    if target["reason"] == "semantic_goal_unsatisfied":
+        subject = "; ".join(target["category_descriptions"])
+        if target["scope"].get("semantic_goal") == se.ESTABLISHED_PRESENCE and subject:
+            return f"evidence that {subject} was found or established"
+        return "additional supporting evidence"
     goal_mode = target["goal_mode"]
     descriptions = target["category_descriptions"]
     subject = "; ".join(descriptions)

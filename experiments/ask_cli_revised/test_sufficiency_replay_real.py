@@ -68,9 +68,7 @@ class ElevenChildReplayTests(unittest.TestCase):
         cls.mapped = sd.compute_diagnostic_sufficiency_map(
             cls.sealed, cls.contract, cls.parent_of, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
         )
-        sd.compute_direction_and_effectiveness(
-            cls.sealed, cls.mapped, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
-        )
+        sd.compute_direction_and_effectiveness(cls.sealed, cls.mapped, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         cls.recovery_targets = srt.compute_recovery_targets(
             cls.mapped, cls.parent_of, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
         )
@@ -231,7 +229,7 @@ class PrintedElevenChildReportTests(unittest.TestCase):
         mapped = sd.compute_diagnostic_sufficiency_map(
             sealed, contract, parent_of, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
         )
-        sd.compute_direction_and_effectiveness(sealed, mapped, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION)
+        sd.compute_direction_and_effectiveness(sealed, mapped, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         recovery = srt.compute_recovery_targets(mapped, parent_of, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         print("\n\n=== q_aib 11-child sufficiency replay (deterministic-only, no model) ===")
         for child_id in ALL_ELEVEN_CHILDREN:

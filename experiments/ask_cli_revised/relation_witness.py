@@ -105,6 +105,8 @@ _REFERENT_CONTAINMENT = {
     se.SUFFICIENCY_SEMANTICS_V2: _contains_case_insensitive,
     # v3 (I3) changes direction semantics only; its referent containment is the v2 rule.
     se.SUFFICIENCY_SEMANTICS_V3: _contains_case_insensitive,
+    # v4 changes category semantics only; referent containment is the v2/v3 rule.
+    se.SUFFICIENCY_SEMANTICS_V4: _contains_case_insensitive,
 }
 
 

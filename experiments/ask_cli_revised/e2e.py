@@ -688,11 +688,6 @@ def execute(
         elif plan_record["state"] == "no_answer":
             skip("W2", "recovery_plan_no_answer")
 
-    # Phase 27b: how each INITIAL structured RecoveryTarget's own search fared, read from the round's log. Structured
-    # rows only; a generic child gap can never complete a requirement's scoped search.
-    structured_search = sufficiency_recovery_targets.structured_search_outcomes(
-        recovery_targets_initial or {}, recovery_log
-    )
     sealed = stages.seal(
         contract, subquestions, sink.all_records, sink.evidence_packets, coverage_final, prior_sealed=sealed_initial
     )
@@ -817,6 +812,27 @@ def execute(
     # Phase 27b: the SAME persisted scoped-search status the parent record carries feeds the final target computation.
     # A requirement's zero-evidence deficit closes only when its own search completed AND the final map is genuinely
     # empty for it. The initial inventory above is computed with no status, so the search obligation itself is kept.
+    # Phase 33 / I2-2: obligations are the INITIAL targets plus, under v4, the RAW final targets (no status suppression),
+    # so a target first exposed by the final map is accounted for. A raw-final target with no recovery-log row is
+    # not_attempted and remains recoverable.
+    raw_final_targets = (
+        sufficiency_recovery_targets.compute_recovery_targets(
+            sufficiency_map_final, sufficiency_parent_of or {}, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+        )
+        if sufficiency_map_final is not None and se.SUFFICIENCY_SEMANTICS_VERSION == se.SUFFICIENCY_SEMANTICS_V4
+        else None
+    )
+    obligations = sufficiency_recovery_targets.search_obligations(
+        recovery_targets_initial, raw_final_targets, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+    )
+    # Phase 27b: how each recovery obligation's own search fared, read from the round's log. Structured rows only.
+    structured_search = sufficiency_recovery_targets.structured_search_outcomes(obligations, recovery_log)
+    completed_target_ids = frozenset(
+        target_id
+        for outcome in structured_search.values()
+        for target_id, state in outcome["target_states"].items()
+        if state["state"] == "completed"
+    )
     terminal_search = (
         sufficiency_recovery_targets.terminal_search_status(
             sufficiency_map_final, structured_search, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
@@ -830,6 +846,7 @@ def execute(
             sufficiency_parent_of or {},
             sufficiency_recovery_targets.engine_search_status(terminal_search),
             semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION,
+            completed_target_ids=completed_target_ids,
         )
         if sufficiency_map_final is not None
         else {}

@@ -25,6 +25,7 @@ from __future__ import annotations
 import re
 
 from app.backend.pdf_processing.extraction import canonical_text_contains
+from experiments.ask_cli_revised import category_polarity as cp
 from experiments.ask_cli_revised import direction_target as dtg
 from experiments.ask_cli_revised import overview_evidence as oe
 from experiments.ask_cli_revised import sufficiency_engine as se
@@ -346,6 +347,10 @@ def _bind_role_candidates(
     overwhelming majority -- any non-multi-instance requirement) observes `request_context=None`,
     byte-identical to before this phase."""
     se.require_supported_semantics_version(semantics_version)
+    if semantics_version == se.SUFFICIENCY_SEMANTICS_V4 and role_spec["mapping_strategy"] == "explicit_category_terms":
+        # v4 category observations are collected only by the cardinality mapper. A non-cardinality category role has
+        # no v4 rule and must not silently fall back to first-match.
+        raise ValueError("v4 category observations apply only to all_requested_categories requirements")
     role = role_spec["role"]
     for unit in units:
         if not is_admissible(role_spec, unit.get("flags", {})):
@@ -652,6 +657,10 @@ def map_cardinality_requirement(
             "Refusing before any model call rather than silently colliding two terms' receipts; see "
             "sufficiency_mapping.py's map_cardinality_requirement docstring for the backlogged fix."
         )
+    if semantics_version == se.SUFFICIENCY_SEMANTICS_V4:
+        return _map_category_requirement_v4(
+            requirement, candidate_units, spec=spec, role=role, semantics_version=semantics_version
+        )
     instances = []
     for term in spec["requested_category_terms"]:
         instance = se.new_instance(term)
@@ -668,6 +677,105 @@ def map_cardinality_requirement(
         instance["role_bindings"][role] = (
             candidates[0] if candidates else se.new_role_binding(role, state="missing", reason="not_found")
         )
+        instances.append(instance)
+    new_requirement = {**requirement, "instances": instances}
+    return se.recompute_requirement(new_requirement, semantics_version=semantics_version)
+
+
+_CATEGORY_AUDIT_KEYS = (
+    "term_occurrences",
+    "matched_surface",
+    "term_clause",
+    "contrast_clause",
+    "contrast_connective",
+    "finding_cues",
+    "directional_cues",
+    "measurement_cues",
+    "null_cues",
+    "competing_terms_in_contrast",
+    "hedge",
+    "absence_statement",
+    "occurrence_results",
+    "result_complement",
+)
+_OBSERVATION_PRECEDENCE = (
+    se.OBSERVATION_POSITIVE,
+    se.OBSERVATION_NULL,
+    se.OBSERVATION_MENTIONED,
+    se.OBSERVATION_UNKNOWN,
+)
+
+
+def _category_observations(term: str, competing: tuple, spec: dict, units: list) -> list:
+    """Every admissible literal observation of `term`, one per candidate unit, in unit order (never first-match).
+    Literal matching is the existing case-insensitive substring rule; the polarity is the pure classifier's."""
+    observations = []
+    for unit in units:
+        if not is_admissible(spec, unit.get("flags", {})):
+            continue
+        passage = unit["passage"]
+        at = passage.lower().find(term.lower())
+        if at == -1:
+            continue
+        result = cp.classify_category_observation(passage, term, competing_terms=competing)
+        proposition_ids = unit.get("proposition_ids") or []
+        observations.append(
+            {
+                "term": term,
+                "proposition_id": proposition_ids[0] if proposition_ids else None,
+                "unit_id": unit.get("unit_id"),
+                "exact_text": passage[at : at + len(term)],
+                "source_passage": passage,
+                "observation_polarity": result["observation_polarity"],
+                "rule": result["rule"],
+                "ambiguity": result["ambiguity"],
+                "classifier": result["classifier"],
+                "competing_terms": list(competing),
+                "classifier_audit": {key: result[key] for key in _CATEGORY_AUDIT_KEYS if key in result},
+                "guard": dict(unit.get("flags", {})),
+            }
+        )
+    return observations
+
+
+def _representative_observation(observations: list) -> dict | None:
+    """The compatibility representative: first positive, else first null, else first mentioned, else first unknown.
+    Ties resolve by deterministic unit order. It never decides satisfaction."""
+    for polarity in _OBSERVATION_PRECEDENCE:
+        for observation in observations:
+            if observation["observation_polarity"] == polarity:
+                return observation
+    return None
+
+
+def _map_category_requirement_v4(
+    requirement: dict, candidate_units: list, *, spec: dict, role: str, semantics_version: str
+) -> dict:
+    instances = []
+    terms = spec["requested_category_terms"]
+    for term in terms:
+        instance = se.new_instance(term)
+        competing = tuple(other for other in terms if other != term)
+        observations = _category_observations(term, competing, spec, candidate_units)
+        instance["category_observations"] = observations
+        representative = _representative_observation(observations)
+        if representative is None:
+            instance["role_bindings"][role] = se.new_role_binding(role, state="missing", reason="not_found")
+        else:
+            instance["role_bindings"][role] = se.new_role_binding(
+                role,
+                state="filled",
+                proposition_id=representative["proposition_id"],
+                exact_text=representative["exact_text"],
+                provenance={
+                    "candidate_source": "deterministic_mapping",
+                    "detail": spec["mapping_strategy"],
+                    "model": None,
+                    "observation_polarity": representative["observation_polarity"],
+                    "classifier_rule": representative["rule"],
+                },
+                guard=representative["guard"],
+            )
         instances.append(instance)
     new_requirement = {**requirement, "instances": instances}
     return se.recompute_requirement(new_requirement, semantics_version=semantics_version)
@@ -985,9 +1093,10 @@ def find_direction_observations(
     is the instance's witness set when the relation is witnessed, and None when it is not. A sentence is relation-eligible
     only when its target is ``relation``, it has a literal sign, and its proposition is within that witness set.
     """
-    if semantics_version in se.HISTORICAL_SUFFICIENCY_SEMANTICS_VERSIONS:
+    # Only the pre-I3 versions take the historical rule. v3 is historical as an identity (I2-2) but is NOT the v1/v2 rule.
+    if semantics_version in (se.SUFFICIENCY_SEMANTICS_V1, se.SUFFICIENCY_SEMANTICS_V2):
         return _find_direction_observations_v1_v2(requirement, grounding_units)
-    if semantics_version != se.SUFFICIENCY_SEMANTICS_V3:
+    if semantics_version not in (se.SUFFICIENCY_SEMANTICS_V3, se.SUFFICIENCY_SEMANTICS_V4):
         raise ValueError(f"no direction-observation rule for sufficiency-semantics version {semantics_version!r}")
     if requirement.get("direction") is None:
         return []
@@ -1003,7 +1112,7 @@ def find_direction_observations(
             if not dtg.has_direction_word(sentence):
                 continue
             sign = dtg.literal_direction_sign(sentence)
-            result = dtg.classify_sentence(sentence, operands, None, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
+            result = dtg.classify_sentence(sentence, operands, None, semantics_version=semantics_version)
             observations.append(
                 se.new_targeted_direction_assessment(
                     sign=sign,

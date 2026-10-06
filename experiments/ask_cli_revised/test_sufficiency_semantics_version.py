@@ -18,9 +18,10 @@ from experiments.ask_cli_revised import sufficiency_identity as si
 from experiments.ask_cli_revised import sufficiency_recovery_targets as srt
 from experiments.ask_cli_revised.answer_plan import relations as rel
 
-CURRENT = "sufficiency-semantics-v3"
+CURRENT = "sufficiency-semantics-v4"  # I2-2: the category semantics bump
 HISTORICAL_V1 = "sufficiency-semantics-v1"
 HISTORICAL_V2 = "sufficiency-semantics-v2"
+HISTORICAL_V3 = "sufficiency-semantics-v3"
 RUN = (
     Path(__file__).resolve().parents[2]
     / ".local"
@@ -52,17 +53,19 @@ def _synthetic_map() -> dict:
 
 
 def test_a_stamped_map_carries_the_semantics_version_on_every_child():
-    stamped = si.stamp_map(_synthetic_map(), semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
+    stamped = si.stamp_map(_synthetic_map(), semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION)
     assert all(contract[se.SEMANTICS_VERSION_KEY] == CURRENT for contract in stamped.values())
     assert si.read_map_identity(stamped) == {"status": "current", "version": CURRENT}
 
 
 def test_the_constant_and_its_key_are_the_documented_values():
-    assert se.SUFFICIENCY_SEMANTICS_VERSION == CURRENT == "sufficiency-semantics-v3"
+    assert se.SUFFICIENCY_SEMANTICS_VERSION == CURRENT == "sufficiency-semantics-v4"
     assert se.SEMANTICS_VERSION_KEY == "sufficiency_semantics_version"
-    assert se.HISTORICAL_SUFFICIENCY_SEMANTICS_VERSIONS == frozenset({HISTORICAL_V1, HISTORICAL_V2})
+    assert se.HISTORICAL_SUFFICIENCY_SEMANTICS_VERSIONS == frozenset({HISTORICAL_V1, HISTORICAL_V2, HISTORICAL_V3})
     # Readable is not current: the supported set contains the historical version too.
-    assert se.SUPPORTED_SUFFICIENCY_SEMANTICS_VERSIONS == frozenset({CURRENT, HISTORICAL_V1, HISTORICAL_V2})
+    assert se.SUPPORTED_SUFFICIENCY_SEMANTICS_VERSIONS == frozenset(
+        {CURRENT, HISTORICAL_V1, HISTORICAL_V2, HISTORICAL_V3}
+    )
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -167,7 +170,7 @@ def _current_run_dir(tmp_path: Path) -> Path:
     smap = json.loads(PRESERVED_MAP.read_text(encoding="utf-8"))
     sealed = json.loads(PRESERVED_LEDGER.read_text(encoding="utf-8"))
     rw_mod.attach_relation_witnesses(smap, sealed, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION)
-    si.stamp_map(smap, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
+    si.stamp_map(smap, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION)
     (run / "17_sufficiency_map.json").write_text(json.dumps(smap, indent=2, ensure_ascii=False), encoding="utf-8")
     return run
 

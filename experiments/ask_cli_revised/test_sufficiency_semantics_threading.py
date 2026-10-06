@@ -207,7 +207,7 @@ def test_readable_historical_versions_are_accepted_and_nothing_else_is():
     for version in (se.SUFFICIENCY_SEMANTICS_V1, se.SUFFICIENCY_SEMANTICS_V2, se.SUFFICIENCY_SEMANTICS_V3):
         assert se.require_supported_semantics_version(version) == version
     with pytest.raises(ValueError):
-        se.require_supported_semantics_version("sufficiency-semantics-v4")
+        se.require_supported_semantics_version("sufficiency-semantics-v5")
 
 
 def test_stamp_map_stamps_exactly_the_version_it_is_given():

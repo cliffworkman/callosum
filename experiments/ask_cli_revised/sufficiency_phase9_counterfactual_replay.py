@@ -34,8 +34,11 @@ import json
 from pathlib import Path
 
 from experiments.ask_cli_revised import sufficiency_model_nomination_diagnostic as diag
+from experiments.ask_cli_revised.sufficiency_phase2_replay import run_recorded_v9
 
-_DEFAULT_RUN_DIR = Path(__file__).resolve().parents[2] / ".local" / "e2e-runs" / "q-aib-hierarchical-t5c-live-20260930" / "run"
+_DEFAULT_RUN_DIR = (
+    Path(__file__).resolve().parents[2] / ".local" / "e2e-runs" / "q-aib-hierarchical-t5c-live-20260930" / "run"
+)
 
 _CATEGORY_REGION_C1_C5 = "a specific named brain area"
 _CATEGORY_REGION_C4 = "a specific NAMED brain area"
@@ -56,7 +59,9 @@ _C2_BEHAVIOR_POOL = frozenset({"p1", "p4", "p8", "p12", "p24", "p5", "p15", "p6"
 _C5_REGION_AND_BEHAVIOR_POOL = frozenset(
     {"p12", "p1", "p4", "p8", "p24", "p14", "p3", "p7", "p17", "p26", "p15", "p5", "p16", "p10", "p19", "p13"}
 )
-_C6_SECOND_REGION_AND_ATTITUDE_POOL = frozenset({"p17", "p3", "p7", "p14", "p26", "p18", "p6", "p25", "p19", "p10", "p16"})
+_C6_SECOND_REGION_AND_ATTITUDE_POOL = frozenset(
+    {"p17", "p3", "p7", "p14", "p26", "p18", "p6", "p25", "p19", "p10", "p16"}
+)
 _C8_TRAIT_POOL = frozenset({"p20", "p9"})
 
 # {(category_description, full_candidate_pool): [(proposition_id, exact_text_or_list), ...]}.
@@ -121,7 +126,9 @@ def replay(*, run_dir: Path = _DEFAULT_RUN_DIR) -> dict:
     and no live call is made anywhere in this module."""
     _frozen, contract_by_child = diag.load_frozen_contract()
     client = _CounterfactualMinimalReferentClient()
-    result = diag.run(run_dir=run_dir, contract_by_child=contract_by_child, model_client=client, model_name=client.model_name)
+    result = run_recorded_v9(
+        run_dir=run_dir, contract_by_child=contract_by_child, model_client=client, model_name=client.model_name
+    )
     return {
         **result,
         "replay_note": (

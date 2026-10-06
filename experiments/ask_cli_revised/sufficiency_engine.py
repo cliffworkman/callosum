@@ -98,6 +98,12 @@ RELATIONSHIP_VERIFIERS = ("same_proposition", "contract_directed_links")
 #       proposition. The single-operand fallback is removed (an unresolved sign with one realised operand is unknown).
 #       Literal valence includes adverbial forms ("negatively associated"). Relation summaries count only
 #       relation-eligible observations. Operand-level valence stays as observation metadata.
+#   sufficiency-semantics-v4 (I2-2, CURRENT): v3 for every non-category mapping, direction, witness, effectiveness
+#       and parent-context behaviour. For explicit_category_terms requirements (all_requested_categories only):
+#       every admissible literal observation is collected and classified (category_polarity); the representative
+#       binding is chosen by fixed polarity precedence; an instance is complete only when established_presence is
+#       satisfied (at least one positive observation); an unsatisfied bound category yields a semantic_goal_unsatisfied
+#       recovery target, terminal per target once its search completed. Historical v1-v3 keep first-match mapping.
 #
 # CURRENT is the only version new production accepts. SUPPORTED lists every version this code can READ; membership in
 # it does not make a version current. Historical versions are readable only through an explicit historical path.
@@ -109,14 +115,46 @@ RELATIONSHIP_VERIFIERS = ("same_proposition", "contract_directed_links")
 SUFFICIENCY_SEMANTICS_V1 = "sufficiency-semantics-v1"
 SUFFICIENCY_SEMANTICS_V2 = "sufficiency-semantics-v2"
 SUFFICIENCY_SEMANTICS_V3 = "sufficiency-semantics-v3"
-SUFFICIENCY_SEMANTICS_VERSION = SUFFICIENCY_SEMANTICS_V3
-HISTORICAL_SUFFICIENCY_SEMANTICS_VERSIONS = frozenset({SUFFICIENCY_SEMANTICS_V1, SUFFICIENCY_SEMANTICS_V2})
+SUFFICIENCY_SEMANTICS_V4 = "sufficiency-semantics-v4"
+SUFFICIENCY_SEMANTICS_VERSION = SUFFICIENCY_SEMANTICS_V4
+HISTORICAL_SUFFICIENCY_SEMANTICS_VERSIONS = frozenset(
+    {SUFFICIENCY_SEMANTICS_V1, SUFFICIENCY_SEMANTICS_V2, SUFFICIENCY_SEMANTICS_V3}
+)
 SUPPORTED_SUFFICIENCY_SEMANTICS_VERSIONS = (
     frozenset({SUFFICIENCY_SEMANTICS_VERSION}) | HISTORICAL_SUFFICIENCY_SEMANTICS_VERSIONS
 )
 # Where the version is recorded: at the top level of every per-child contract in a produced map. The map keeps its
 # child-keyed shape, which every existing consumer indexes by child.
 SEMANTICS_VERSION_KEY = "sufficiency_semantics_version"
+
+
+# I2-2: category semantics. Observation polarity strings mirror category_polarity's vocabulary (a test asserts the
+# equality); the engine never imports or calls the classifier.
+ESTABLISHED_PRESENCE = "established_presence"
+CATEGORY_STRATEGY = "explicit_category_terms"
+OBSERVATION_POSITIVE = "positive_finding"
+OBSERVATION_NULL = "null_finding"
+OBSERVATION_MENTIONED = "mentioned_only"
+OBSERVATION_UNKNOWN = "unknown"
+
+
+def is_category_requirement(requirement: dict) -> bool:
+    """The v4 category machinery applies to a cardinality requirement whose every role is explicit_category_terms."""
+    roles = list(requirement["role_specs"].values())
+    return (
+        requirement["instance_quantifier"] == "all_requested_categories"
+        and bool(roles)
+        and all(spec["mapping_strategy"] == CATEGORY_STRATEGY for spec in roles)
+    )
+
+
+def category_goal_satisfied(instance: dict) -> bool:
+    """established_presence for one category instance: at least one positive observation. Unit order never decides.
+    Fail closed: a v4 category instance must carry its observations."""
+    observations = instance.get("category_observations")
+    if observations is None:
+        raise ValueError("a v4 category instance must carry category_observations")
+    return any(obs["observation_polarity"] == OBSERVATION_POSITIVE for obs in observations)
 
 
 def require_supported_semantics_version(version) -> str:
@@ -650,6 +688,7 @@ def recompute_instance(
     *,
     context: dict | None = None,
     semantics_version: str,
+    goal_gate: bool = False,
 ) -> dict:
     """Pure: returns a NEW instance dict with `complete`/`state`/`reason` derived from
     `role_bindings`. `exists` (at the requirement level) means "at least one instance for which
@@ -665,6 +704,10 @@ def recompute_instance(
     required_ok = all(filled(r) for r in required)
     alt_ok = all(any(filled(r) for r in group) for group in alt_groups)
     complete = required_ok and alt_ok
+    if goal_gate:
+        if semantics_version != SUFFICIENCY_SEMANTICS_V4:
+            raise ValueError("the category goal gate is a v4 rule")
+        complete = complete and category_goal_satisfied(instance)
 
     roles_in_play = completion_roles(role_completion)
     if complete:
@@ -763,8 +806,11 @@ def recompute_requirement(requirement: dict, *, context: dict | None = None, sem
     require_supported_semantics_version(semantics_version)
     role_completion = requirement["role_completion"]
     verifiers = requirement["relationship_verifiers"]
+    goal_gate = semantics_version == SUFFICIENCY_SEMANTICS_V4 and is_category_requirement(requirement)
     recomputed_instances = [
-        recompute_instance(role_completion, inst, verifiers, context=context, semantics_version=semantics_version)
+        recompute_instance(
+            role_completion, inst, verifiers, context=context, semantics_version=semantics_version, goal_gate=goal_gate
+        )
         for inst in requirement["instances"]
     ]
     aggregator = _AGGREGATORS[requirement["instance_quantifier"]]

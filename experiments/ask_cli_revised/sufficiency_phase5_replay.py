@@ -24,21 +24,28 @@ import json
 from pathlib import Path
 
 from experiments.ask_cli_revised import sufficiency_model_nomination_diagnostic as diag
-from experiments.ask_cli_revised.sufficiency_phase2_replay import RecordedNominationClient, RecordedNominationReplayError
+from experiments.ask_cli_revised.sufficiency_phase2_replay import (
+    RecordedNominationClient,
+    RecordedNominationReplayError,
+    run_recorded_v9,
+)
 
 _DEFAULT_TRACE = (
-    Path(__file__).resolve().parents[2] / ".local" / "sufficiency-nomination-diagnostic-v9-20260930" / "qwen_calls.jsonl"
+    Path(__file__).resolve().parents[2]
+    / ".local"
+    / "sufficiency-nomination-diagnostic-v9-20260930"
+    / "qwen_calls.jsonl"
 )
-_DEFAULT_RUN_DIR = Path(__file__).resolve().parents[2] / ".local" / "e2e-runs" / "q-aib-hierarchical-t5c-live-20260930" / "run"
+_DEFAULT_RUN_DIR = (
+    Path(__file__).resolve().parents[2] / ".local" / "e2e-runs" / "q-aib-hierarchical-t5c-live-20260930" / "run"
+)
 
 # The exact nominated text PHASE5_V9_LIVE_RERUN_RESULTS.md's manual adjudication judged
 # "Incorrect -- Vague/circular" (c2's `behavior_or_behavioral_measure`, propositions p1/p4/p8/
 # p12/p24). Extracted byte-for-byte from the recorded trace itself (verified via
 # `.encode("unicode_escape")`, not retyped by hand) -- U+201C/U+201D curly quotes, ordinary ASCII
 # space before "bad". This is the ONLY string this replay's scripted validator vetoes.
-_VETOED_EXACT_TEXT = (
-    "described a behavioral manifestation of the “anomalous-is- bad” stereotype affecting prosociality"
-)
+_VETOED_EXACT_TEXT = "described a behavioral manifestation of the “anomalous-is- bad” stereotype affecting prosociality"
 
 
 class _RecordedV9NominationClient(RecordedNominationClient):
@@ -98,8 +105,13 @@ def replay(*, run_dir: Path = _DEFAULT_RUN_DIR, trace_path: Path | None = None) 
     _frozen, contract_by_child = diag.load_frozen_contract()
     inner = _RecordedV9NominationClient(trace_path or _DEFAULT_TRACE)
     validator = _Phase5AdjudicationValidator(inner)
-    result = diag.run(run_dir=run_dir, contract_by_child=contract_by_child, model_client=validator, model_name=validator.model_name)
-    return {**result, "replay_note": "Phase 5's own frozen manual adjudication replayed as a self-contained scripted filter"}
+    result = run_recorded_v9(
+        run_dir=run_dir, contract_by_child=contract_by_child, model_client=validator, model_name=validator.model_name
+    )
+    return {
+        **result,
+        "replay_note": "Phase 5's own frozen manual adjudication replayed as a self-contained scripted filter",
+    }
 
 
 def state_report(mapped: dict) -> dict[str, dict]:

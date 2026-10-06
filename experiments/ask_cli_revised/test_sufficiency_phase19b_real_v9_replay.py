@@ -86,7 +86,7 @@ class RealV9FullContractReplayTests(unittest.TestCase):
             nomination_context=ctx,
             semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
-        sd.compute_direction_and_effectiveness(self.sealed, mapped, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION)
+        sd.compute_direction_and_effectiveness(self.sealed, mapped, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         # Before Phase 19b this raised RequestFingerprintMismatch on c12 before completing at all.
         self.assertEqual(set(mapped), set(self.contract_by_child))
         self.assertEqual(len(mapped), 11)
@@ -183,7 +183,7 @@ class RealV9FullContractReplayTests(unittest.TestCase):
             nomination_context=ctx,
             semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
-        sd.compute_direction_and_effectiveness(self.sealed, mapped, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION)
+        sd.compute_direction_and_effectiveness(self.sealed, mapped, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         c5_req = next(r for r in mapped["c5"]["requirements"] if r["id"] == "c5#suff:brain-behavior")
         self.assertIn("direction_summary", c5_req)
         for instance in c5_req["instances"]:
@@ -228,9 +228,7 @@ class RealV9FullContractReplayTests(unittest.TestCase):
             nomination_context=u2_ctx,
             semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
-        sd.compute_direction_and_effectiveness(
-            self.sealed, mapped_final, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
-        )
+        sd.compute_direction_and_effectiveness(self.sealed, mapped_final, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
 
         self.assertEqual(len(client.calls), u1_call_count, "U2 must make zero additional physical calls")
         self.assertEqual(set(mapped_final), set(self.contract_by_child))
