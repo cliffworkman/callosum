@@ -79,7 +79,12 @@ class RealV9FullContractReplayTests(unittest.TestCase):
         client = _FakeNominationClient()
         ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
         mapped = sd.compute_diagnostic_sufficiency_map(
-            self.sealed, self.contract_by_child, self.parent_of, model_client=client, nomination_context=ctx
+            self.sealed,
+            self.contract_by_child,
+            self.parent_of,
+            model_client=client,
+            nomination_context=ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         sd.compute_direction_and_effectiveness(self.sealed, mapped, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION)
         # Before Phase 19b this raised RequestFingerprintMismatch on c12 before completing at all.
@@ -92,7 +97,12 @@ class RealV9FullContractReplayTests(unittest.TestCase):
         client = _FakeNominationClient()
         ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
         sd.compute_diagnostic_sufficiency_map(
-            self.sealed, self.contract_by_child, self.parent_of, model_client=client, nomination_context=ctx
+            self.sealed,
+            self.contract_by_child,
+            self.parent_of,
+            model_client=client,
+            nomination_context=ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         c12_keys = self._c12_keys(ctx["in_pass_receipts"])
         request_contexts = {key[1] for key in c12_keys}
@@ -107,7 +117,12 @@ class RealV9FullContractReplayTests(unittest.TestCase):
         client = _FakeNominationClient()
         ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
         sd.compute_diagnostic_sufficiency_map(
-            self.sealed, self.contract_by_child, self.parent_of, model_client=client, nomination_context=ctx
+            self.sealed,
+            self.contract_by_child,
+            self.parent_of,
+            model_client=client,
+            nomination_context=ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         receipts = ctx["in_pass_receipts"]
         intervention_u1 = receipts[(("c12", "c12#suff:intervention-effectiveness", "intervention"), "U1")]
@@ -124,7 +139,12 @@ class RealV9FullContractReplayTests(unittest.TestCase):
         client = _FakeNominationClient()
         ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
         sd.compute_diagnostic_sufficiency_map(
-            self.sealed, self.contract_by_child, self.parent_of, model_client=client, nomination_context=ctx
+            self.sealed,
+            self.contract_by_child,
+            self.parent_of,
+            model_client=client,
+            nomination_context=ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         # real evidence may or may not reach c1's region role more than once structurally; the
         # invariant under test is that however many TIMES resolve_nomination is entered for one
@@ -139,7 +159,12 @@ class RealV9FullContractReplayTests(unittest.TestCase):
         client = _FakeNominationClient()
         ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
         sd.compute_diagnostic_sufficiency_map(
-            self.sealed, self.contract_by_child, self.parent_of, model_client=client, nomination_context=ctx
+            self.sealed,
+            self.contract_by_child,
+            self.parent_of,
+            model_client=client,
+            nomination_context=ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         receipts = ctx["in_pass_receipts"]
         fresh = [r for r in receipts.values() if r["status"] == "fresh"]
@@ -151,7 +176,12 @@ class RealV9FullContractReplayTests(unittest.TestCase):
         client = _FakeNominationClient()
         ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
         mapped = sd.compute_diagnostic_sufficiency_map(
-            self.sealed, self.contract_by_child, self.parent_of, model_client=client, nomination_context=ctx
+            self.sealed,
+            self.contract_by_child,
+            self.parent_of,
+            model_client=client,
+            nomination_context=ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         sd.compute_direction_and_effectiveness(self.sealed, mapped, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION)
         c5_req = next(r for r in mapped["c5"]["requirements"] if r["id"] == "c5#suff:brain-behavior")
@@ -163,16 +193,26 @@ class RealV9FullContractReplayTests(unittest.TestCase):
         client = _FakeNominationClient()
         ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
         mapped = sd.compute_diagnostic_sufficiency_map(
-            self.sealed, self.contract_by_child, self.parent_of, model_client=client, nomination_context=ctx
+            self.sealed,
+            self.contract_by_child,
+            self.parent_of,
+            model_client=client,
+            nomination_context=ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
-        targets = srt.compute_recovery_targets(mapped, self.parent_of)
+        targets = srt.compute_recovery_targets(mapped, self.parent_of, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertIsInstance(targets, dict)  # not executed -- recovery stays off in this phase
 
     def test_u2_held_fixed_rebuild_completes_with_zero_fresh_calls(self):
         client = _FakeNominationClient()
         u1_ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
         sd.compute_diagnostic_sufficiency_map(
-            self.sealed, self.contract_by_child, self.parent_of, model_client=client, nomination_context=u1_ctx
+            self.sealed,
+            self.contract_by_child,
+            self.parent_of,
+            model_client=client,
+            nomination_context=u1_ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         u1_call_count = len(client.calls)
         u1_receipts_snapshot = dict(u1_ctx["in_pass_receipts"])
@@ -181,7 +221,12 @@ class RealV9FullContractReplayTests(unittest.TestCase):
             mscope.exact_scope_set_policy(set()), prior_receipts=u1_receipts_snapshot
         )
         mapped_final = sd.compute_diagnostic_sufficiency_map(
-            self.sealed, self.contract_by_child, self.parent_of, model_client=client, nomination_context=u2_ctx
+            self.sealed,
+            self.contract_by_child,
+            self.parent_of,
+            model_client=client,
+            nomination_context=u2_ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         sd.compute_direction_and_effectiveness(
             self.sealed, mapped_final, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
@@ -194,14 +239,24 @@ class RealV9FullContractReplayTests(unittest.TestCase):
         client = _FakeNominationClient()
         u1_ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
         sd.compute_diagnostic_sufficiency_map(
-            self.sealed, self.contract_by_child, self.parent_of, model_client=client, nomination_context=u1_ctx
+            self.sealed,
+            self.contract_by_child,
+            self.parent_of,
+            model_client=client,
+            nomination_context=u1_ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         u1_receipts_snapshot = dict(u1_ctx["in_pass_receipts"])
         u2_ctx = mscope.new_nomination_context(
             mscope.exact_scope_set_policy(set()), prior_receipts=u1_receipts_snapshot
         )
         sd.compute_diagnostic_sufficiency_map(
-            self.sealed, self.contract_by_child, self.parent_of, model_client=client, nomination_context=u2_ctx
+            self.sealed,
+            self.contract_by_child,
+            self.parent_of,
+            model_client=client,
+            nomination_context=u2_ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         for key, u1_receipt in u1_receipts_snapshot.items():
             u2_receipt = u2_ctx["in_pass_receipts"][key]
@@ -212,14 +267,24 @@ class RealV9FullContractReplayTests(unittest.TestCase):
         client = _FakeNominationClient()
         u1_ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
         sd.compute_diagnostic_sufficiency_map(
-            self.sealed, self.contract_by_child, self.parent_of, model_client=client, nomination_context=u1_ctx
+            self.sealed,
+            self.contract_by_child,
+            self.parent_of,
+            model_client=client,
+            nomination_context=u1_ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         u1_receipts_snapshot = dict(u1_ctx["in_pass_receipts"])
         u2_ctx = mscope.new_nomination_context(
             mscope.exact_scope_set_policy(set()), prior_receipts=u1_receipts_snapshot
         )
         sd.compute_diagnostic_sufficiency_map(
-            self.sealed, self.contract_by_child, self.parent_of, model_client=client, nomination_context=u2_ctx
+            self.sealed,
+            self.contract_by_child,
+            self.parent_of,
+            model_client=client,
+            nomination_context=u2_ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         u1_scope = ("c12", "c12#suff:intervention-effectiveness", "intervention")
         self.assertEqual(
@@ -240,7 +305,12 @@ class RealV9FullContractReplayTests(unittest.TestCase):
         client = _FakeNominationClient()
         ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
         mapped = sd.compute_diagnostic_sufficiency_map(
-            self.sealed, self.contract_by_child, self.parent_of, model_client=client, nomination_context=ctx
+            self.sealed,
+            self.contract_by_child,
+            self.parent_of,
+            model_client=client,
+            nomination_context=ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         req = next(r for r in mapped["c12"]["requirements"] if r["id"] == "c12#suff:intervention-effectiveness")
         found_origin = False

@@ -45,7 +45,7 @@ class RoleCompletionTests(unittest.TestCase):
         inst["role_bindings"]["a"] = _filled("a", "p1", "entity A text")
         inst["role_bindings"]["b"] = _missing("b")
         req["instances"] = [inst]
-        result = se.recompute_requirement(req)
+        result = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(result["state"], "partially_filled")
         self.assertEqual(result["reason"], "incomplete_instance")
         self.assertFalse(result["instances"][0]["complete"])
@@ -56,7 +56,7 @@ class RoleCompletionTests(unittest.TestCase):
         inst["role_bindings"]["a"] = _filled("a", "p1", "entity A relates to entity B")
         inst["role_bindings"]["b"] = _filled("b", "p1", "entity A relates to entity B")
         req["instances"] = [inst]
-        result = se.recompute_requirement(req)
+        result = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(result["state"], "filled")
         self.assertTrue(result["instances"][0]["complete"])
 
@@ -68,7 +68,7 @@ class RoleCompletionTests(unittest.TestCase):
         inst["role_bindings"]["a"] = _filled("a", "p1", "entity A text")
         inst["role_bindings"]["b"] = _filled("b", "p2", "entity B text, unrelated paper")
         req["instances"] = [inst]
-        result = se.recompute_requirement(req)
+        result = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(result["state"], "partially_filled")
         self.assertFalse(result["instances"][0]["complete"])
 
@@ -86,7 +86,7 @@ class RoleCompletionTests(unittest.TestCase):
         inst["role_bindings"]["manifest"] = _filled("manifest", "p1", "an effect was found")
         inst["role_bindings"]["region"] = _filled("region", "p1", "an effect was found")
         req["instances"] = [inst]
-        result = se.recompute_requirement(req)
+        result = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(result["state"], "filled")
 
     def test_optional_role_never_gates_completeness(self):
@@ -99,7 +99,7 @@ class RoleCompletionTests(unittest.TestCase):
         inst = se.new_instance()
         inst["role_bindings"]["req"] = _filled("req", "p1", "text")
         req["instances"] = [inst]
-        result = se.recompute_requirement(req)
+        result = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(result["state"], "filled")
 
     def test_parent_context_role_is_exempt_from_joint_grounding_with_own_evidence(self):
@@ -117,7 +117,7 @@ class RoleCompletionTests(unittest.TestCase):
         )
         inst["role_bindings"]["b"] = _filled("b", "child-p9", "this child's own genuinely-filled evidence")
         req["instances"] = [inst]
-        result = se.recompute_requirement(req)
+        result = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(result["state"], "filled")
 
     def test_two_own_evidence_roles_still_require_joint_grounding_even_with_parent_context_present(self):
@@ -141,7 +141,7 @@ class RoleCompletionTests(unittest.TestCase):
         inst["role_bindings"]["a"] = _filled("a", "child-p1", "own evidence A")
         inst["role_bindings"]["b"] = _filled("b", "child-p2", "own evidence B, different proposition")
         req["instances"] = [inst]
-        result = se.recompute_requirement(req)
+        result = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertNotEqual(result["state"], "filled")
 
     def test_requirement_construction_rejects_role_not_declared_in_specs(self):
@@ -197,13 +197,13 @@ class SupportSetSamePropositionTests(unittest.TestCase):
         inst1["role_bindings"]["a"] = _filled_with_support("a", "p11", ["p11", "p2"], "text")
         inst1["role_bindings"]["b"] = _filled_with_support("b", "p11", ["p11", "p2"], "text")
         req1 = {**req, "instances": [inst1]}
-        result1 = se.recompute_requirement(req1)
+        result1 = se.recompute_requirement(req1, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
 
         inst2 = se.new_instance()
         inst2["role_bindings"]["a"] = _filled_with_support("a", "p2", ["p11", "p2"], "text")
         inst2["role_bindings"]["b"] = _filled_with_support("b", "p11", ["p11", "p2"], "text")
         req2 = {**req, "instances": [inst2]}
-        result2 = se.recompute_requirement(req2)
+        result2 = se.recompute_requirement(req2, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
 
         self.assertEqual(result1["state"], "filled")
         self.assertEqual(result1["state"], result2["state"])
@@ -216,7 +216,7 @@ class SupportSetSamePropositionTests(unittest.TestCase):
         inst["role_bindings"]["a"] = _filled("a", "p2", "own evidence")
         inst["role_bindings"]["b"] = _filled_with_support("b", "p9", ["p9", "p2"], "own evidence")
         req["instances"] = [inst]
-        result = se.recompute_requirement(req)
+        result = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(result["state"], "filled")
 
     def test_disjoint_support_sets_fail_even_when_conceptually_from_one_anchor(self):
@@ -230,7 +230,7 @@ class SupportSetSamePropositionTests(unittest.TestCase):
         inst["role_bindings"]["a"] = _filled_with_support("a", "p1", ["p1", "p3"], "text")
         inst["role_bindings"]["b"] = _filled_with_support("b", "p7", ["p7", "p9"], "text")
         req["instances"] = [inst]
-        result = se.recompute_requirement(req)
+        result = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertNotEqual(result["state"], "filled")
         self.assertFalse(result["instances"][0]["complete"])
 
@@ -243,13 +243,17 @@ class SupportSetSamePropositionTests(unittest.TestCase):
         same_prop = se.new_instance()
         same_prop["role_bindings"]["a"] = _filled("a", "p1", "text")
         same_prop["role_bindings"]["b"] = _filled("b", "p1", "text")
-        same_result = se.recompute_requirement({**req, "instances": [same_prop]})
+        same_result = se.recompute_requirement(
+            {**req, "instances": [same_prop]}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(same_result["state"], "filled")
 
         diff_prop = se.new_instance()
         diff_prop["role_bindings"]["a"] = _filled("a", "p1", "text")
         diff_prop["role_bindings"]["b"] = _filled("b", "p2", "different proposition")
-        diff_result = se.recompute_requirement({**req, "instances": [diff_prop]})
+        diff_result = se.recompute_requirement(
+            {**req, "instances": [diff_prop]}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertNotEqual(diff_result["state"], "filled")
 
     def test_relational_requirement_does_not_fill_from_anchor_co_occurrence_alone(self):
@@ -265,7 +269,7 @@ class SupportSetSamePropositionTests(unittest.TestCase):
         inst["role_bindings"]["a"] = _filled("a", "p4", "text from one proposition")
         inst["role_bindings"]["b"] = _filled("b", "p5", "text from a same-anchor sibling proposition")
         req["instances"] = [inst]
-        result = se.recompute_requirement(req)
+        result = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertNotEqual(result["state"], "filled")
 
 
@@ -288,7 +292,7 @@ class InstanceQuantifierTests(unittest.TestCase):
         missing = se.new_instance("children")
         missing["role_bindings"] = {"x": _missing("x"), "y": _missing("y")}
         req["instances"] = [complete, missing]
-        result = se.recompute_requirement(req)
+        result = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(result["state"], "partially_filled")
         self.assertEqual(result["reason"], "category_missing")
 
@@ -303,7 +307,7 @@ class InstanceQuantifierTests(unittest.TestCase):
         unpaired2 = se.new_instance("country_c")
         unpaired2["role_bindings"] = {"x": _filled("x", "p3", "c"), "y": _missing("y")}
         req["instances"] = [paired, unpaired1, unpaired2]
-        result = se.recompute_requirement(req)
+        result = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(result["state"], "partially_filled")
         self.assertNotEqual(result["state"], "filled")
 
@@ -314,7 +318,7 @@ class InstanceQuantifierTests(unittest.TestCase):
         two = se.new_instance("k2")
         two["role_bindings"] = {"x": _filled("x", "p2", "b"), "y": _filled("y", "p2", "b")}
         req["instances"] = [one, two]
-        result = se.recompute_requirement(req)
+        result = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(result["state"], "filled")
 
     def test_at_least_n(self):
@@ -322,18 +326,22 @@ class InstanceQuantifierTests(unittest.TestCase):
         one = se.new_instance("k1")
         one["role_bindings"] = {"x": _filled("x", "p1", "a"), "y": _filled("y", "p1", "a")}
         req["instances"] = [one]
-        self.assertEqual(se.recompute_requirement(req)["state"], "partially_filled")
+        self.assertEqual(
+            se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)["state"], "partially_filled"
+        )
         two = se.new_instance("k2")
         two["role_bindings"] = {"x": _filled("x", "p2", "b"), "y": _filled("y", "p2", "b")}
         req["instances"] = [one, two]
-        self.assertEqual(se.recompute_requirement(req)["state"], "filled")
+        self.assertEqual(
+            se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)["state"], "filled"
+        )
 
     def test_open_list_never_reaches_filled(self):
         req = self._pair_requirement("open_list")
         complete = se.new_instance("k1")
         complete["role_bindings"] = {"x": _filled("x", "p1", "a"), "y": _filled("y", "p1", "a")}
         req["instances"] = [complete]
-        result = se.recompute_requirement(req)
+        result = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(result["state"], "partially_filled")
         self.assertNotEqual(result["state"], "filled")
 
@@ -352,7 +360,7 @@ class RecoveryRoutingTests(unittest.TestCase):
             inst["role_bindings"] = {"a": _filled("a", f"p{i}", "text")}
             instances.append(inst)
         req["instances"] = instances
-        return se.recompute_requirement(req)
+        return se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
 
     def test_open_list_zero_complete_instances_needs_recovery(self):
         req = self._open_list_req(0)
@@ -383,7 +391,7 @@ class RecoveryRoutingTests(unittest.TestCase):
         completion = se.new_role_completion(required_roles=["a"])
         req = se.new_requirement("plain#req", "atomic", specs, completion, "exists")
         req["instances"] = [se.new_instance()]
-        req = se.recompute_requirement(req)
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(req["state"], "missing")
         exhausted = se.new_search_status(req["id"], recovery_budget_exhausted=True)
         self.assertFalse(se.compute_recovery_needed(req, exhausted))
@@ -409,7 +417,7 @@ class FrozenContractHashTests(unittest.TestCase):
         req = contract["requirements"][0]
         req["instances"] = [se.new_instance()]
         req["instances"][0]["role_bindings"]["a"] = _filled("a", "p1", "text")
-        contract["requirements"][0] = se.recompute_requirement(req)
+        contract["requirements"][0] = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         after = se.contract_hash(contract)
         self.assertEqual(before, after)
 
@@ -445,7 +453,7 @@ class ModelMappingProvenanceTests(unittest.TestCase):
         inst = se.new_instance()
         inst["role_bindings"]["a"] = binding
         req["instances"] = [inst]
-        result = se.recompute_requirement(req)
+        result = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(result["state"], "filled")
         self.assertEqual(
             result["instances"][0]["role_bindings"]["a"]["provenance"]["candidate_source"], "model_mapping"
@@ -464,7 +472,7 @@ class StopSearchCertificationTests(unittest.TestCase):
         inst = se.new_instance()
         inst["role_bindings"] = role_bindings
         req["instances"] = [inst]
-        return se.recompute_requirement(req)
+        return se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
 
     def test_deterministic_filled_is_stop_search_certified(self):
         req = self._req("det#req", {"a": _filled("a", "p1", "text", method="deterministic_mapping")})
@@ -575,7 +583,7 @@ class TransitiveProvenanceTests(unittest.TestCase):
         inst = se.new_instance()
         inst["role_bindings"] = role_bindings
         req["instances"] = [inst]
-        return se.recompute_requirement(req)
+        return se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
 
     def _propagated(self, source_candidate_source, *, upstream_model_dependent=None, source_lineage=None, model=None):
         """Builds a binding's own provenance as `_propagated_provenance` would have left it after
@@ -645,7 +653,7 @@ class TransitiveProvenanceTests(unittest.TestCase):
         inst = se.new_instance()
         inst["role_bindings"] = {"a": a, "b": b}
         req["instances"] = [inst]
-        req = se.recompute_requirement(req)
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(req["state"], "filled")
         self.assertTrue(se.compute_stop_search_certified(req))
 
@@ -661,7 +669,7 @@ class TransitiveProvenanceTests(unittest.TestCase):
         a = self._propagated("model_mapping")
         req = self._req("survive#req", {"a": a, "b": _filled("b", "p2", "t2", method="deterministic_mapping")})
         copied = copy.deepcopy(req)
-        recomputed = se.recompute_requirement(copied)
+        recomputed = se.recompute_requirement(copied, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         binding = recomputed["instances"][0]["role_bindings"]["a"]
         self.assertTrue(binding["provenance"]["upstream_model_dependent"])
         self.assertEqual(binding["provenance"]["source_lineage"], ["model_mapping", "parent_context"])
@@ -708,7 +716,7 @@ class TransitiveProvenanceTests(unittest.TestCase):
             provenance={"candidate_source": "model_mapping", "detail": "model_nomination_only", "model": "qwen3.5:9b"},
         )
         parent_req["instances"] = [parent_inst]
-        parent_req = se.recompute_requirement(parent_req)
+        parent_req = se.recompute_requirement(parent_req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
 
         # Phase 16 retired `_parent_context_binding_for_single_instance` (the bespoke
         # `instances[0]`-only fallback); re-stamp directly via the still-current
@@ -736,7 +744,7 @@ class TransitiveProvenanceTests(unittest.TestCase):
             },
         )
         child_req["instances"] = [child_inst]
-        child_req = se.recompute_requirement(child_req)
+        child_req = se.recompute_requirement(child_req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
 
         self.assertEqual(child_req["state"], "filled")
         self.assertTrue(child_req["instances"][0]["complete"])
@@ -765,7 +773,7 @@ class FixtureA_AtomicExists(unittest.TestCase):
         inst = se.new_instance()
         inst["role_bindings"]["assay"] = _filled("assay", "p1", "An HPLC assay was used to prepare the sample.")
         req["instances"] = [inst]
-        result = se.recompute_requirement(req)
+        result = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertNotEqual(result["state"], "filled")
         self.assertEqual(result["state"], "partially_filled")
 
@@ -775,7 +783,7 @@ class FixtureA_AtomicExists(unittest.TestCase):
         inst["role_bindings"]["assay"] = _filled("assay", "p1", "An HPLC assay detected compound X at 3 minutes.")
         inst["role_bindings"]["result"] = _filled("result", "p1", "An HPLC assay detected compound X at 3 minutes.")
         req["instances"] = [inst]
-        result = se.recompute_requirement(req)
+        result = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(result["state"], "filled")
 
 
@@ -796,7 +804,7 @@ class FixtureB_Relational(unittest.TestCase):
         inst = se.new_instance()
         inst["role_bindings"]["temperature"] = _filled("temperature", "p1", "temperature was raised")
         req["instances"] = [inst]
-        result = se.recompute_requirement(req)
+        result = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertNotEqual(result["state"], "filled")
 
     def test_two_roles_from_unlinked_propositions_never_fill(self):
@@ -805,7 +813,7 @@ class FixtureB_Relational(unittest.TestCase):
         inst["role_bindings"]["temperature"] = _filled("temperature", "p1", "temperature was raised in paper 1")
         inst["role_bindings"]["reaction_rate"] = _filled("reaction_rate", "p2", "reaction rate increased in paper 2")
         req["instances"] = [inst]
-        result = se.recompute_requirement(req)
+        result = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertNotEqual(result["state"], "filled")
 
     def test_direction_is_genuinely_optional_and_contract_declared(self):
@@ -827,7 +835,7 @@ class FixtureC_Cardinality(unittest.TestCase):
         children = se.new_instance("children")
         children["role_bindings"]["evidence"] = _missing("evidence", reason="category_missing")
         req["instances"] = [adults, children]
-        result = se.recompute_requirement(req)
+        result = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(result["state"], "partially_filled")
         self.assertEqual(result["reason"], "category_missing")
 
@@ -854,7 +862,7 @@ class FixtureD_MultiInstance(unittest.TestCase):
         inst = se.new_instance("Country A")
         inst["role_bindings"]["country"] = _filled("country", "p1", "Country A adopted the policy in 2020.")
         req["instances"] = [inst]
-        result = se.recompute_requirement(req)
+        result = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(result["instances"][0]["state"], "partially_filled")
         self.assertEqual(result["instances"][0]["reason"], "incomplete_instance")
 
@@ -876,7 +884,7 @@ class FixtureD_MultiInstance(unittest.TestCase):
             "implementation": _missing("implementation"),
         }
         req["instances"] = [a, b, c]
-        result = se.recompute_requirement(req)
+        result = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(result["state"], "partially_filled")
         self.assertNotEqual(result["state"], "filled")
 
@@ -895,7 +903,7 @@ class FixtureE_SimpleDefinition(unittest.TestCase):
         inst = se.new_instance()
         inst["role_bindings"]["definition"] = _filled("definition", "p1", "Construct X is defined as ...")
         req["instances"] = [inst]
-        result = se.recompute_requirement(req)
+        result = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(result["state"], "filled")
 
 
@@ -931,7 +939,7 @@ class FixtureG_OpenListHonestTermination(unittest.TestCase):
         inst = se.new_instance("kind_1")
         inst["role_bindings"]["kind"] = _filled("kind", "p1", "one supported kind was found")
         req["instances"] = [inst]
-        req = se.recompute_requirement(req)
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(req["state"], "partially_filled")
         status = se.new_search_status(req["id"], breadth_pass_used=True)
         self.assertFalse(se.compute_recovery_needed(req, status))
@@ -951,7 +959,7 @@ class EligibleParentInstancesTests(unittest.TestCase):
         completion = se.new_role_completion(required_roles=["region", "relation"])
         req = se.new_requirement("c4#req", "atomic", specs, completion, "exists")
         req["instances"] = instances
-        return se.recompute_requirement(req)
+        return se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
 
     def _instance(self, key, *, region_prop, relation_prop, region_text="amygdala", method="model_mapping"):
         inst = se.new_instance(key)
@@ -991,7 +999,7 @@ class EligibleParentInstancesTests(unittest.TestCase):
         inst["role_bindings"]["region"] = _missing("region")
         inst["role_bindings"]["region_alt"] = _filled("region_alt", "p1", "amygdala", method="model_mapping")
         req["instances"] = [inst]
-        req = se.recompute_requirement(req)
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertTrue(req["instances"][0]["complete"])
         self.assertEqual(se.eligible_parent_instances(req, "region"), [])
 

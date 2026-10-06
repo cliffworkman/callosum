@@ -119,6 +119,17 @@ SUPPORTED_SUFFICIENCY_SEMANTICS_VERSIONS = (
 SEMANTICS_VERSION_KEY = "sufficiency_semantics_version"
 
 
+def require_supported_semantics_version(version) -> str:
+    """Fail-closed gate for every version-dispatched semantic entry point (I2-0).
+
+    The caller names the version explicitly: only the top-level production caller selects the current constant,
+    and nothing here infers it from omission. Membership in SUPPORTED means this code can READ the version, not
+    that it is current."""
+    if not isinstance(version, str) or version not in SUPPORTED_SUFFICIENCY_SEMANTICS_VERSIONS:
+        raise ValueError(f"unsupported sufficiency semantics version: {version!r}")
+    return version
+
+
 # ---------------------------------------------------------------------------------------------
 # Builders -- plain dicts, mirroring hierarchy_contract.py's own house style
 # ---------------------------------------------------------------------------------------------
@@ -633,11 +644,17 @@ def summarize_observations(instances: list[dict], obs_key: str, value_key: str, 
 
 
 def recompute_instance(
-    role_completion: dict, instance: dict, relationship_verifiers: list[str], *, context: dict | None = None
+    role_completion: dict,
+    instance: dict,
+    relationship_verifiers: list[str],
+    *,
+    context: dict | None = None,
+    semantics_version: str,
 ) -> dict:
     """Pure: returns a NEW instance dict with `complete`/`state`/`reason` derived from
     `role_bindings`. `exists` (at the requirement level) means "at least one instance for which
     this returns complete=True" -- never "one role happened to be found"."""
+    require_supported_semantics_version(semantics_version)
     bindings = instance["role_bindings"]
     required = role_completion["required_roles"]
     alt_groups = role_completion["alternative_role_groups"]
@@ -739,14 +756,16 @@ _AGGREGATORS = {
 }
 
 
-def recompute_requirement(requirement: dict, *, context: dict | None = None) -> dict:
+def recompute_requirement(requirement: dict, *, context: dict | None = None, semantics_version: str) -> dict:
     """Pure: returns a NEW requirement dict. Recomputes every instance's `complete`/`state`/
     `reason` from its `role_bindings`, then aggregates across instances per
     `instance_quantifier`. Never mutates the input."""
+    require_supported_semantics_version(semantics_version)
     role_completion = requirement["role_completion"]
     verifiers = requirement["relationship_verifiers"]
     recomputed_instances = [
-        recompute_instance(role_completion, inst, verifiers, context=context) for inst in requirement["instances"]
+        recompute_instance(role_completion, inst, verifiers, context=context, semantics_version=semantics_version)
+        for inst in requirement["instances"]
     ]
     aggregator = _AGGREGATORS[requirement["instance_quantifier"]]
     state, reason = aggregator(recomputed_instances, requirement.get("quantifier_n"))

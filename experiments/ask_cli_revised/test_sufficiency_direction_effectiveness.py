@@ -734,9 +734,9 @@ class ComputeDirectionAndEffectivenessTests(unittest.TestCase):
             )
         ]
         mapped = {"c": se.new_contract("c", [req])}
-        before = srt.compute_recovery_targets(mapped, {})
+        before = srt.compute_recovery_targets(mapped, {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self._run(sealed, req)
-        after = srt.compute_recovery_targets(mapped, {})
+        after = srt.compute_recovery_targets(mapped, {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(before, after)
 
     def test_no_q_aib_specific_runtime_vocabulary(self):

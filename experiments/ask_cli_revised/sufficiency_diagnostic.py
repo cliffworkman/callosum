@@ -83,6 +83,7 @@ def compute_diagnostic_sufficiency_map(
     *,
     model_client=None,
     nomination_context: dict | None = None,
+    semantics_version: str,
 ) -> dict:
     """`contract_by_child`: `{child_id: SufficiencyContract}` (Layer B's frozen instance, e.g.
     `sufficiency_authoring.build_qaib_contract(...)`). `parent_of`: `{child_id: parent_child_id}`,
@@ -111,6 +112,7 @@ def compute_diagnostic_sufficiency_map(
     parsed back out of `requirement['id']`'s own `"childid#..."` naming convention (which is an
     authoring convention, not a structural guarantee). Omitted entirely, this function's
     behavior is unchanged."""
+    se.require_supported_semantics_version(semantics_version)
     by_child = units_by_child(sealed)
     mapped: dict[str, dict] = {}
     child_ids = list(contract_by_child)
@@ -151,15 +153,16 @@ def compute_diagnostic_sufficiency_map(
                 model_client=model_client,
                 child_id=child_id,
                 nomination_context=nomination_context,
+                semantics_version=semantics_version,
             )
             new_requirements.append(_stamp_model_dependency_origins(mapped_req, child_id))
         mapped[child_id] = se.new_contract(child_id, new_requirements)
     # Phase 32 / I1: additive runtime witness metadata on relational instances. Adds keys only; `complete` and
     # every other field are untouched, and nothing downstream reads these keys yet. Phase 32 / I1d: written under the
     # current semantics version, which is also the version stamped below.
-    rw.attach_relation_witnesses(mapped, sealed, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION)
+    rw.attach_relation_witnesses(mapped, sealed, semantics_version=semantics_version)
     # Phase 32 / I1c: the single stamping path for produced diagnostic maps (authored contracts are never stamped).
-    si.stamp_map(mapped)
+    si.stamp_map(mapped, semantics_version=semantics_version)
     return mapped
 
 

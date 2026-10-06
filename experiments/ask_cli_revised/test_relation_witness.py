@@ -501,7 +501,11 @@ def _pipeline_outputs(version):
     contract = hc.load_contract(BENCHMARK_QUESTION, pins=None)
     parent_of = hc.parent_of(contract)
     mapped = sd.compute_diagnostic_sufficiency_map(
-        sealed, sf.load_verified(), parent_of, model_client=_FakeNominationClient()
+        sealed,
+        sf.load_verified(),
+        parent_of,
+        model_client=_FakeNominationClient(),
+        semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
     )
     # The direction stage is version-dependent, so run it on an unstamped copy under the requested version.
     for contract_ in mapped.values():
@@ -516,7 +520,9 @@ def _pipeline_outputs(version):
         "mapping_without_direction_sha": _sha(_without_direction(mapped)),
         "map_projected_sha": _sha(si.strip_identity(rw.project_out_i1(mapped))),
         "claims_sha": _sha(psl.build_claim_ledger(mapped, sealed, parent_of)),
-        "recovery_sha": _sha(srt.compute_recovery_targets(mapped, parent_of)),
+        "recovery_sha": _sha(
+            srt.compute_recovery_targets(mapped, parent_of, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
+        ),
         "stop_sha": _sha(stop),
         "claims": psl.build_claim_ledger(mapped, sealed, parent_of),
     }

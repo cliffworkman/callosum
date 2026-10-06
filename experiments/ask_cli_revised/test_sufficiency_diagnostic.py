@@ -90,7 +90,9 @@ class ComputeDiagnosticSufficiencyMapTests(unittest.TestCase):
             ]
         )
         contracts = _small_contract()
-        mapped = sd.compute_diagnostic_sufficiency_map(sealed, contracts, parent_of={"c": "p"})
+        mapped = sd.compute_diagnostic_sufficiency_map(
+            sealed, contracts, parent_of={"c": "p"}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         parent_req = mapped["p"]["requirements"][0]
         self.assertEqual(len(parent_req["instances"]), 1)
         child_req = mapped["c"]["requirements"][0]
@@ -102,7 +104,9 @@ class ComputeDiagnosticSufficiencyMapTests(unittest.TestCase):
     def test_no_candidate_units_leaves_requirement_missing(self):
         sealed = _sealed([])
         contracts = _small_contract()
-        mapped = sd.compute_diagnostic_sufficiency_map(sealed, contracts, parent_of={"c": "p"})
+        mapped = sd.compute_diagnostic_sufficiency_map(
+            sealed, contracts, parent_of={"c": "p"}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(mapped["p"]["requirements"][0]["state"], "missing")
         self.assertEqual(mapped["c"]["requirements"][0]["state"], "missing")
 
@@ -137,7 +141,9 @@ class ModelAssistedParentPropagationTests(unittest.TestCase):
                 _prop("p2", 2, "The Empathy Scale was used to assess trait empathy in participants.", ["c"]),
             ]
         )
-        mapped = sd.compute_diagnostic_sufficiency_map(sealed, _small_contract(), parent_of={"c": "p"})
+        mapped = sd.compute_diagnostic_sufficiency_map(
+            sealed, _small_contract(), parent_of={"c": "p"}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(mapped["p"]["requirements"][0]["instances"][0]["role_bindings"]["trait"]["state"], "missing")
         self.assertEqual(mapped["c"]["requirements"][0]["instances"], [])
 
@@ -149,7 +155,11 @@ class ModelAssistedParentPropagationTests(unittest.TestCase):
             ]
         )
         mapped = sd.compute_diagnostic_sufficiency_map(
-            sealed, _small_contract(), parent_of={"c": "p"}, model_client=_FakeModelClient()
+            sealed,
+            _small_contract(),
+            parent_of={"c": "p"},
+            model_client=_FakeModelClient(),
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         parent_req = mapped["p"]["requirements"][0]
         self.assertEqual(len(parent_req["instances"]), 1)
@@ -171,8 +181,12 @@ class ModelAssistedParentPropagationTests(unittest.TestCase):
                 _prop("p2", 2, "The Empathy Scale was used to assess trait empathy in participants.", ["c"]),
             ]
         )
-        positional = sd.compute_diagnostic_sufficiency_map(sealed, _small_contract(), {"c": "p"})
-        keyword = sd.compute_diagnostic_sufficiency_map(sealed, _small_contract(), parent_of={"c": "p"})
+        positional = sd.compute_diagnostic_sufficiency_map(
+            sealed, _small_contract(), {"c": "p"}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
+        keyword = sd.compute_diagnostic_sufficiency_map(
+            sealed, _small_contract(), parent_of={"c": "p"}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(positional, keyword)
 
 
@@ -195,11 +209,20 @@ class ComputeDiagnosticSufficiencyMapPhase19ScopingTests(unittest.TestCase):
     def test_all_eligible_policy_produces_the_same_bindings_as_the_legacy_call_plus_a_status_tag(self):
         sealed, contracts = self._sealed_and_contract()
         legacy = sd.compute_diagnostic_sufficiency_map(
-            sealed, contracts, parent_of={"c": "p"}, model_client=_FakeModelClient()
+            sealed,
+            contracts,
+            parent_of={"c": "p"},
+            model_client=_FakeModelClient(),
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
         scoped = sd.compute_diagnostic_sufficiency_map(
-            sealed, contracts, parent_of={"c": "p"}, model_client=_FakeModelClient(), nomination_context=ctx
+            sealed,
+            contracts,
+            parent_of={"c": "p"},
+            model_client=_FakeModelClient(),
+            nomination_context=ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         legacy_trait = legacy["p"]["requirements"][0]["instances"][0]["role_bindings"]["trait"]
         scoped_trait = scoped["p"]["requirements"][0]["instances"][0]["role_bindings"]["trait"]
@@ -247,7 +270,12 @@ class ComputeDiagnosticSufficiencyMapPhase19ScopingTests(unittest.TestCase):
 
         client = _TrackingClient()
         mapped = sd.compute_diagnostic_sufficiency_map(
-            sealed, contracts, parent_of={"c": "p"}, model_client=client, nomination_context=ctx
+            sealed,
+            contracts,
+            parent_of={"c": "p"},
+            model_client=client,
+            nomination_context=ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
 
         self.assertEqual(
@@ -266,8 +294,16 @@ class ComputeDiagnosticSufficiencyMapPhase19ScopingTests(unittest.TestCase):
         all -- is byte-identical to pre-Phase-19, proving Scope A's non-regression promise at the
         orchestration layer, not only inside sufficiency_mapping.py."""
         sealed, contracts = self._sealed_and_contract()
-        before = sd.compute_diagnostic_sufficiency_map(sealed, contracts, parent_of={"c": "p"})
-        after = sd.compute_diagnostic_sufficiency_map(sealed, contracts, parent_of={"c": "p"}, nomination_context=None)
+        before = sd.compute_diagnostic_sufficiency_map(
+            sealed, contracts, parent_of={"c": "p"}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
+        after = sd.compute_diagnostic_sufficiency_map(
+            sealed,
+            contracts,
+            parent_of={"c": "p"},
+            nomination_context=None,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
+        )
         self.assertEqual(before, after)
 
     def test_model_dependency_origins_still_stamped_on_a_fresh_phase19_binding(self):
@@ -277,7 +313,12 @@ class ComputeDiagnosticSufficiencyMapPhase19ScopingTests(unittest.TestCase):
         sealed, contracts = self._sealed_and_contract()
         ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
         mapped = sd.compute_diagnostic_sufficiency_map(
-            sealed, contracts, parent_of={"c": "p"}, model_client=_FakeModelClient(), nomination_context=ctx
+            sealed,
+            contracts,
+            parent_of={"c": "p"},
+            model_client=_FakeModelClient(),
+            nomination_context=ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         trait_binding = mapped["p"]["requirements"][0]["instances"][0]["role_bindings"]["trait"]
         origins = trait_binding["provenance"]["model_dependency_origins"]
@@ -294,7 +335,12 @@ class ComputeDiagnosticSufficiencyMapPhase19ScopingTests(unittest.TestCase):
         sealed, contracts = self._sealed_and_contract()
         first_ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
         first = sd.compute_diagnostic_sufficiency_map(
-            sealed, contracts, parent_of={"c": "p"}, model_client=_FakeModelClient(), nomination_context=first_ctx
+            sealed,
+            contracts,
+            parent_of={"c": "p"},
+            model_client=_FakeModelClient(),
+            nomination_context=first_ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
 
         class _ShouldNeverBeCalledClient:
@@ -312,6 +358,7 @@ class ComputeDiagnosticSufficiencyMapPhase19ScopingTests(unittest.TestCase):
             parent_of={"c": "p"},
             model_client=_ShouldNeverBeCalledClient(),
             nomination_context=second_ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
 
         def _strip_receipt_status(mapped):
@@ -343,8 +390,10 @@ class RecoveryTargetReportingTests(unittest.TestCase):
     def test_missing_requirement_produces_a_recovery_target(self):
         sealed = _sealed([])
         contracts = _small_contract()
-        mapped = sd.compute_diagnostic_sufficiency_map(sealed, contracts, parent_of={"c": "p"})
-        targets = srt.compute_recovery_targets(mapped, {"c": "p"})
+        mapped = sd.compute_diagnostic_sufficiency_map(
+            sealed, contracts, parent_of={"c": "p"}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
+        targets = srt.compute_recovery_targets(mapped, {"c": "p"}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertTrue(any(t["requirement_id"] == "p8#req" for t in targets.values()))
 
     def test_filled_requirement_produces_no_recovery_target(self):
@@ -360,9 +409,9 @@ class RecoveryTargetReportingTests(unittest.TestCase):
             provenance={"candidate_source": "deterministic_mapping", "detail": "", "model": None},
         )
         req["instances"] = [inst]
-        req = se.recompute_requirement(req)
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         mapped = {"x": se.new_contract("x", [req])}
-        targets = srt.compute_recovery_targets(mapped, {})
+        targets = srt.compute_recovery_targets(mapped, {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(targets, {})
 
 
@@ -378,7 +427,11 @@ class StampModelDependencyOriginsTests(unittest.TestCase):
         own documented, non-general coincidence predicts."""
         sealed = _sealed([_prop("p1", 1, "This finding showed empathy was strongly related to the outcome.", ["p"])])
         mapped = sd.compute_diagnostic_sufficiency_map(
-            sealed, _small_contract(), parent_of={"c": "p"}, model_client=_FakeModelClient()
+            sealed,
+            _small_contract(),
+            parent_of={"c": "p"},
+            model_client=_FakeModelClient(),
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         instance = mapped["p"]["requirements"][0]["instances"][0]
         trait_binding = instance["role_bindings"]["trait"]
@@ -403,7 +456,11 @@ class StampModelDependencyOriginsTests(unittest.TestCase):
             ]
         )
         mapped = sd.compute_diagnostic_sufficiency_map(
-            sealed, _small_contract(), parent_of={"c": "p"}, model_client=_FakeModelClient()
+            sealed,
+            _small_contract(),
+            parent_of={"c": "p"},
+            model_client=_FakeModelClient(),
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         child_trait_binding = mapped["c"]["requirements"][0]["instances"][0]["role_bindings"]["trait"]
         self.assertEqual(child_trait_binding["provenance"]["candidate_source"], "parent_context")
@@ -414,7 +471,9 @@ class StampModelDependencyOriginsTests(unittest.TestCase):
 
     def test_deterministic_binding_is_never_stamped(self):
         sealed = _sealed([_prop("p1", 1, "This finding showed a strong relation to the outcome.", ["p"])])
-        mapped = sd.compute_diagnostic_sufficiency_map(sealed, _small_contract(), parent_of={"c": "p"})
+        mapped = sd.compute_diagnostic_sufficiency_map(
+            sealed, _small_contract(), parent_of={"c": "p"}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         relation_binding = mapped["p"]["requirements"][0]["instances"][0]["role_bindings"]["relation"]
         self.assertEqual(relation_binding["provenance"].get("model_dependency_origins"), None)
 
@@ -422,7 +481,11 @@ class StampModelDependencyOriginsTests(unittest.TestCase):
         before = se.contract_hash(_small_contract()["p"])
         sealed = _sealed([_prop("p1", 1, "This finding showed empathy was strongly related to the outcome.", ["p"])])
         sd.compute_diagnostic_sufficiency_map(
-            sealed, _small_contract(), parent_of={"c": "p"}, model_client=_FakeModelClient()
+            sealed,
+            _small_contract(),
+            parent_of={"c": "p"},
+            model_client=_FakeModelClient(),
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         after = se.contract_hash(_small_contract()["p"])
         self.assertEqual(before, after)

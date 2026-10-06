@@ -59,7 +59,7 @@ def requirement(
     dispatch); set it explicitly where a fixture is reproducing a real requirement's own label."""
     req = se.new_requirement(req_id, kind, role_specs, role_completion, instance_quantifier, **kwargs)
     req["instances"] = instances
-    return se.recompute_requirement(req)
+    return se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
 
 
 def spec(role: str, category_description: str, strategy: str = "model_nomination_only") -> dict:

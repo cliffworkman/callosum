@@ -318,6 +318,7 @@ def _bind_role_candidates(
     requirement_id: str | None = None,
     nomination_context: dict | None = None,
     request_context: str | None = None,
+    semantics_version: str,
 ) -> list[dict]:
     """0+ FILLED role bindings for this role from these units. A deterministic-strategy role can
     only ever produce 0 or 1 candidate here (the first admissible unit whose detector matches,
@@ -344,6 +345,7 @@ def _bind_role_candidates(
     q_aib c12) get independent receipt slots instead of colliding. Every caller that omits it (the
     overwhelming majority -- any non-multi-instance requirement) observes `request_context=None`,
     byte-identical to before this phase."""
+    se.require_supported_semantics_version(semantics_version)
     role = role_spec["role"]
     for unit in units:
         if not is_admissible(role_spec, unit.get("flags", {})):
@@ -424,15 +426,6 @@ def _bind_role_candidates(
     return []
 
 
-def _bind_role_from_units(role_spec: dict, units: list[dict]) -> dict:
-    """UNCHANGED signature/behavior for any existing direct caller/test: always exactly one
-    binding, deterministic-only (no model_client). Thin wrapper over `_bind_role_candidates`."""
-    candidates = _bind_role_candidates(role_spec, units)
-    if candidates:
-        return candidates[0]
-    return se.new_role_binding(role_spec["role"], state="missing", reason="not_found")
-
-
 def build_multi_instances(candidate_units: list[dict]) -> list[dict]:
     """One candidate instance per distinct candidate UNIT (a deduplicated source passage).
 
@@ -457,6 +450,7 @@ def _fork_instances_over_role(
     requirement_id: str | None = None,
     nomination_context: dict | None = None,
     request_context: str | None = None,
+    semantics_version: str,
 ) -> list[dict]:
     """Extends each of `forks` (a list of in-progress `Instance` dicts, initially length 1) with a
     binding for `role`. When `_bind_role_candidates` returns MORE THAN ONE grounded candidate for
@@ -492,6 +486,7 @@ def _fork_instances_over_role(
             requirement_id=requirement_id,
             nomination_context=nomination_context,
             request_context=request_context,
+            semantics_version=semantics_version,
         )
         if not candidates:
             missing = se.new_role_binding(role, state="missing", reason="not_found")
@@ -523,6 +518,7 @@ def map_requirement(
     model_client=None,
     child_id: str | None = None,
     nomination_context: dict | None = None,
+    semantics_version: str,
 ) -> dict:
     """Mapping for one requirement with NO parent context (see `map_paired_requirement` for that
     shape -- Phase 16 retired this function's own former `parent_context_bindings` fallback,
@@ -567,6 +563,7 @@ def map_requirement(
 
     Returns a NEW requirement dict with `instances` populated and `state`/`reason` recomputed.
     """
+    se.require_supported_semantics_version(semantics_version)
     role_specs = requirement["role_specs"]
     requirement_id = requirement["id"]
 
@@ -594,11 +591,12 @@ def map_requirement(
                 requirement_id=requirement_id,
                 nomination_context=nomination_context,
                 request_context=root_key,
+                semantics_version=semantics_version,
             )
         all_instances.extend(_rederive_keys_if_forked(forks, root_key))
 
     new_requirement = {**requirement, "instances": all_instances}
-    return se.recompute_requirement(new_requirement)
+    return se.recompute_requirement(new_requirement, semantics_version=semantics_version)
 
 
 def map_cardinality_requirement(
@@ -608,6 +606,7 @@ def map_cardinality_requirement(
     model_client=None,
     child_id: str | None = None,
     nomination_context: dict | None = None,
+    semantics_version: str,
 ) -> dict:
     """Specialization for `all_requested_categories`: one instance per named category (from the
     role's own `requested_category_terms` -- the contract's own wording-derived terms, never a
@@ -631,6 +630,7 @@ def map_cardinality_requirement(
     the unsupported shape is detected. The proper fix -- threading a stable per-term
     `request_context` through this function, analogous in spirit to Phase 19b's own fix for
     `build_multi_instances` -- is backlogged, not built here, since no current contract needs it."""
+    se.require_supported_semantics_version(semantics_version)
     role_names = list(requirement["role_specs"])
     if len(role_names) != 1:
         raise ValueError("a cardinality requirement expects exactly one category-evidence role")
@@ -663,13 +663,14 @@ def map_cardinality_requirement(
             child_id=child_id,
             requirement_id=requirement["id"],
             nomination_context=nomination_context,
+            semantics_version=semantics_version,
         )
         instance["role_bindings"][role] = (
             candidates[0] if candidates else se.new_role_binding(role, state="missing", reason="not_found")
         )
         instances.append(instance)
     new_requirement = {**requirement, "instances": instances}
-    return se.recompute_requirement(new_requirement)
+    return se.recompute_requirement(new_requirement, semantics_version=semantics_version)
 
 
 def _propagated_provenance(parent_requirement_id: str, source_binding: dict) -> dict:
@@ -732,6 +733,7 @@ def map_paired_requirement(
     model_client=None,
     child_id: str | None = None,
     nomination_context: dict | None = None,
+    semantics_version: str,
 ) -> dict:
     """The SOLE parent-context instance-generation path (Phase 16) -- used for EVERY quantifier a
     `parent_context_roles` requirement declares, `exists` (e.g. c4->c5/c6's region inheritance)
@@ -803,6 +805,7 @@ def map_paired_requirement(
                 child_id=child_id,
                 requirement_id=requirement_id,
                 nomination_context=nomination_context,
+                semantics_version=semantics_version,
             )
         return _rederive_keys_if_forked(forks, root_key)
 
@@ -816,6 +819,7 @@ def map_paired_requirement(
             child_id=child_id,
             requirement_id=requirement_id,
             nomination_context=nomination_context,
+            semantics_version=semantics_version,
         )
     )
     if own_candidates:
@@ -847,7 +851,7 @@ def map_paired_requirement(
                 }
                 instances.extend(_forked_over_other_roles([instance], root_key))
     new_requirement = {**requirement, "instances": instances}
-    return se.recompute_requirement(new_requirement)
+    return se.recompute_requirement(new_requirement, semantics_version=semantics_version)
 
 
 def map_any_requirement(
@@ -858,6 +862,7 @@ def map_any_requirement(
     model_client=None,
     child_id: str | None = None,
     nomination_context: dict | None = None,
+    semantics_version: str,
 ) -> dict:
     """Generic dispatch, by the requirement's OWN declared shape -- never by child/role identity.
 
@@ -889,6 +894,7 @@ def map_any_requirement(
     per-child loop variable) is what lets the model-nomination checkpoint construct a real
     `(child_id, requirement_id, role)` scope several calls deeper, without ever parsing it back
     out of `requirement['id']`'s own naming convention."""
+    se.require_supported_semantics_version(semantics_version)
     if requirement["instance_quantifier"] == "all_requested_categories":
         return map_cardinality_requirement(
             requirement,
@@ -896,6 +902,7 @@ def map_any_requirement(
             model_client=model_client,
             child_id=child_id,
             nomination_context=nomination_context,
+            semantics_version=semantics_version,
         )
     if requirement["parent_context_roles"]:
         if parent_requirement is None:
@@ -911,6 +918,7 @@ def map_any_requirement(
             model_client=model_client,
             child_id=child_id,
             nomination_context=nomination_context,
+            semantics_version=semantics_version,
         )
     return map_requirement(
         requirement,
@@ -918,6 +926,7 @@ def map_any_requirement(
         model_client=model_client,
         child_id=child_id,
         nomination_context=nomination_context,
+        semantics_version=semantics_version,
     )
 
 

@@ -58,9 +58,9 @@ class SingleInstanceExistsTests(unittest.TestCase):
         inst["role_bindings"]["a"] = _filled("a", "p1", "found a")
         inst["role_bindings"]["b"] = _missing("b")
         req["instances"] = [inst]
-        req = se.recompute_requirement(req)
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         mapped = _contract_with("x", req)
-        targets = srt.compute_recovery_targets(mapped, {})
+        targets = srt.compute_recovery_targets(mapped, {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(len(targets), 1)
         target = next(iter(targets.values()))
         # "a" is already filled, so the instance's own state is "partially_filled" -- "partial",
@@ -83,8 +83,10 @@ class SingleInstanceExistsTests(unittest.TestCase):
         inst["role_bindings"]["a"] = _missing("a")
         inst["role_bindings"]["b"] = _missing("b")
         req["instances"] = [inst]
-        req = se.recompute_requirement(req)
-        targets = srt.compute_recovery_targets(_contract_with("x", req), {})
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
+        targets = srt.compute_recovery_targets(
+            _contract_with("x", req), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         role_sets = {tuple(t["target_roles"]) for t in targets.values()}
         self.assertEqual(role_sets, {("a",), ("b",)})
 
@@ -95,8 +97,10 @@ class SingleInstanceExistsTests(unittest.TestCase):
         inst = se.new_instance()
         inst["role_bindings"]["a"] = _filled("a", "p1", "a result")
         req["instances"] = [inst]
-        req = se.recompute_requirement(req)
-        targets = srt.compute_recovery_targets(_contract_with("x", req), {})
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
+        targets = srt.compute_recovery_targets(
+            _contract_with("x", req), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(targets, {})
 
 
@@ -114,8 +118,10 @@ class AlternativeGroupTests(unittest.TestCase):
         inst["role_bindings"]["b"] = _missing("b")
         inst["role_bindings"]["c"] = _missing("c")
         req["instances"] = [inst]
-        req = se.recompute_requirement(req)
-        targets = srt.compute_recovery_targets(_contract_with("x", req), {})
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
+        targets = srt.compute_recovery_targets(
+            _contract_with("x", req), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(len(targets), 1)
         target = next(iter(targets.values()))
         self.assertEqual(target["goal_mode"], "any_of_roles")
@@ -138,9 +144,11 @@ class AlternativeGroupTests(unittest.TestCase):
         inst["role_bindings"]["b"] = _filled("b", "p1", "b result", method="model_mapping")
         inst["role_bindings"]["c"] = _missing("c")
         req["instances"] = [inst]
-        req = se.recompute_requirement(req)
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(req["state"], "filled")
-        targets = srt.compute_recovery_targets(_contract_with("x", req), {})
+        targets = srt.compute_recovery_targets(
+            _contract_with("x", req), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertTrue(all(t["reason"] == "provisional_corroboration" for t in targets.values()))
         self.assertTrue(all("c" not in t["target_roles"] for t in targets.values()))
 
@@ -160,9 +168,13 @@ class RelationshipUnverifiedTests(unittest.TestCase):
         inst["role_bindings"]["a"] = _filled("a", "p1", "a result")
         inst["role_bindings"]["b"] = _filled("b", "p2", "b result", method="model_mapping")
         req["instances"] = [inst]
-        req = se.recompute_requirement(req)  # different propositions -> not jointly grounded -> incomplete
+        req = se.recompute_requirement(
+            req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )  # different propositions -> not jointly grounded -> incomplete
         self.assertFalse(req["instances"][0]["complete"])
-        targets = srt.compute_recovery_targets(_contract_with("x", req), {})
+        targets = srt.compute_recovery_targets(
+            _contract_with("x", req), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(len(targets), 1)
         target = next(iter(targets.values()))
         self.assertEqual(target["reason"], "relationship_unverified")
@@ -184,9 +196,11 @@ class RelationshipUnverifiedTests(unittest.TestCase):
         inst["role_bindings"]["b"] = _filled("b", "p2", "b result", method="model_mapping")
         inst["role_bindings"]["c"] = _missing("c")
         req["instances"] = [inst]
-        req = se.recompute_requirement(req)
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertFalse(req["instances"][0]["complete"])
-        targets = srt.compute_recovery_targets(_contract_with("x", req), {})
+        targets = srt.compute_recovery_targets(
+            _contract_with("x", req), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(len(targets), 1)
         target = next(iter(targets.values()))
         self.assertEqual(target["reason"], "relationship_unverified")
@@ -210,9 +224,11 @@ class RelationshipUnverifiedTests(unittest.TestCase):
         inst["role_bindings"]["c"] = _filled("c", "p3", "c result", method="model_mapping")
         inst["role_bindings"]["d"] = _missing("d")
         req["instances"] = [inst]
-        req = se.recompute_requirement(req)
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertFalse(req["instances"][0]["complete"])
-        targets = srt.compute_recovery_targets(_contract_with("x", req), {})
+        targets = srt.compute_recovery_targets(
+            _contract_with("x", req), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         target = next(t for t in targets.values() if t["reason"] == "relationship_unverified")
         self.assertEqual(target["target_roles"], ["a", "b", "c"])
         self.assertNotIn("d", target["target_roles"])
@@ -236,9 +252,11 @@ class MultiInstanceScopingTests(unittest.TestCase):
         inst2["role_bindings"]["b"] = _missing("b")
         inst2["role_bindings"]["c"] = _filled("c", "p2", "c2")
         req["instances"] = [inst1, inst2]
-        req = se.recompute_requirement(req)
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(req["state"], "partially_filled")
-        targets = srt.compute_recovery_targets(_contract_with("x", req), {})
+        targets = srt.compute_recovery_targets(
+            _contract_with("x", req), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         by_scope = {t["scope"]["instance_key"]: t["target_roles"] for t in targets.values()}
         self.assertEqual(by_scope, {"u1": ["c"], "u2": ["b"]})
 
@@ -255,8 +273,10 @@ class MultiInstanceScopingTests(unittest.TestCase):
         inst2 = {**se.new_instance(), "instance_key": "i::forked1"}
         inst2["role_bindings"]["a"] = _missing("a")
         req["instances"] = [inst1, inst2]
-        req = se.recompute_requirement(req)
-        targets = srt.compute_recovery_targets(_contract_with("x", req), {})
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
+        targets = srt.compute_recovery_targets(
+            _contract_with("x", req), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertTrue(all(t["scope"]["kind"] == "instance" for t in targets.values()))
 
 
@@ -282,8 +302,10 @@ class AllRequestedCategoriesTests(unittest.TestCase):
         inst_explicit = se.new_instance("explicit")
         inst_explicit["role_bindings"]["category_evidence"] = _missing("category_evidence", "category_missing")
         req["instances"] = [inst_implicit, inst_explicit]
-        req = se.recompute_requirement(req)
-        targets = srt.compute_recovery_targets(_contract_with("x", req), {})
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
+        targets = srt.compute_recovery_targets(
+            _contract_with("x", req), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(len(targets), 1)
         target = next(iter(targets.values()))
         self.assertEqual(target["scope"], {"kind": "instance", "instance_key": "explicit"})
@@ -302,7 +324,7 @@ class ForEachDiscoveredInstanceTests(unittest.TestCase):
         pb = se.new_instance("ub")
         pb["role_bindings"]["trait"] = _filled("trait", "pb", "trait B", method="model_mapping")
         parent_req["instances"] = [pa, pb]
-        parent_req = se.recompute_requirement(parent_req)
+        parent_req = se.recompute_requirement(parent_req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         # Stamp origins exactly as `compute_diagnostic_sufficiency_map`'s real topological order
         # would (parent-less children are mapped -- and thus stamped -- before paired children read
         # them), so `_propagated_provenance` below carries a real, non-empty `model_dependency_
@@ -339,12 +361,12 @@ class ForEachDiscoveredInstanceTests(unittest.TestCase):
         }
         inst_b["role_bindings"]["scale"] = _filled("scale", "pb", "Scale B")
         child_req["instances"] = [inst_a, inst_b]
-        child_req = se.recompute_requirement(child_req)
+        child_req = se.recompute_requirement(child_req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         return {"p": se.new_contract("p", [parent_req]), "c": se.new_contract("c", [child_req])}
 
     def test_two_parent_instances_each_missing_a_different_paired_value_produce_two_targets(self):
         mapped = self._paired_contract()
-        targets = srt.compute_recovery_targets(mapped, {"c": "p"})
+        targets = srt.compute_recovery_targets(mapped, {"c": "p"}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         local_targets = {t["target_id"]: t for t in targets.values() if t["search_child_id"] == "c"}
         self.assertEqual(len(local_targets), 1)  # only inst_a is missing its own scale
         target = next(iter(local_targets.values()))
@@ -353,7 +375,7 @@ class ForEachDiscoveredInstanceTests(unittest.TestCase):
 
     def test_inherited_provisional_fill_redirects_upstream_to_the_true_origin(self):
         mapped = self._paired_contract()
-        targets = srt.compute_recovery_targets(mapped, {"c": "p"})
+        targets = srt.compute_recovery_targets(mapped, {"c": "p"}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         redirected = [t for t in targets.values() if t["reason"] == "provisional_corroboration"]
         self.assertEqual(len(redirected), 1)
         target = redirected[0]
@@ -373,8 +395,10 @@ class ForEachDiscoveredInstanceTests(unittest.TestCase):
             "x#req", "relational", specs, completion, "for_each_discovered_instance", multi_instance=True
         )
         req["instances"] = []
-        req = se.recompute_requirement(req)
-        targets = srt.compute_recovery_targets(_contract_with("x", req), {})
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
+        targets = srt.compute_recovery_targets(
+            _contract_with("x", req), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertTrue(any(t["search_child_id"] == "x" for t in targets.values()))
 
     def test_parent_backed_for_each_with_an_incomplete_parent_defers_upstream(self):
@@ -395,7 +419,7 @@ class ForEachDiscoveredInstanceTests(unittest.TestCase):
         p_inst["role_bindings"]["trait"] = _filled("trait", "pp", "trait X", method="model_mapping")
         p_inst["role_bindings"]["relation"] = _missing("relation")  # role filled, INSTANCE incomplete
         parent_req["instances"] = [p_inst]
-        parent_req = se.recompute_requirement(parent_req)
+        parent_req = se.recompute_requirement(parent_req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertFalse(parent_req["instances"][0]["complete"])
 
         child_specs = {
@@ -413,9 +437,9 @@ class ForEachDiscoveredInstanceTests(unittest.TestCase):
             parent_context_roles=["trait"],
         )
         child_req["instances"] = []
-        child_req = se.recompute_requirement(child_req)
+        child_req = se.recompute_requirement(child_req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         mapped = {"p": se.new_contract("p", [parent_req]), "c": se.new_contract("c", [child_req])}
-        targets = srt.compute_recovery_targets(mapped, {"c": "p"})
+        targets = srt.compute_recovery_targets(mapped, {"c": "p"}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertFalse(any(t["search_child_id"] == "c" for t in targets.values()))
         self.assertTrue(any(t["search_child_id"] == "p" for t in targets.values()))
 
@@ -426,7 +450,7 @@ class ForEachDiscoveredInstanceTests(unittest.TestCase):
             "p#req", "atomic", parent_specs, parent_completion, "open_list", multi_instance=True
         )
         parent_req["instances"] = []
-        parent_req = se.recompute_requirement(parent_req)
+        parent_req = se.recompute_requirement(parent_req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
 
         child_specs = {
             "trait": se.new_role_spec("trait", "a named trait", "model_nomination_only"),
@@ -443,9 +467,9 @@ class ForEachDiscoveredInstanceTests(unittest.TestCase):
             parent_context_roles=["trait"],
         )
         child_req["instances"] = []
-        child_req = se.recompute_requirement(child_req)
+        child_req = se.recompute_requirement(child_req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         mapped = {"p": se.new_contract("p", [parent_req]), "c": se.new_contract("c", [child_req])}
-        targets = srt.compute_recovery_targets(mapped, {"c": "p"})
+        targets = srt.compute_recovery_targets(mapped, {"c": "p"}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertFalse(any(t["search_child_id"] == "c" for t in targets.values()))
         self.assertTrue(any(t["search_child_id"] == "p" for t in targets.values()))
 
@@ -463,9 +487,11 @@ class AtLeastNTests(unittest.TestCase):
         inst = se.new_instance("u1")
         inst["role_bindings"]["a"] = _filled("a", "p1", "a1", method="model_mapping")
         req["instances"] = [inst]
-        req = se.recompute_requirement(req)
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(req["state"], "partially_filled")
-        targets = srt.compute_recovery_targets(_contract_with("x", req), {})
+        targets = srt.compute_recovery_targets(
+            _contract_with("x", req), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         reasons = {t["reason"] for t in targets.values()}
         self.assertEqual(reasons, {"cardinality_deficit"})
 
@@ -474,8 +500,10 @@ class AtLeastNTests(unittest.TestCase):
         inst1 = se.new_instance("u1")
         inst1["role_bindings"]["a"] = _filled("a", "p1", "a1")
         req2["instances"] = [inst1]
-        req2 = se.recompute_requirement(req2)
-        targets_at_2_needed = srt.compute_recovery_targets(_contract_with("x", req2), {})
+        req2 = se.recompute_requirement(req2, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
+        targets_at_2_needed = srt.compute_recovery_targets(
+            _contract_with("x", req2), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
 
         req1 = self._req(3)
         inst1b = se.new_instance("u1")
@@ -483,8 +511,10 @@ class AtLeastNTests(unittest.TestCase):
         inst2b = se.new_instance("u2")
         inst2b["role_bindings"]["a"] = _filled("a", "p2", "a2")
         req1["instances"] = [inst1b, inst2b]
-        req1 = se.recompute_requirement(req1)
-        targets_at_1_needed = srt.compute_recovery_targets(_contract_with("x", req1), {})
+        req1 = se.recompute_requirement(req1, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
+        targets_at_1_needed = srt.compute_recovery_targets(
+            _contract_with("x", req1), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
 
         self.assertEqual(set(targets_at_2_needed), set(targets_at_1_needed))
 
@@ -493,9 +523,11 @@ class AtLeastNTests(unittest.TestCase):
         inst = se.new_instance("u1")
         inst["role_bindings"]["a"] = _filled("a", "p1", "a1", method="model_mapping")
         req["instances"] = [inst]
-        req = se.recompute_requirement(req)
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(req["state"], "filled")
-        targets = srt.compute_recovery_targets(_contract_with("x", req), {})
+        targets = srt.compute_recovery_targets(
+            _contract_with("x", req), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertTrue(all(t["reason"] == "provisional_corroboration" for t in targets.values()))
 
 
@@ -508,8 +540,10 @@ class OpenListTests(unittest.TestCase):
     def test_zero_instances_is_missing_not_breadth(self):
         req = self._req()
         req["instances"] = []
-        req = se.recompute_requirement(req)
-        targets = srt.compute_recovery_targets(_contract_with("x", req), {})
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
+        targets = srt.compute_recovery_targets(
+            _contract_with("x", req), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(len(targets), 1)
         self.assertEqual(next(iter(targets.values()))["reason"], "missing")
 
@@ -518,9 +552,11 @@ class OpenListTests(unittest.TestCase):
         inst = se.new_instance("u1")
         inst["role_bindings"]["a"] = _filled("a", "p1", "a1")
         req["instances"] = [inst]
-        req = se.recompute_requirement(req)
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(req["state"], "partially_filled")
-        targets = srt.compute_recovery_targets(_contract_with("x", req), {})
+        targets = srt.compute_recovery_targets(
+            _contract_with("x", req), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(len(targets), 1)
         target = next(iter(targets.values()))
         self.assertEqual(target["reason"], "open_list_breadth")
@@ -531,9 +567,11 @@ class OpenListTests(unittest.TestCase):
         inst = se.new_instance("u1")
         inst["role_bindings"]["a"] = _filled("a", "p1", "a1")
         req["instances"] = [inst]
-        req = se.recompute_requirement(req)
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         status = {"x#req": se.new_search_status("x#req", breadth_pass_used=True)}
-        targets = srt.compute_recovery_targets(_contract_with("x", req), {}, status)
+        targets = srt.compute_recovery_targets(
+            _contract_with("x", req), {}, status, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(targets, {})
 
     def test_open_list_never_produces_a_coexisting_corroboration_target(self):
@@ -545,8 +583,10 @@ class OpenListTests(unittest.TestCase):
         inst = se.new_instance("u1")
         inst["role_bindings"]["a"] = _filled("a", "p1", "a1", method="model_mapping")
         req["instances"] = [inst]
-        req = se.recompute_requirement(req)
-        targets = srt.compute_recovery_targets(_contract_with("x", req), {})
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
+        targets = srt.compute_recovery_targets(
+            _contract_with("x", req), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         reasons = {t["reason"] for t in targets.values()}
         self.assertEqual(reasons, {"open_list_breadth"})
 
@@ -559,8 +599,10 @@ class ProvisionalCorroborationTests(unittest.TestCase):
         inst = se.new_instance()
         inst["role_bindings"]["a"] = _filled("a", "p1", "guessed value", method="model_mapping")
         req["instances"] = [inst]
-        req = se.recompute_requirement(req)
-        targets = srt.compute_recovery_targets(_contract_with("x", req), {})
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
+        targets = srt.compute_recovery_targets(
+            _contract_with("x", req), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(len(targets), 1)
         target = next(iter(targets.values()))
         self.assertEqual(target["reason"], "provisional_corroboration")
@@ -578,8 +620,11 @@ class ProvisionalCorroborationTests(unittest.TestCase):
         inst = se.new_instance()
         inst["role_bindings"]["a"] = _filled("a", "p1", "a result")
         req["instances"] = [inst]
-        req = se.recompute_requirement(req)
-        self.assertEqual(srt.compute_recovery_targets(_contract_with("x", req), {}), {})
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
+        self.assertEqual(
+            srt.compute_recovery_targets(_contract_with("x", req), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3),
+            {},
+        )
 
     def test_two_independently_model_dependent_instances_do_not_collapse(self):
         """The real c6 shape: a `multi_instance=False` requirement whose model-nomination forking
@@ -593,9 +638,11 @@ class ProvisionalCorroborationTests(unittest.TestCase):
         inst2 = {**se.new_instance(), "instance_key": "i::other"}
         inst2["role_bindings"]["a"] = _filled("a", "p2", "explicit value", method="model_mapping")
         req["instances"] = [inst1, inst2]
-        req = se.recompute_requirement(req)
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(req["state"], "filled")
-        targets = srt.compute_recovery_targets(_contract_with("x", req), {})
+        targets = srt.compute_recovery_targets(
+            _contract_with("x", req), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(len(targets), 2)
         scopes = {t["scope"].get("instance_key") for t in targets.values()}
         self.assertEqual(scopes, {inst1["instance_key"], "i::other"})
@@ -607,7 +654,7 @@ class ProvisionalCorroborationTests(unittest.TestCase):
         p_inst = se.new_instance()
         p_inst["role_bindings"]["trait"] = _filled("trait", "pp", "trait X", method="model_mapping")
         parent_req["instances"] = [p_inst]
-        parent_req = se.recompute_requirement(parent_req)
+        parent_req = se.recompute_requirement(parent_req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         parent_req = sd._stamp_model_dependency_origins(parent_req, "p")
         propagated = _propagate(parent_req, "trait")
 
@@ -624,14 +671,16 @@ class ProvisionalCorroborationTests(unittest.TestCase):
             inst["role_bindings"]["trait"] = propagated["trait"]
             inst["role_bindings"]["scale"] = _filled("scale", f"{child_id}p", "Scale")
             req["instances"] = [inst]
-            return se.recompute_requirement(req)
+            return se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
 
         mapped = {
             "p": se.new_contract("p", [parent_req]),
             "c1": se.new_contract("c1", [_child("c1")]),
             "c2": se.new_contract("c2", [_child("c2")]),
         }
-        targets = srt.compute_recovery_targets(mapped, {"c1": "p", "c2": "p"})
+        targets = srt.compute_recovery_targets(
+            mapped, {"c1": "p", "c2": "p"}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         redirected = [t for t in targets.values() if t["search_child_id"] == "p"]
         self.assertEqual(len(redirected), 1)
         # p's OWN direct pass also generates a provisional target for this exact same obligation
@@ -647,7 +696,7 @@ class ProvisionalCorroborationTests(unittest.TestCase):
         gp_inst = se.new_instance()
         gp_inst["role_bindings"]["trait"] = _filled("trait", "gpp", "trait Y", method="model_mapping")
         gp_req["instances"] = [gp_inst]
-        gp_req = se.recompute_requirement(gp_req)
+        gp_req = se.recompute_requirement(gp_req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         gp_req = sd._stamp_model_dependency_origins(gp_req, "gp")
 
         hop1 = _propagate(gp_req, "trait")
@@ -663,7 +712,7 @@ class ProvisionalCorroborationTests(unittest.TestCase):
         p_inst["role_bindings"]["trait"] = hop1["trait"]
         p_inst["role_bindings"]["other"] = _filled("other", "pp", "other result")
         parent_req["instances"] = [p_inst]
-        parent_req = se.recompute_requirement(parent_req)
+        parent_req = se.recompute_requirement(parent_req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
 
         hop2 = _propagate(parent_req, "trait")
         child_specs = {
@@ -678,14 +727,16 @@ class ProvisionalCorroborationTests(unittest.TestCase):
         c_inst["role_bindings"]["trait"] = hop2["trait"]
         c_inst["role_bindings"]["scale"] = _filled("scale", "cp", "Scale Z")
         child_req["instances"] = [c_inst]
-        child_req = se.recompute_requirement(child_req)
+        child_req = se.recompute_requirement(child_req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
 
         mapped = {
             "gp": se.new_contract("gp", [gp_req]),
             "p": se.new_contract("p", [parent_req]),
             "c": se.new_contract("c", [child_req]),
         }
-        targets = srt.compute_recovery_targets(mapped, {"p": "gp", "c": "p"})
+        targets = srt.compute_recovery_targets(
+            mapped, {"p": "gp", "c": "p"}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         corroboration = [t for t in targets.values() if t["reason"] == "provisional_corroboration"]
         self.assertEqual(len(corroboration), 1)
         self.assertEqual(corroboration[0]["search_child_id"], "gp")
@@ -702,9 +753,11 @@ class ProvisionalCorroborationTests(unittest.TestCase):
         inst["role_bindings"]["a"] = _filled("a", "p1", "a result")
         inst["role_bindings"]["b"] = _filled("b", "p2", "b result", method="model_mapping")
         req["instances"] = [inst]
-        req = se.recompute_requirement(req)
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(req["state"], "filled")
-        targets = srt.compute_recovery_targets(_contract_with("x", req), {})
+        targets = srt.compute_recovery_targets(
+            _contract_with("x", req), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(targets, {})
 
 
@@ -723,8 +776,10 @@ class ConfidenceAwareRelationshipContextTests(unittest.TestCase):
         inst["role_bindings"]["region"] = _filled("region", "p1", "the amygdala")
         inst["role_bindings"]["behavior"] = _missing("behavior")
         req["instances"] = [inst]
-        req = se.recompute_requirement(req)
-        targets = srt.compute_recovery_targets(_contract_with("x", req), {})
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
+        targets = srt.compute_recovery_targets(
+            _contract_with("x", req), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         target = next(iter(targets.values()))
         hint = srt.recovery_query_hint(target, _contract_with("x", req))
         self.assertIn("the amygdala", hint)
@@ -735,8 +790,10 @@ class ConfidenceAwareRelationshipContextTests(unittest.TestCase):
         inst["role_bindings"]["region"] = _filled("region", "p1", "the amygdala", method="model_mapping")
         inst["role_bindings"]["behavior"] = _missing("behavior")
         req["instances"] = [inst]
-        req = se.recompute_requirement(req)
-        targets = srt.compute_recovery_targets(_contract_with("x", req), {})
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
+        targets = srt.compute_recovery_targets(
+            _contract_with("x", req), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         target = next(iter(targets.values()))
         hint = srt.recovery_query_hint(target, _contract_with("x", req))
         self.assertNotIn("the amygdala", hint)
@@ -756,8 +813,10 @@ class ConfidenceAwareRelationshipContextTests(unittest.TestCase):
         inst["role_bindings"]["region"] = _missing("region")
         inst["role_bindings"]["behavior"] = _filled("behavior", "p1", long_passage)
         req["instances"] = [inst]
-        req = se.recompute_requirement(req)
-        targets = srt.compute_recovery_targets(_contract_with("x", req), {})
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
+        targets = srt.compute_recovery_targets(
+            _contract_with("x", req), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         target = next(iter(targets.values()))
         hint = srt.recovery_query_hint(target, _contract_with("x", req))
         self.assertNotIn(long_passage, hint)
@@ -775,8 +834,10 @@ class ConfidenceAwareRelationshipContextTests(unittest.TestCase):
         )
         inst["role_bindings"]["behavior"] = _missing("behavior")
         req["instances"] = [inst]
-        req = se.recompute_requirement(req)
-        targets = srt.compute_recovery_targets(_contract_with("x", req), {})
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
+        targets = srt.compute_recovery_targets(
+            _contract_with("x", req), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         target = next(iter(targets.values()))
         hint = srt.recovery_query_hint(target, _contract_with("x", req))
         self.assertNotIn("the amygdala", hint)
@@ -826,8 +887,8 @@ class TargetIdentityTests(unittest.TestCase):
         inst = se.new_instance()
         inst["role_bindings"]["a"] = _filled("a", "p1", "a result", method="model_mapping")
         req["instances"] = [inst]
-        req = se.recompute_requirement(req)
-        srt.compute_recovery_targets(_contract_with("x", req), {})
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
+        srt.compute_recovery_targets(_contract_with("x", req), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         after = se.contract_hash(se.new_contract("x", [req]))
         self.assertEqual(before, after)
 
@@ -883,12 +944,14 @@ class MixedInstanceExistsRecoveryTests(unittest.TestCase):
     def test_incomplete_sibling_produces_no_target_once_exists_is_satisfied(self):
         req = self._requirement()
         req["instances"] = [self._incomplete_instance("rtpj"), self._complete_model_dependent_instance("amygdala")]
-        req = se.recompute_requirement(req)
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(req["state"], "filled")
         self.assertFalse(req["instances"][0]["complete"])
         self.assertTrue(req["instances"][1]["complete"])
 
-        targets = srt.compute_recovery_targets(_contract_with("c4", req), {})
+        targets = srt.compute_recovery_targets(
+            _contract_with("c4", req), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         reasons = {t["reason"] for t in targets.values()}
         self.assertNotIn("relationship_unverified", reasons)
         self.assertNotIn("missing", reasons)
@@ -903,9 +966,11 @@ class MixedInstanceExistsRecoveryTests(unittest.TestCase):
         complete instance at all, the incomplete instance's own gap remains a real obligation."""
         req = self._requirement()
         req["instances"] = [self._incomplete_instance("rtpj")]
-        req = se.recompute_requirement(req)
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertNotEqual(req["state"], "filled")
-        targets = srt.compute_recovery_targets(_contract_with("c4", req), {})
+        targets = srt.compute_recovery_targets(
+            _contract_with("c4", req), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertTrue(any(t["reason"] == "relationship_unverified" for t in targets.values()))
 
     def test_suppression_is_scoped_to_exists_never_for_each_discovered_instance(self):
@@ -926,9 +991,11 @@ class MixedInstanceExistsRecoveryTests(unittest.TestCase):
         incomplete_inst["role_bindings"]["a"] = _filled("a", "p2", "a2")
         incomplete_inst["role_bindings"]["b"] = _missing("b")
         req["instances"] = [complete_inst, incomplete_inst]
-        req = se.recompute_requirement(req)
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(req["state"], "partially_filled")  # NOT "filled" -- for_each needs ALL complete
-        targets = srt.compute_recovery_targets(_contract_with("x", req), {})
+        targets = srt.compute_recovery_targets(
+            _contract_with("x", req), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertTrue(any(t["scope"].get("instance_key") == "u2" for t in targets.values()))
 
 
@@ -993,7 +1060,7 @@ class RecoveryTargetMergeTests(unittest.TestCase):
         p_inst = se.new_instance()
         p_inst["role_bindings"]["trait"] = _filled("trait", "pp", "trait X", method="model_mapping")
         parent_req["instances"] = [p_inst]
-        parent_req = se.recompute_requirement(parent_req)
+        parent_req = se.recompute_requirement(parent_req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         parent_req = sd._stamp_model_dependency_origins(parent_req, "p")
         propagated = _propagate(parent_req, "trait")
 
@@ -1010,14 +1077,16 @@ class RecoveryTargetMergeTests(unittest.TestCase):
             inst["role_bindings"]["trait"] = propagated["trait"]
             inst["role_bindings"]["scale"] = _filled("scale", f"{child_id}p", "Scale")
             req["instances"] = [inst]
-            return se.recompute_requirement(req)
+            return se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
 
         mapped = {
             "p": se.new_contract("p", [parent_req]),
             "c1": se.new_contract("c1", [_child("c1")]),
             "c2": se.new_contract("c2", [_child("c2")]),
         }
-        targets = srt.compute_recovery_targets(mapped, {"c1": "p", "c2": "p"})
+        targets = srt.compute_recovery_targets(
+            mapped, {"c1": "p", "c2": "p"}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         redirected = [t for t in targets.values() if t["search_child_id"] == "p"]
         self.assertEqual(len(redirected), 1)
         self.assertEqual(set(redirected[0]["affected_descendants"]), {"p", "c1", "c2"})
@@ -1034,8 +1103,10 @@ class LeakageTests(unittest.TestCase):
         inst = se.new_instance()
         inst["role_bindings"]["a"] = _missing("a")
         req["instances"] = [inst]
-        req = se.recompute_requirement(req)
-        targets = srt.compute_recovery_targets(_contract_with("c9", req), {})
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
+        targets = srt.compute_recovery_targets(
+            _contract_with("c9", req), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         target = next(iter(targets.values()))
         hint = srt.recovery_query_hint(target, _contract_with("c9", req))
         self.assertNotIn("c9#", hint)
@@ -1057,9 +1128,9 @@ class FreshRequestKeyProjectionTests(unittest.TestCase):
         inst_u5 = {**se.new_instance("U5"), "request_context": "U5"}
         inst_u5["role_bindings"]["intervention"] = _missing("intervention")
         req["instances"] = [inst_u1, inst_u5]
-        req = se.recompute_requirement(req)
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         mapped = _contract_with("c12", req)
-        targets = srt.compute_recovery_targets(mapped, {})
+        targets = srt.compute_recovery_targets(mapped, {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(len(targets), 2)  # one target per instance, never merged
         u1_target = next(t for t in targets.values() if t["scope"].get("instance_key") == "U1")
 
@@ -1083,9 +1154,9 @@ class FreshRequestKeyProjectionTests(unittest.TestCase):
         inst_u6["role_bindings"]["trait"] = _filled("trait", "p1", "a trait value", method="model_mapping")
         inst_u6["role_bindings"]["relationship"] = _missing("relationship")
         req["instances"] = [inst_u6]
-        req = se.recompute_requirement(req)
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         mapped = _contract_with("c8", req)
-        targets = srt.compute_recovery_targets(mapped, {})
+        targets = srt.compute_recovery_targets(mapped, {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         trait_target = next(t for t in targets.values() if t["target_roles"] == ["trait"])
         self.assertEqual(trait_target["reason"], "missing")
         self.assertEqual(trait_target["scope"], {"kind": "none"})
@@ -1110,9 +1181,9 @@ class FreshRequestKeyProjectionTests(unittest.TestCase):
         completion = se.new_role_completion(required_roles=["culture"])
         req = se.new_requirement("c11#req", "atomic", specs, completion, "exists", multi_instance=True)
         req["instances"] = []
-        req = se.recompute_requirement(req)
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         mapped = _contract_with("c11", req)
-        targets = srt.compute_recovery_targets(mapped, {})
+        targets = srt.compute_recovery_targets(mapped, {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         target = next(iter(targets.values()))
         self.assertEqual(target["scope"], {"kind": "none"})
 
@@ -1137,9 +1208,9 @@ class FreshRequestKeyProjectionTests(unittest.TestCase):
         inst = se.new_instance()
         inst["role_bindings"]["behavior"] = _missing("behavior")
         req["instances"] = [inst]
-        req = se.recompute_requirement(req)
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         mapped = _contract_with("c5", req)
-        targets = srt.compute_recovery_targets(mapped, {})
+        targets = srt.compute_recovery_targets(mapped, {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         target = next(iter(targets.values()))
         self.assertEqual(target["scope"], {"kind": "none"})
 
@@ -1153,9 +1224,9 @@ class FreshRequestKeyProjectionTests(unittest.TestCase):
         inst = se.new_instance()
         inst["role_bindings"]["a"] = _missing("a")
         req["instances"] = [inst]
-        req = se.recompute_requirement(req)
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         mapped = _contract_with("x", req)
-        targets = srt.compute_recovery_targets(mapped, {})
+        targets = srt.compute_recovery_targets(mapped, {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         target = next(iter(targets.values()))
         keys = srt.project_fresh_request_keys({target["target_id"]: target}, mapped, mapped, frozenset(), frozenset())
         self.assertEqual(keys, frozenset())
@@ -1167,10 +1238,10 @@ class FreshRequestKeyProjectionTests(unittest.TestCase):
         inst = {**se.new_instance(), "request_context": None}
         inst["role_bindings"]["a"] = _filled("a", "p1", "value", method="model_mapping")
         req["instances"] = [inst]
-        req = se.recompute_requirement(req)
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         req = sd._stamp_model_dependency_origins(req, "x")
         mapped = _contract_with("x", req)
-        targets = srt.compute_recovery_targets(mapped, {})
+        targets = srt.compute_recovery_targets(mapped, {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         target = next(iter(targets.values()))
         self.assertEqual(target["reason"], "provisional_corroboration")
 
@@ -1189,9 +1260,9 @@ class FreshRequestKeyProjectionTests(unittest.TestCase):
         inst2 = {**se.new_instance(), "instance_key": "i::other"}
         inst2["role_bindings"]["a"] = _filled("a", "p2", "explicit value", method="model_mapping")
         req["instances"] = [inst1, inst2]
-        req = se.recompute_requirement(req)
+        req = se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         mapped = _contract_with("x", req)
-        targets = srt.compute_recovery_targets(mapped, {})
+        targets = srt.compute_recovery_targets(mapped, {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(len(targets), 2)
 
         keys = srt.project_fresh_request_keys(targets, mapped, mapped, frozenset(), frozenset())
@@ -1206,7 +1277,7 @@ class FreshRequestKeyProjectionTests(unittest.TestCase):
         p_inst = {**se.new_instance(), "request_context": None}
         p_inst["role_bindings"]["trait"] = _filled("trait", "pp", "trait X", method="model_mapping")
         parent_req["instances"] = [p_inst]
-        parent_req = se.recompute_requirement(parent_req)
+        parent_req = se.recompute_requirement(parent_req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         parent_req = sd._stamp_model_dependency_origins(parent_req, "p")
         propagated = _propagate(parent_req, "trait")
 
@@ -1222,10 +1293,10 @@ class FreshRequestKeyProjectionTests(unittest.TestCase):
         c_inst["role_bindings"]["trait"] = propagated["trait"]
         c_inst["role_bindings"]["scale"] = _filled("scale", "cp", "Scale")
         child_req["instances"] = [c_inst]
-        child_req = se.recompute_requirement(child_req)
+        child_req = se.recompute_requirement(child_req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
 
         mapped = {"p": se.new_contract("p", [parent_req]), "c": se.new_contract("c", [child_req])}
-        targets = srt.compute_recovery_targets(mapped, {"c": "p"})
+        targets = srt.compute_recovery_targets(mapped, {"c": "p"}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         redirected = next(t for t in targets.values() if t["search_child_id"] == "p")
         self.assertEqual(redirected["reason"], "provisional_corroboration")
 
@@ -1244,7 +1315,7 @@ class FreshRequestKeyProjectionTests(unittest.TestCase):
         inst_c5 = se.new_instance()
         inst_c5["role_bindings"]["behavior"] = _missing("behavior")
         req_c5["instances"] = [inst_c5]
-        req_c5 = se.recompute_requirement(req_c5)
+        req_c5 = se.recompute_requirement(req_c5, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
 
         specs_c10 = {"culture": se.new_role_spec("culture", "a culture", "model_nomination_only")}
         req_c10 = se.new_requirement(
@@ -1253,10 +1324,10 @@ class FreshRequestKeyProjectionTests(unittest.TestCase):
         inst_c10 = se.new_instance()
         inst_c10["role_bindings"]["culture"] = _missing("culture")
         req_c10["instances"] = [inst_c10]
-        req_c10 = se.recompute_requirement(req_c10)
+        req_c10 = se.recompute_requirement(req_c10, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
 
         mapped = {"c5": se.new_contract("c5", [req_c5]), "c10": se.new_contract("c10", [req_c10])}
-        targets = srt.compute_recovery_targets(mapped, {})
+        targets = srt.compute_recovery_targets(mapped, {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(len(targets), 2)
         forward = dict(targets)
         reversed_targets = dict(reversed(list(targets.items())))

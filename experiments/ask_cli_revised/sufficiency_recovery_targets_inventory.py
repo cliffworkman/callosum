@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 
+from experiments.ask_cli_revised import sufficiency_engine as se
 from experiments.ask_cli_revised import sufficiency_phase5_replay as replay_mod
 from experiments.ask_cli_revised import sufficiency_recovery_targets as srt
 from experiments.ask_cli_revised.sufficiency_model_nomination_diagnostic import _load_children_by_id, _parent_of
@@ -34,7 +35,9 @@ def build_inventory(*, run_dir=None) -> dict:
     result = replay_mod.replay(run_dir=run_dir)
     children = _load_children_by_id(run_dir)
     parent_of = _parent_of(children)
-    targets = srt.compute_recovery_targets(result["with_model"], parent_of)
+    targets = srt.compute_recovery_targets(
+        result["with_model"], parent_of, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+    )
     rows = [
         {
             "target_id": target["target_id"],

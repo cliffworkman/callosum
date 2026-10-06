@@ -140,8 +140,16 @@ def run(*, run_dir: Path, contract_by_child: dict, model_client, model_name: str
     children = _load_children_by_id(run_dir)
     sealed = _load_sealed(run_dir)
     parent_of = _parent_of(children)
-    deterministic_only = sd.compute_diagnostic_sufficiency_map(sealed, contract_by_child, parent_of)
-    with_model = sd.compute_diagnostic_sufficiency_map(sealed, contract_by_child, parent_of, model_client=model_client)
+    deterministic_only = sd.compute_diagnostic_sufficiency_map(
+        sealed, contract_by_child, parent_of, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+    )
+    with_model = sd.compute_diagnostic_sufficiency_map(
+        sealed,
+        contract_by_child,
+        parent_of,
+        model_client=model_client,
+        semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION,
+    )
     return {"deterministic_only": deterministic_only, "with_model": with_model, "model_name": model_name}
 
 

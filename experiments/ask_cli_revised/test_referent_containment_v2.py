@@ -210,7 +210,7 @@ def test_identity_states_are_distinct_and_membership_is_not_currency():
     # Supported (readable) does not mean current.
     assert V1 in se.SUPPORTED_SUFFICIENCY_SEMANTICS_VERSIONS
     assert V1 != se.SUFFICIENCY_SEMANTICS_VERSION
-    v1_map = si.stamp_map({"c1": se.new_contract("c1", [])})
+    v1_map = si.stamp_map({"c1": se.new_contract("c1", [])}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
     for contract in v1_map.values():
         contract[se.SEMANTICS_VERSION_KEY] = V1
     with pytest.raises(si.SemanticsIdentityError, match="not current"):

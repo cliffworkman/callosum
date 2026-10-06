@@ -143,7 +143,12 @@ def _derive_u1_call_cap(sealed, contract_by_child, parent_of) -> tuple[int, list
     client = _CapDerivationClient()
     ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
     sd.compute_diagnostic_sufficiency_map(
-        sealed, contract_by_child, parent_of, model_client=client, nomination_context=ctx
+        sealed,
+        contract_by_child,
+        parent_of,
+        model_client=client,
+        nomination_context=ctx,
+        semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION,
     )
     by_status: dict[str, list] = {}
     for key, receipt in ctx["in_pass_receipts"].items():
@@ -347,7 +352,12 @@ def main() -> int:
         started_u1 = time.monotonic()
         model_client, u1_context = e2e._sufficiency_u1_context(profile, bound)
         sufficiency_map_initial = sd.compute_diagnostic_sufficiency_map(
-            sealed, contract_by_child, parent_of, model_client=model_client, nomination_context=u1_context
+            sealed,
+            contract_by_child,
+            parent_of,
+            model_client=model_client,
+            nomination_context=u1_context,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION,
         )
         sd.compute_direction_and_effectiveness(
             sealed, sufficiency_map_initial, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
@@ -362,7 +372,12 @@ def main() -> int:
         )
         started_u2 = time.monotonic()
         sufficiency_map_final = sd.compute_diagnostic_sufficiency_map(
-            sealed, contract_by_child, parent_of, model_client=model_client, nomination_context=u2_context
+            sealed,
+            contract_by_child,
+            parent_of,
+            model_client=model_client,
+            nomination_context=u2_context,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION,
         )
         sd.compute_direction_and_effectiveness(
             sealed, sufficiency_map_final, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
@@ -373,7 +388,9 @@ def main() -> int:
             f"[phase21] U2 complete: {u2_call_count_after - u1_call_count_after} additional physical calls (must be 0)"
         )
 
-        recovery_targets = srt.compute_recovery_targets(sufficiency_map_final, parent_of)
+        recovery_targets = srt.compute_recovery_targets(
+            sufficiency_map_final, parent_of, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+        )
     finally:
         client.close()
         trace.flush_qwen()

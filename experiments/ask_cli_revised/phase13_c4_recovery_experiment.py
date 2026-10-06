@@ -117,7 +117,9 @@ def build_state(out_dir: Path) -> dict:
     # Replay Phase 5's own frozen recorded nominations (no live call) + compute the full inventory
     replay_result = replay_mod.replay()
     mapped_before = replay_result["with_model"]
-    targets_before = srt.compute_recovery_targets(mapped_before, parent_of)
+    targets_before = srt.compute_recovery_targets(
+        mapped_before, parent_of, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+    )
     gate("target_reproduces", TARGET_ID in targets_before, sorted(targets_before)[:3])
     target = targets_before[TARGET_ID]
     gate("reason_is_provisional_corroboration", target["reason"] == "provisional_corroboration", target["reason"])
@@ -316,12 +318,17 @@ def run_live(state: dict, out_dir: Path) -> dict:
                     coverage_result,
                 )
                 mapped_after = sd.compute_diagnostic_sufficiency_map(
-                    sealed, state["contract_by_child"], state["parent_of"]
+                    sealed,
+                    state["contract_by_child"],
+                    state["parent_of"],
+                    semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION,
                 )
                 sd.compute_direction_and_effectiveness(
                     sealed, mapped_after, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
                 )
-                targets_after = srt.compute_recovery_targets(mapped_after, state["parent_of"])
+                targets_after = srt.compute_recovery_targets(
+                    mapped_after, state["parent_of"], semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+                )
                 log["mapped_after_c4"] = mapped_after["c4"]
                 log["mapped_after_c6"] = mapped_after["c6"]
                 log["targets_after"] = list(targets_after.values())

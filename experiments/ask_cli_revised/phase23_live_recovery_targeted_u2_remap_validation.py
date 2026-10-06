@@ -83,6 +83,7 @@ from pathlib import Path
 
 from experiments.ask_cli_revised import backends, e2e, e2e_checks, library_copy
 from experiments.ask_cli_revised import hierarchy_contract as hc
+from experiments.ask_cli_revised import sufficiency_engine as se
 from experiments.ask_cli_revised import sufficiency_freeze as sf
 from experiments.ask_cli_revised import sufficiency_model_scope as mscope
 from experiments.ask_cli_revised import sufficiency_recovery_targets as srt
@@ -332,7 +333,9 @@ def main() -> int:
     # internally but does not return it. Same pure function, same inputs (sufficiency_map_initial),
     # not a reimplementation.
     recovery_targets_initial = (
-        srt.compute_recovery_targets(result["sufficiency_map_initial"], sufficiency_parent_of)
+        srt.compute_recovery_targets(
+            result["sufficiency_map_initial"], sufficiency_parent_of, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+        )
         if result["sufficiency_map_initial"] is not None
         else {}
     )

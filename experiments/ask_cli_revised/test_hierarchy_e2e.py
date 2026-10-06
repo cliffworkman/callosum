@@ -273,7 +273,7 @@ class SufficiencyIntegrationTests(unittest.TestCase):
         effectiveness` directly -- never merely agree with a historical, differently-coded phase."""
         result = self._run()
         direct = sufficiency_diagnostic.compute_diagnostic_sufficiency_map(
-            result["sealed"], self.contract_by_child, self.parent_of
+            result["sealed"], self.contract_by_child, self.parent_of, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
         )
         sufficiency_diagnostic.compute_direction_and_effectiveness(
             result["sealed"], direct, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
@@ -286,7 +286,7 @@ class SufficiencyIntegrationTests(unittest.TestCase):
         result = self._run(sufficiency_recovery_gate_enabled=True)
         self.assertIsInstance(result["sufficiency_recovery_targets"], dict)
         direct_targets = sufficiency_recovery_targets.compute_recovery_targets(
-            result["sufficiency_map_final"], self.parent_of
+            result["sufficiency_map_final"], self.parent_of, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
         )
         self.assertEqual(set(direct_targets), set(result["sufficiency_recovery_targets"]))
 

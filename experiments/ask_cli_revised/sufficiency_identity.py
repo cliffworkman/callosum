@@ -39,10 +39,14 @@ class SemanticsIdentityError(ValueError):
     """Raised when a sufficiency-semantics identity is missing where required, unsupported, mixed, or tampered."""
 
 
-def stamp_map(mapped: dict) -> dict:
-    """The single authoritative stamping path for produced diagnostic sufficiency maps. Mutates and returns ``mapped``."""
+def stamp_map(mapped: dict, *, semantics_version: str) -> dict:
+    """The single authoritative stamping path for produced diagnostic sufficiency maps. Mutates and returns ``mapped``.
+
+    The caller supplies the version (I2-0). Stamping never selects the current version by default.
+    """
+    se.require_supported_semantics_version(semantics_version)
     for contract in mapped.values():
-        contract[se.SEMANTICS_VERSION_KEY] = se.SUFFICIENCY_SEMANTICS_VERSION
+        contract[se.SEMANTICS_VERSION_KEY] = semantics_version
     return mapped
 
 

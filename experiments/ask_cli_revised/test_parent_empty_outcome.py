@@ -95,7 +95,9 @@ class ProjectorTests(unittest.TestCase):
         req = _requirement(allowed=True)
         map_ = _map(req)
         status = _terminal(req["id"])
-        targets = srt.compute_recovery_targets(map_, {}, srt.engine_search_status(status))
+        targets = srt.compute_recovery_targets(
+            map_, {}, srt.engine_search_status(status), semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(psl.build_gap_report(targets, sufficiency_map_final=map_), [])
         self.assertEqual(psl.build_claim_ledger(map_, EMPTY_SEALED), [])
         self.assertEqual(len(psl.build_resolved_empty_outcomes(map_, status)), 1)
@@ -224,12 +226,14 @@ class FrozenPhase23ReplayTests(unittest.TestCase):
     def test_the_round_reads_c4_as_completed_and_the_final_map_as_not_empty(self):
         round_outcomes = srt.structured_search_outcomes(self.recorded_initial, self.log)
         self.assertTrue(round_outcomes[C4]["completed"])
-        status = srt.terminal_search_status(self.final_map, round_outcomes)
+        status = srt.terminal_search_status(
+            self.final_map, round_outcomes, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertFalse(status[C4]["terminal"])
         self.assertTrue(all(not entry["terminal"] for entry in status.values()))
 
     def test_initial_inventory_is_19_and_keeps_both_c4_search_obligations(self):
-        recomputed = srt.compute_recovery_targets(self.initial_map, {})
+        recomputed = srt.compute_recovery_targets(self.initial_map, {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(len(recomputed), 19)
         self.assertEqual(set(recomputed), set(self.recorded_initial))
         c4_ids = {tid for tid, t in recomputed.items() if t["requirement_id"] == C4}
@@ -237,15 +241,21 @@ class FrozenPhase23ReplayTests(unittest.TestCase):
 
     def test_final_inventory_is_33_unchanged_by_the_terminal_rule(self):
         round_outcomes = srt.structured_search_outcomes(self.recorded_initial, self.log)
-        status = srt.terminal_search_status(self.final_map, round_outcomes)
-        final = srt.compute_recovery_targets(self.final_map, {}, srt.engine_search_status(status))
+        status = srt.terminal_search_status(
+            self.final_map, round_outcomes, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
+        final = srt.compute_recovery_targets(
+            self.final_map, {}, srt.engine_search_status(status), semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(len(final), 33)
         # The recorded artifact is JSON: tuples (affected_descendants) are lists there. Compare canonical JSON.
         self.assertEqual(json.loads(json.dumps(final)), self.recorded_final)
 
     def test_claims_gaps_and_resolved_outcomes_are_24_33_and_zero(self):
         round_outcomes = srt.structured_search_outcomes(self.recorded_initial, self.log)
-        status = srt.terminal_search_status(self.final_map, round_outcomes)
+        status = srt.terminal_search_status(
+            self.final_map, round_outcomes, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         claims = psl.build_claim_ledger(self.final_map, self.sealed)
         gaps = psl.build_gap_report(self.recorded_final, sufficiency_map_final=self.final_map)
         self.assertEqual(len(claims), 24)

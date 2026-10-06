@@ -76,7 +76,7 @@ def _requirement(
             else:
                 inst["role_bindings"][role] = _missing(role)
         req["instances"].append(inst)
-    return se.recompute_requirement(req)
+    return se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
 
 
 def _map(requirement):
@@ -90,7 +90,7 @@ def _status(requirement_id, *, terminal):
 
 
 def _targets(requirement, status=None):
-    return srt.compute_recovery_targets(_map(requirement), {}, status)
+    return srt.compute_recovery_targets(_map(requirement), {}, status, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
 
 
 def _log_row(target_id, reason_code, *, gap_extra=None):
@@ -119,7 +119,9 @@ class GenuinelyEmptyPredicateTests(unittest.TestCase):
 
 class StructuredSearchOutcomesTests(unittest.TestCase):
     def _initial(self):
-        return srt.compute_recovery_targets(_map(_requirement(allowed=True)), {})
+        return srt.compute_recovery_targets(
+            _map(_requirement(allowed=True)), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
 
     def test_completed_rows_complete_the_requirement(self):
         inventory = self._initial()
@@ -162,7 +164,7 @@ class StructuredSearchOutcomesTests(unittest.TestCase):
     def test_one_unfinished_target_keeps_the_whole_requirement_unterminated(self):
         """Requirement-level conservatism: one query finding nothing is not the requirement being searched enough."""
         req = _requirement(allowed=True)
-        inventory = srt.compute_recovery_targets(_map(req), {})
+        inventory = srt.compute_recovery_targets(_map(req), {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(len(inventory), 2)
         first, second = sorted(inventory)
         log = [_log_row(first, COMPLETED)]  # `second` never ran
@@ -177,29 +179,51 @@ class TerminalSearchStatusTests(unittest.TestCase):
 
     def test_completed_search_on_a_genuinely_empty_allowed_requirement_is_terminal(self):
         req = _requirement(allowed=True)
-        status = srt.terminal_search_status(_map(req), self._round_outcome(True))
+        status = srt.terminal_search_status(
+            _map(req), self._round_outcome(True), semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertTrue(status[REQ]["terminal"])
         self.assertTrue(status[REQ]["completed"])
 
     def test_completed_search_without_the_permission_is_not_terminal(self):
         req = _requirement(allowed=False)
-        self.assertFalse(srt.terminal_search_status(_map(req), self._round_outcome(True))[REQ]["terminal"])
+        self.assertFalse(
+            srt.terminal_search_status(
+                _map(req), self._round_outcome(True), semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+            )[REQ]["terminal"]
+        )
 
     def test_an_incomplete_search_is_never_terminal(self):
         req = _requirement(allowed=True)
-        self.assertFalse(srt.terminal_search_status(_map(req), self._round_outcome(False))[REQ]["terminal"])
+        self.assertFalse(
+            srt.terminal_search_status(
+                _map(req), self._round_outcome(False), semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+            )[REQ]["terminal"]
+        )
 
     def test_a_completed_search_that_found_support_is_not_terminal(self):
         req = _requirement(allowed=True, filled=("named",))
-        self.assertFalse(srt.terminal_search_status(_map(req), self._round_outcome(True))[REQ]["terminal"])
+        self.assertFalse(
+            srt.terminal_search_status(
+                _map(req), self._round_outcome(True), semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+            )[REQ]["terminal"]
+        )
 
     def test_an_ambiguous_final_map_is_not_terminal(self):
         req = _requirement(allowed=True, ambiguous=("named",))
-        self.assertFalse(srt.terminal_search_status(_map(req), self._round_outcome(True))[REQ]["terminal"])
+        self.assertFalse(
+            srt.terminal_search_status(
+                _map(req), self._round_outcome(True), semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+            )[REQ]["terminal"]
+        )
 
     def test_outcomes_for_requirements_absent_from_the_final_map_are_never_terminal(self):
         req = _requirement(allowed=True, req_id="other#req")
-        self.assertFalse(srt.terminal_search_status(_map(req), self._round_outcome(True))[REQ]["terminal"])
+        self.assertFalse(
+            srt.terminal_search_status(
+                _map(req), self._round_outcome(True), semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+            )[REQ]["terminal"]
+        )
 
 
 class FinalTargetGateTests(unittest.TestCase):
@@ -217,14 +241,22 @@ class FinalTargetGateTests(unittest.TestCase):
     def test_terminal_zero_evidence_deficit_is_removed(self):
         req = _requirement(allowed=True)
         status = srt.engine_search_status(
-            srt.terminal_search_status(_map(req), {REQ: {"completed": True, "target_states": {}}})
+            srt.terminal_search_status(
+                _map(req),
+                {REQ: {"completed": True, "target_states": {}}},
+                semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
+            )
         )
         self.assertEqual(_targets(req, status), {})
 
     def test_flag_false_keeps_the_identical_target_even_with_a_completed_search(self):
         req = _requirement(allowed=False)
         status = srt.engine_search_status(
-            srt.terminal_search_status(_map(req), {REQ: {"completed": True, "target_states": {}}})
+            srt.terminal_search_status(
+                _map(req),
+                {REQ: {"completed": True, "target_states": {}}},
+                semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
+            )
         )
         self.assertEqual(_targets(req, status), _targets(req))
         self.assertEqual(len(_targets(req, status)), 2)
@@ -248,7 +280,7 @@ class FinalTargetGateTests(unittest.TestCase):
         empty = _requirement(allowed=True, req_id="a#req")
         partial = _requirement(allowed=True, filled=("named",), req_id="b#req")
         mapped = {"a": se.new_contract("a", [empty]), "b": se.new_contract("b", [partial])}
-        before = srt.compute_recovery_targets(mapped, {}, None)
+        before = srt.compute_recovery_targets(mapped, {}, None, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         after = srt.compute_recovery_targets(
             mapped,
             {},
@@ -257,6 +289,7 @@ class FinalTargetGateTests(unittest.TestCase):
                     "a#req": {"completed": True, "terminal": True, "target_states": {}},
                 }
             ),
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         self.assertTrue(set(after) < set(before))
         partial_ids = {tid for tid, t in before.items() if t["requirement_id"] == "b#req"}
@@ -288,7 +321,11 @@ class ObligationShapeMatrixTests(unittest.TestCase):
             with self.subTest(shape=name):
                 self.assertTrue(srt.is_genuinely_empty(req))
                 status = srt.engine_search_status(
-                    srt.terminal_search_status(_map(req), {REQ: {"completed": True, "target_states": {}}})
+                    srt.terminal_search_status(
+                        _map(req),
+                        {REQ: {"completed": True, "target_states": {}}},
+                        semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
+                    )
                 )
                 self.assertEqual(_targets(req, status), {}, name)
 
@@ -297,7 +334,11 @@ class ObligationShapeMatrixTests(unittest.TestCase):
             with self.subTest(shape=name):
                 self.assertTrue(_targets(req), name)
                 status = srt.engine_search_status(
-                    srt.terminal_search_status(_map(req), {REQ: {"completed": True, "target_states": {}}})
+                    srt.terminal_search_status(
+                        _map(req),
+                        {REQ: {"completed": True, "target_states": {}}},
+                        semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
+                    )
                 )
                 self.assertEqual(_targets(req, status), _targets(req), name)
 

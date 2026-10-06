@@ -243,7 +243,7 @@ def _instance_scope(requirement: dict, instance: dict) -> dict:
     return {"kind": "instance", "instance_key": instance["instance_key"]}
 
 
-def _incomplete_instance_targets(child_id: str, requirement: dict, instance: dict) -> list:
+def _incomplete_instance_targets(child_id: str, requirement: dict, instance: dict, *, semantics_version: str) -> list:
     scope = _instance_scope(requirement, instance)
     relationship_roles = _relationship_unverified_roles(requirement["role_completion"], instance)
     if relationship_roles is not None:
@@ -448,7 +448,13 @@ def _dedupe_origins(origins: list) -> list:
 
 
 def _targets_for_instance(
-    child_id: str, requirement: dict, instance: dict, requirement_owner_index: dict, mapped_contract_by_child: dict
+    child_id: str,
+    requirement: dict,
+    instance: dict,
+    requirement_owner_index: dict,
+    mapped_contract_by_child: dict,
+    *,
+    semantics_version: str,
 ) -> list:
     """The single per-instance dispatch point: complete-and-model-dependent -> corroboration
     (origin-aware, possibly redirected); complete-and-clean -> nothing; incomplete -> missing/
@@ -463,7 +469,7 @@ def _targets_for_instance(
                 child_id, requirement, instance, requirement_owner_index, mapped_contract_by_child
             )
         return []
-    return _incomplete_instance_targets(child_id, requirement, instance)
+    return _incomplete_instance_targets(child_id, requirement, instance, semantics_version=semantics_version)
 
 
 def _resolve_parent_requirement(requirement, parent_of, child_id, mapped_contract_by_child):
@@ -522,7 +528,11 @@ def _merge_recovery_target(existing: dict, new: dict) -> dict:
 
 
 def compute_recovery_targets(
-    mapped_contract_by_child: dict, parent_of: dict, search_status_by_requirement: dict | None = None
+    mapped_contract_by_child: dict,
+    parent_of: dict,
+    search_status_by_requirement: dict | None = None,
+    *,
+    semantics_version: str,
 ) -> dict:
     """`{target_id: RecoveryTarget}` -- the single generation primitive, called both to drive a
     recovery round's `gaps` and, afterward, to report what would still trigger recovery (one
@@ -533,6 +543,7 @@ def compute_recovery_targets(
     existing codebase's own current behavior exactly (nothing today persists these flags across
     calls). Carries no opt-in gate of its own -- callers (e2e.py) own that decision; this function
     only ever computes what WOULD be searched for."""
+    se.require_supported_semantics_version(semantics_version)
     search_status_by_requirement = search_status_by_requirement or {}
     requirement_owner_index = {
         requirement["id"]: child_id
@@ -546,7 +557,7 @@ def compute_recovery_targets(
 
     for child_id, contract in mapped_contract_by_child.items():
         for requirement in contract["requirements"]:
-            status = _gate_status(requirement, _status_for(requirement["id"]))
+            status = _gate_status(requirement, _status_for(requirement["id"]), semantics_version=semantics_version)
             if not se.compute_recovery_needed(requirement, status):
                 continue
             quantifier = requirement["instance_quantifier"]
@@ -587,7 +598,12 @@ def compute_recovery_targets(
                         continue
                     generated.extend(
                         _targets_for_instance(
-                            child_id, requirement, instance, requirement_owner_index, mapped_contract_by_child
+                            child_id,
+                            requirement,
+                            instance,
+                            requirement_owner_index,
+                            mapped_contract_by_child,
+                            semantics_version=semantics_version,
                         )
                     )
 
@@ -833,10 +849,13 @@ def structured_search_outcomes(recovery_targets_initial: dict, recovery_log: lis
     return by_requirement
 
 
-def terminal_search_status(sufficiency_map_final: dict, outcomes_by_requirement: dict) -> dict:
+def terminal_search_status(
+    sufficiency_map_final: dict, outcomes_by_requirement: dict, *, semantics_version: str
+) -> dict:
     """The canonical per-requirement scoped-search status used by the FINAL target computation and recorded in the
     parent construction record. `terminal` is true only when the search completed AND the final map is zero-evidence
     terminal for the requirement. Only requirements that owned round outcomes appear; others have no entry."""
+    se.require_supported_semantics_version(semantics_version)
     final_requirements = {
         requirement["id"]: requirement
         for contract in sufficiency_map_final.values()
@@ -866,7 +885,7 @@ def engine_search_status(terminal_status: dict) -> dict:
     }
 
 
-def _gate_status(requirement: dict, status: dict) -> dict:
+def _gate_status(requirement: dict, status: dict, *, semantics_version: str) -> dict:
     """The scoped-completion flag counts only for a zero-evidence terminal requirement. The engine reads it as
     budget-spent for EVERY state, so a stray flag on a partial, relational, ambiguous, or corroborating requirement would
     silence a real obligation. Such a flag is ignored here, never trusted."""

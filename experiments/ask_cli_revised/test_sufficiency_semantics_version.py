@@ -52,7 +52,7 @@ def _synthetic_map() -> dict:
 
 
 def test_a_stamped_map_carries_the_semantics_version_on_every_child():
-    stamped = si.stamp_map(_synthetic_map())
+    stamped = si.stamp_map(_synthetic_map(), semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
     assert all(contract[se.SEMANTICS_VERSION_KEY] == CURRENT for contract in stamped.values())
     assert si.read_map_identity(stamped) == {"status": "current", "version": CURRENT}
 
@@ -71,8 +71,8 @@ def test_the_constant_and_its_key_are_the_documented_values():
 
 
 def test_b_same_inputs_and_version_produce_deterministic_output():
-    first = _canon(si.stamp_map(_synthetic_map()))
-    second = _canon(si.stamp_map(_synthetic_map()))
+    first = _canon(si.stamp_map(_synthetic_map(), semantics_version=se.SUFFICIENCY_SEMANTICS_V3))
+    second = _canon(si.stamp_map(_synthetic_map(), semantics_version=se.SUFFICIENCY_SEMANTICS_V3))
     assert first == second
 
 
@@ -109,7 +109,7 @@ def test_d_production_refuses_a_missing_version():
 
 
 def test_d_partial_identity_is_an_error_in_every_mode():
-    partial = si.stamp_map(_synthetic_map())
+    partial = si.stamp_map(_synthetic_map(), semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
     del partial["c2"][se.SEMANTICS_VERSION_KEY]
     with pytest.raises(si.SemanticsIdentityError, match="partial"):
         si.read_map_identity(partial)
@@ -126,7 +126,7 @@ def test_d_an_empty_map_has_no_identity():
 
 
 def test_e_unknown_future_version_fails_closed():
-    future = si.stamp_map(_synthetic_map())
+    future = si.stamp_map(_synthetic_map(), semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
     for contract in future.values():
         contract[se.SEMANTICS_VERSION_KEY] = "sufficiency-semantics-v99"
     with pytest.raises(si.SemanticsIdentityError, match="unsupported"):
@@ -134,14 +134,14 @@ def test_e_unknown_future_version_fails_closed():
 
 
 def test_e_mixed_versions_across_children_fail_closed():
-    mixed = si.stamp_map(_synthetic_map())
+    mixed = si.stamp_map(_synthetic_map(), semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
     mixed["c2"][se.SEMANTICS_VERSION_KEY] = "sufficiency-semantics-v0"
     with pytest.raises(si.SemanticsIdentityError):
         si.read_map_identity(mixed)
 
 
 def test_e_a_non_string_version_fails_closed():
-    bad = si.stamp_map(_synthetic_map())
+    bad = si.stamp_map(_synthetic_map(), semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
     for contract in bad.values():
         contract[se.SEMANTICS_VERSION_KEY] = ["sufficiency-semantics-v1"]
     with pytest.raises(si.SemanticsIdentityError, match="string"):
@@ -167,7 +167,7 @@ def _current_run_dir(tmp_path: Path) -> Path:
     smap = json.loads(PRESERVED_MAP.read_text(encoding="utf-8"))
     sealed = json.loads(PRESERVED_LEDGER.read_text(encoding="utf-8"))
     rw_mod.attach_relation_witnesses(smap, sealed, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION)
-    si.stamp_map(smap)
+    si.stamp_map(smap, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
     (run / "17_sufficiency_map.json").write_text(json.dumps(smap, indent=2, ensure_ascii=False), encoding="utf-8")
     return run
 
@@ -234,7 +234,7 @@ def test_h_stripping_only_the_version_recovers_the_pre_i1c_structure_exactly():
             "witness_provenance": {"failure_reason": None},
         }
     ]
-    after = si.stamp_map(copy.deepcopy(before))
+    after = si.stamp_map(copy.deepcopy(before), semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
     assert _canon(si.strip_identity(after)) == _canon(before)
     assert _canon(after) != _canon(before)  # the version is really serialised
 
@@ -252,13 +252,15 @@ def test_i_the_version_changes_no_witness_recovery_stop_search_or_parent_claim_o
     sealed = json.loads(PRESERVED_LEDGER.read_text(encoding="utf-8"))
     plain = json.loads(PRESERVED_MAP.read_text(encoding="utf-8"))
     rw.attach_relation_witnesses(plain, sealed, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION)
-    stamped = si.stamp_map(copy.deepcopy(plain))
+    stamped = si.stamp_map(copy.deepcopy(plain), semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
 
     assert _canon(rel.relation_units(stamped, sealed, semantics_version=CURRENT)) == _canon(
         rel.relation_units(plain, sealed, semantics_version=CURRENT)
     )
     assert _canon(psl.build_claim_ledger(stamped, sealed)) == _canon(psl.build_claim_ledger(plain, sealed))
-    assert _canon(srt.compute_recovery_targets(stamped, {})) == _canon(srt.compute_recovery_targets(plain, {}))
+    assert _canon(srt.compute_recovery_targets(stamped, {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)) == _canon(
+        srt.compute_recovery_targets(plain, {}, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
+    )
 
     def stop_search(smap: dict) -> dict:
         return {

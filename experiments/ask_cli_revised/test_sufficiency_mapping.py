@@ -129,7 +129,7 @@ class MapRequirementTests(unittest.TestCase):
         completion = se.new_role_completion(required_roles=["assay", "result"])
         req = se.new_requirement("t#req", "atomic", specs, completion, "exists")
         units = [_unit("U1", 1, "An HPLC Scale which measured compound concentration was used.")]
-        result = sm.map_requirement(req, units)
+        result = sm.map_requirement(req, units, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertNotEqual(result["state"], "filled")
 
     def test_parent_context_alone_never_completes_a_requirement(self):
@@ -157,13 +157,13 @@ class MapRequirementTests(unittest.TestCase):
             provenance={"candidate_source": "model_mapping", "detail": "", "model": "stub"},
         )
         parent_req["instances"] = [parent_inst]
-        parent_req = se.recompute_requirement(parent_req)
+        parent_req = se.recompute_requirement(parent_req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertTrue(parent_req["instances"][0]["complete"])  # eligible: single required role, filled
 
         # even with the region eligible from a COMPLETE parent instance, no behavior evidence in
         # this child's own candidate units means the requirement stays incomplete.
         units = [_unit("U1", 1, "We administered the task to all participants.")]
-        result = sm.map_paired_requirement(req, parent_req, units)
+        result = sm.map_paired_requirement(req, parent_req, units, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertNotEqual(result["state"], "filled")
 
     def test_multi_instance_discovery_one_unit_per_instance(self):
@@ -174,7 +174,7 @@ class MapRequirementTests(unittest.TestCase):
             _unit("U1", 1, "This finding showed a significant effect."),
             _unit("U2", 2, "We administered a survey to participants."),
         ]
-        result = sm.map_requirement(req, units)
+        result = sm.map_requirement(req, units, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(len(result["instances"]), 2)
         self.assertTrue(result["instances"][0]["complete"])
         self.assertFalse(result["instances"][1]["complete"])
@@ -190,7 +190,7 @@ class CardinalityMappingTests(unittest.TestCase):
             "c#cat", "cardinality", {"cat": spec}, completion, "all_requested_categories", multi_instance=True
         )
         units = [_unit("U1", 1, "We measured explicit attitudes toward the target group.")]
-        result = sm.map_cardinality_requirement(req, units)
+        result = sm.map_cardinality_requirement(req, units, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(result["state"], "partially_filled")
         self.assertEqual(result["reason"], "category_missing")
         keys = {i["instance_key"]: i["complete"] for i in result["instances"]}
@@ -209,7 +209,7 @@ class CardinalityMappingTests(unittest.TestCase):
             _unit("U1", 1, "We measured explicit attitudes toward the target group."),
             _unit("U2", 1, "Implicit attitudes were assessed using a reaction-time task."),
         ]
-        result = sm.map_cardinality_requirement(req, units)
+        result = sm.map_cardinality_requirement(req, units, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(result["state"], "filled")
 
     def test_multi_term_model_nomination_only_under_scoped_authorization_fails_loudly(self):
@@ -231,7 +231,14 @@ class CardinalityMappingTests(unittest.TestCase):
         client = _FakeModelClient({})
         ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
         with self.assertRaises(ValueError):
-            sm.map_cardinality_requirement(req, units, model_client=client, child_id="c", nomination_context=ctx)
+            sm.map_cardinality_requirement(
+                req,
+                units,
+                model_client=client,
+                child_id="c",
+                nomination_context=ctx,
+                semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
+            )
         self.assertEqual(client.calls, [], "must refuse before any model call, not after one")
 
     def test_single_term_model_nomination_only_under_scoped_authorization_is_unaffected(self):
@@ -247,7 +254,14 @@ class CardinalityMappingTests(unittest.TestCase):
         units = [_unit("U1", 1, "We measured explicit attitudes toward the target group.")]
         client = _FakeModelClient({units[0]["proposition_ids"][0]: "explicit attitudes"})
         ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
-        result = sm.map_cardinality_requirement(req, units, model_client=client, child_id="c", nomination_context=ctx)
+        result = sm.map_cardinality_requirement(
+            req,
+            units,
+            model_client=client,
+            child_id="c",
+            nomination_context=ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
+        )
         self.assertEqual(result["state"], "filled")
 
     def test_multi_term_model_nomination_only_without_a_nomination_context_is_unaffected(self):
@@ -263,7 +277,9 @@ class CardinalityMappingTests(unittest.TestCase):
         )
         units = [_unit("U1", 1, "We measured explicit attitudes toward the target group.")]
         client = _FakeModelClient({})
-        result = sm.map_cardinality_requirement(req, units, model_client=client)
+        result = sm.map_cardinality_requirement(
+            req, units, model_client=client, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(result["reason"], "category_missing")
 
 
@@ -301,7 +317,7 @@ class PairedMappingTests(unittest.TestCase):
         else:
             instance["role_bindings"]["relation"] = se.new_role_binding("relation", state="missing", reason="not_found")
         parent["instances"] = [instance]
-        return se.recompute_requirement(parent)
+        return se.recompute_requirement(parent, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
 
     def _child_req(self):
         specs = {
@@ -327,7 +343,9 @@ class PairedMappingTests(unittest.TestCase):
         parent = self._parent_requirement_with_one_discovered_trait()
         self.assertTrue(parent["instances"][0]["complete"])
         units = [_unit("U9", 2, "The Empathy Scale was used to assess trait empathy in participants.")]
-        result = sm.map_paired_requirement(self._child_req(), parent, units)
+        result = sm.map_paired_requirement(
+            self._child_req(), parent, units, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(len(result["instances"]), 1)
         self.assertEqual(result["state"], "filled")
 
@@ -342,7 +360,9 @@ class PairedMappingTests(unittest.TestCase):
         parent = self._parent_requirement_with_one_discovered_trait(relation_filled=False)
         self.assertFalse(parent["instances"][0]["complete"])
         units = [_unit("U9", 2, "The Empathy Scale was used to assess trait empathy in participants.")]
-        result = sm.map_paired_requirement(self._child_req(), parent, units)
+        result = sm.map_paired_requirement(
+            self._child_req(), parent, units, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(result["instances"], [])
         self.assertEqual(result["state"], "missing")
 
@@ -353,7 +373,8 @@ class PairedMappingTests(unittest.TestCase):
         }
         completion = se.new_role_completion(required_roles=["trait", "relation"])
         empty_parent = se.recompute_requirement(
-            se.new_requirement("parent#req", "atomic", specs, completion, "open_list", multi_instance=True)
+            se.new_requirement("parent#req", "atomic", specs, completion, "open_list", multi_instance=True),
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         child_specs = {
             "trait": se.new_role_spec("trait", "trait", "model_nomination_only"),
@@ -369,7 +390,7 @@ class PairedMappingTests(unittest.TestCase):
             multi_instance=True,
             parent_context_roles=["trait"],
         )
-        result = sm.map_paired_requirement(req, empty_parent, [])
+        result = sm.map_paired_requirement(req, empty_parent, [], semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(result["instances"], [])
         self.assertEqual(result["state"], "missing")
 
@@ -395,7 +416,7 @@ class MapAnyRequirementDispatchTests(unittest.TestCase):
             parent_context_roles=["trait"],
         )
         with self.assertRaises(ValueError):
-            sm.map_any_requirement(req, [], parent_requirement=None)
+            sm.map_any_requirement(req, [], parent_requirement=None, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
 
     def test_cardinality_dispatches_regardless_of_parent_context(self):
         spec = se.new_role_spec("cat", "cat", "explicit_category_terms", requested_category_terms=["a", "b"])
@@ -403,7 +424,7 @@ class MapAnyRequirementDispatchTests(unittest.TestCase):
         req = se.new_requirement(
             "x#cat", "cardinality", {"cat": spec}, completion, "all_requested_categories", multi_instance=True
         )
-        result = sm.map_any_requirement(req, [])
+        result = sm.map_any_requirement(req, [], semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(len(result["instances"]), 2)
 
     def test_no_parent_context_roles_uses_generic_mapper(self):
@@ -411,7 +432,7 @@ class MapAnyRequirementDispatchTests(unittest.TestCase):
         completion = se.new_role_completion(required_roles=["a"])
         req = se.new_requirement("y#req", "atomic", specs, completion, "exists")
         units = [_unit("U1", 1, "This finding was found to be significant.")]
-        result = sm.map_any_requirement(req, units)
+        result = sm.map_any_requirement(req, units, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(result["state"], "filled")
 
 
@@ -569,7 +590,9 @@ class ForkingMappingTests(unittest.TestCase):
         completion = se.new_role_completion(required_roles=["assay"])
         req = se.new_requirement("t#req", "atomic", specs, completion, "exists")
         units = [_unit("u1", 1, "The Empathy Scale was used.")]
-        result = sm.map_requirement(req, units)  # no model_client at all -- every existing call site
+        result = sm.map_requirement(
+            req, units, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )  # no model_client at all -- every existing call site
         self.assertEqual(len(result["instances"]), 1)
 
     def test_a_single_unit_naming_two_traits_forks_into_two_instances(self):
@@ -579,7 +602,7 @@ class ForkingMappingTests(unittest.TestCase):
         units = [_unit("u1", 1, "Both neuroticism and openness were measured.")]
         pid = units[0]["proposition_ids"][0]
         client = _FakeModelClient({pid: ["neuroticism", "openness"]})
-        result = sm.map_requirement(req, units, model_client=client)
+        result = sm.map_requirement(req, units, model_client=client, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(len(result["instances"]), 2)
         texts = {inst["role_bindings"]["trait"]["exact_text"] for inst in result["instances"]}
         self.assertEqual(texts, {"neuroticism", "openness"})
@@ -591,7 +614,7 @@ class ForkingMappingTests(unittest.TestCase):
         completion = se.new_role_completion(required_roles=["trait"])
         req = se.new_requirement("c8#req", "atomic", specs, completion, "open_list", multi_instance=True)
         units = [_unit("u1", 1, "Participants showed elevated neuroticism.")]
-        result = sm.map_requirement(req, units)  # model_client omitted
+        result = sm.map_requirement(req, units, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)  # model_client omitted
         self.assertEqual(len(result["instances"]), 1)
         self.assertEqual(result["instances"][0]["role_bindings"]["trait"]["state"], "missing")
 
@@ -626,7 +649,9 @@ class InstanceKeyCollisionTests(unittest.TestCase):
 
     def test_two_independently_forking_roles_produce_four_uniquely_keyed_instances(self):
         req, units = self._requirement_and_units()
-        result = sm.map_requirement(req, units, model_client=_TwoRoleForkingClient())
+        result = sm.map_requirement(
+            req, units, model_client=_TwoRoleForkingClient(), semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(len(result["instances"]), 4)
         keys = [inst["instance_key"] for inst in result["instances"]]
         self.assertEqual(len(set(keys)), 4, f"instance_key collision: {keys}")
@@ -640,9 +665,17 @@ class InstanceKeyCollisionTests(unittest.TestCase):
     def test_replay_of_identical_inputs_produces_identical_keys(self):
         req, units = self._requirement_and_units()
         client = _TwoRoleForkingClient()
-        keys_first = {inst["instance_key"] for inst in sm.map_requirement(req, units, model_client=client)["instances"]}
+        keys_first = {
+            inst["instance_key"]
+            for inst in sm.map_requirement(
+                req, units, model_client=client, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+            )["instances"]
+        }
         keys_second = {
-            inst["instance_key"] for inst in sm.map_requirement(req, units, model_client=client)["instances"]
+            inst["instance_key"]
+            for inst in sm.map_requirement(
+                req, units, model_client=client, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+            )["instances"]
         }
         self.assertEqual(keys_first, keys_second)
 
@@ -654,7 +687,7 @@ class InstanceKeyCollisionTests(unittest.TestCase):
         completion = se.new_role_completion(required_roles=["role_a"])
         req = se.new_requirement("single#req", "atomic", specs, completion, "exists")
         units = [_unit("u1", 1, "This produced a clear result.")]
-        result = sm.map_requirement(req, units)
+        result = sm.map_requirement(req, units, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertEqual(len(result["instances"]), 1)
         self.assertIsNone(result["instances"][0]["instance_key"])
 
@@ -792,6 +825,7 @@ class ReformulatedNominationRepresentabilityTests(unittest.TestCase):
             ),
             units,
             model_client=client,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         self.assertEqual(result["state"], "filled", f"expected ACCEPT to fill: {exact_text!r}")
         self.assertEqual(result["instances"][0]["role_bindings"]["x"]["exact_text"], exact_text)
@@ -812,6 +846,7 @@ class ReformulatedNominationRepresentabilityTests(unittest.TestCase):
             ),
             units,
             model_client=client,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         self.assertEqual(result["state"], "missing", f"expected DECLINE to leave the role missing: {passage!r}")
 
@@ -894,7 +929,7 @@ class ParentEligibilityForkingTests(unittest.TestCase):
         completion = se.new_role_completion(required_roles=["region", "relation"])
         req = se.new_requirement("c4#req", "atomic", specs, completion, "exists")
         req["instances"] = instances
-        return se.recompute_requirement(req)
+        return se.recompute_requirement(req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
 
     def _complete_instance(self, key, region_prop, region_text, *, relation_prop=None):
         relation_prop = relation_prop or region_prop
@@ -969,7 +1004,9 @@ class ParentEligibilityForkingTests(unittest.TestCase):
     # 1. one complete parent instance -> existing behavior preserved.
     def test_one_complete_parent_instance_propagates(self):
         parent = self._parent_req([self._complete_instance("amygdala", "p11", "amygdala")])
-        result = sm.map_paired_requirement(self._child_req(), parent, self._matching_units())
+        result = sm.map_paired_requirement(
+            self._child_req(), parent, self._matching_units(), semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(len(result["instances"]), 1)
         self.assertEqual(self._region_texts(result), {"amygdala"})
         binding = result["instances"][0]["role_bindings"]["region"]
@@ -982,7 +1019,9 @@ class ParentEligibilityForkingTests(unittest.TestCase):
         )
         self.assertFalse(parent["instances"][0]["complete"])
         self.assertTrue(parent["instances"][1]["complete"])
-        result = sm.map_paired_requirement(self._child_req(), parent, self._matching_units())
+        result = sm.map_paired_requirement(
+            self._child_req(), parent, self._matching_units(), semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(self._region_texts(result), {"amygdala"})
 
     def test_reversed_parent_order_produces_identical_semantic_result(self):
@@ -992,8 +1031,12 @@ class ParentEligibilityForkingTests(unittest.TestCase):
         backward = self._parent_req(
             [self._complete_instance("amygdala", "p11", "amygdala"), self._incomplete_instance("rtpj", "p27", "RTPJ")]
         )
-        result_forward = sm.map_paired_requirement(self._child_req(), forward, self._matching_units())
-        result_backward = sm.map_paired_requirement(self._child_req(), backward, self._matching_units())
+        result_forward = sm.map_paired_requirement(
+            self._child_req(), forward, self._matching_units(), semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
+        result_backward = sm.map_paired_requirement(
+            self._child_req(), backward, self._matching_units(), semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(self._region_texts(result_forward), self._region_texts(result_backward))
         self.assertEqual(result_forward["state"], result_backward["state"])
 
@@ -1002,7 +1045,9 @@ class ParentEligibilityForkingTests(unittest.TestCase):
         parent = self._parent_req(
             [self._complete_instance("amygdala", "p11", "amygdala"), self._complete_instance("rtpj", "p27", "RTPJ")]
         )
-        result = sm.map_paired_requirement(self._child_req(), parent, self._matching_units())
+        result = sm.map_paired_requirement(
+            self._child_req(), parent, self._matching_units(), semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(len(result["instances"]), 2)
         self.assertEqual(self._region_texts(result), {"amygdala", "RTPJ"})
 
@@ -1014,7 +1059,9 @@ class ParentEligibilityForkingTests(unittest.TestCase):
                 self._complete_instance("second", "p99", "amygdala", relation_prop="p99"),
             ]
         )
-        result = sm.map_paired_requirement(self._child_req(), parent, self._matching_units())
+        result = sm.map_paired_requirement(
+            self._child_req(), parent, self._matching_units(), semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(len(result["instances"]), 2)
         prop_ids = {inst["role_bindings"]["region"]["proposition_id"] for inst in result["instances"]}
         self.assertEqual(prop_ids, {"p11", "p99"})
@@ -1025,7 +1072,9 @@ class ParentEligibilityForkingTests(unittest.TestCase):
 
         parent = self._parent_req([self._complete_instance("amygdala", "p11", "amygdala")])
         parent = sd._stamp_model_dependency_origins(parent, "c4")
-        result = sm.map_paired_requirement(self._child_req(), parent, self._matching_units())
+        result = sm.map_paired_requirement(
+            self._child_req(), parent, self._matching_units(), semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         binding = result["instances"][0]["role_bindings"]["region"]
         self.assertTrue(binding["provenance"]["upstream_model_dependent"])
         self.assertEqual(binding["provenance"]["source_lineage"], ["model_mapping", "parent_context"])
@@ -1049,7 +1098,9 @@ class ParentEligibilityForkingTests(unittest.TestCase):
         parent_req = se.new_requirement(
             "c5#req", "relational", parent_specs, parent_completion, "exists", parent_context_roles=["region"]
         )
-        mapped_parent = sm.map_paired_requirement(parent_req, grandparent, self._matching_units())
+        mapped_parent = sm.map_paired_requirement(
+            parent_req, grandparent, self._matching_units(), semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         mapped_parent = sd._stamp_model_dependency_origins(mapped_parent, "c5")
         self.assertEqual(mapped_parent["state"], "filled")
 
@@ -1061,7 +1112,9 @@ class ParentEligibilityForkingTests(unittest.TestCase):
         grandchild_req = se.new_requirement(
             "c6#req", "relational", grandchild_specs, grandchild_completion, "exists", parent_context_roles=["region"]
         )
-        result = sm.map_paired_requirement(grandchild_req, mapped_parent, self._no_match_units())
+        result = sm.map_paired_requirement(
+            grandchild_req, mapped_parent, self._no_match_units(), semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(len(result["instances"]), 1)
         binding = result["instances"][0]["role_bindings"]["region"]
         self.assertTrue(binding["provenance"]["upstream_model_dependent"])
@@ -1076,7 +1129,9 @@ class ParentEligibilityForkingTests(unittest.TestCase):
         )
         units = [_unit("U9", 9, "The insula was independently named in this own passage, producing a result.")]
         client = _FakeModelClient({units[0]["proposition_ids"][0]: "insula"})
-        result = sm.map_paired_requirement(self._child_req(), parent, units, model_client=client)
+        result = sm.map_paired_requirement(
+            self._child_req(), parent, units, model_client=client, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         # own evidence wins outright -- exactly one instance, never one per eligible parent.
         self.assertEqual(len(result["instances"]), 1)
         self.assertEqual(result["instances"][0]["role_bindings"]["region"]["exact_text"], "insula")
@@ -1089,7 +1144,9 @@ class ParentEligibilityForkingTests(unittest.TestCase):
             [self._complete_instance("amygdala", "p11", "amygdala"), self._complete_instance("rtpj", "p27", "RTPJ")]
         )
         # no model_client at all -- own evidence for "region" (model_nomination_only) is always empty.
-        result = sm.map_paired_requirement(self._child_req(), parent, self._matching_units())
+        result = sm.map_paired_requirement(
+            self._child_req(), parent, self._matching_units(), semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(len(result["instances"]), 2)
         self.assertEqual(self._region_texts(result), {"amygdala", "RTPJ"})
 
@@ -1101,7 +1158,9 @@ class ParentEligibilityForkingTests(unittest.TestCase):
         historical single-instance-fallback mapper always built exactly one base instance; this
         preserves that exactly (one instance, parent role missing, OTHER role still evaluated)."""
         parent = self._parent_req([self._incomplete_instance("rtpj", "p27", "RTPJ")])
-        result = sm.map_paired_requirement(self._child_req(), parent, self._matching_units())
+        result = sm.map_paired_requirement(
+            self._child_req(), parent, self._matching_units(), semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(len(result["instances"]), 1)
         inst = result["instances"][0]
         self.assertEqual(inst["role_bindings"]["region"]["state"], "missing")
@@ -1110,7 +1169,9 @@ class ParentEligibilityForkingTests(unittest.TestCase):
 
     def test_zero_eligible_parents_and_zero_own_evidence_anywhere_is_one_missing_instance(self):
         parent = self._parent_req([self._incomplete_instance("rtpj", "p27", "RTPJ")])
-        result = sm.map_paired_requirement(self._child_req(), parent, self._no_match_units())
+        result = sm.map_paired_requirement(
+            self._child_req(), parent, self._no_match_units(), semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(len(result["instances"]), 1)
         self.assertEqual(result["state"], "missing")
 
@@ -1166,11 +1227,15 @@ class ParentEligibilityForkingTests(unittest.TestCase):
                 proposition_ids=["p27"],
             ),
         ]
-        c4_mapped = sm.map_requirement(c4_req, units, model_client=_RecordedPhase15Client())
+        c4_mapped = sm.map_requirement(
+            c4_req, units, model_client=_RecordedPhase15Client(), semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(len(c4_mapped["instances"]), 2)
         self.assertEqual(c4_mapped["state"], "filled")
 
-        c6_mapped = sm.map_paired_requirement(self._child_req(), c4_mapped, self._no_match_units())
+        c6_mapped = sm.map_paired_requirement(
+            self._child_req(), c4_mapped, self._no_match_units(), semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(
             {inst["role_bindings"]["region"]["exact_text"] for inst in c6_mapped["instances"]},
             {"the specific amygdala"},
@@ -1179,7 +1244,9 @@ class ParentEligibilityForkingTests(unittest.TestCase):
         # Adversarial permutation, same real fixture: reverse c4's own instance list (simulating
         # the model having listed amygdala before RTPJ) -- the corrected result must be identical.
         reversed_c4 = {**c4_mapped, "instances": list(reversed(c4_mapped["instances"]))}
-        reversed_c6 = sm.map_paired_requirement(self._child_req(), reversed_c4, self._no_match_units())
+        reversed_c6 = sm.map_paired_requirement(
+            self._child_req(), reversed_c4, self._no_match_units(), semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(
             {inst["role_bindings"]["region"]["exact_text"] for inst in reversed_c6["instances"]},
             {"the specific amygdala"},
@@ -1206,7 +1273,7 @@ class ParentEligibilityForkingTests(unittest.TestCase):
         )
         incomplete["role_bindings"]["relation"] = se.new_role_binding("relation", state="missing", reason="not_found")
         parent_req["instances"] = [incomplete]
-        parent_req = se.recompute_requirement(parent_req)
+        parent_req = se.recompute_requirement(parent_req, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
         self.assertFalse(parent_req["instances"][0]["complete"])
 
         child_specs = {
@@ -1223,7 +1290,9 @@ class ParentEligibilityForkingTests(unittest.TestCase):
             multi_instance=True,
             parent_context_roles=["trait"],
         )
-        result = sm.map_paired_requirement(child_req, parent_req, self._matching_units())
+        result = sm.map_paired_requirement(
+            child_req, parent_req, self._matching_units(), semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         self.assertEqual(result["instances"], [])
         self.assertEqual(result["state"], "missing")
 
@@ -1278,10 +1347,17 @@ class BindRoleCandidatesScopingTests(unittest.TestCase):
     def test_with_no_nomination_context_behavior_is_byte_identical_to_pre_phase_19(self):
         units = [_unit("u1", 1, "The amygdala showed increased activity.")]
         client = _FakeModelClient({units[0]["proposition_ids"][0]: "amygdala"})
-        no_scope = sm._bind_role_candidates(self._role_spec(), units, model_client=client)
+        no_scope = sm._bind_role_candidates(
+            self._role_spec(), units, model_client=client, semantics_version=se.SUFFICIENCY_SEMANTICS_V3
+        )
         client2 = _FakeModelClient({units[0]["proposition_ids"][0]: "amygdala"})
         with_unused_scope_args = sm._bind_role_candidates(
-            self._role_spec(), units, model_client=client2, child_id="c4", requirement_id="c4#req"
+            self._role_spec(),
+            units,
+            model_client=client2,
+            child_id="c4",
+            requirement_id="c4#req",
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         self.assertEqual(len(no_scope), 1)
         self.assertEqual(no_scope[0]["exact_text"], with_unused_scope_args[0]["exact_text"])
@@ -1293,7 +1369,13 @@ class BindRoleCandidatesScopingTests(unittest.TestCase):
         client = _FakeModelClient({units[0]["proposition_ids"][0]: "amygdala"})
         ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
         with self.assertRaises(ValueError):
-            sm._bind_role_candidates(self._role_spec(), units, model_client=client, nomination_context=ctx)
+            sm._bind_role_candidates(
+                self._role_spec(),
+                units,
+                model_client=client,
+                nomination_context=ctx,
+                semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
+            )
 
     def test_fresh_authorized_call_stamps_receipt_status_on_provenance(self):
         units = [_unit("u1", 1, "The amygdala showed increased activity.")]
@@ -1306,6 +1388,7 @@ class BindRoleCandidatesScopingTests(unittest.TestCase):
             child_id="c4",
             requirement_id="c4#req",
             nomination_context=ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         self.assertEqual(result[0]["provenance"]["nomination_receipt_status"], "fresh")
         self.assertEqual(result[0]["provenance"]["candidate_source"], "model_mapping")
@@ -1322,6 +1405,7 @@ class BindRoleCandidatesScopingTests(unittest.TestCase):
             child_id="c4",
             requirement_id="c4#req",
             nomination_context=ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         self.assertEqual(result, [])
         self.assertEqual(client.calls, [], "an unauthorized scope must never reach the model")
@@ -1337,6 +1421,7 @@ class BindRoleCandidatesScopingTests(unittest.TestCase):
             child_id="c4",
             requirement_id="c4#req",
             nomination_context=ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         result2 = sm._bind_role_candidates(
             self._role_spec(),
@@ -1345,6 +1430,7 @@ class BindRoleCandidatesScopingTests(unittest.TestCase):
             child_id="c4",
             requirement_id="c4#req",
             nomination_context=ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         self.assertEqual(len(client.calls), 1, "the same scope resolved twice must cost exactly one model call")
         self.assertEqual(result2[0]["provenance"]["nomination_receipt_status"], "memoized_in_pass")
@@ -1368,6 +1454,7 @@ class BindRoleCandidatesScopingTests(unittest.TestCase):
             child_id="c4",
             requirement_id="c4#req",
             nomination_context=ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         self.assertEqual(result_a[0]["exact_text"], "amygdala", "the authorized (c4) scope must actually bind")
         client_b = _FakeModelClient({units[0]["proposition_ids"][0]: "amygdala"})
@@ -1378,6 +1465,7 @@ class BindRoleCandidatesScopingTests(unittest.TestCase):
             child_id="c5",
             requirement_id="c5#req",
             nomination_context=ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         self.assertEqual(len(client_a.calls), 1, "the authorized (c4) scope must call the model")
         self.assertEqual(
@@ -1423,6 +1511,7 @@ class BindRoleCandidatesScopingTests(unittest.TestCase):
             child_id="c4",
             requirement_id="c4#req",
             nomination_context=ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         self.assertEqual(result[0]["exact_text"], "amygdala")
         self.assertEqual(result[0]["provenance"]["nomination_receipt_status"], "fresh_failed_fallback_to_prior")
@@ -1464,6 +1553,7 @@ class BindRoleCandidatesScopingTests(unittest.TestCase):
             child_id="c4",
             requirement_id="c4#req",
             nomination_context=ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         self.assertEqual(result, [])
 
@@ -1558,6 +1648,7 @@ class BindRoleCandidatesScopingTests(unittest.TestCase):
             child_id="c4",
             requirement_id="c4#req",
             nomination_context=ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         self.assertEqual(
             len(client.calls),
@@ -1607,6 +1698,7 @@ class BindRoleCandidatesScopingTests(unittest.TestCase):
             child_id="c5",
             requirement_id="c5#req",
             nomination_context=ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         self.assertEqual(
             client.calls, [], "a held-fixed scope must never call the model regardless of broadened candidates"
@@ -1661,7 +1753,14 @@ class MapRequirementPhase19ForkMemoizationTests(unittest.TestCase):
 
         client = _CombinedClient()
         ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
-        result = sm.map_requirement(req, units, model_client=client, child_id="c11", nomination_context=ctx)
+        result = sm.map_requirement(
+            req,
+            units,
+            model_client=client,
+            child_id="c11",
+            nomination_context=ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
+        )
 
         role2_calls = [c for c in client.calls if c == "how it was measured"]
         self.assertEqual(len(result["instances"]), 2, "role 1 must still fork into 2 instances")
@@ -1703,10 +1802,21 @@ class MapRequirementPhase19ForkMemoizationTests(unittest.TestCase):
                     ]
                 return [{"proposition_id": pid, "exact_text": "IRI questionnaire"}]
 
-        legacy_result = sm.map_requirement(req, units, model_client=_DeterministicClient(), child_id="c11")
+        legacy_result = sm.map_requirement(
+            req,
+            units,
+            model_client=_DeterministicClient(),
+            child_id="c11",
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
+        )
         ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
         memoized_result = sm.map_requirement(
-            req, units, model_client=_DeterministicClient(), child_id="c11", nomination_context=ctx
+            req,
+            units,
+            model_client=_DeterministicClient(),
+            child_id="c11",
+            nomination_context=ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
 
         def _strip(result):
@@ -1751,7 +1861,14 @@ class MapRequirementPhase19bMultiInstancePartitionTests(unittest.TestCase):
         ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
 
         # Before Phase 19b: RequestFingerprintMismatch here. Now: completes cleanly.
-        result = sm.map_requirement(req, units, model_client=client, child_id="c8", nomination_context=ctx)
+        result = sm.map_requirement(
+            req,
+            units,
+            model_client=client,
+            child_id="c8",
+            nomination_context=ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
+        )
 
         self.assertEqual(len(result["instances"]), 2)
         texts = {
@@ -1801,7 +1918,14 @@ class MapRequirementPhase19bMultiInstancePartitionTests(unittest.TestCase):
 
         client = _TwoUnitClient()
         ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
-        result = sm.map_requirement(req, units, model_client=client, child_id="c12", nomination_context=ctx)
+        result = sm.map_requirement(
+            req,
+            units,
+            model_client=client,
+            child_id="c12",
+            nomination_context=ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
+        )
 
         self.assertEqual(len(result["instances"]), 2)
         self.assertEqual(len(client.calls), 4)  # 2 roles x 2 units, never collapsed, never crashed
@@ -1830,12 +1954,26 @@ class MapRequirementPhase19bMultiInstancePartitionTests(unittest.TestCase):
             {units[0]["proposition_ids"][0]: "empathy", units[1]["proposition_ids"][0]: "disgust sensitivity"}
         )
         u1_ctx = mscope.new_nomination_context(mscope.all_eligible_policy())
-        sm.map_requirement(req, units, model_client=client, child_id="c8", nomination_context=u1_ctx)
+        sm.map_requirement(
+            req,
+            units,
+            model_client=client,
+            child_id="c8",
+            nomination_context=u1_ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
+        )
         self.assertEqual(len(client.calls), 2)
 
         u1_snapshot = dict(u1_ctx["in_pass_receipts"])
         u2_ctx = mscope.new_nomination_context(mscope.exact_scope_set_policy(set()), prior_receipts=u1_snapshot)
-        result = sm.map_requirement(req, units, model_client=client, child_id="c8", nomination_context=u2_ctx)
+        result = sm.map_requirement(
+            req,
+            units,
+            model_client=client,
+            child_id="c8",
+            nomination_context=u2_ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
+        )
 
         self.assertEqual(len(client.calls), 2, "U2 must make zero additional physical calls")
         texts = {
@@ -1861,7 +1999,14 @@ class MapAnyRequirementPhase19ChildIdThreadingTests(unittest.TestCase):
         target_scope = mscope.new_model_nomination_scope("c4", "zzz#totally-unrelated-id", "region")
         ctx = mscope.new_nomination_context(mscope.exact_scope_set_policy([target_scope]))
 
-        result = sm.map_any_requirement(req, units, model_client=client, child_id="c4", nomination_context=ctx)
+        result = sm.map_any_requirement(
+            req,
+            units,
+            model_client=client,
+            child_id="c4",
+            nomination_context=ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
+        )
         self.assertEqual(result["instances"][0]["role_bindings"]["region"]["exact_text"], "amygdala")
         self.assertEqual(len(client.calls), 1)
 
@@ -1880,7 +2025,12 @@ class MapPairedRequirementPhase19Tests(unittest.TestCase):
         parent_target = mscope.new_model_nomination_scope("c4", "c4#req", "region")
         parent_ctx = mscope.new_nomination_context(mscope.exact_scope_set_policy([parent_target]))
         mapped_parent = sm.map_requirement(
-            parent_req, parent_units, model_client=parent_client, child_id="c4", nomination_context=parent_ctx
+            parent_req,
+            parent_units,
+            model_client=parent_client,
+            child_id="c4",
+            nomination_context=parent_ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
 
         child_specs = {
@@ -1909,6 +2059,7 @@ class MapPairedRequirementPhase19Tests(unittest.TestCase):
             model_client=_ShouldNeverBeCalledClient(),
             child_id="c5",
             nomination_context=parent_ctx,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_V3,
         )
         self.assertEqual(result["instances"][0]["role_bindings"]["region"]["exact_text"], "amygdala")
         self.assertEqual(

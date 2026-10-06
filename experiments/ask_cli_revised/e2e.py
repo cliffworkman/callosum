@@ -378,6 +378,7 @@ def _sufficiency_post_recovery_request_inventory(
         sufficiency_parent_of or {},
         model_client=_SufficiencyPostRecoveryDryClient(),
         nomination_context=ctx,
+        semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION,
     )
     return frozenset(key for key, receipt in ctx["in_pass_receipts"].items() if receipt["status"] == "fresh")
 
@@ -536,6 +537,7 @@ def execute(
                         sufficiency_parent_of or {},
                         model_client=sufficiency_u1_model_client,
                         nomination_context=sufficiency_u1_context,
+                        semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION,
                     )
                     sufficiency_diagnostic.compute_direction_and_effectiveness(
                         early_sealed, sufficiency_map_initial, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
@@ -544,7 +546,10 @@ def execute(
             else:
                 started = time.monotonic()
                 sufficiency_map_initial = sufficiency_diagnostic.compute_diagnostic_sufficiency_map(
-                    early_sealed, sufficiency_contract, sufficiency_parent_of or {}
+                    early_sealed,
+                    sufficiency_contract,
+                    sufficiency_parent_of or {},
+                    semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION,
                 )
                 sufficiency_diagnostic.compute_direction_and_effectiveness(
                     early_sealed, sufficiency_map_initial, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
@@ -598,7 +603,7 @@ def execute(
         recovery_targets_initial = None
         if sufficiency_recovery_gate_enabled and sufficiency_map_initial is not None:
             recovery_targets_initial = sufficiency_recovery_targets.compute_recovery_targets(
-                sufficiency_map_initial, sufficiency_parent_of or {}
+                sufficiency_map_initial, sufficiency_parent_of or {}, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
             )
             for target in recovery_targets_initial.values():
                 hint = sufficiency_recovery_targets.recovery_query_hint(target, sufficiency_map_initial)
@@ -751,6 +756,7 @@ def execute(
             sufficiency_parent_of or {},
             model_client=sufficiency_u1_model_client,
             nomination_context=sufficiency_u2_context,
+            semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION,
         )
         sufficiency_diagnostic.compute_direction_and_effectiveness(
             sealed, sufficiency_map_final, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
@@ -812,7 +818,9 @@ def execute(
     # A requirement's zero-evidence deficit closes only when its own search completed AND the final map is genuinely
     # empty for it. The initial inventory above is computed with no status, so the search obligation itself is kept.
     terminal_search = (
-        sufficiency_recovery_targets.terminal_search_status(sufficiency_map_final, structured_search)
+        sufficiency_recovery_targets.terminal_search_status(
+            sufficiency_map_final, structured_search, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+        )
         if sufficiency_map_final is not None
         else {}
     )
@@ -821,6 +829,7 @@ def execute(
             sufficiency_map_final,
             sufficiency_parent_of or {},
             sufficiency_recovery_targets.engine_search_status(terminal_search),
+            semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION,
         )
         if sufficiency_map_final is not None
         else {}
