@@ -300,6 +300,7 @@ def test_module_is_not_imported_by_any_production_path():
             "category_polarity.py",
             "test_category_polarity.py",
             "test_category_polarity_hardening.py",
+            "test_category_polarity_result_complement.py",
         }:
             continue
         if "category_polarity" in path.read_text(encoding="utf-8"):

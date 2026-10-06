@@ -289,16 +289,25 @@ def _token_spans(text: str) -> list[tuple[str, int, int]]:
     return [(m.group(0).lower(), m.start(), m.end()) for m in _TOKEN_RE.finditer(text)]
 
 
-def _result_found(words: list[str], term_first: int, term_last: int) -> bool:
-    """Whether a "found" in this clause reports a result (R5). Structural only: "found that", "found to", or a
-    result-noun head before the term, linked by of/with/between/for, with "found" after the term and not followed by
-    a locative. Object-location and procedural uses ("found in the database", "found the questionnaire") do not match."""
+def _complement_introducer(words: list[str]) -> int | None:
+    """Index of the first `found` that introduces a result complement (`found that` / `found to`), or None.
+
+    The introducer is NOT a finding predicate. Its complement must establish its own classification (I2-1b).
+    """
+    for i in range(len(words) - 1):
+        if words[i] == "found" and words[i + 1] in {"that", "to"}:
+            return i
+    return None
+
+
+def _result_noun_found(words: list[str], term_first: int, term_last: int) -> bool:
+    """P2 only: a result-noun head, linked by of/with/between/for, precedes the term; `found` follows the term and is
+    not followed by a locative. Applied only where `found` begins no complement (P1 has precedence). Object-location
+    and procedural uses ("found in the database", "found the questionnaire") do not match."""
     for i, word in enumerate(words):
         if word != "found":
             continue
         following = words[i + 1] if i + 1 < len(words) else None
-        if following in {"that", "to"}:
-            return True
         if i > term_last and (following is None or following not in LOCATIVES):
             for h in range(max(term_first - 1, 0)):
                 if words[h] in RESULT_HEADS and words[h + 1] in RESULT_HEAD_LINKS and h + 1 < term_first:
@@ -311,6 +320,7 @@ def _classify_occurrence(sentence: str, start: int, end: int, competing: tuple[s
     clause_index = next((i for i, c in enumerate(clauses) if c["start"] <= start < c["end"]), None)
     record = {
         "matched_surface": surface,
+        "result_complement": None,
         "sentence": sentence,
         "term_clause": None,
         "contrast_clause": None,
@@ -341,9 +351,19 @@ def _classify_occurrence(sentence: str, start: int, end: int, competing: tuple[s
     rel_start, rel_end = start - term_clause["start"], end - term_clause["start"]
     overlap = [k for k, (_, s0, s1) in enumerate(spans) if s0 < rel_end and s1 > rel_start]
     term_first, term_last = (overlap[0], overlap[-1]) if overlap else (0, 0)
-    finding = _finding_positions(words, FINDING_CUES)
-    if _result_found(words, term_first, term_last):
-        finding = finding + ["found"]
+    introducer = _complement_introducer(words)
+    if introducer is not None:
+        # P1: `found that` / `found to` introduces a result. Authority comes only from the complement, after an
+        # optional copula; P2 does not apply to this clause.
+        complement_start = introducer + 2
+        if complement_start < len(words) and words[complement_start] == "be":
+            complement_start += 1
+        finding = _finding_positions(words[complement_start:], FINDING_CUES)
+        record["result_complement"] = term_clause["text"][spans[introducer + 1][1] :].strip()
+    else:
+        finding = _finding_positions(words, FINDING_CUES)
+        if _result_noun_found(words, term_first, term_last):
+            finding = finding + ["found"]
     directional = _finding_positions(words, DIRECTIONAL_CUES)
     record["finding_cues"] = sorted(set(finding))
     record["directional_cues"] = sorted(set(directional))
@@ -400,7 +420,11 @@ def _classify_occurrence(sentence: str, start: int, end: int, competing: tuple[s
             return decide(UNKNOWN, "unattached_contrast_negation", "unattached_contrast_negation")
 
     if finding:
-        return decide(POSITIVE, "local_finding_predicate")
+        rule = "result_complement_finding_predicate" if introducer is not None else "local_finding_predicate"
+        return decide(POSITIVE, rule)
+    if introducer is not None:
+        # A result is reported, but the complement carries no authoritative finding or null: unknown, not positive.
+        return decide(UNKNOWN, "result_complement_unauthorized", "result_complement_unauthorized")
     return decide(MENTIONED, "no_finding_predicate")
 
 
@@ -431,6 +455,7 @@ def classify_category_observation(text: str, term: str, *, competing_terms: tupl
         "term": surface_term,
         "competing_terms": sorted(set(competing)),
         "term_occurrences": len(occurrences),
+        "result_complement": None,
     }
     if not occurrences:
         return {
