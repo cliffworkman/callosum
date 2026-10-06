@@ -507,7 +507,7 @@ class DirectionEffectivenessClaimTests(unittest.TestCase):
         from experiments.ask_cli_revised import sufficiency_diagnostic as sd
 
         smf = pst.map_with("x", req)
-        sd.compute_direction_and_effectiveness(sealed, smf)
+        sd.compute_direction_and_effectiveness(sealed, smf, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION)
         claims = psl.build_claim_ledger(smf, sealed)
         de = _claims_of_kind(claims, "direction_or_effectiveness")
         self.assertEqual(len(de), 1)

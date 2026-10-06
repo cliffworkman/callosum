@@ -1,20 +1,33 @@
-"""Direction target classification for the answer layer (Phase 32 / I1b). Pure, deterministic, parser-free.
+"""Direction-target classification, shared by the sufficiency layer and the answer layer (Phase 32 / I1b, I3).
+
+Pure, deterministic, parser-free. ONE implementation, imported by both layers. The sufficiency layer (sufficiency_mapping)
+and the answer layer (answer_plan.classify) must never carry separate copies of this rule, and this module depends on
+nothing in either layer. It depends only on the shared direction stems (overview_evidence) and on the version constants
+(sufficiency_engine).
 
 For one verbatim sentence, the operand surfaces it contains, and the requested sign, decide what the direction word
 modifies:
 
 - ``relation``: the direction belongs to the relational predicate that links two operands in this sentence
-  (for example "alpha was negatively associated with beta", or "higher alpha predicted lower beta").
+  (for example "alpha was negatively associated with beta", or "alpha correlated negatively with beta").
 - ``operand``: the direction describes one operand, its valence or magnitude, identified by role
   (for example "alpha was associated with negative beta evaluations", or "beta scores were negative").
 - ``unknown``: the target cannot be established deterministically, or the sentence is ambiguous. Fail closed.
 - ``none``: no direction word of the requested sign is present.
 
-A ``relation`` target is only a classification. Attaching it to a relation additionally requires a witnessed relation
-(answer_plan.classify). Witnessing alone never makes a sign a relation direction.
+A ``relation`` target is only a classification. Attaching it to a relation additionally requires a witnessed relation and
+that the classified sentence is itself within the relation's witness evidence (sufficiency_mapping and answer_plan.classify
+enforce those conditions). Witnessing alone never makes a sign a relation direction, and proximity never does either.
 
-Reuses the existing direction stems and stemmer (overview_evidence) and the existing correlational cue pattern. Adds no
-domain vocabulary. The only additions are generic grammatical sets: copulas, comparatives, and clause boundaries.
+Version dispatch (I3). The classifier's behaviour differs by sufficiency-semantics version in ONE respect:
+
+- v1 and v2 (historical, as recorded): a sentence whose only realised operand is the single operand present, with an
+  unresolved direction word, is attributed to that operand. This is the single-operand fallback. It is NOT accepted as
+  final, and it is preserved here only so historical maps reproduce their recorded behaviour exactly.
+- v3 (current): the fallback is removed. Such a sentence is ``unknown``. An operand is targeted only when deterministic
+  structure ties the sign to it.
+
+Adds no domain vocabulary. The only additions are generic grammatical sets: copulas, comparatives, and clause boundaries.
 """
 
 from __future__ import annotations
@@ -22,17 +35,32 @@ from __future__ import annotations
 import re
 
 from experiments.ask_cli_revised import overview_evidence as oe
+from experiments.ask_cli_revised import sufficiency_engine as se
 
 RELATION_CUE = oe._CORRELATIONAL  # the existing "correlated / associated / related / linked / predicted" pattern
+_SENTENCE_BREAK = re.compile(r"(?<=[.!?])\s+(?=[A-Z\"“(\[])")
 _WORD = re.compile(r"[A-Za-z][A-Za-z'\-]*")
 _COPULA = frozenset({"was", "were", "is", "are", "be", "been", "being"})
 _COMPARATIVE = frozenset(
     {"higher", "lower", "more", "less", "greater", "fewer", "larger", "smaller", "stronger", "weaker"}
 )
 _CLAUSE_BOUNDARY = re.compile(r",|;|\bbut\b|\band\b", re.IGNORECASE)
+_SINGLE_OPERAND_FALLBACK = {
+    se.SUFFICIENCY_SEMANTICS_V1: True,
+    se.SUFFICIENCY_SEMANTICS_V2: True,
+    se.SUFFICIENCY_SEMANTICS_V3: False,
+}
+
+
+def split_sentences(text: str) -> list[str]:
+    """Deterministic sentence split on terminal punctuation followed by a capital, quote or parenthesis. The single
+    implementation: the answer layer's text.split_sentences delegates here."""
+    collapsed = re.sub(r"\s+", " ", text).strip()
+    return [part for part in _SENTENCE_BREAK.split(collapsed) if part.strip()]
 
 
 def _literal_sign(word: str) -> str | None:
+    """A literal valence word: "positive*" / "negative*", including adverbial forms ("negatively associated")."""
     lowered = word.lower()
     if lowered.startswith("positiv"):
         return "positive"
@@ -46,6 +74,22 @@ def _tokens(sentence: str) -> list[dict]:
         {"start": m.start(), "end": m.end(), "text": m.group(0), "lower": m.group(0).lower()}
         for m in _WORD.finditer(sentence)
     ]
+
+
+def _direction_tokens(tokens: list[dict]) -> list[dict]:
+    return [t for t in tokens if oe.stem(t["text"]) in oe.DIRECTION_STEMS]
+
+
+def has_direction_word(sentence: str) -> bool:
+    """Whether the sentence contains any direction-bearing word (any sign, including comparatives)."""
+    return bool(_direction_tokens(_tokens(sentence)))
+
+
+def literal_direction_sign(sentence: str) -> str | None:
+    """The single literal valence of the sentence's direction words, or None when there is none or they conflict. Never
+    inferred from a bare magnitude word ("higher", "increased")."""
+    literal = {_literal_sign(t["text"]) for t in _direction_tokens(_tokens(sentence))} - {None}
+    return next(iter(literal)) if len(literal) == 1 else None
 
 
 def _occurrences(sentence: str, operands: dict[str, str]) -> list[dict]:
@@ -87,7 +131,7 @@ def _predicative_role(sentence: str, token: dict, tokens: list[dict], occurrence
     return inside[-1]["role"] if inside else None
 
 
-def _relation_bound(sentence: str, token: dict, tokens: list[dict]) -> bool:
+def _relation_bound(tokens: list[dict], token: dict) -> bool:
     """The direction word sits directly next to a relational cue ("negatively associated", "correlated negatively")."""
     index = tokens.index(token)
     neighbours = []
@@ -98,10 +142,16 @@ def _relation_bound(sentence: str, token: dict, tokens: list[dict]) -> bool:
     return any(RELATION_CUE.fullmatch(word) or RELATION_CUE.match(word) for word in neighbours)
 
 
-def classify_sentence(sentence: str, operands: dict[str, str], sign: str | None) -> dict:
-    """Return {"target": relation|operand|unknown|none, "role": str|None, "reason": str} for one sentence."""
+def classify_sentence(sentence: str, operands: dict[str, str], sign: str | None, *, semantics_version: str) -> dict:
+    """Return {"target": relation|operand|unknown|none, "role": str|None, "reason": str} for one sentence.
+
+    ``semantics_version`` selects the single-operand fallback rule (see module docstring). It is required: a caller cannot
+    apply one version's direction behaviour under another's identity by omission.
+    """
+    if semantics_version not in _SINGLE_OPERAND_FALLBACK:
+        raise ValueError(f"no direction-target rule for sufficiency-semantics version {semantics_version!r}")
     tokens = _tokens(sentence)
-    direction_tokens = [t for t in tokens if oe.stem(t["text"]) in oe.DIRECTION_STEMS]
+    direction_tokens = _direction_tokens(tokens)
     literal = {_literal_sign(t["text"]) for t in direction_tokens} - {None}
     if len(literal) > 1:
         return {"target": "unknown", "role": None, "reason": "conflicting_signs"}
@@ -119,7 +169,7 @@ def classify_sentence(sentence: str, operands: dict[str, str], sign: str | None)
             # A comparative in front of an operand. Decided below: a pair across two operands is a relation; alone, it is
             # the magnitude of that operand.
             resolved[key] = ("comparative", attributive)
-        elif _relation_bound(sentence, token, tokens):
+        elif _relation_bound(tokens, token):
             resolved[key] = ("relation", None)
         elif attributive is not None:
             resolved[key] = ("operand", attributive)
@@ -154,7 +204,8 @@ def classify_sentence(sentence: str, operands: dict[str, str], sign: str | None)
         return {"target": "operand", "role": next(iter(operand_roles)), "reason": "operand_targeted"}
     # Nothing attaches the direction word to a relation or to an operand.
     if len(roles_present) == 1:
-        # The only operand the sentence realises is the one the observation describes. This keeps the existing
-        # attribution for single-operand sentences; the sign's grammatical object is not verified (see results).
-        return {"target": "operand", "role": roles_present[0], "reason": "single_operand_sentence"}
+        if _SINGLE_OPERAND_FALLBACK[semantics_version]:
+            # Historical v1/v2 behaviour, as recorded: the one operand the sentence realises takes the sign.
+            return {"target": "operand", "role": roles_present[0], "reason": "single_operand_sentence"}
+        return {"target": "unknown", "role": None, "reason": "single_operand_unbound_sign"}
     return {"target": "unknown", "role": None, "reason": "unbound_direction_word"}

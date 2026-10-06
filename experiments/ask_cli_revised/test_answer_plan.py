@@ -139,6 +139,7 @@ def build(props, spans, smap, nodes, facet_ids, role_ids, scoped=None):
             scoped_final=scoped or {},
             inputs={"test": True},
             containment_semantics=se.SUFFICIENCY_SEMANTICS_VERSION,
+            direction_semantics=se.SUFFICIENCY_SEMANTICS_VERSION,
         ),
         srcs,
         over,
@@ -308,7 +309,9 @@ def test_direction_is_not_attached_to_a_witnessed_relation_when_the_sign_modifie
 def test_direction_is_value_level_when_the_inherited_referent_is_not_realised_in_the_witness_passage():
     # Same structure, but the child's own passage no longer realises the inherited referent. The relation is not
     # witnessed, so the direction falls back to a value-level statement that names its own subject.
-    props = [prop("p1", 1, "Explicit negative attitudes were found with the beta questionnaire.")]
+    # The sign is structurally tied to its operand ("negative beta questionnaire ..."). A sign with one realised operand
+    # and no structural tie is unknown under v3 (the I1b fallback is removed; see the I3 results).
+    props = [prop("p1", 1, "Negative beta questionnaire scores were found.")]
     # The requested-construct term ("alpha") must still be present in the paper, but in a different sealed span, so the
     # candidate passage itself does not realise the inherited referent.
     spans = [

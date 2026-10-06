@@ -91,8 +91,9 @@ def read_map_identity(
     raise SemanticsIdentityError(f"unsupported sufficiency-semantics version {version!r}")
 
 
-def applied_containment_version(identity: dict) -> str:
-    """The inherited-referent containment rule the answer layer applies for a map with this identity. Pure.
+def applied_semantics_version(identity: dict) -> str:
+    """The sufficiency-semantics rules the answer layer applies for a map with this identity: inherited-referent containment
+    (I1d) and direction-target semantics (I3), which change together by version. Pure.
 
     - current and historical_versioned: the map's own recorded version. That version's behaviour is what the map encodes.
     - historical_unversioned: the CONTEMPORARY rule, applied explicitly. The artifact does not record a version, so it is

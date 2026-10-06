@@ -19,6 +19,7 @@ from pathlib import Path
 
 from experiments.ask_cli_revised import hierarchy_contract as hc
 from experiments.ask_cli_revised import sufficiency_diagnostic as sd
+from experiments.ask_cli_revised import sufficiency_engine as se
 from experiments.ask_cli_revised import sufficiency_freeze as sf
 from experiments.ask_cli_revised import sufficiency_model_scope as mscope
 from experiments.ask_cli_revised import sufficiency_recovery_targets as srt
@@ -80,7 +81,7 @@ class RealV9FullContractReplayTests(unittest.TestCase):
         mapped = sd.compute_diagnostic_sufficiency_map(
             self.sealed, self.contract_by_child, self.parent_of, model_client=client, nomination_context=ctx
         )
-        sd.compute_direction_and_effectiveness(self.sealed, mapped)
+        sd.compute_direction_and_effectiveness(self.sealed, mapped, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION)
         # Before Phase 19b this raised RequestFingerprintMismatch on c12 before completing at all.
         self.assertEqual(set(mapped), set(self.contract_by_child))
         self.assertEqual(len(mapped), 11)
@@ -152,7 +153,7 @@ class RealV9FullContractReplayTests(unittest.TestCase):
         mapped = sd.compute_diagnostic_sufficiency_map(
             self.sealed, self.contract_by_child, self.parent_of, model_client=client, nomination_context=ctx
         )
-        sd.compute_direction_and_effectiveness(self.sealed, mapped)
+        sd.compute_direction_and_effectiveness(self.sealed, mapped, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION)
         c5_req = next(r for r in mapped["c5"]["requirements"] if r["id"] == "c5#suff:brain-behavior")
         self.assertIn("direction_summary", c5_req)
         for instance in c5_req["instances"]:
@@ -182,7 +183,9 @@ class RealV9FullContractReplayTests(unittest.TestCase):
         mapped_final = sd.compute_diagnostic_sufficiency_map(
             self.sealed, self.contract_by_child, self.parent_of, model_client=client, nomination_context=u2_ctx
         )
-        sd.compute_direction_and_effectiveness(self.sealed, mapped_final)
+        sd.compute_direction_and_effectiveness(
+            self.sealed, mapped_final, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+        )
 
         self.assertEqual(len(client.calls), u1_call_count, "U2 must make zero additional physical calls")
         self.assertEqual(set(mapped_final), set(self.contract_by_child))

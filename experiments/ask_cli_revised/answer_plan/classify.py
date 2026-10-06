@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from app.backend.pdf_processing.extraction import canonicalize_quote_text
-from experiments.ask_cli_revised.answer_plan import direction_target as dt
+from experiments.ask_cli_revised import direction_target as dt
 from experiments.ask_cli_revised.answer_plan import relations as rel
 from experiments.ask_cli_revised.answer_plan import text as tx
 
@@ -23,6 +23,7 @@ class Ctx:
     generic_map: dict  # canonical whole-passage quote -> requirement ids that bound it as a predicate match
     facet_terms: dict  # requirement_id -> requested-construct terms
     facet_phrases: dict  # requirement_id -> human phrase
+    direction_semantics: str  # the sufficiency-semantics version whose direction-target rule the analysis applies (I3)
     corpus_words: set = field(default_factory=set)
 
     labels: dict = field(default_factory=dict)  # paper id -> label record (source_metadata.label_for)
@@ -269,7 +270,8 @@ def _evaluate_direction(claim, ctx, units, record) -> dict:
         surfaces = _operand_surfaces(unit)
         for pid in sorted(admissible & set(unit["witness_ids"])):
             for sentence in tx.split_sentences(ctx.props[pid]["quote"]):
-                if dt.classify_sentence(sentence, surfaces, sign)["target"] == "relation":
+                classified = dt.classify_sentence(sentence, surfaces, sign, semantics_version=ctx.direction_semantics)
+                if classified["target"] == "relation":
                     record.update(
                         role="attached_to_relation",
                         attached_unit=f"{unit['child_id']}/{unit['requirement_id']}",
@@ -285,7 +287,7 @@ def _evaluate_direction(claim, ctx, units, record) -> dict:
             for sentence in tx.split_sentences(ctx.props[pid]["quote"]):
                 for unit in mine:
                     surfaces = _operand_surfaces(unit)
-                    target = dt.classify_sentence(sentence, surfaces, sign)
+                    target = dt.classify_sentence(sentence, surfaces, sign, semantics_version=ctx.direction_semantics)
                     targets.append(target["target"])
                     if target["target"] != "operand":
                         continue

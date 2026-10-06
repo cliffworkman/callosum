@@ -25,6 +25,7 @@ from __future__ import annotations
 import re
 
 from app.backend.pdf_processing.extraction import canonical_text_contains
+from experiments.ask_cli_revised import direction_target as dtg
 from experiments.ask_cli_revised import overview_evidence as oe
 from experiments.ask_cli_revised import sufficiency_engine as se
 from experiments.ask_cli_revised import sufficiency_model_scope as mscope
@@ -920,8 +921,11 @@ def map_any_requirement(
     )
 
 
-def find_direction_observations(requirement: dict, grounding_units: list[dict]) -> list[dict]:
-    """ALL grounded direction observations from `grounding_units` (Phase 18 -- replaces the former
+def _find_direction_observations_v1_v2(requirement: dict, grounding_units: list[dict]) -> list[dict]:
+    """sufficiency-semantics-v1/v2 direction observations, exactly as recorded by those versions (I3 keeps them readable
+    and unchanged). Reached only through `find_direction_observations` with a historical version.
+
+    ALL grounded direction observations from `grounding_units` (Phase 18 -- replaces the former
     `map_direction`, which returned only the first whole-child-pool match; that first-match-wins
     shape was the actual bug this phase exists to fix, so it is not preserved even as a wrapper).
     One observation per matching PHYSICAL unit, never per proposition-id alias: several admissible
@@ -953,6 +957,57 @@ def find_direction_observations(requirement: dict, grounding_units: list[dict]) 
                 exact_text=word,
             )
         )
+    return observations
+
+
+def find_direction_observations(
+    requirement: dict,
+    grounding_units: list[dict],
+    *,
+    semantics_version: str,
+    operands: dict[str, str] | None = None,
+    relation_witness_ids: frozenset | None = None,
+) -> list[dict]:
+    """Direction observations, dispatched by sufficiency-semantics version (I3).
+
+    v1/v2: the recorded historical behaviour, unchanged (first direction word per passage, no target).
+    v3: one observation per direction-bearing SENTENCE of each physical unit, each carrying a deterministic target from
+    the shared classifier (direction_target). ``operands`` maps each required role to its bound surface. ``relation_witness_ids``
+    is the instance's witness set when the relation is witnessed, and None when it is not. A sentence is relation-eligible
+    only when its target is ``relation``, it has a literal sign, and its proposition is within that witness set.
+    """
+    if semantics_version in se.HISTORICAL_SUFFICIENCY_SEMANTICS_VERSIONS:
+        return _find_direction_observations_v1_v2(requirement, grounding_units)
+    if semantics_version != se.SUFFICIENCY_SEMANTICS_V3:
+        raise ValueError(f"no direction-observation rule for sufficiency-semantics version {semantics_version!r}")
+    if requirement.get("direction") is None:
+        return []
+    if operands is None:
+        raise ValueError("v3 direction observations require the instance's operand surfaces")
+    required_sign = requirement["direction"].get("required_sign")
+    observations = []
+    for unit in grounding_units:
+        proposition_ids = sorted(unit.get("proposition_ids") or [])
+        witnessed = sorted(set(proposition_ids) & relation_witness_ids) if relation_witness_ids is not None else []
+        representative = witnessed[0] if witnessed else (proposition_ids[0] if proposition_ids else None)
+        for sentence in dtg.split_sentences(unit["passage"]):
+            if not dtg.has_direction_word(sentence):
+                continue
+            sign = dtg.literal_direction_sign(sentence)
+            result = dtg.classify_sentence(sentence, operands, None, semantics_version=se.SUFFICIENCY_SEMANTICS_V3)
+            observations.append(
+                se.new_targeted_direction_assessment(
+                    sign=sign,
+                    required_sign=required_sign,
+                    causal_language_present=bool(unit.get("flags", {}).get("causal_cues")),
+                    proposition_id=representative,
+                    exact_text=sentence,
+                    target=result["target"],
+                    target_role=result["role"],
+                    target_reason=result["reason"],
+                    relation_eligible=bool(witnessed) and result["target"] == "relation" and sign is not None,
+                )
+            )
     return observations
 
 

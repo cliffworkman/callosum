@@ -103,6 +103,8 @@ def _contains_case_insensitive(surface: str, quote: str) -> bool:
 _REFERENT_CONTAINMENT = {
     se.SUFFICIENCY_SEMANTICS_V1: _contains_case_sensitive,
     se.SUFFICIENCY_SEMANTICS_V2: _contains_case_insensitive,
+    # v3 (I3) changes direction semantics only; its referent containment is the v2 rule.
+    se.SUFFICIENCY_SEMANTICS_V3: _contains_case_insensitive,
 }
 
 

@@ -444,7 +444,7 @@ class DirectionAndEffectivenessPassTests(unittest.TestCase):
         template_before = dict(req_with["direction"])
         contracts = {"d": se.new_contract("d", [req_with]), "nd": se.new_contract("nd", [req_without])}
         sealed = _sealed([_prop("p1", 1, "This shows a positive association overall.", ["d", "nd"])])
-        sd.compute_direction_and_effectiveness(sealed, contracts)
+        sd.compute_direction_and_effectiveness(sealed, contracts, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION)
         self.assertEqual(contracts["d"]["requirements"][0]["direction"], template_before)
         self.assertIn("direction_summary", contracts["d"]["requirements"][0])
         self.assertIsNone(contracts["nd"]["requirements"][0]["effectiveness"])

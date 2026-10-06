@@ -228,7 +228,7 @@ def _verify_reconstruction_against_phase13(sealed: dict, phase13_result: dict, g
     children_by_id = _load_children_by_id(_PRESERVED_RUN_DIR / "run")
     parent_of = _parent_of(children_by_id)
     mapped = sd.compute_diagnostic_sufficiency_map(sealed, contract_by_child, parent_of)
-    sd.compute_direction_and_effectiveness(sealed, mapped)
+    sd.compute_direction_and_effectiveness(sealed, mapped, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION)
 
     def req_by_id(mapped_, child_id, req_id):
         for r in mapped_[child_id]["requirements"]:
@@ -397,7 +397,7 @@ def build_map(sealed: dict, contract_by_child: dict, parent_of: dict, *, target_
             )
             new_requirements.append(sd._stamp_model_dependency_origins(mapped_req, child_id))
         mapped[child_id] = se.new_contract(child_id, new_requirements)
-    sd.compute_direction_and_effectiveness(sealed, mapped)
+    sd.compute_direction_and_effectiveness(sealed, mapped, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION)
     si.stamp_map(mapped)  # Phase 32 / I1c: same stamping path as production
     return mapped, calls_log
 

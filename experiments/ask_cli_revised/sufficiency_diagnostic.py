@@ -239,7 +239,37 @@ def _instance_scoped_units(units_for_child: list[dict], unit_by_proposition: dic
     return scoped
 
 
-def compute_direction_and_effectiveness(sealed: dict, mapped_contract_by_child: dict) -> None:
+def _require_matching_version(mapped_contract_by_child: dict, semantics_version: str) -> None:
+    """A map already stamped with a version must be computed under that same version. Unstamped maps are unconstrained."""
+    for child_id, contract in mapped_contract_by_child.items():
+        recorded = contract.get(se.SEMANTICS_VERSION_KEY)
+        if recorded is not None and recorded != semantics_version:
+            raise si.SemanticsIdentityError(
+                f"child {child_id!r} is stamped {recorded!r}; direction semantics {semantics_version!r} do not match it"
+            )
+
+
+def _bound_surfaces(req: dict, instance: dict) -> dict[str, str]:
+    """Each required role's bound verbatim surface, for the shared direction-target classifier."""
+    bindings = instance["role_bindings"]
+    surfaces = {}
+    for role in req["role_completion"]["required_roles"]:
+        binding = bindings.get(role) or {}
+        if binding.get("state") == "filled" and binding.get("exact_text"):
+            surfaces[role] = binding["exact_text"]
+    return surfaces
+
+
+def _relation_witness_ids(instance: dict) -> frozenset | None:
+    """The instance's relation witness set when its relation is witnessed under the applied version, else None."""
+    if instance.get("relation_witnessed") is True:
+        return frozenset(instance.get("witness_ids") or [])
+    return None
+
+
+def compute_direction_and_effectiveness(
+    sealed: dict, mapped_contract_by_child: dict, *, semantics_version: str
+) -> None:
     """Populates INSTANCE-level `direction_observations`/`effectiveness_observations` (Phase 18)
     on every instance of an already-mapped requirement that declares a `direction`/`effectiveness`
     template -- replaced from scratch every call, never append-accumulated (idempotent) -- using
@@ -256,7 +286,12 @@ def compute_direction_and_effectiveness(sealed: dict, mapped_contract_by_child: 
     new_requirement` set it to; the summary is a strictly separate, runtime-only key. Mutates the
     requirement/instance dicts IN PLACE (they are freshly built by `compute_diagnostic_sufficiency_
     map`, never the frozen contract Layer B authored) -- kept as a separate pass so the base
-    role-completion mapping above stays simple and testable on its own."""
+    role-completion mapping above stays simple and testable on its own.
+
+    `semantics_version` selects the direction behaviour (I3): v1/v2 record the historical first-match behaviour, and v3 is
+    target-aware, with a relation summary that counts only relation-eligible observations. It is required, and it must
+    agree with a map that already carries a version. Effectiveness is identical under every version."""
+    _require_matching_version(mapped_contract_by_child, semantics_version)
     by_child = units_by_child(sealed)
     for child_id, contract in mapped_contract_by_child.items():
         units_for_child = by_child.get(child_id, [])
@@ -272,11 +307,22 @@ def compute_direction_and_effectiveness(sealed: dict, mapped_contract_by_child: 
                 )
                 instance_units = _instance_scoped_units(units_for_child, unit_by_proposition, witness_ids)
                 if has_direction:
-                    instance["direction_observations"] = sm.find_direction_observations(req, instance_units)
+                    instance["direction_observations"] = sm.find_direction_observations(
+                        req,
+                        instance_units,
+                        semantics_version=semantics_version,
+                        operands=_bound_surfaces(req, instance),
+                        relation_witness_ids=_relation_witness_ids(instance),
+                    )
                 if has_effectiveness:
                     instance["effectiveness_observations"] = sm.find_effectiveness_observations(req, instance_units)
             if has_direction:
-                req["direction_summary"] = se.summarize_observations(req["instances"], "direction_observations", "sign")
+                req["direction_summary"] = se.summarize_observations(
+                    req["instances"],
+                    "direction_observations",
+                    "sign",
+                    observation_filter=se.counts_toward_relation_direction,
+                )
             if has_effectiveness:
                 req["effectiveness_summary"] = se.summarize_observations(
                     req["instances"], "effectiveness_observations", "conclusion"

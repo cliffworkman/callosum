@@ -430,7 +430,10 @@ def _direction_or_effectiveness_claims(requirement, instance_list, child_id, cer
             if instance["instance_key"] not in contributing_instances:
                 continue
             for obs in instance.get(obs_key, []):
-                if obs.get("proposition_id"):
+                # A direction claim is a RELATION claim (I3): its admissible propositions are the observations that count
+                # toward the relation summary, never operand-level valence. Effectiveness is unfiltered.
+                counts = se.counts_toward_relation_direction(obs) if field == "direction" else True
+                if obs.get("proposition_id") and counts:
                     admissible.add(obs["proposition_id"])
             own_roles = se.own_evidence_roles(requirement["role_completion"], instance["role_bindings"])
             model_dependent = model_dependent or any(

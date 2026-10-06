@@ -77,6 +77,7 @@ from pathlib import Path
 from experiments.ask_cli_revised import e2e
 from experiments.ask_cli_revised import hierarchy_contract as hc
 from experiments.ask_cli_revised import sufficiency_diagnostic as sd
+from experiments.ask_cli_revised import sufficiency_engine as se
 from experiments.ask_cli_revised import sufficiency_freeze as sf
 from experiments.ask_cli_revised import sufficiency_model_scope as mscope
 from experiments.ask_cli_revised import sufficiency_recovery_targets as srt
@@ -348,7 +349,9 @@ def main() -> int:
         sufficiency_map_initial = sd.compute_diagnostic_sufficiency_map(
             sealed, contract_by_child, parent_of, model_client=model_client, nomination_context=u1_context
         )
-        sd.compute_direction_and_effectiveness(sealed, sufficiency_map_initial)
+        sd.compute_direction_and_effectiveness(
+            sealed, sufficiency_map_initial, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+        )
         u1_wall_seconds = round(time.monotonic() - started_u1, 3)
         u1_call_count_after = len(guarded.call_log)
         print(f"[phase21] U1 complete: {u1_call_count_after} physical calls, {u1_wall_seconds}s wall")
@@ -361,7 +364,9 @@ def main() -> int:
         sufficiency_map_final = sd.compute_diagnostic_sufficiency_map(
             sealed, contract_by_child, parent_of, model_client=model_client, nomination_context=u2_context
         )
-        sd.compute_direction_and_effectiveness(sealed, sufficiency_map_final)
+        sd.compute_direction_and_effectiveness(
+            sealed, sufficiency_map_final, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+        )
         u2_wall_seconds = round(time.monotonic() - started_u2, 3)
         u2_call_count_after = len(guarded.call_log)
         print(

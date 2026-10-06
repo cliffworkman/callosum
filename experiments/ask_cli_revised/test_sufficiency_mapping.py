@@ -427,7 +427,7 @@ class DirectionAndEffectivenessMappingTests(unittest.TestCase):
         specs = {"a": se.new_role_spec("a", "a", "model_nomination_only")}
         completion = se.new_role_completion(required_roles=["a"])
         req = se.new_requirement("d#req", "relational", specs, completion, "exists")
-        self.assertEqual(sm.find_direction_observations(req, []), [])
+        self.assertEqual(sm.find_direction_observations(req, [], semantics_version=se.SUFFICIENCY_SEMANTICS_V2), [])
 
     def test_find_direction_observations_honest_when_relationship_established_but_no_sign_reported(self):
         specs = {"a": se.new_role_spec("a", "a", "model_nomination_only")}
@@ -436,7 +436,8 @@ class DirectionAndEffectivenessMappingTests(unittest.TestCase):
             "d#req", "relational", specs, completion, "exists", direction=se.new_direction_assessment()
         )
         units = [_unit("U1", 1, "A relationship was observed between the two measures.")]
-        result = sm.find_direction_observations(req, units)
+        # v2: the recorded historical behaviour these tests pin. v3 has its own tests.
+        result = sm.find_direction_observations(req, units, semantics_version=se.SUFFICIENCY_SEMANTICS_V2)
         self.assertEqual(result, [])  # no direction-stem word present -- never a fabricated observation
 
     def test_find_effectiveness_observations_null_result_is_reported_and_not_supported(self):

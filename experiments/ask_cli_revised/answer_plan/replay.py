@@ -118,12 +118,12 @@ def verify_replay_authorization(authorization: dict, smap: dict) -> None:
         raise si.SemanticsIdentityError("replay authorization digest does not match its body (tampered or stale)")
     bound_inputs = body["bound_inputs"]
     si.check_authorization_binding(bound_inputs["sufficiency_semantics"], smap)
-    expected = si.applied_containment_version(bound_inputs["sufficiency_semantics"])
-    if bound_inputs.get("answer_containment_semantics") != expected:
-        raise si.SemanticsIdentityError(
-            f"replay authorization records containment {bound_inputs.get('answer_containment_semantics')!r} but its "
-            f"bound identity implies {expected!r}"
-        )
+    expected = si.applied_semantics_version(bound_inputs["sufficiency_semantics"])
+    for key in ("answer_containment_semantics", "answer_direction_semantics"):
+        if bound_inputs.get(key) != expected:
+            raise si.SemanticsIdentityError(
+                f"replay authorization records {key} {bound_inputs.get(key)!r} but its bound identity implies {expected!r}"
+            )
 
 
 def main(argv=None) -> int:
@@ -154,7 +154,7 @@ def main(argv=None) -> int:
         accept_historical_versioned=args.allow_historical_versioned,
         accept_historical_unversioned=args.allow_historical_unversioned_map,
     )
-    applied_containment = si.applied_containment_version(semantics)
+    applied_semantics = si.applied_semantics_version(semantics)
     scoped = _load(run, "13c_scoped_search.json").get("final") or {}
     preserved_ledger = _load(run, "15a_parent_synthesis.json")
     frozen = json.loads(FROZEN_CONTRACT.read_text(encoding="utf-8"))
@@ -194,9 +194,10 @@ def main(argv=None) -> int:
             "hierarchy_contract_frozen_sha256": ov.sha256_file(FROZEN_CONTRACT),
             "parent_claim_ledger_sha256": ov.sha256_obj(preserved_ledger["claim_ledger"]),
             "sufficiency_semantics": semantics,
-            # The containment rule the AnswerPlan actually applied. For an unversioned map this is the contemporary rule,
-            # applied explicitly; it is never attributed to the map itself (I1d).
-            "answer_containment_semantics": applied_containment,
+            # The rules the AnswerPlan actually applied (containment I1d, direction I3). For an unversioned map these are the
+            # contemporary rules, applied explicitly; they are never attributed to the map itself.
+            "answer_containment_semantics": applied_semantics,
+            "answer_direction_semantics": applied_semantics,
         },
         "historical_decomposition_status": historical,
         "historical_status_note": "Recorded, not resolved. This overlay governs the offline replay only (Phase-30 U13).",
@@ -221,7 +222,8 @@ def main(argv=None) -> int:
         frozen_contract=frozen,
         inputs=inputs,
         labels=labels,
-        containment_semantics=applied_containment,
+        containment_semantics=applied_semantics,
+        direction_semantics=applied_semantics,
     )
     plan_again = pl.build_plan(
         sealed,
@@ -231,7 +233,8 @@ def main(argv=None) -> int:
         frozen_contract=frozen,
         inputs=inputs,
         labels=labels,
-        containment_semantics=applied_containment,
+        containment_semantics=applied_semantics,
+        direction_semantics=applied_semantics,
     )
     deterministic = plan["plan_sha256"] == plan_again["plan_sha256"]
 

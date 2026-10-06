@@ -47,6 +47,7 @@ from experiments.ask_cli_revised import (
     sufficiency_freeze,
     sufficiency_recovery_targets,
 )
+from experiments.ask_cli_revised import sufficiency_engine as se
 from experiments.ask_cli_revised import sufficiency_model_scope as mscope
 from experiments.ask_cli_revised import topology as topo
 from experiments.ask_cli_revised.ledger_renderer import audit_final, render_answer
@@ -536,14 +537,18 @@ def execute(
                         model_client=sufficiency_u1_model_client,
                         nomination_context=sufficiency_u1_context,
                     )
-                    sufficiency_diagnostic.compute_direction_and_effectiveness(early_sealed, sufficiency_map_initial)
+                    sufficiency_diagnostic.compute_direction_and_effectiveness(
+                        early_sealed, sufficiency_map_initial, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+                    )
                     entry["detail"] = _nomination_pass_summary(sufficiency_u1_context)
             else:
                 started = time.monotonic()
                 sufficiency_map_initial = sufficiency_diagnostic.compute_diagnostic_sufficiency_map(
                     early_sealed, sufficiency_contract, sufficiency_parent_of or {}
                 )
-                sufficiency_diagnostic.compute_direction_and_effectiveness(early_sealed, sufficiency_map_initial)
+                sufficiency_diagnostic.compute_direction_and_effectiveness(
+                    early_sealed, sufficiency_map_initial, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+                )
                 stage_log.append(
                     {
                         "stage": "U1",
@@ -747,7 +752,9 @@ def execute(
             model_client=sufficiency_u1_model_client,
             nomination_context=sufficiency_u2_context,
         )
-        sufficiency_diagnostic.compute_direction_and_effectiveness(sealed, sufficiency_map_final)
+        sufficiency_diagnostic.compute_direction_and_effectiveness(
+            sealed, sufficiency_map_final, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+        )
         if sufficiency_u2_context is not None:
             # Hard call-budget assertion (audit §19/§20): no physical fresh attempt may ever occur
             # for a key outside the precomputed F -- authorization is a pure membership check

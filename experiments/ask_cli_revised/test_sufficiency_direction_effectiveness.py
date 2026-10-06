@@ -179,7 +179,8 @@ class FindObservationsTests(unittest.TestCase):
             [_prop("p1", 1, "Activity in the amygdala correlated with a negative attitude change.", ["c"])]
         )
         units = _child_units(sealed, "c")
-        obs = sm.find_direction_observations(req, units)
+        # v2 is the recorded historical behaviour this test pins; v3 has its own tests.
+        obs = sm.find_direction_observations(req, units, semantics_version=se.SUFFICIENCY_SEMANTICS_V2)
         self.assertEqual(len(obs), 1)
         self.assertTrue(obs[0]["reported"])
         self.assertEqual(obs[0]["sign"], "negative")
@@ -196,7 +197,7 @@ class FindObservationsTests(unittest.TestCase):
 
     def test_undeclared_field_returns_empty_list_not_none(self):
         req = {"direction": None, "effectiveness": None}
-        self.assertEqual(sm.find_direction_observations(req, []), [])
+        self.assertEqual(sm.find_direction_observations(req, [], semantics_version=se.SUFFICIENCY_SEMANTICS_V2), [])
         self.assertEqual(sm.find_effectiveness_observations(req, []), [])
 
     def test_collects_every_admissible_match_not_just_first(self):
@@ -235,7 +236,9 @@ class FindObservationsTests(unittest.TestCase):
 class ComputeDirectionAndEffectivenessTests(unittest.TestCase):
     def _run(self, sealed, req):
         contract = se.new_contract("c", [req])
-        sd.compute_direction_and_effectiveness(sealed, {"c": contract})
+        sd.compute_direction_and_effectiveness(
+            sealed, {"c": contract}, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+        )
         return contract["requirements"][0]
 
     def test_irrelevant_earlier_unit_cannot_hijack_instance_effectiveness(self):
@@ -335,7 +338,9 @@ class ComputeDirectionAndEffectivenessTests(unittest.TestCase):
         def run(order):
             r = _effectiveness_requirement(multi_instance=False)
             r["instances"] = [_instance(dict(req_bindings))]
-            sd.compute_direction_and_effectiveness(_sealed(order), {"c": se.new_contract("c", [r])})
+            sd.compute_direction_and_effectiveness(
+                _sealed(order), {"c": se.new_contract("c", [r])}, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+            )
             return r["instances"][0]["effectiveness_observations"]
 
         forward = run([pA, pB])
@@ -355,7 +360,9 @@ class ComputeDirectionAndEffectivenessTests(unittest.TestCase):
         def run(bindings):
             r = _two_role_joint_requirement()
             r["instances"] = [_instance(bindings)]
-            sd.compute_direction_and_effectiveness(sealed, {"c": se.new_contract("c", [r])})
+            sd.compute_direction_and_effectiveness(
+                sealed, {"c": se.new_contract("c", [r])}, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+            )
             return r["instances"][0]["effectiveness_observations"]
 
         b1 = {
@@ -682,9 +689,13 @@ class ComputeDirectionAndEffectivenessTests(unittest.TestCase):
             )
         ]
         contract = se.new_contract("c", [req])
-        sd.compute_direction_and_effectiveness(sealed, {"c": contract})
+        sd.compute_direction_and_effectiveness(
+            sealed, {"c": contract}, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+        )
         first = contract["requirements"][0]["instances"][0]["effectiveness_observations"]
-        sd.compute_direction_and_effectiveness(sealed, {"c": contract})
+        sd.compute_direction_and_effectiveness(
+            sealed, {"c": contract}, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+        )
         second = contract["requirements"][0]["instances"][0]["effectiveness_observations"]
         self.assertEqual(first, second)
         self.assertEqual(len(second), 1)
@@ -744,7 +755,9 @@ class ComputeDirectionAndEffectivenessTests(unittest.TestCase):
             )
         ]
         contract = se.new_contract("zzz", [req])
-        sd.compute_direction_and_effectiveness(sealed, {"zzz": contract})
+        sd.compute_direction_and_effectiveness(
+            sealed, {"zzz": contract}, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+        )
         self.assertEqual(len(contract["requirements"][0]["instances"][0]["effectiveness_observations"]), 1)
 
 

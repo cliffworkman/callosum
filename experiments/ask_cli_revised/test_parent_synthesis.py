@@ -211,7 +211,7 @@ def _heterogeneous_claims():
         effectiveness=se.new_effectiveness_assessment(),
     )
     smf = pst.map_with("x", req)
-    sd.compute_direction_and_effectiveness(sealed, smf)
+    sd.compute_direction_and_effectiveness(sealed, smf, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION)
     return sealed, smf, psl.build_claim_ledger(smf, sealed)
 
 

@@ -15,6 +15,7 @@ import pytest
 
 from experiments.ask_cli_revised import relation_witness as rw
 from experiments.ask_cli_revised import sufficiency_engine as se
+from experiments.ask_cli_revised import sufficiency_identity as si
 from experiments.ask_cli_revised.answer_plan import relations as rel
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -465,37 +466,84 @@ class _FakeNominationClient:
         return [{"proposition_id": first["proposition_id"], "exact_text": first["passage"][:15]}]
 
 
-@_needs_preserved
-def test_pipeline_projection_matches_pre_i1_baseline():
+# I3 (sufficiency-semantics-v3) changes the DIRECTION stage by design. Its effect on this same binding set is:
+# - the mapping (bindings, completion, witnesses, effectiveness, stop-search, recovery) is unchanged;
+# - direction observations gain an explicit target; the relation summary counts only relation-eligible observations;
+# - the two direction ParentClaims (c5 and c6, relation-level) disappear, because neither sign is relation-targeted.
+# The v2 stage reproduces the pinned pre-I1 projection exactly. The v3 values below are pinned, not re-baselined silently.
+_I3_V3_BASELINE = {
+    "map_projected_sha": "35e5deb5e8bd29c5e554f75ed2da5f0ccd05c324497a6ff3bc751c040d92dc23",
+    "claims_sha": "8f370d1db0bda16e40172c188c902b3eb599e1a999583f1d07b0dcb54f10bcda",
+}
+# The mapping without the direction fields, identical under v2 and v3 (I3 semantic-diff gate).
+_MAPPING_WITHOUT_DIRECTION_SHA = "47dea41373721d10bbc6f0334e1b6d7732726a82e9c99f4fb888b50aaf640d4e"
+
+
+def _without_direction(smap):
+    projected = si.strip_identity(rw.project_out_i1(smap))
+    for contract in projected.values():
+        for requirement in contract["requirements"]:
+            requirement.pop("direction_summary", None)
+            for instance in requirement.get("instances", []):
+                instance.pop("direction_observations", None)
+    return projected
+
+
+def _pipeline_outputs(version):
     from experiments.ask_cli_revised import hierarchy_contract as hc
     from experiments.ask_cli_revised import parent_synthesis_ledger as psl
     from experiments.ask_cli_revised import sufficiency_diagnostic as sd
-    from experiments.ask_cli_revised import sufficiency_engine as se
     from experiments.ask_cli_revised import sufficiency_freeze as sf
-    from experiments.ask_cli_revised import sufficiency_identity as si
     from experiments.ask_cli_revised import sufficiency_recovery_targets as srt
     from experiments.ask_cli_revised.question import BENCHMARK_QUESTION
 
     sealed = json.loads(_PRESERVED_LEDGER.read_text(encoding="utf-8"))
     contract = hc.load_contract(BENCHMARK_QUESTION, pins=None)
-    contract_by_child = sf.load_verified()
     parent_of = hc.parent_of(contract)
     mapped = sd.compute_diagnostic_sufficiency_map(
-        sealed, contract_by_child, parent_of, model_client=_FakeNominationClient()
+        sealed, sf.load_verified(), parent_of, model_client=_FakeNominationClient()
     )
-    sd.compute_direction_and_effectiveness(sealed, mapped)
+    # The direction stage is version-dependent, so run it on an unstamped copy under the requested version.
+    for contract_ in mapped.values():
+        contract_.pop(se.SEMANTICS_VERSION_KEY, None)
+    sd.compute_direction_and_effectiveness(sealed, mapped, semantics_version=version)
     stop = {
         f"{cid}|{req['id']}": se.compute_stop_search_certified(req)
         for cid, child in sorted(mapped.items())
         for req in child["requirements"]
     }
-    observed = {
+    return {
+        "mapping_without_direction_sha": _sha(_without_direction(mapped)),
         "map_projected_sha": _sha(si.strip_identity(rw.project_out_i1(mapped))),
         "claims_sha": _sha(psl.build_claim_ledger(mapped, sealed, parent_of)),
         "recovery_sha": _sha(srt.compute_recovery_targets(mapped, parent_of)),
         "stop_sha": _sha(stop),
+        "claims": psl.build_claim_ledger(mapped, sealed, parent_of),
     }
-    assert observed == _PRE_I1_BASELINE
+
+
+@_needs_preserved
+def test_pipeline_projection_under_v2_reproduces_pre_i1_baseline():
+    v2 = _pipeline_outputs(se.SUFFICIENCY_SEMANTICS_V2)
+    assert {k: v2[k] for k in _PRE_I1_BASELINE} == _PRE_I1_BASELINE
+
+
+@_needs_preserved
+def test_pipeline_under_v3_changes_only_the_direction_stage_on_the_same_binding_set():
+    v2 = _pipeline_outputs(se.SUFFICIENCY_SEMANTICS_V2)
+    v3 = _pipeline_outputs(se.SUFFICIENCY_SEMANTICS_VERSION)
+    # the mapping itself, with the direction fields removed, is identical
+    assert v3["mapping_without_direction_sha"] == v2["mapping_without_direction_sha"] == _MAPPING_WITHOUT_DIRECTION_SHA
+    # recovery and stop-search are unchanged on this binding set
+    assert v3["recovery_sha"] == _PRE_I1_BASELINE["recovery_sha"]
+    assert v3["stop_sha"] == _PRE_I1_BASELINE["stop_sha"]
+    # the direction fields and the direction ParentClaims changed, exactly as pinned
+    assert v3["map_projected_sha"] == _I3_V3_BASELINE["map_projected_sha"]
+    assert v3["claims_sha"] == _I3_V3_BASELINE["claims_sha"]
+    removed = {c["claim_id"] for c in v2["claims"]} - {c["claim_id"] for c in v3["claims"]}
+    assert len(removed) == 2 and all(
+        c["claim_kind"] == "direction_or_effectiveness" for c in v2["claims"] if c["claim_id"] in removed
+    )
 
 
 def _sha(obj) -> str:

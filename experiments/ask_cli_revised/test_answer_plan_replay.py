@@ -85,7 +85,10 @@ def test_generic_summary_and_adjacent_construct_never_answer_a_facet(plan):
 
 def test_direction_is_only_ever_a_value_level_sentence_with_its_subject(plan):
     valence = [s for n in plan["nodes"] for s in n["statements"] if s["kind"] == "value_level_valence"]
-    assert valence and all(s["subject"] and s["subject"] in s["text"] for s in valence)
+    # I3: the preserved c6 valence came from the removed single-operand fallback, so no value-level valence is rendered on
+    # this map. Any valence that is rendered must still name its subject, and that subject must appear in its text.
+    assert valence == []
+    assert all(s["subject"] and s["subject"] in s["text"] for s in valence)
 
 
 def test_layer_one_has_no_internal_identifiers_or_templates(replay_out):

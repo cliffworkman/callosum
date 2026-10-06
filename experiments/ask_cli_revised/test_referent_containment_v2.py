@@ -15,11 +15,13 @@ from pathlib import Path
 import pytest
 
 from experiments.ask_cli_revised import relation_witness as rw
+from experiments.ask_cli_revised import sufficiency_diagnostic as sd
 from experiments.ask_cli_revised import sufficiency_engine as se
 from experiments.ask_cli_revised import sufficiency_identity as si
 
 V1 = se.SUFFICIENCY_SEMANTICS_V1
 V2 = se.SUFFICIENCY_SEMANTICS_V2
+CUR = se.SUFFICIENCY_SEMANTICS_VERSION  # current (v3, I3)
 _DEFAULT_PROVENANCE = {"detail": "", "model": None}
 ROOT = Path(__file__).resolve().parents[2]
 RUN = ROOT / ".local" / "e2e-runs" / "phase28-live-parent-synthesis-attempt2-20261004T014500Z" / "run"
@@ -220,10 +222,10 @@ def test_identity_states_are_distinct_and_membership_is_not_currency():
 
 
 def test_applied_containment_for_each_state():
-    assert si.applied_containment_version({"status": "current", "version": V2}) == V2
-    assert si.applied_containment_version({"status": "historical_versioned", "version": V1}) == V1
+    assert si.applied_semantics_version({"status": "current", "version": CUR}) == CUR
+    assert si.applied_semantics_version({"status": "historical_versioned", "version": V1}) == V1
     # An unversioned artifact is not attributed a version: the contemporary rule is applied explicitly.
-    assert si.applied_containment_version({"status": "historical_unversioned", "version": None}) == V2
+    assert si.applied_semantics_version({"status": "historical_unversioned", "version": None}) == CUR
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -234,8 +236,8 @@ def test_applied_containment_for_each_state():
 def _write_run(tmp: Path, map_identity: str) -> Path:
     """A run directory with the preserved ledger/answer inputs and a 17 map stamped as requested.
 
-    map_identity: "v2" (current), "v1" (historical versioned: witnesses recomputed under v1, stamped v1), or
-    "unversioned" (the preserved I1-field map, no stamp).
+    map_identity: "current" (v3), "v2" or "v1" (historical versioned: witnesses and direction recomputed under that version,
+    stamped with it), or "unversioned" (the preserved I1-field map, no stamp, its historical data untouched).
     """
     run = tmp / "run"
     run.mkdir(parents=True)
@@ -245,9 +247,10 @@ def _write_run(tmp: Path, map_identity: str) -> Path:
     if map_identity == "unversioned":
         smap = json.loads((RUN_I1 / "17_sufficiency_map.json").read_text(encoding="utf-8"))
     else:
-        version = V2 if map_identity == "v2" else V1
+        version = {"current": CUR, "v2": V2, "v1": V1}[map_identity]
         smap = json.loads((RUN / "17_sufficiency_map.json").read_text(encoding="utf-8"))
         rw.attach_relation_witnesses(smap, sealed, semantics_version=version)
+        sd.compute_direction_and_effectiveness(sealed, smap, semantics_version=version)
         for contract in smap.values():
             contract[se.SEMANTICS_VERSION_KEY] = version
     (run / "17_sufficiency_map.json").write_text(json.dumps(smap, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -265,16 +268,18 @@ def _replay(run: Path, out: Path, *flags: str) -> dict:
 def test_current_v2_map_replays_strictly_and_records_v2(tmp_path):
     from experiments.ask_cli_revised.answer_plan import plan as pl
 
-    run = _write_run(tmp_path, "v2")
+    run = _write_run(tmp_path, "current")
     out = tmp_path / "out"
     authorization = _replay(run, out)  # strict: no historical flag
     bound = authorization["bound_inputs"]
-    assert bound["sufficiency_semantics"] == {"status": "current", "version": V2}
-    assert bound["answer_containment_semantics"] == V2
-    assert pl.PLAN_VERSION == "answer-plan-step2-v3"
+    assert bound["sufficiency_semantics"] == {"status": "current", "version": CUR}
+    assert bound["answer_containment_semantics"] == CUR
+    assert bound["answer_direction_semantics"] == CUR
+    assert pl.PLAN_VERSION == "answer-plan-step2-v4"
     plan = json.loads((out / "answer_plan.json").read_text(encoding="utf-8"))
-    assert plan["plan_version"] == "answer-plan-step2-v3"
-    assert plan["containment_semantics"] == V2
+    assert plan["plan_version"] == "answer-plan-step2-v4"
+    assert plan["containment_semantics"] == CUR
+    assert plan["direction_semantics"] == CUR
 
 
 @_needs_preserved
@@ -303,31 +308,44 @@ def test_unversioned_map_applies_contemporary_rule_and_does_not_attribute_it(tmp
     authorization = _replay(run, tmp_path / "out", "--allow-historical-unversioned-map")
     bound = authorization["bound_inputs"]
     assert bound["sufficiency_semantics"] == {"status": "historical_unversioned", "version": None}
-    assert bound["answer_containment_semantics"] == V2  # applied and recorded; the map itself is not labelled v2
+    assert bound["answer_containment_semantics"] == CUR  # applied and recorded; the map itself is not labelled current
+    assert bound["answer_direction_semantics"] == CUR
     plan = json.loads((tmp_path / "out" / "answer_plan.json").read_text(encoding="utf-8"))
-    assert plan["containment_semantics"] == V2
+    assert plan["containment_semantics"] == CUR
+    assert plan["direction_semantics"] == CUR
 
 
 @_needs_preserved
-def test_v1_and_v2_replays_give_identical_layers_1_and_2_on_the_preserved_run(tmp_path):
-    # Zero witness change on the preserved run means the answer text cannot differ by version.
-    _replay(_write_run(tmp_path / "a", "v2"), tmp_path / "a_out")
-    _replay(_write_run(tmp_path / "b", "v1"), tmp_path / "b_out", "--allow-historical-versioned")
+def test_historical_v1_and_v2_layers_match_and_current_v3_changes_only_the_direction_claim(tmp_path):
+    # v1 and v2 share the recorded direction behaviour and have no case-only referent differences on this data, so their
+    # answer layers are identical. Current v3 changes the DIRECTION claim only: the witness units are the same.
+    _replay(_write_run(tmp_path / "v1", "v1"), tmp_path / "v1_out", "--allow-historical-versioned")
+    _replay(_write_run(tmp_path / "v2", "v2"), tmp_path / "v2_out", "--allow-historical-versioned")
+    _replay(_write_run(tmp_path / "cur", "current"), tmp_path / "cur_out")
     for layer in ("deterministic_layer1.md", "deterministic_layer2.md"):
-        assert (tmp_path / "a_out" / layer).read_bytes() == (tmp_path / "b_out" / layer).read_bytes(), layer
+        assert (tmp_path / "v1_out" / layer).read_bytes() == (tmp_path / "v2_out" / layer).read_bytes(), layer
+    plans = {
+        name: json.loads((tmp_path / f"{name}_out" / "answer_plan.json").read_text(encoding="utf-8"))
+        for name in ("v1", "cur")
+    }
+    assert plans["v1"]["relation_units"] == plans["cur"]["relation_units"]
+    historical_claims = [r for r in plans["v1"]["claim_roles"] if r.get("claim_kind") == "direction_or_effectiveness"]
+    current_claims = [r for r in plans["cur"]["claim_roles"] if r.get("claim_kind") == "direction_or_effectiveness"]
+    assert historical_claims and historical_claims[0]["role"] == "value_level"  # the recorded fallback attribution
+    assert current_claims == []  # v3: no relation-eligible direction on this map, so no direction claim is made
 
 
 @_needs_preserved
-@pytest.mark.parametrize("from_version, to_version", [(V1, V2), (V2, V1)])
+@pytest.mark.parametrize("from_version, to_version", [(V1, CUR), (CUR, V1)])
 def test_tampered_authorization_version_fails_closed(tmp_path, from_version, to_version):
     from experiments.ask_cli_revised.answer_plan import overlay as ov
     from experiments.ask_cli_revised.answer_plan import replay
 
-    source = "v1" if from_version == V1 else "v2"
+    source = "v1" if from_version == V1 else "current"
     run = _write_run(tmp_path, source)
     authorization = _replay(run, tmp_path / "out", *(["--allow-historical-versioned"] if source == "v1" else []))
     smap = json.loads((run / "17_sufficiency_map.json").read_text(encoding="utf-8"))
-    status = "current" if to_version == V2 else "historical_versioned"
+    status = "current" if to_version == CUR else "historical_versioned"
 
     # (a) edit the bound version without recomputing the digest: digest check catches it.
     stale = copy.deepcopy(authorization)
@@ -374,7 +392,7 @@ def test_containment_record_is_checked_against_the_bound_identity(tmp_path):
 def test_unknown_version_map_fails_in_every_mode(tmp_path):
     from experiments.ask_cli_revised.answer_plan import replay
 
-    run = _write_run(tmp_path, "v2")
+    run = _write_run(tmp_path, "current")
     smap = json.loads((run / "17_sufficiency_map.json").read_text(encoding="utf-8"))
     for contract in smap.values():
         contract[se.SEMANTICS_VERSION_KEY] = "sufficiency-semantics-v99"

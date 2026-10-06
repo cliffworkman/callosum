@@ -9,10 +9,10 @@ from __future__ import annotations
 import re
 
 from app.backend.pdf_processing.extraction import canonical_text_contains, canonicalize_quote_text
+from experiments.ask_cli_revised import direction_target as dtg
 from experiments.ask_cli_revised import overview_evidence as oe
 from experiments.ask_cli_revised.contract_directed import attribution as attr
 
-_SENTENCE_BREAK = re.compile(r"(?<=[.!?])\s+(?=[A-Z\"“(\[])")
 _TERMINAL = re.compile(r"[.!?)\"”’\]]\s*$")
 _CAPTION_LABEL = r"(?:Table|Fig(?:ure)?\.?)\s*S?\d+\s*\|"
 _CAPTION_START = re.compile(r"^\s*" + _CAPTION_LABEL, re.IGNORECASE)
@@ -55,9 +55,8 @@ _CLOSURE = (
 
 
 def split_sentences(text: str) -> list[str]:
-    """Deterministic sentence split on terminal punctuation followed by a capital, quote or parenthesis."""
-    collapsed = re.sub(r"\s+", " ", text).strip()
-    return [part for part in _SENTENCE_BREAK.split(collapsed) if part.strip()]
+    """Deterministic sentence split. The single implementation lives in the shared direction_target module (I3)."""
+    return dtg.split_sentences(text)
 
 
 def is_truncated(quote: str) -> bool:

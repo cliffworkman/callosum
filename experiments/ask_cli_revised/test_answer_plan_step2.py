@@ -41,6 +41,7 @@ def _run(props, spans, smap, nodes, facet_ids, role_ids, labels=None):
         scoped_final={},
         inputs={"test": True},
         containment_semantics=se.SUFFICIENCY_SEMANTICS_VERSION,
+        direction_semantics=se.SUFFICIENCY_SEMANTICS_VERSION,
         labels=labels,
     )
     props_by_id = {row["proposition_id"]: row for row in props}
@@ -194,7 +195,14 @@ def test_first_layer_one_use_of_a_defined_acronym_is_expanded_from_its_same_pape
             "chunk_id": 1,
         },
     ]
-    ctx = cl.Ctx(props={}, span_texts_by_paper={}, generic_map={}, facet_terms={}, facet_phrases={})
+    ctx = cl.Ctx(
+        props={},
+        span_texts_by_paper={},
+        generic_map={},
+        facet_terms={},
+        facet_phrases={},
+        direction_semantics=se.SUFFICIENCY_SEMANTICS_VERSION,
+    )
     ctx.span_rows = spans
     node = {
         "statements": [
@@ -212,7 +220,14 @@ def test_first_layer_one_use_of_a_defined_acronym_is_expanded_from_its_same_pape
 
 
 def test_an_acronym_with_no_explicit_definition_is_never_expanded():
-    ctx = cl.Ctx(props={}, span_texts_by_paper={}, generic_map={}, facet_terms={}, facet_phrases={})
+    ctx = cl.Ctx(
+        props={},
+        span_texts_by_paper={},
+        generic_map={},
+        facet_terms={},
+        facet_phrases={},
+        direction_semantics=se.SUFFICIENCY_SEMANTICS_VERSION,
+    )
     ctx.span_rows = [{"paper_id": 1, "span_id": "s1", "text": "DG scores rose for alpha.", "chunk_id": 1}]
     node = {"statements": [{"text": "DG scores rose for alpha.", "paper_id": 1, "prop_ids": [], "edits": []}]}
     grounded: set = set()
@@ -222,7 +237,14 @@ def test_an_acronym_with_no_explicit_definition_is_never_expanded():
 
 
 def test_a_definition_that_exists_only_in_another_papers_text_is_reported_but_not_applied():
-    ctx = cl.Ctx(props={}, span_texts_by_paper={}, generic_map={}, facet_terms={}, facet_phrases={})
+    ctx = cl.Ctx(
+        props={},
+        span_texts_by_paper={},
+        generic_map={},
+        facet_terms={},
+        facet_phrases={},
+        direction_semantics=se.SUFFICIENCY_SEMANTICS_VERSION,
+    )
     ctx.span_rows = [
         {"paper_id": 2, "span_id": "s9", "text": "We used the Implicit Association Test (IAT).", "chunk_id": 9},
     ]

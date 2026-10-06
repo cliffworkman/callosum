@@ -66,7 +66,9 @@ class ElevenChildReplayTests(unittest.TestCase):
         cls.contract = sa.build_qaib_contract(cls.children)
         cls.parent_of = _parent_of(cls.children)
         cls.mapped = sd.compute_diagnostic_sufficiency_map(cls.sealed, cls.contract, cls.parent_of)
-        sd.compute_direction_and_effectiveness(cls.sealed, cls.mapped)
+        sd.compute_direction_and_effectiveness(
+            cls.sealed, cls.mapped, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+        )
         cls.recovery_targets = srt.compute_recovery_targets(cls.mapped, cls.parent_of)
 
     def test_all_eleven_children_are_present_in_the_replay_none_dropped(self):
@@ -223,7 +225,7 @@ class PrintedElevenChildReportTests(unittest.TestCase):
         contract = sa.build_qaib_contract(children)
         parent_of = _parent_of(children)
         mapped = sd.compute_diagnostic_sufficiency_map(sealed, contract, parent_of)
-        sd.compute_direction_and_effectiveness(sealed, mapped)
+        sd.compute_direction_and_effectiveness(sealed, mapped, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION)
         recovery = srt.compute_recovery_targets(mapped, parent_of)
         print("\n\n=== q_aib 11-child sufficiency replay (deterministic-only, no model) ===")
         for child_id in ALL_ELEVEN_CHILDREN:

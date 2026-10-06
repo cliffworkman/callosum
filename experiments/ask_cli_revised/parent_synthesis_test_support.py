@@ -207,7 +207,9 @@ def real_c12_fixture() -> tuple[dict, dict]:
         effectiveness=se.new_effectiveness_assessment(),
     )
     sufficiency_map_final = map_with("c12", req)
-    sd.compute_direction_and_effectiveness(sealed, sufficiency_map_final)
+    sd.compute_direction_and_effectiveness(
+        sealed, sufficiency_map_final, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+    )
     return sealed, sufficiency_map_final
 
 

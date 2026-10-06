@@ -19,7 +19,9 @@ from experiments.ask_cli_revised.answer_plan import text as tx
 
 # v3 (Phase 32 / I1d): inherited-referent containment is version-dispatched through relation_witness, and the
 # containment rule actually applied is recorded in the plan (``containment_semantics``). v2 was case-sensitive.
-PLAN_VERSION = "answer-plan-step2-v3"
+# v4 (Phase 32 / I3): direction-target classification is the shared direction_target module, version-dispatched. The
+# single-operand fallback is removed under v3 and later. The applied direction rule is recorded (``direction_semantics``).
+PLAN_VERSION = "answer-plan-step2-v4"
 
 # Fixed, human-language disclosure per candidate-rejection reason. Never a role name, claim id or reason code.
 REASON_TEXT = {
@@ -67,12 +69,14 @@ def build_plan(
     inputs: dict | None = None,
     labels: dict | None = None,
     containment_semantics: str,
+    direction_semantics: str,
 ) -> dict:
     """`labels` maps paper id -> citeproc-style label record (source_metadata.labels_for). Papers without a label get the
     neutral label, so a missing metadata extract never blocks a replay.
 
-    `containment_semantics` is the inherited-referent containment rule applied to witnesses (Phase 32 / I1d). Required:
-    the caller states which rule it applies, and the plan records it."""
+    `containment_semantics` is the inherited-referent containment rule applied to witnesses (Phase 32 / I1d), and
+    `direction_semantics` is the direction-target rule applied to direction claims (I3). Both are required: the caller
+    states which rules it applies, and the plan records them."""
     if frozen_contract is not None:
         problems = ov.validate_overlay(overlay, smap, frozen_contract)
         if problems:
@@ -88,6 +92,7 @@ def build_plan(
             facet_terms[requirement["id"]] = list(overlay["requested_construct_terms"])
     ctx = cl.Ctx(
         props=props,
+        direction_semantics=direction_semantics,
         span_texts_by_paper=dict(span_texts),
         generic_map=cl.build_generic_map(smap, props),
         facet_terms=facet_terms,
@@ -128,6 +133,7 @@ def build_plan(
     plan = {
         "plan_version": PLAN_VERSION,
         "containment_semantics": containment_semantics,
+        "direction_semantics": direction_semantics,
         "inputs": dict(inputs or {}),
         "overlay_status": overlay["status"],
         "source_labels": {str(pid): labels[pid] for pid in sorted(labels)},

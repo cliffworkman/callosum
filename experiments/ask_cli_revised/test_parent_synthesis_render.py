@@ -91,7 +91,7 @@ class RenderAnswerShapeTests(unittest.TestCase):
         from experiments.ask_cli_revised import sufficiency_diagnostic as sd
 
         smf = pst.map_with("x", req)
-        sd.compute_direction_and_effectiveness(sealed, smf)
+        sd.compute_direction_and_effectiveness(sealed, smf, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION)
         claims = psl.build_claim_ledger(smf, sealed)
         text = psr.render_answer(claims, [])
         overview_section = text.split("## Qualified")[0]

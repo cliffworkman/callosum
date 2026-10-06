@@ -12,7 +12,8 @@ from pathlib import Path
 
 import pytest
 
-from experiments.ask_cli_revised.answer_plan import direction_target as dt
+from experiments.ask_cli_revised import direction_target as dt
+from experiments.ask_cli_revised import sufficiency_engine as se
 from experiments.ask_cli_revised.test_answer_plan import (
     binding,
     build,
@@ -25,8 +26,13 @@ from experiments.ask_cli_revised.test_answer_plan import (
 ALPHA_BETA = {"entity_x": "alpha", "measure_y": "beta"}
 
 
-def _classify(sentence: str, sign: str | None = "negative", operands: dict | None = None) -> dict:
-    return dt.classify_sentence(sentence, operands or ALPHA_BETA, sign)
+def _classify(
+    sentence: str,
+    sign: str | None = "negative",
+    operands: dict | None = None,
+    version: str = se.SUFFICIENCY_SEMANTICS_V3,
+) -> dict:
+    return dt.classify_sentence(sentence, operands or ALPHA_BETA, sign, semantics_version=version)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -87,12 +93,21 @@ def test_a_sentence_without_the_requested_direction_word_is_none():
     assert _classify("Alpha was associated with beta.", sign="negative")["target"] == "none"
 
 
-def test_a_single_realised_operand_keeps_its_attribution_for_valence():
-    # The preserved c6 pattern: one operand realised in the sentence, the sign is not tied to any relation.
-    result = _classify(
-        "Explicit negative attitudes were found with the beta questionnaire.",
-        operands={"measure_y": "beta questionnaire"},
-    )
+SINGLE_OPERAND_SENTENCE = "Explicit negative attitudes were found with the beta questionnaire."
+SINGLE_OPERAND = {"measure_y": "beta questionnaire"}
+
+
+def test_a_single_realised_operand_is_unknown_under_v3_the_fallback_is_removed():
+    # The preserved c6 pattern: one operand realised, sign not tied to it. I3 removes the I1b fallback, so no target.
+    result = _classify(SINGLE_OPERAND_SENTENCE, operands=SINGLE_OPERAND)
+    assert result["target"] == "unknown"
+    assert result["role"] is None
+    assert result["reason"] == "single_operand_unbound_sign"
+
+
+def test_v2_historical_single_operand_attribution_is_preserved_as_recorded():
+    # v1/v2 maps reproduce the recorded fallback exactly. Historical, never current.
+    result = _classify(SINGLE_OPERAND_SENTENCE, operands=SINGLE_OPERAND, version=se.SUFFICIENCY_SEMANTICS_V2)
     assert result["target"] == "operand"
     assert result["role"] == "measure_y"
     assert result["reason"] == "single_operand_sentence"
@@ -246,8 +261,10 @@ def test_preserved_direction_claim_stays_a_value_level_operand_valence(tmp_path)
         pytest.skip("the I1 run directory (preserved map with I1 fields) is not present in this checkout")
     replay.main(["--run-dir", str(run_dir), "--out-dir", str(tmp_path), "--allow-historical-unversioned-map"])
     plan = json.loads((tmp_path / "answer_plan.json").read_text(encoding="utf-8"))
+    # I3: the I1b single-operand fallback attributed this sign to the questionnaire. The contemporary v3 rule does not, so
+    # the direction is suppressed (unknown target). The sentence itself remains ordinary evidence elsewhere.
     (claim,) = [r for r in plan["claim_roles"] if r.get("claim_kind") == "direction_or_effectiveness"]
-    assert claim["role"] == "value_level"
-    assert claim["direction_target"] == "operand"
-    valence = [s for n in plan["nodes"] for s in n["statements"] if s["kind"] == "value_level_valence"]
-    assert valence and valence[0]["subject"] == "Explicit Bias Questionnaire"
+    assert claim["role"] == "suppressed"
+    assert claim["direction_target"] == "unknown"
+    assert claim["reasons"] == ["direction_target_unresolved"]
+    assert not [s for n in plan["nodes"] for s in n["statements"] if s["kind"] == "value_level_valence"]

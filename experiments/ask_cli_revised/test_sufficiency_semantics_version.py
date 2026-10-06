@@ -18,8 +18,9 @@ from experiments.ask_cli_revised import sufficiency_identity as si
 from experiments.ask_cli_revised import sufficiency_recovery_targets as srt
 from experiments.ask_cli_revised.answer_plan import relations as rel
 
-CURRENT = "sufficiency-semantics-v2"
+CURRENT = "sufficiency-semantics-v3"
 HISTORICAL_V1 = "sufficiency-semantics-v1"
+HISTORICAL_V2 = "sufficiency-semantics-v2"
 RUN = (
     Path(__file__).resolve().parents[2]
     / ".local"
@@ -57,11 +58,11 @@ def test_a_stamped_map_carries_the_semantics_version_on_every_child():
 
 
 def test_the_constant_and_its_key_are_the_documented_values():
-    assert se.SUFFICIENCY_SEMANTICS_VERSION == CURRENT == "sufficiency-semantics-v2"
+    assert se.SUFFICIENCY_SEMANTICS_VERSION == CURRENT == "sufficiency-semantics-v3"
     assert se.SEMANTICS_VERSION_KEY == "sufficiency_semantics_version"
-    assert se.HISTORICAL_SUFFICIENCY_SEMANTICS_VERSIONS == frozenset({HISTORICAL_V1})
+    assert se.HISTORICAL_SUFFICIENCY_SEMANTICS_VERSIONS == frozenset({HISTORICAL_V1, HISTORICAL_V2})
     # Readable is not current: the supported set contains the historical version too.
-    assert se.SUPPORTED_SUFFICIENCY_SEMANTICS_VERSIONS == frozenset({CURRENT, HISTORICAL_V1})
+    assert se.SUPPORTED_SUFFICIENCY_SEMANTICS_VERSIONS == frozenset({CURRENT, HISTORICAL_V1, HISTORICAL_V2})
 
 
 # ---------------------------------------------------------------------------------------------------------------------

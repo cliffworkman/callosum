@@ -46,6 +46,7 @@ from experiments.ask_cli_revised import __main__ as cli
 from experiments.ask_cli_revised import backends, e2e, e2e_contracts, library_copy, stages
 from experiments.ask_cli_revised import hierarchy_contract as hc
 from experiments.ask_cli_revised import sufficiency_diagnostic as sd
+from experiments.ask_cli_revised import sufficiency_engine as se
 from experiments.ask_cli_revised import sufficiency_phase5_replay as replay_mod
 from experiments.ask_cli_revised import sufficiency_recovery_targets as srt
 from experiments.ask_cli_revised import topology as topo
@@ -317,7 +318,9 @@ def run_live(state: dict, out_dir: Path) -> dict:
                 mapped_after = sd.compute_diagnostic_sufficiency_map(
                     sealed, state["contract_by_child"], state["parent_of"]
                 )
-                sd.compute_direction_and_effectiveness(sealed, mapped_after)
+                sd.compute_direction_and_effectiveness(
+                    sealed, mapped_after, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+                )
                 targets_after = srt.compute_recovery_targets(mapped_after, state["parent_of"])
                 log["mapped_after_c4"] = mapped_after["c4"]
                 log["mapped_after_c6"] = mapped_after["c6"]

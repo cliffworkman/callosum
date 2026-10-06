@@ -88,10 +88,16 @@ RELATIONSHIP_VERIFIERS = ("same_proposition", "contract_directed_links")
 # Versions (each identifies actual behaviour, not merely a label):
 #   sufficiency-semantics-v1 (I1c, HEAD 144cc965 and earlier): inherited-referent containment is case-sensitive.
 #       Every other behaviour existed before the constant.
-#   sufficiency-semantics-v2 (I1d, CURRENT): inherited-referent containment is case-insensitive literal containment
+#   sufficiency-semantics-v2 (I1d): inherited-referent containment is case-insensitive literal containment
 #       (Unicode case folding of both the referent surface and the candidate quote, then the unchanged canonical
 #       containment test). Whitespace, punctuation, hyphenation, morphology, aliases and paraphrase are NOT normalised
-#       by this change. Every other behaviour is unchanged from v1.
+#       by this change. Direction is the v1 behaviour: first direction word per passage, literal sign only.
+#   sufficiency-semantics-v3 (I3, CURRENT): v2 containment, plus direction observations carry an explicit target
+#       (relation | operand:<role> | unknown | none) from the shared classifier (direction_target). Relation-level
+#       direction requires a witnessed relation AND a relation-targeted direction sentence within that witness's
+#       proposition. The single-operand fallback is removed (an unresolved sign with one realised operand is unknown).
+#       Literal valence includes adverbial forms ("negatively associated"). Relation summaries count only
+#       relation-eligible observations. Operand-level valence stays as observation metadata.
 #
 # CURRENT is the only version new production accepts. SUPPORTED lists every version this code can READ; membership in
 # it does not make a version current. Historical versions are readable only through an explicit historical path.
@@ -102,8 +108,9 @@ RELATIONSHIP_VERIFIERS = ("same_proposition", "contract_directed_links")
 # section 17). The two identify different things. Neither replaces the other.
 SUFFICIENCY_SEMANTICS_V1 = "sufficiency-semantics-v1"
 SUFFICIENCY_SEMANTICS_V2 = "sufficiency-semantics-v2"
-SUFFICIENCY_SEMANTICS_VERSION = SUFFICIENCY_SEMANTICS_V2
-HISTORICAL_SUFFICIENCY_SEMANTICS_VERSIONS = frozenset({SUFFICIENCY_SEMANTICS_V1})
+SUFFICIENCY_SEMANTICS_V3 = "sufficiency-semantics-v3"
+SUFFICIENCY_SEMANTICS_VERSION = SUFFICIENCY_SEMANTICS_V3
+HISTORICAL_SUFFICIENCY_SEMANTICS_VERSIONS = frozenset({SUFFICIENCY_SEMANTICS_V1, SUFFICIENCY_SEMANTICS_V2})
 SUPPORTED_SUFFICIENCY_SEMANTICS_VERSIONS = (
     frozenset({SUFFICIENCY_SEMANTICS_VERSION}) | HISTORICAL_SUFFICIENCY_SEMANTICS_VERSIONS
 )
@@ -200,6 +207,45 @@ def new_direction_assessment(
         "causal_language_present": bool(causal_language_present),
         "proposition_id": proposition_id,
         "exact_text": exact_text,
+    }
+
+
+DIRECTION_TARGETS = ("relation", "operand", "unknown", "none")
+
+
+def new_targeted_direction_assessment(
+    *,
+    sign: str | None,
+    required_sign: str | None,
+    causal_language_present: bool,
+    proposition_id: str | None,
+    exact_text: str,
+    target: str,
+    target_role: str | None,
+    target_reason: str,
+    relation_eligible: bool,
+) -> dict:
+    """A v3 direction observation (I3). ``exact_text`` is the classified SENTENCE, not the bare direction word. The
+    observation is provenance: its target is deterministic, never model-authored, and carries no confidence.
+    ``relation_eligible`` is True only when the sentence targets the relation AND the observation's proposition is
+    within the instance's relation witness evidence."""
+    if target not in DIRECTION_TARGETS:
+        raise ValueError(f"invalid direction target: {target!r}")
+    if target == "operand" and not target_role:
+        raise ValueError("an operand-targeted direction observation must name its operand role")
+    if target != "operand" and target_role is not None:
+        raise ValueError("only an operand-targeted direction observation may carry a target role")
+    return {
+        "reported": True,
+        "sign": sign,
+        "required_sign": required_sign,
+        "causal_language_present": bool(causal_language_present),
+        "proposition_id": proposition_id,
+        "exact_text": exact_text,
+        "target": target,
+        "target_role": target_role,
+        "target_reason": target_reason,
+        "relation_eligible": bool(relation_eligible) and target == "relation",
     }
 
 
@@ -523,7 +569,16 @@ def _observation_sort_key(key):
     return (key is None, key)
 
 
-def summarize_observations(instances: list[dict], obs_key: str, value_key: str) -> dict:
+def counts_toward_relation_direction(observation: dict) -> bool:
+    """Whether a direction observation counts toward a RELATION-level direction summary and admits its proposition to the
+    direction ParentClaim. A v3 (targeted) observation counts only when it is relation-eligible. An untargeted v1/v2
+    observation carries no ``target`` key and counts as recorded by its version, which keeps the historical summary exact."""
+    if "target" not in observation:
+        return True
+    return observation.get("relation_eligible") is True
+
+
+def summarize_observations(instances: list[dict], obs_key: str, value_key: str, *, observation_filter=None) -> dict:
     """A DERIVED VIEW only (Phase 18) -- never a second source of truth -- over COMPLETE
     instances' own `obs_key` observation lists (`"direction_observations"` /
     `"effectiveness_observations"`), reading `value_key` (`"sign"` / `"conclusion"`) from each.
@@ -542,7 +597,11 @@ def summarize_observations(instances: list[dict], obs_key: str, value_key: str) 
     resolved_values: dict = {}
     for inst in complete:
         key = inst["instance_key"]
-        values = {o[value_key] for o in inst.get(obs_key, []) if o.get(value_key) is not None}
+        values = {
+            o[value_key]
+            for o in inst.get(obs_key, [])
+            if o.get(value_key) is not None and (observation_filter is None or observation_filter(o))
+        }
         if not values:
             missing.append(key)
             continue

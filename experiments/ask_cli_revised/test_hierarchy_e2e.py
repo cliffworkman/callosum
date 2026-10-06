@@ -16,6 +16,7 @@ from unittest.mock import MagicMock, patch
 
 from experiments.ask_cli_revised import e2e, sufficiency_diagnostic, sufficiency_freeze, sufficiency_recovery_targets
 from experiments.ask_cli_revised import hierarchy_contract as hc
+from experiments.ask_cli_revised import sufficiency_engine as se
 from experiments.ask_cli_revised import sufficiency_model_scope as mscope
 from experiments.ask_cli_revised import topology as topo
 from experiments.ask_cli_revised.hierarchy_test_support import (
@@ -274,7 +275,9 @@ class SufficiencyIntegrationTests(unittest.TestCase):
         direct = sufficiency_diagnostic.compute_diagnostic_sufficiency_map(
             result["sealed"], self.contract_by_child, self.parent_of
         )
-        sufficiency_diagnostic.compute_direction_and_effectiveness(result["sealed"], direct)
+        sufficiency_diagnostic.compute_direction_and_effectiveness(
+            result["sealed"], direct, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+        )
         self.assertEqual(direct, result["sufficiency_map_final"])
 
     def test_recovery_targets_are_reachable_under_their_own_existing_gate(self):
