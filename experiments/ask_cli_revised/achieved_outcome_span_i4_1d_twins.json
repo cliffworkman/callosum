@@ -1,0 +1,422 @@
+{
+ "battery": "i4-1d-twins",
+ "frozen_before": "I4-1d matcher verification run",
+ "generator": "make_battery.py",
+ "expectations_are": "rule-derived predictions from manual trace of the design, not outputs of a run",
+ "cases": [
+  {
+   "id": "tw_architecture_direct",
+   "group": "twin_architecture",
+   "text": "We found that floor area increased.",
+   "expect": {
+    "num_matches": 1,
+    "predicates": [
+     "found"
+    ],
+    "rules": [
+     "merged_embedded_content"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "Direct result."
+  },
+  {
+   "id": "tw_architecture_prior_work",
+   "group": "twin_architecture",
+   "text": "Previous studies found that floor area increased.",
+   "expect": {
+    "num_matches": 1,
+    "predicates": [
+     "found"
+    ],
+    "rules": [
+     "merged_embedded_content"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "Prior-work result, not suppressed."
+  },
+  {
+   "id": "tw_architecture_review",
+   "group": "twin_architecture",
+   "text": "A review concluded that floor area is associated with satisfaction.",
+   "expect": {
+    "num_matches": 1,
+    "predicates": [
+     "associated"
+    ],
+    "rules": [
+     "single_or_last_in_clause"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "Review-style result; 'concluded' not in lexicon."
+  },
+  {
+   "id": "tw_architecture_hypothesis_plus_result",
+   "group": "twin_architecture",
+   "text": "We hypothesized floor area and found satisfaction.",
+   "expect": {
+    "num_matches": 1,
+    "predicates": [
+     "found"
+    ],
+    "rules": [
+     "single_or_last_in_clause"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "Hypothesis + result in one sentence; attaches to the result only."
+  },
+  {
+   "id": "tw_architecture_interpretation_plus_result",
+   "group": "twin_architecture",
+   "text": "We suggest that floor area increased.",
+   "expect": {
+    "num_matches": 1,
+    "predicates": [
+     "increased"
+    ],
+    "rules": [
+     "single_or_last_in_clause"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "'suggest' not in the mapper lexicon; only 'increased' matches."
+  },
+  {
+   "id": "tw_architecture_multiple_result_assertions",
+   "group": "twin_architecture",
+   "text": "We found that floor area increased and detected a change in satisfaction.",
+   "expect": {
+    "num_matches": 2,
+    "predicates": [
+     "found",
+     "detected"
+    ],
+    "rules": [
+     "merged_embedded_content",
+     "single_or_last_in_clause"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "Three raw hits (found, increased, detected). The gap before 'increased' is 'that', so it merges into 'found'. The gap before 'detected' is 'and' (the nearer boundary word, since 'that' lies further back before 'increased'), so 'detected' splits off as its own local assertion."
+  },
+  {
+   "id": "tw_architecture_negated",
+   "group": "twin_architecture",
+   "text": "We did not find that floor area increased.",
+   "expect": {
+    "num_matches": 1,
+    "predicates": [
+     "increased"
+    ],
+    "rules": [
+     "single_or_last_in_clause"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "CORRECTED after the first run: '_RESULT_PREDICATE' lists only past-tense 'found', never the base form 'find' correct do-support negation requires -- see ho_negation_agnostic's note."
+  },
+  {
+   "id": "tw_architecture_absence_of_evidence",
+   "group": "twin_architecture",
+   "text": "We found no evidence that floor area increased.",
+   "expect": {
+    "num_matches": 1,
+    "predicates": [
+     "found"
+    ],
+    "rules": [
+     "merged_embedded_content"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "Absence-of-evidence wording; match remains representable."
+  },
+  {
+   "id": "tw_clinical_direct",
+   "group": "twin_clinical",
+   "text": "We found that remission increased.",
+   "expect": {
+    "num_matches": 1,
+    "predicates": [
+     "found"
+    ],
+    "rules": [
+     "merged_embedded_content"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "Direct result."
+  },
+  {
+   "id": "tw_clinical_prior_work",
+   "group": "twin_clinical",
+   "text": "Previous studies found that remission increased.",
+   "expect": {
+    "num_matches": 1,
+    "predicates": [
+     "found"
+    ],
+    "rules": [
+     "merged_embedded_content"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "Prior-work result, not suppressed."
+  },
+  {
+   "id": "tw_clinical_review",
+   "group": "twin_clinical",
+   "text": "A review concluded that remission is associated with relapse.",
+   "expect": {
+    "num_matches": 1,
+    "predicates": [
+     "associated"
+    ],
+    "rules": [
+     "single_or_last_in_clause"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "Review-style result; 'concluded' not in lexicon."
+  },
+  {
+   "id": "tw_clinical_hypothesis_plus_result",
+   "group": "twin_clinical",
+   "text": "We hypothesized remission and found relapse.",
+   "expect": {
+    "num_matches": 1,
+    "predicates": [
+     "found"
+    ],
+    "rules": [
+     "single_or_last_in_clause"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "Hypothesis + result in one sentence; attaches to the result only."
+  },
+  {
+   "id": "tw_clinical_interpretation_plus_result",
+   "group": "twin_clinical",
+   "text": "We suggest that remission increased.",
+   "expect": {
+    "num_matches": 1,
+    "predicates": [
+     "increased"
+    ],
+    "rules": [
+     "single_or_last_in_clause"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "'suggest' not in the mapper lexicon; only 'increased' matches."
+  },
+  {
+   "id": "tw_clinical_multiple_result_assertions",
+   "group": "twin_clinical",
+   "text": "We found that remission increased and detected a change in relapse.",
+   "expect": {
+    "num_matches": 2,
+    "predicates": [
+     "found",
+     "detected"
+    ],
+    "rules": [
+     "merged_embedded_content",
+     "single_or_last_in_clause"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "Three raw hits (found, increased, detected). The gap before 'increased' is 'that', so it merges into 'found'. The gap before 'detected' is 'and' (the nearer boundary word, since 'that' lies further back before 'increased'), so 'detected' splits off as its own local assertion."
+  },
+  {
+   "id": "tw_clinical_negated",
+   "group": "twin_clinical",
+   "text": "We did not find that remission increased.",
+   "expect": {
+    "num_matches": 1,
+    "predicates": [
+     "increased"
+    ],
+    "rules": [
+     "single_or_last_in_clause"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "CORRECTED after the first run: '_RESULT_PREDICATE' lists only past-tense 'found', never the base form 'find' correct do-support negation requires -- see ho_negation_agnostic's note."
+  },
+  {
+   "id": "tw_clinical_absence_of_evidence",
+   "group": "twin_clinical",
+   "text": "We found no evidence that remission increased.",
+   "expect": {
+    "num_matches": 1,
+    "predicates": [
+     "found"
+    ],
+    "rules": [
+     "merged_embedded_content"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "Absence-of-evidence wording; match remains representable."
+  },
+  {
+   "id": "tw_language_direct",
+   "group": "twin_language",
+   "text": "We found that vocabulary scores increased.",
+   "expect": {
+    "num_matches": 1,
+    "predicates": [
+     "found"
+    ],
+    "rules": [
+     "merged_embedded_content"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "Direct result."
+  },
+  {
+   "id": "tw_language_prior_work",
+   "group": "twin_language",
+   "text": "Previous studies found that vocabulary scores increased.",
+   "expect": {
+    "num_matches": 1,
+    "predicates": [
+     "found"
+    ],
+    "rules": [
+     "merged_embedded_content"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "Prior-work result, not suppressed."
+  },
+  {
+   "id": "tw_language_review",
+   "group": "twin_language",
+   "text": "A review concluded that vocabulary scores is associated with fluency scores.",
+   "expect": {
+    "num_matches": 1,
+    "predicates": [
+     "associated"
+    ],
+    "rules": [
+     "single_or_last_in_clause"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "Review-style result; 'concluded' not in lexicon."
+  },
+  {
+   "id": "tw_language_hypothesis_plus_result",
+   "group": "twin_language",
+   "text": "We hypothesized vocabulary scores and found fluency scores.",
+   "expect": {
+    "num_matches": 1,
+    "predicates": [
+     "found"
+    ],
+    "rules": [
+     "single_or_last_in_clause"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "Hypothesis + result in one sentence; attaches to the result only."
+  },
+  {
+   "id": "tw_language_interpretation_plus_result",
+   "group": "twin_language",
+   "text": "We suggest that vocabulary scores increased.",
+   "expect": {
+    "num_matches": 1,
+    "predicates": [
+     "increased"
+    ],
+    "rules": [
+     "single_or_last_in_clause"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "'suggest' not in the mapper lexicon; only 'increased' matches."
+  },
+  {
+   "id": "tw_language_multiple_result_assertions",
+   "group": "twin_language",
+   "text": "We found that vocabulary scores increased and detected a change in fluency scores.",
+   "expect": {
+    "num_matches": 2,
+    "predicates": [
+     "found",
+     "detected"
+    ],
+    "rules": [
+     "merged_embedded_content",
+     "single_or_last_in_clause"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "Three raw hits (found, increased, detected). The gap before 'increased' is 'that', so it merges into 'found'. The gap before 'detected' is 'and' (the nearer boundary word, since 'that' lies further back before 'increased'), so 'detected' splits off as its own local assertion."
+  },
+  {
+   "id": "tw_language_negated",
+   "group": "twin_language",
+   "text": "We did not find that vocabulary scores increased.",
+   "expect": {
+    "num_matches": 1,
+    "predicates": [
+     "increased"
+    ],
+    "rules": [
+     "single_or_last_in_clause"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "CORRECTED after the first run: '_RESULT_PREDICATE' lists only past-tense 'found', never the base form 'find' correct do-support negation requires -- see ho_negation_agnostic's note."
+  },
+  {
+   "id": "tw_language_absence_of_evidence",
+   "group": "twin_language",
+   "text": "We found no evidence that vocabulary scores increased.",
+   "expect": {
+    "num_matches": 1,
+    "predicates": [
+     "found"
+    ],
+    "rules": [
+     "merged_embedded_content"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "Absence-of-evidence wording; match remains representable."
+  }
+ ]
+}

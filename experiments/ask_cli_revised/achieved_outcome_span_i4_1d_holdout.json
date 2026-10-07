@@ -1,0 +1,230 @@
+{
+ "battery": "i4-1d-holdout",
+ "frozen_before": "I4-1d matcher verification run",
+ "generator": "make_battery.py",
+ "expectations_are": "rule-derived predictions from manual trace of the design, not outputs of a run",
+ "cases": [
+  {
+   "id": "ho_coordination_split",
+   "group": "holdout",
+   "text": "We found X and detected Y.",
+   "expect": {
+    "num_matches": 2,
+    "predicates": [
+     "found",
+     "detected"
+    ],
+    "rules": [
+     "split_at_coordination",
+     "single_or_last_in_clause"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "Multiple result predicates via coordination: 'and' between them splits into two local assertions."
+  },
+  {
+   "id": "ho_three_matches_split_then_merge",
+   "group": "holdout",
+   "text": "We tested whether X predicted Y and found that X predicted Y.",
+   "expect": {
+    "num_matches": 2,
+    "predicates": [
+     "predicted",
+     "found"
+    ],
+    "rules": [
+     "split_at_coordination",
+     "merged_embedded_content"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "'tested' is not in the mapper lexicon. Three raw hits (predicted, found, predicted): split at 'and', then merge the second 'predicted' into 'found' via 'that'."
+  },
+  {
+   "id": "ho_headless_ambiguous",
+   "group": "holdout",
+   "text": "found X previous studies found Y",
+   "expect": {
+    "num_matches": 2,
+    "predicates": [
+     "found",
+     "found"
+    ],
+    "rules": [
+     "ambiguous_boundary",
+     "ambiguous_boundary"
+    ],
+    "has_ambiguity": true,
+    "old_match_is_not_none": true
+   },
+   "note": "Headless fragment, no punctuation at all: no that/and/or/but between the two 'found' hits. Genuinely undecidable -- both sides reported as ambiguous, neither silently merged nor split."
+  },
+  {
+   "id": "ho_repeated_terms_separate_sentences",
+   "group": "holdout",
+   "text": "We found X. We found X.",
+   "expect": {
+    "num_matches": 2,
+    "predicates": [
+     "found",
+     "found"
+    ],
+    "rules": [
+     "single_or_last_in_clause",
+     "single_or_last_in_clause"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "Repeated target term across two separate sentences: trivially two independent local assertions, never compared against each other (sentence boundary already resolves it)."
+  },
+  {
+   "id": "ho_contrast_comma_clause_split",
+   "group": "holdout",
+   "text": "Previous studies found X, but we found Y.",
+   "expect": {
+    "num_matches": 2,
+    "predicates": [
+     "found",
+     "found"
+    ],
+    "rules": [
+     "single_or_last_in_clause",
+     "single_or_last_in_clause"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "A ', but' clause boundary already separates these into two clauses before the within-clause boundary logic ever runs, so each clause trivially has one match."
+  },
+  {
+   "id": "ho_semicolon_clause_split",
+   "group": "holdout",
+   "text": "Previous studies found X; we found Y.",
+   "expect": {
+    "num_matches": 2,
+    "predicates": [
+     "found",
+     "found"
+    ],
+    "rules": [
+     "single_or_last_in_clause",
+     "single_or_last_in_clause"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "Semicolon clause boundary, same effect as the comma+contrast case."
+  },
+  {
+   "id": "ho_mixed_but_different_predicates",
+   "group": "holdout",
+   "text": "Previous studies found X, but we detected Y.",
+   "expect": {
+    "num_matches": 2,
+    "predicates": [
+     "found",
+     "detected"
+    ],
+    "rules": [
+     "single_or_last_in_clause",
+     "single_or_last_in_clause"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "Prior/current mixed passage, different predicate words, already separated by the clause boundary."
+  },
+  {
+   "id": "ho_review_background_prose",
+   "group": "holdout",
+   "text": "The literature review associated X with Y.",
+   "expect": {
+    "num_matches": 1,
+    "predicates": [
+     "associated"
+    ],
+    "rules": [
+     "single_or_last_in_clause"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "Review/background-prose wording; 'associated' is preserved and attached, admissibility undecided here."
+  },
+  {
+   "id": "ho_negation_agnostic",
+   "group": "holdout",
+   "text": "We did not find that scores increased.",
+   "expect": {
+    "num_matches": 1,
+    "predicates": [
+     "increased"
+    ],
+    "rules": [
+     "single_or_last_in_clause"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "CORRECTED after the first run (a pure expectation bug, not a module bug): '_RESULT_PREDICATE' lists only the past-tense 'found', never the base form 'find' that correct do-support negation grammar requires ('did not find', never 'did not found'). So this sentence has exactly one raw hit, 'increased'; 'found' is never even a candidate. This is a genuine, concrete instance of the mapper lexicon disagreeing with assertion_authority's own _RESULT_VERBS (which lists found/find/finds all three) -- the module's logic is unaffected; this module has no concept of negation either way."
+  },
+  {
+   "id": "ho_absence_of_evidence_no_support",
+   "group": "holdout",
+   "text": "We found no support for scores increasing.",
+   "expect": {
+    "num_matches": 1,
+    "predicates": [
+     "found"
+    ],
+    "rules": [
+     "single_or_last_in_clause"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "'increasing' (present participle) is not in the mapper lexicon -- only 'increased'/'decreased' are -- so this is a single match on 'found' alone, with no embedded-content merge."
+  },
+  {
+   "id": "ho_citation_marked_merge",
+   "group": "holdout",
+   "text": "Smith et al. observed that scores correlated with revenue.",
+   "expect": {
+    "num_matches": 1,
+    "predicates": [
+     "observed"
+    ],
+    "rules": [
+     "merged_embedded_content"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "Citation-marked subject, same merge-via-'that' mechanics as mp_B; source is never inspected."
+  },
+  {
+   "id": "ho_three_separate_and_splits",
+   "group": "holdout",
+   "text": "We found X and detected Y and reported Z.",
+   "expect": {
+    "num_matches": 3,
+    "predicates": [
+     "found",
+     "detected",
+     "reported"
+    ],
+    "rules": [
+     "split_at_coordination",
+     "split_at_coordination",
+     "single_or_last_in_clause"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "Three coordinated result predicates in one clause split into three local assertions."
+  }
+ ]
+}

@@ -1949,3 +1949,61 @@ the full offline suite (159 files) is 3365 passed, 7 failed, 12 skipped -- the e
 environment-artifact failures as the I4-1b baseline, zero new. The results artifact is
 `PHASE34_I4_1C_NEGATED_AUTHORITY_RESULTS.md`. No model was called, no network was used, and no live search or live
 end-to-end run occurred.
+
+## Phase 34 / I4-1d -- achieved-outcome assertion-span attachment (still pure and unwired; no version bump; appended 2026-10-07; preserves all prior entries unchanged)
+
+**Scope (Cliff Workman).** The existing achieved-outcome mapper returns a whole passage, which is insufficient once
+a passage contains more than one local assertion. This increment builds a pure matcher that attaches a result-
+predicate match to its own local assertion span, not to whichever assertion in the passage happens to look
+strongest, and does nothing else. It is explicitly about attachment, not authority: it must not treat an indirect,
+prior-work, review-style, or `candidate`-authority assertion as categorically unusable, must not use
+`finding_authority` to accept or reject a match, and must not collapse an ambiguous multi-assertion passage onto one
+reading. No sufficiency or `PLAN_VERSION` change, no recovery/relation/direction/effectiveness change, no I4-2, no
+I2-3, no model or network call, no sealing change.
+
+**Implementation (Claude).** One new pure module reuses the existing mapper's own `has_result_predicate`/
+`_RESULT_PREDICATE` unmodified, for exact boolean parity, and reimplements (rather than imports) the I4-1
+classifier's own sentence/clause-boundary logic, so the new module stays as unwired as that classifier -- importing
+it would have tripped its own static guard. Within a clause, consecutive result-predicate hits are segmented by the
+last `that`/`and`/`or`/`but` between them: `that` merges the second hit in as embedded content of the first;
+`and`/`or`/`but` splits them into two local assertions; no boundary word at all is reported as genuinely ambiguous,
+symmetrically, on both sides of the pair -- never silently resolved either way. An asymmetric first draft, which
+flagged only one side of an undecidable pair, was caught in a manual trace before any battery was run and corrected
+to flag both sides.
+
+**Pre-registration (Claude).** Three batteries were frozen and hashed before any run: 6 preregistered minimal pairs
+(direct result; prior-work result, not suppressed; two assertions in separate sentences; review-style result;
+hypothesis-plus-result, attaching only to the result; absence-of-evidence, representable not deleted), 12 holdout
+cases (coordination splits, headless undecidable ambiguity, clause-boundary splits, negation, absence-of-evidence,
+citation-marked merges), and 24 cross-domain twins (8 structures across architecture/clinical/language). The first
+run against 4 holdout/twin cases using "did not find" failed: `_RESULT_PREDICATE` lists only the past-tense "found,"
+never the base form "find" that correct do-support negation grammar requires, so only the second predicate in each
+of those sentences ever matches. This is a genuine, concrete instance of the mapper's own lexicon disagreeing with
+the I4-1 classifier's broader one -- the four expectations were corrected with the reasoning recorded in each case,
+and the batteries were re-frozen.
+
+**Verification (Claude).** Preregistered 6/6, holdout 12/12, twins 24/24 (42/42 total, first and only run after the
+correction above). Exact parity with the historical whole-passage boolean was confirmed over 237 independent texts
+with zero mismatches: the 42 battery cases, the 54 preserved Attempt2 sealed quotes, and every prose string literal
+in the production mapping test file. A read-only audit of the preserved v4 map's real achieved-outcome bindings (15
+filled bindings across 8 distinct proposition ids: p1, p4, p8, p11, p24, p30, p31, p41) found 7 of 8 attach to one
+unambiguous local assertion; p41 genuinely and honestly surfaces ambiguity from an elliptical "that"-omission after
+"revealed" that this module's boundary-word design cannot resolve without guessing, and it was not tuned toward
+either outcome. The same audit found p1, p4, p8, and p24 are four different proposition ids bound to the exact same
+292-character sentence, each inheriting whichever proposition row happened to appear first in the sealed ledger for
+that passage -- a concrete demonstration that the mapper's `exact_text`/`proposition_id` assignment is already
+decoupled from which internal assertion produced the match. p36, p40, and p52 are reported directly as not being
+achieved-outcome bindings at all in this map (two are `explicit_category_terms`, one is `model_nomination_only`),
+rather than guessed around. A target-aware-seam check against the real mapper call site found no separate target
+value exists today to disambiguate which local assertion, among several in one passage, a given role/requirement is
+actually asking about -- closing that gap is a production decision, not something this module's span output alone
+resolves. The static unwired guard (no non-test module references the new module by name) and the module's own
+non-reference to the I4-1 classifier are both confirmed by test. The Attempt2 AnswerPlan replay is byte-identical
+across all 7 outputs; the same 16 I4-1b/c parity-surface test files pass with identical counts (444 passed, 18
+subtests); and the full offline suite (161 files) is 3512 passed, 7 failed, 12 skipped, 276 subtests passed -- the
+same 7 files, each with exactly one failure, as the I4-1b/c pre-existing/environment-artifact baseline, zero new.
+The results artifact is
+`PHASE34_I4_1D_ACHIEVED_OUTCOME_SPAN_RESULTS.md`, which explicitly recommends against treating this as ready for a
+direct transition to the earlier I4-2 sketch: evidence provenance/directness must determine how evidence counts
+toward a requirement, not automatically whether it counts, and that policy question remains open. No model was
+called, no network was used, and no live search or live end-to-end run occurred.

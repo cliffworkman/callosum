@@ -1,0 +1,112 @@
+{
+ "battery": "i4-1d-preregistered",
+ "frozen_before": "I4-1d matcher verification run",
+ "generator": "make_battery.py",
+ "expectations_are": "rule-derived predictions from manual trace of the design, not outputs of a run",
+ "cases": [
+  {
+   "id": "mp_A",
+   "group": "direct_indirect",
+   "text": "We found that scores increased.",
+   "expect": {
+    "num_matches": 1,
+    "predicates": [
+     "found"
+    ],
+    "rules": [
+     "merged_embedded_content"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "A: one local match; 'increased' merges as embedded content of 'found' via the 'that' boundary."
+  },
+  {
+   "id": "mp_B",
+   "group": "direct_indirect",
+   "text": "Previous studies found that scores increased.",
+   "expect": {
+    "num_matches": 1,
+    "predicates": [
+     "found"
+    ],
+    "rules": [
+     "merged_embedded_content"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "B: one local match, still returned -- NOT suppressed for being prior_work. This module never inspects source."
+  },
+  {
+   "id": "mp_C",
+   "group": "direct_indirect",
+   "text": "Previous studies found X. We found Y.",
+   "expect": {
+    "num_matches": 2,
+    "predicates": [
+     "found",
+     "found"
+    ],
+    "rules": [
+     "single_or_last_in_clause",
+     "single_or_last_in_clause"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "C: two distinct local assertions (separate sentences), never collapsed to one."
+  },
+  {
+   "id": "mp_D",
+   "group": "direct_indirect",
+   "text": "A review concluded that X is associated with Y.",
+   "expect": {
+    "num_matches": 1,
+    "predicates": [
+     "associated"
+    ],
+    "rules": [
+     "single_or_last_in_clause"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "D: 'concluded' is not in the mapper's predicate lexicon at all; 'associated' is the sole match. Preserved and attached locally -- this module does not decide whether review evidence is admissible."
+  },
+  {
+   "id": "mp_E",
+   "group": "direct_indirect",
+   "text": "We hypothesized X and found Y.",
+   "expect": {
+    "num_matches": 1,
+    "predicates": [
+     "found"
+    ],
+    "rules": [
+     "single_or_last_in_clause"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "E: 'hypothesized' is not in the mapper's predicate lexicon at all, so 'found' is the only match -- the result attaches to the Y assertion, never the hypothesis, by construction (there is no competing predicate span for 'hypothesized' to begin with). content_span is anchored at 'found', excluding the hypothesis clause, even though assertion_span/clause_span remain the whole sentence for context."
+  },
+  {
+   "id": "mp_F",
+   "group": "direct_indirect",
+   "text": "We found no evidence that scores increased.",
+   "expect": {
+    "num_matches": 1,
+    "predicates": [
+     "found"
+    ],
+    "rules": [
+     "merged_embedded_content"
+    ],
+    "has_ambiguity": false,
+    "old_match_is_not_none": true
+   },
+   "note": "F: one local match remains representable, not deleted. Whether this is vetoed for authority is a separate, later question (I4-1c's own validation layer, cross-checked in the test file, never read here)."
+  }
+ ]
+}
