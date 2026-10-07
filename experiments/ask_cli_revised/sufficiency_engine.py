@@ -182,10 +182,27 @@ def new_role_spec(
     model_nomination_permitted: bool = True,
     requested_category_terms=(),
     source_wording_span: str = "",
+    support_policy: dict | None = None,
 ) -> dict:
+    """``requested_category_terms`` (I4-1e revision 2, section 11-13): historically populated only for
+    ``explicit_category_terms`` roles, naming the closed category values a role searches for. Its documented
+    contract is now generalized, WITHOUT a rename (judged not strictly necessary) and WITHOUT any new validation
+    tying it to ``mapping_strategy``: verbatim requested target terms/phrases, optionally supplied by ANY
+    strategy that supports target-aware local disambiguation -- today that is also
+    ``achieved_outcome_predicate``, for disambiguating among several already-locally-valid candidate assertions
+    sharing one passage (never to broaden what counts as a match, establish relevance, or establish authority;
+    see :func:`reference_future_requested_terms_disambiguation`). No production mapping call site reads it for
+    that strategy yet.
+
+    ``support_policy`` (I4-1g, new, OPTIONAL): a requirement-side evidence-admissibility schema object (see
+    :func:`new_support_policy`), validated/canonicalized when explicitly supplied. When omitted, the historical
+    seven-key ``RoleSpec`` shape is produced EXACTLY as before -- this key is never materialized as a default or
+    ``None`` placeholder (section 9's load-bearing compatibility rule). The DEFAULT admissibility predicate a role
+    without an explicit policy will fall back to remains future I4-2 production behaviour, not schema data, and
+    is not computed, inferred, or authored here."""
     if mapping_strategy not in MAPPING_STRATEGIES:
         raise ValueError(f"unknown mapping_strategy: {mapping_strategy!r}")
-    return {
+    spec = {
         "role": role,
         "category_description": category_description,
         "mapping_strategy": mapping_strategy,
@@ -194,6 +211,9 @@ def new_role_spec(
         "requested_category_terms": list(requested_category_terms),
         "source_wording_span": source_wording_span,
     }
+    if support_policy is not None:
+        spec["support_policy"] = _canonical_support_policy(support_policy)
+    return spec
 
 
 def new_role_completion(*, required_roles=(), alternative_role_groups=(), optional_roles=()) -> dict:
@@ -473,6 +493,229 @@ def new_search_status(
         "scoped_search_completed_no_additional_support": bool(scoped_search_completed_no_additional_support),
         "breadth_pass_used": bool(breadth_pass_used),
     }
+
+
+# ---------------------------------------------------------------------------------------------
+# I4-1g (I4-1e revision 2) -- pure, BACKWARD-COMPATIBLE SCHEMA PRIMITIVES for a future evidence-
+# provenance/support-admissibility layer. NOTHING below this line is wired into
+# `recompute_instance`/`recompute_requirement`, any mapping call site, or any production
+# satisfaction/recovery/relation/direction/effectiveness/AnswerPlan path -- confirmed by the static
+# guards in `test_sufficiency_support_schema.py`. Builders only: they validate and serialize
+# already-decided values, and decide nothing themselves.
+#
+# This module imports nothing from the I4-1 pure/unwired classifier family's two sibling modules
+# (and must not -- doing so would itself be a production reference, tripping their own unwired
+# guards, which a plain substring scan of this file's own source also respects, deliberately kept
+# out of every comment and docstring below). The three closed vocabularies here therefore exist
+# independently, matching that family's own output values by STRING CONVENTION only:
+# `current_document`/`attributed_external`/`unresolved` mirror its per-assertion relation values;
+# `literature_synthesis`/`non_synthetic_or_unspecified` mirror its aggregation values; the five
+# `SUPPORT_ASSERTION_KINDS` mirror its assertion-kind values (`unknown` included, for an assertion
+# whose kind could not be determined). A future I4-2 integration is what would actually connect
+# these two independently-true vocabularies; nothing here asserts or needs that connection to hold
+# today.
+# ---------------------------------------------------------------------------------------------
+
+SUPPORT_ASSERTION_RELATIONS = ("current_document", "attributed_external", "unresolved")
+SUPPORT_AGGREGATIONS = ("literature_synthesis", "non_synthetic_or_unspecified")
+AGGREGATION_REQUIREMENTS = ("any", "require_synthesis", "exclude_synthesis")
+SUPPORT_ASSERTION_KINDS = ("result", "method_or_description", "aim_or_hypothesis", "interpretation", "unknown")
+SUPPORT_AUTHORITY_VETOES = (None, "negated_result_predicate", "absence_of_evidence")
+CANDIDATE_SUPPORT_INADMISSIBILITY_REASONS = (None, "support_policy_excluded", "assertion_attachment_ambiguous")
+
+
+def new_support_policy(
+    *,
+    allowed_assertion_relations=SUPPORT_ASSERTION_RELATIONS,
+    aggregation_requirement: str = "any",
+    allowed_assertion_kinds=("result",),
+) -> dict:
+    """Pure schema/builder for a future requirement-side support-admissibility policy (I4-1e revision 2,
+    section 7/E4). NOT evaluated anywhere in this module, and not consumed by `recompute_instance`/
+    `recompute_requirement` or any mapping call site -- a data contract only, for a future I4-2 integration.
+
+    Canonicalizes ordering: both list inputs are deduplicated and sorted, so two policies built from
+    differently-ordered but equal inputs always serialize identically. Rejects any value outside the closed
+    vocabularies above, and rejects an EMPTY relation or kind set -- a policy admitting nothing is nonsensical,
+    never a legitimate authored choice. Makes no inference from question text, and contains no q_aib/domain
+    vocabulary anywhere in this function; its own keyword defaults are a usable, question-agnostic SCHEMA
+    example, never the future I4-2 default-admissibility predicate itself (see the module notes for I4-1g)."""
+    relations = sorted(set(allowed_assertion_relations))
+    kinds = sorted(set(allowed_assertion_kinds))
+    if not relations:
+        raise ValueError("allowed_assertion_relations must not be empty")
+    if not kinds:
+        raise ValueError("allowed_assertion_kinds must not be empty")
+    for relation in relations:
+        if relation not in SUPPORT_ASSERTION_RELATIONS:
+            raise ValueError(f"unknown assertion_relation: {relation!r}")
+    if aggregation_requirement not in AGGREGATION_REQUIREMENTS:
+        raise ValueError(f"unknown aggregation_requirement: {aggregation_requirement!r}")
+    for kind in kinds:
+        if kind not in SUPPORT_ASSERTION_KINDS:
+            raise ValueError(f"unknown assertion_kind: {kind!r}")
+    return {
+        "allowed_assertion_relations": relations,
+        "aggregation_requirement": aggregation_requirement,
+        "allowed_assertion_kinds": kinds,
+    }
+
+
+_SUPPORT_POLICY_KEYS = frozenset({"allowed_assertion_relations", "aggregation_requirement", "allowed_assertion_kinds"})
+
+
+def _canonical_support_policy(policy: dict) -> dict:
+    """Validate and canonicalize a hand-authored ``support_policy`` dict to exactly what
+    :func:`new_support_policy` would have produced from the same values. Used only by
+    :func:`new_role_spec` when ``support_policy`` is explicitly supplied; never called when it is omitted."""
+    if not isinstance(policy, dict) or set(policy) != _SUPPORT_POLICY_KEYS:
+        raise ValueError(f"support_policy must have exactly the three declared fields: {policy!r}")
+    return new_support_policy(
+        allowed_assertion_relations=policy["allowed_assertion_relations"],
+        aggregation_requirement=policy["aggregation_requirement"],
+        allowed_assertion_kinds=policy["allowed_assertion_kinds"],
+    )
+
+
+def new_candidate_support(
+    *,
+    proposition_id,
+    exact_text,
+    assertion_relation: str,
+    aggregation: str,
+    assertion_kind: str,
+    admissible: bool,
+    assertion_span=None,
+    predicate_span=None,
+    content_span=None,
+    support_label: str | None = None,
+    authority_veto: str | None = None,
+    is_caption: bool = False,
+    attachment_ambiguous: bool = False,
+    inadmissibility_reason: str | None = None,
+) -> dict:
+    """Pure DATA CONTRACT for one future candidate-support record (I4-1e revision 2, section 4/6). Validates
+    and serializes already-computed values; this builder itself must never classify text, call any I4-1
+    classifier, decide admissibility, mutate requirement state, or choose a representative -- every value is
+    supplied by the (future, not-yet-built) caller that already decided it.
+
+    No `authoritative`/`candidate` ``finding_authority`` vocabulary is serialized here -- I4-1e revision 2's own
+    recommendation is that a downstream consumer need not re-expose that coarse field at all, since
+    ``assertion_relation`` already carries its ownership information without the real naming-collision risk that
+    value's literal ``"candidate"`` string would otherwise create next to this codebase's unrelated AI-funnel
+    sense of the same word (``paper_findings.kind="candidate"``). ``authority_veto``/``is_caption`` are retained,
+    as properties of this specific (assertion, target) binding attempt, not of the assertion alone."""
+    if assertion_relation not in SUPPORT_ASSERTION_RELATIONS:
+        raise ValueError(f"unknown assertion_relation: {assertion_relation!r}")
+    if aggregation not in SUPPORT_AGGREGATIONS:
+        raise ValueError(f"unknown aggregation: {aggregation!r}")
+    if assertion_kind not in SUPPORT_ASSERTION_KINDS:
+        raise ValueError(f"unknown assertion_kind: {assertion_kind!r}")
+    if authority_veto not in SUPPORT_AUTHORITY_VETOES:
+        raise ValueError(f"unknown authority_veto: {authority_veto!r}")
+    if inadmissibility_reason not in CANDIDATE_SUPPORT_INADMISSIBILITY_REASONS:
+        raise ValueError(f"unknown inadmissibility_reason: {inadmissibility_reason!r}")
+    if admissible and inadmissibility_reason is not None:
+        raise ValueError("an admissible candidate must not carry an inadmissibility_reason")
+    if not admissible and inadmissibility_reason is None:
+        raise ValueError("an inadmissible candidate must carry an inadmissibility_reason")
+    return {
+        "proposition_id": proposition_id,
+        "exact_text": exact_text,
+        "assertion_span": assertion_span,
+        "predicate_span": predicate_span,
+        "content_span": content_span,
+        "assertion_relation": assertion_relation,
+        "aggregation": aggregation,
+        "assertion_kind": assertion_kind,
+        "support_label": support_label,
+        "authority_veto": authority_veto,
+        "is_caption": bool(is_caption),
+        "attachment_ambiguous": bool(attachment_ambiguous),
+        "admissible": bool(admissible),
+        "inadmissibility_reason": inadmissibility_reason,
+    }
+
+
+_CANDIDATE_SUPPORT_KEYS = frozenset(
+    {
+        "proposition_id",
+        "exact_text",
+        "assertion_span",
+        "predicate_span",
+        "content_span",
+        "assertion_relation",
+        "aggregation",
+        "assertion_kind",
+        "support_label",
+        "authority_veto",
+        "is_caption",
+        "attachment_ambiguous",
+        "admissible",
+        "inadmissibility_reason",
+    }
+)
+
+
+def new_candidate_supports(records: list[dict]) -> list[dict]:
+    """An ORDERED list of candidate-support records (I4-1e revision 2, section 6/8/12). Preserves the caller's
+    own traversal order exactly -- list position is NEVER semantically meaningful here (never a ranking by
+    directness, never a chosen "winner"; see `reference_future_role_state` for how a future role STATE is meant
+    to read this list without depending on order). Validates that every record has exactly the shape
+    `new_candidate_support` produces; does not drop, reorder, rank, or filter any record -- "contains every
+    relevant locally-valid candidate supplied to it" is enforced by refusing anything malformed, not by
+    re-deciding relevance itself. Returns a fresh list (never aliases the caller's own)."""
+    out = []
+    for record in records:
+        if not isinstance(record, dict) or set(record) != _CANDIDATE_SUPPORT_KEYS:
+            raise ValueError(
+                f"candidate-support record has an unexpected shape: {sorted(record) if isinstance(record, dict) else record!r}"
+            )
+        out.append(dict(record))
+    return out
+
+
+def reference_future_role_state(candidate_supports: list[dict]) -> tuple[str, str | None]:
+    """REFERENCE ONLY -- freezes the I4-1e revision 2 section 6/10 future role-state aggregation contract for
+    this increment's own tests (`test_sufficiency_support_schema.py`). NOT called by `recompute_instance`/
+    `recompute_requirement` or any production path; a static guard proves this.
+
+    Future I4-2 semantics, exactly: ``"filled"`` iff at least one relevant candidate is admissible;
+    ``"ambiguous"`` iff no candidate is admissible AND at least one relevant candidate is blocked specifically
+    because assertion attachment is ambiguous; ``"missing"`` otherwise. Policy-excluded evidence alone never
+    creates ambiguity -- a role with only `support_policy_excluded` candidates aggregates to plain `"missing"`,
+    not `"ambiguous"`. One ambiguous candidate never poisons another, separate, unambiguous admissible support:
+    `"filled"` is checked FIRST, unconditionally on the presence of any admissible candidate regardless of what
+    else the list also contains. The exact production reason-code mapping for the `"missing"` case is future
+    I4-2 work, not decided here."""
+    if any(candidate["admissible"] for candidate in candidate_supports):
+        return "filled", None
+    if any(candidate["inadmissibility_reason"] == "assertion_attachment_ambiguous" for candidate in candidate_supports):
+        return "ambiguous", "assertion_attachment_ambiguous"
+    return "missing", None
+
+
+def reference_future_requested_terms_disambiguation(candidates: list[dict], requested_terms: list[str]) -> dict | None:
+    """REFERENCE ONLY -- freezes the future `requested_category_terms` disambiguation contract for
+    `achieved_outcome_predicate` roles (I4-1e revision 2, section 10/12/13). NOT called by production mapping.
+
+    Literal containment only -- no fuzzy matching, no embeddings, no model call, no synonym expansion, no
+    stemming (a future production wiring would reuse `sufficiency_mapping.py`'s own existing canonical-containment
+    discipline; this reference helper intentionally does not import across the I4-1 classifier family's own
+    unwired boundary to reuse it, even for a test-only reference). Each candidate dict
+    must carry its own ``exact_text``. Returns the single candidate whose ``exact_text`` contains at least one
+    requested term, when EXACTLY one candidate qualifies. Returns ``None`` (no disambiguation) when the term
+    list is empty, when zero candidates qualify, or when more than one does -- never a first-match fallback."""
+    if not requested_terms:
+        return None
+    matching = [
+        candidate
+        for candidate in candidates
+        if any(term and term in candidate["exact_text"] for term in requested_terms)
+    ]
+    if len(matching) == 1:
+        return matching[0]
+    return None
 
 
 # ---------------------------------------------------------------------------------------------

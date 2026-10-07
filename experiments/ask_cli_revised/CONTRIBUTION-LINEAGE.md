@@ -2174,3 +2174,63 @@ non-synthetic outcome on real preserved text. The results artifact is
 `PHASE34_I4_1F_PROVENANCE_AGGREGATION_RESULTS.md`, which recommends READY for I4-1g exactly as I4-1e revision 2
 bounds it, and explicitly does not shorten the distance to I4-2. No model was called, no network was used, and no
 live search or live end-to-end run occurred.
+
+## Phase 34 / I4-1g -- support_policy + candidate-support schema primitives (pure, schema-only, unwired; no sufficiency/plan version bump; appended 2026-10-07; preserves all prior entries unchanged)
+
+**Scope (Cliff Workman).** Introduce only backward-compatible schema primitives for the future evidence-
+provenance/support-admissibility layer I4-1e revision 2 designed -- `support_policy`'s schema, an optional
+`RoleSpec` field for it, a candidate-support record and collection schema, and the future role-state/
+`requested_category_terms`-disambiguation contracts frozen as reference-only helpers. None of it may be wired
+into `recompute_instance`/`recompute_requirement`, any mapping call site, or any production satisfaction/
+recovery/relation/direction/effectiveness/AnswerPlan path. Every existing constructor's output from every
+unmodified call site must remain byte-identical -- an omitted optional field must be omitted, never materialized
+as a default/empty key on every historical object -- and this is to be proven by a frozen before/after byte-
+parity gate, not merely asserted. `requested_category_terms` keeps its historical name. The preserved 54-quote/
+v4-map gate I4-1f could not clear is carried forward explicitly as a hard precondition on I4-2, not attempted
+here. No model/network/live-search/live-E2E run; no version bump of either frozen identity.
+
+**Implementation (Claude).** `new_role_spec` gained exactly one new optional keyword, `support_policy`,
+validated and canonicalized through the same logic `new_support_policy` itself uses, included only when
+explicitly supplied. `new_role_binding`, `new_requirement`, and `new_instance` are deliberately not touched at
+all in this increment -- `candidate_supports` is introduced as a wholly independent schema object, not yet a
+field on either, since attaching it is better deferred to the same increment that actually wires it in.
+`new_support_policy` canonicalizes (dedupes and sorts) its two list inputs and validates against three closed
+vocabularies, rejecting an empty relation or kind set as nonsensical. `new_candidate_support` is a pure data
+contract -- closed-vocabulary membership checks plus one `admissible`/`inadmissibility_reason` cross-field
+consistency check, nothing else -- that never serializes `finding_authority`'s coarse `authoritative`/
+`candidate` vocabulary, per I4-1e revision 2's own recommendation. `new_candidate_supports` is an order-
+preserving, defensive-copying validator: list position is documented as never semantically meaningful.
+`reference_future_role_state` and `reference_future_requested_terms_disambiguation` freeze the two future
+contracts (role-state aggregation; literal-containment-only term disambiguation, never a first-match fallback)
+as reference-only functions, each proven by static guard to be uncalled from any production path, including the
+engine's own `recompute_instance`/`recompute_requirement`. The `requested_category_terms` generalization needed
+zero code change beyond documentation: direct reading confirmed `sufficiency_mapping.py` never restricted that
+field's presence by `mapping_strategy` in the first place, so nothing was gating a value that was already free
+to be supplied.
+
+**A real, self-inflicted static-guard trip was found and fixed before it shipped, not discovered after.** The
+first implementation draft's own explanatory comments -- written to document why this module imports neither
+I4-1 classifier sibling module -- literally contained both modules' names in prose. The existing unwired-guard
+tests for both of those modules do a plain text-substring scan with no distinction between an import and a
+comment, so the first full regression run correctly failed three previously-green guard tests, each reporting
+`sufficiency_engine.py` as a new offender. Fixed by rewriting four comments/docstrings to describe the classifier
+family descriptively without ever spelling out its filenames -- no guard test was weakened or edited to
+accommodate the mistake; the existing guards' own strictness is exactly what caught it.
+
+**Verification (Claude).** Eleven representative pre-change serializations (three `RoleSpec` shapes, three
+`RoleBinding` states, three `Requirement` shapes, and a full stub q_aib contract run through `build_qaib_
+contract`/`freeze`) were hashed from the unmodified module before any edit; all eleven, plus the stub contract's
+own `combined_hash`, matched byte-for-byte on the first run that also fixed the guard-trip above -- the gate was
+never waived. The new test file passes 44/44; the I4-1 classifier family plus this increment together pass 718
+passed/9 xfailed (the unaffected pre-existing supersessions); a full sufficiency/engine/mapping/authoring/replay/
+direction/relation/parent-synthesis/AnswerPlan sweep passes with zero failures across two independent runs
+(927 and 903 passed respectively, the count difference being ordinary xdist worker-split variance, not a
+regression); and the full offline `experiments/` suite is 3695 passed, 5 failed, 12 skipped, 9 xfailed -- the
+exact same pre-existing/environment-artifact set every prior I4-1x report already names, zero new failures.
+Static guards confirm `sufficiency_mapping.py`, `sufficiency_recovery_targets.py`, `sufficiency_diagnostic.py`,
+`sufficiency_model_scope.py`, `e2e.py`, and every `answer_plan/` file reference none of the new schema names, and
+that no existing q_aib role is authored with a `support_policy`. The results artifact is
+`PHASE34_I4_1G_SUPPORT_SCHEMA_RESULTS.md`, which restates the preserved-54-quote/v4-map gate as a hard,
+unresolved precondition on I4-2 and recommends READY for I4-2 planning/review only -- not for I4-2
+implementation, which remains explicitly not started. No model was called, no network was used, and no live
+search or live end-to-end run occurred.
