@@ -48,9 +48,24 @@ SUPERSEDED_BY_I4_1B = {
     "T17": _SUPERSEDED_SUBJECT_REGION,
     "P62": _SUPERSEDED_SUBJECT_REGION + " (previously fail-closed target_crosses_assertion_boundary)",
 }
+
+# I4-1 expectations superseded by the I4-1c negated-result-predicate authority veto (PHASE34_I4_1C_NEGATED_AUTHORITY_
+# RESULTS.md). Both are the exact pre-existing unsafe promotions I4-1c closes: a this-study owner whose target clause
+# is itself negated was previously (wrongly) authoritative. Source/kind are unchanged; only authority is now candidate.
+_SUPERSEDED_NEGATED_PREDICATE = (
+    "I4-1c: the target's own governing/embedded predicate is negated, so it is not authoritatively established even "
+    "though the assertion is still a this-study result report; finding_authority is now candidate (authority_veto="
+    "negated_result_predicate), closing a pre-existing unsafe promotion."
+)
+SUPERSEDED_BY_I4_1C = {
+    "P21": _SUPERSEDED_NEGATED_PREDICATE,
+    "P59": _SUPERSEDED_NEGATED_PREDICATE,
+}
+
+_ALL_SUPERSEDED = {**SUPERSEDED_BY_I4_1B, **SUPERSEDED_BY_I4_1C}
 _PARAMS = [
-    pytest.param(c, marks=pytest.mark.xfail(strict=True, reason=SUPERSEDED_BY_I4_1B[c["id"]]))
-    if c["id"] in SUPERSEDED_BY_I4_1B
+    pytest.param(c, marks=pytest.mark.xfail(strict=True, reason=_ALL_SUPERSEDED[c["id"]]))
+    if c["id"] in _ALL_SUPERSEDED
     else c
     for c in _CASES
 ]

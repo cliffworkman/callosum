@@ -1908,3 +1908,44 @@ artifacts by the code in this increment; no model was called and no production c
 **Pre-registration (Claude).** The three batteries were written and hashed while the tree was clean, before any classifier edit. They are 80 preregistered cases (minimal pairs A–J, label leak, label scope, citation placement, whole-passage A–F, multi-assertion and broad targets, repeated occurrences, the p41 positive control, the p30 neutral-heading check, and the locked non-recoveries), 27 holdout cases, and 10 cross-domain twins. The unchanged I4-1 module was observed over all 117 cases before the change. The directive's p30 expectation was conditional and is not met, so it is recorded as unchanged. The sketch's mp_F source differs from the rule-derived one, and that divergence is recorded before any run.
 
 **Verification (Claude).** Preregistered 80/80, holdout 27/27 (first and only run; it is a frozen check written by the same author, not an independent validation), and twins 10/10. The p41 positive control changes from unknown/candidate to this_study/result/authoritative via `structural_results_label`, as pre-registered. Across the 54 preserved quotes there is exactly one assertion-level classification change (p41), and 49 span-only changes from the subject-inclusive region. Fourteen whole-quote singular outputs moved from fail-closed to resolved `candidate` records, none authoritative, and their membership was not pre-registered. Seven I4-1 expectations are superseded by the region rule and are strict-xfail with reasons; the frozen I4-1 JSON is unchanged. The Attempt2 AnswerPlan replay is byte-identical across its seven outputs, and sixteen parity-surface test files pass with counts matching earlier records. Two pre-existing unsafe promotions are reported and not fixed: a negated own result ("We did not find that X") and "We found no evidence that X" both classify as authoritative at HEAD. The achieved-outcome matcher returns only the whole passage, so I4-2 remains blocked until a separate pure mapping-span increment. The results artifact is `PHASE34_I4_1B_STRUCTURAL_CONTEXT_RESULTS.md`. No model was called, no network was used, and no live search or live end-to-end run occurred.
+
+## Phase 34 / I4-1c -- negated-result / absence-of-evidence authority hardening (still pure and unwired; no version bump; appended 2026-10-07; preserves all prior entries unchanged)
+
+**Scope (Cliff Workman).** Confirmed as the exact two pre-existing unsafe classifications I4-1b reported, now closed: a
+negated own-study result ("We did not find that X increased") and an absence-of-evidence construction ("We found no
+evidence that X increased") were both authoritative for the embedded positive target, when neither authoritatively
+establishes it. The fix must preserve assertion_source and assertion_kind -- the authors are still reporting a
+this-study result act -- and gate only finding_authority, per-assertion, never leaking across a clause boundary to an
+unvetoed sibling. No achieved-outcome span work, no I4-2, no wiring, no I2-3, no version bump.
+
+**Implementation (Claude).** One new optional input to the single central `finding_authority` function,
+`authority_veto` ∈ {None, negated_result_predicate, absence_of_evidence}, computed once per assertion in `_build()`
+and gated to kind=result only. `negated_result_predicate` reuses the existing head-to-pred negation flag for the
+governing predicate and adds a new check for an embedded clause whose own predicate is negated ("X did not
+increase" inside "we found that..."). `absence_of_evidence` is a narrow, closed-vocabulary check ("no" + evidence/
+support/indication/proof) on either the governing subject or the object content, not a null-result ontology. One
+lexicon addition (provide/provided/provides) was needed for a directive-required test case. A latent soundness gap
+was closed while implementing, not requested: the "do covering assertions agree" check used for a target spanning
+more than one assertion compared only source and kind; it now also compares authority_veto, so two assertions that
+would otherwise silently agree on an answer while disagreeing on authority now fail closed instead.
+
+**Pre-registration (Claude).** 37 preregistered cases (positive minimal pairs, negation-scope minimal pairs,
+negated-result and absence-of-evidence generic variants, target-specificity, Results-label and prior-work
+interaction, kind parity), 21 holdout cases, and 18 cross-domain twins were frozen and hashed before the classifier
+was edited. One frozen expectation was corrected before the implementation run reached it, with the reasoning
+recorded in the case itself: a correlative "not only ... but also ..." sentence does not share its subject across the
+clause split under the classifier's own existing architecture, so the second clause was wrongly assumed to inherit
+the first's owner. A second case exposed a bug in the test harness, not the classifier, which the direct output
+already had right.
+
+**Verification (Claude).** Preregistered 37/37, holdout 21/21 (first and only run), twins 18/18. Target-specificity
+confirmed directly: a negated clause and its unvetoed positive sibling in the same sentence classify independently,
+with no sentence-level leak. Across the 54 preserved quotes, zero change: no sealed quote happens to contain either
+pattern, which the directive explicitly allows. Two existing I4-1 expectations (P21, P59) are superseded by the same
+mechanism and marked strict-xfail with reasons -- both are the exact unsafe promotions this increment closes,
+confirming it in the historical battery, not a regression. The Attempt2 AnswerPlan replay is byte-identical across
+all 7 outputs; the same 16 I4-1b parity-surface test files pass with identical counts (444 passed, 18 subtests); and
+the full offline suite (159 files) is 3365 passed, 7 failed, 12 skipped -- the exact same seven pre-existing or
+environment-artifact failures as the I4-1b baseline, zero new. The results artifact is
+`PHASE34_I4_1C_NEGATED_AUTHORITY_RESULTS.md`. No model was called, no network was used, and no live search or live
+end-to-end run occurred.

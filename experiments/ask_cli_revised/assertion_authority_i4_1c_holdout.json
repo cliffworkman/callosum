@@ -1,0 +1,350 @@
+{
+ "battery": "i4-1c-holdout",
+ "frozen_before": "I4-1c classifier change",
+ "generator": "make_battery.py",
+ "expectations_are": "rule-derived predictions of the repaired contract, not outputs of the repaired code",
+ "cases": [
+  {
+   "id": "ho_01",
+   "group": "holdout",
+   "text": "We did not find that scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "did not.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "negated_result_predicate"
+   }
+  },
+  {
+   "id": "ho_02",
+   "group": "holdout",
+   "text": "We never found that scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "never.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "negated_result_predicate"
+   }
+  },
+  {
+   "id": "ho_03",
+   "group": "holdout",
+   "text": "We found no evidence that scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "no evidence.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "absence_of_evidence"
+   }
+  },
+  {
+   "id": "ho_04",
+   "group": "holdout",
+   "text": "We found no support for scores increasing.",
+   "target": {
+    "surface": "scores increasing"
+   },
+   "note": "no support.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "absence_of_evidence"
+   }
+  },
+  {
+   "id": "ho_05",
+   "group": "holdout",
+   "text": "We failed to find evidence that scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "failed to find.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "negated_result_predicate"
+   }
+  },
+  {
+   "id": "ho_06",
+   "group": "holdout",
+   "text": "We cannot conclude that scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "cannot conclude (no governing predicate for 'conclude').",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved",
+    "authority_veto": null
+   }
+  },
+  {
+   "id": "ho_07",
+   "group": "holdout",
+   "text": "We did not find that scores increased, but revenue clearly rose.",
+   "target": {
+    "surface": "revenue clearly rose"
+   },
+   "note": "Negation in a sibling clause; 'rose' is not in the predicate lexicon at all, so this clause produces no assertion and the target fails closed as target_outside_predicate_scope (kind unknown, no source_resolution) -- independent of the new veto mechanism, which never runs for an uncovered target.",
+   "expect": {
+    "source": "unknown",
+    "kind": "unknown",
+    "authority": "candidate",
+    "authority_veto": null
+   }
+  },
+  {
+   "id": "ho_08",
+   "group": "holdout",
+   "text": "We found that scores increased, but we found no evidence that revenue increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Target in the positive sibling assertion.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed",
+    "authority_veto": null
+   }
+  },
+  {
+   "id": "ho_08b",
+   "group": "holdout",
+   "text": "We found that scores increased, but we found no evidence that revenue increased.",
+   "target": {
+    "surface": "revenue increased"
+   },
+   "note": "Target in the vetoed sibling assertion.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "absence_of_evidence"
+   }
+  },
+  {
+   "id": "ho_09",
+   "group": "holdout",
+   "text": "We did not find that scores increased. Later we found that scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Multiple target occurrences: one vetoed, one not.",
+   "expect_occurrences": [
+    {
+     "source": "this_study",
+     "kind": "result",
+     "authority": "candidate",
+     "authority_veto": "negated_result_predicate"
+    },
+    {
+     "source": "this_study",
+     "kind": "result",
+     "authority": "authoritative",
+     "authority_veto": null
+    }
+   ]
+  },
+  {
+   "id": "ho_10",
+   "group": "holdout",
+   "text": "Results: We did not find that scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Results label plus negation.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "negated_result_predicate"
+   }
+  },
+  {
+   "id": "ho_11",
+   "group": "holdout",
+   "text": "Results: No evidence showed that scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Results label plus absence-of-evidence on the subject.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "structural_results_label",
+    "authority_veto": "absence_of_evidence"
+   }
+  },
+  {
+   "id": "ho_12",
+   "group": "holdout",
+   "text": "Previous studies did not find that scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Prior-work owner, negated.",
+   "expect": {
+    "source": "prior_work",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "negated_result_predicate"
+   }
+  },
+  {
+   "id": "ho_13",
+   "group": "holdout",
+   "text": "Smith et al. found no support for scores increasing.",
+   "target": {
+    "surface": "scores increasing"
+   },
+   "note": "Prior-work owner, absence of evidence.",
+   "expect": {
+    "source": "prior_work",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "absence_of_evidence"
+   }
+  },
+  {
+   "id": "ho_14",
+   "group": "holdout",
+   "text": "did not find evidence that scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Headless fragment: no subject before 'did'; fails closed to unknown.",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved",
+    "authority_veto": "negated_result_predicate"
+   }
+  },
+  {
+   "id": "ho_15",
+   "group": "holdout",
+   "text": "We found that scores increased but not dramatically.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Magnitude hedge after the clause stays authoritative.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed",
+    "authority_veto": null
+   }
+  },
+  {
+   "id": "ho_16",
+   "group": "holdout",
+   "text": "We found not only that scores increased, but also that revenue fell.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "'not only' must not veto solely on 'not'.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed",
+    "authority_veto": null
+   }
+  },
+  {
+   "id": "ho_17",
+   "group": "holdout",
+   "text": "We did find that scores increased despite early concerns.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "'did find' is emphasis, not negation, even with trailing context.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed",
+    "authority_veto": null
+   }
+  },
+  {
+   "id": "ho_18",
+   "group": "holdout",
+   "text": "We observed no indication that scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "'indication' is in the closed absence-head set.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "absence_of_evidence"
+   }
+  },
+  {
+   "id": "ho_19",
+   "group": "holdout",
+   "text": "We found no proof that scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "'proof' is in the closed absence-head set.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "absence_of_evidence"
+   }
+  },
+  {
+   "id": "ho_20",
+   "group": "holdout",
+   "text": "We found some evidence that scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "'some evidence' (not 'no evidence') never triggers the veto.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed",
+    "authority_veto": null
+   }
+  }
+ ]
+}

@@ -1,0 +1,296 @@
+{
+ "battery": "i4-1c-twins",
+ "frozen_before": "I4-1c classifier change",
+ "generator": "make_battery.py",
+ "expectations_are": "rule-derived predictions of the repaired contract, not outputs of the repaired code",
+ "cases": [
+  {
+   "id": "tw_architecture_positive",
+   "group": "twin_architecture",
+   "text": "We found that floor area increased.",
+   "target": {
+    "surface": "floor area increased"
+   },
+   "note": "Positive baseline.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed",
+    "authority_veto": null
+   }
+  },
+  {
+   "id": "tw_architecture_negated",
+   "group": "twin_architecture",
+   "text": "We did not find that floor area increased.",
+   "target": {
+    "surface": "floor area increased"
+   },
+   "note": "Negated result predicate.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "negated_result_predicate"
+   }
+  },
+  {
+   "id": "tw_architecture_absence",
+   "group": "twin_architecture",
+   "text": "We found no evidence that floor area increased.",
+   "target": {
+    "surface": "floor area increased"
+   },
+   "note": "Absence of evidence.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "absence_of_evidence"
+   }
+  },
+  {
+   "id": "tw_architecture_mixed",
+   "group": "twin_architecture",
+   "text": "We did not find that floor area increased, but we found that satisfaction decreased.",
+   "target": {
+    "surface": "satisfaction decreased"
+   },
+   "note": "Mixed two-assertion sentence; target is the unvetoed sibling.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed",
+    "authority_veto": null
+   }
+  },
+  {
+   "id": "tw_architecture_results_label",
+   "group": "twin_architecture",
+   "text": "Results: Floor area increased.",
+   "target": {
+    "surface": "Floor area increased"
+   },
+   "note": "Results label, unvetoed structural resolution.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "structural_results_label",
+    "authority_veto": null
+   }
+  },
+  {
+   "id": "tw_architecture_prior_work",
+   "group": "twin_architecture",
+   "text": "Previous studies found no evidence that floor area increased.",
+   "target": {
+    "surface": "floor area increased"
+   },
+   "note": "Prior-work owner with absence-of-evidence construction.",
+   "expect": {
+    "source": "prior_work",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "absence_of_evidence"
+   }
+  },
+  {
+   "id": "tw_clinical_positive",
+   "group": "twin_clinical",
+   "text": "We found that remission increased.",
+   "target": {
+    "surface": "remission increased"
+   },
+   "note": "Positive baseline.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed",
+    "authority_veto": null
+   }
+  },
+  {
+   "id": "tw_clinical_negated",
+   "group": "twin_clinical",
+   "text": "We did not find that remission increased.",
+   "target": {
+    "surface": "remission increased"
+   },
+   "note": "Negated result predicate.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "negated_result_predicate"
+   }
+  },
+  {
+   "id": "tw_clinical_absence",
+   "group": "twin_clinical",
+   "text": "We found no evidence that remission increased.",
+   "target": {
+    "surface": "remission increased"
+   },
+   "note": "Absence of evidence.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "absence_of_evidence"
+   }
+  },
+  {
+   "id": "tw_clinical_mixed",
+   "group": "twin_clinical",
+   "text": "We did not find that remission increased, but we found that relapse decreased.",
+   "target": {
+    "surface": "relapse decreased"
+   },
+   "note": "Mixed two-assertion sentence; target is the unvetoed sibling.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed",
+    "authority_veto": null
+   }
+  },
+  {
+   "id": "tw_clinical_results_label",
+   "group": "twin_clinical",
+   "text": "Results: Remission increased.",
+   "target": {
+    "surface": "Remission increased"
+   },
+   "note": "Results label, unvetoed structural resolution.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "structural_results_label",
+    "authority_veto": null
+   }
+  },
+  {
+   "id": "tw_clinical_prior_work",
+   "group": "twin_clinical",
+   "text": "Previous studies found no evidence that remission increased.",
+   "target": {
+    "surface": "remission increased"
+   },
+   "note": "Prior-work owner with absence-of-evidence construction.",
+   "expect": {
+    "source": "prior_work",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "absence_of_evidence"
+   }
+  },
+  {
+   "id": "tw_language_positive",
+   "group": "twin_language",
+   "text": "We found that vocabulary scores increased.",
+   "target": {
+    "surface": "vocabulary scores increased"
+   },
+   "note": "Positive baseline.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed",
+    "authority_veto": null
+   }
+  },
+  {
+   "id": "tw_language_negated",
+   "group": "twin_language",
+   "text": "We did not find that vocabulary scores increased.",
+   "target": {
+    "surface": "vocabulary scores increased"
+   },
+   "note": "Negated result predicate.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "negated_result_predicate"
+   }
+  },
+  {
+   "id": "tw_language_absence",
+   "group": "twin_language",
+   "text": "We found no evidence that vocabulary scores increased.",
+   "target": {
+    "surface": "vocabulary scores increased"
+   },
+   "note": "Absence of evidence.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "absence_of_evidence"
+   }
+  },
+  {
+   "id": "tw_language_mixed",
+   "group": "twin_language",
+   "text": "We did not find that vocabulary scores increased, but we found that fluency scores decreased.",
+   "target": {
+    "surface": "fluency scores decreased"
+   },
+   "note": "Mixed two-assertion sentence; target is the unvetoed sibling.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed",
+    "authority_veto": null
+   }
+  },
+  {
+   "id": "tw_language_results_label",
+   "group": "twin_language",
+   "text": "Results: Vocabulary scores increased.",
+   "target": {
+    "surface": "Vocabulary scores increased"
+   },
+   "note": "Results label, unvetoed structural resolution.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "structural_results_label",
+    "authority_veto": null
+   }
+  },
+  {
+   "id": "tw_language_prior_work",
+   "group": "twin_language",
+   "text": "Previous studies found no evidence that vocabulary scores increased.",
+   "target": {
+    "surface": "vocabulary scores increased"
+   },
+   "note": "Prior-work owner with absence-of-evidence construction.",
+   "expect": {
+    "source": "prior_work",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "absence_of_evidence"
+   }
+  }
+ ]
+}

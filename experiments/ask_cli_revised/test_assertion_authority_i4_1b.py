@@ -154,9 +154,12 @@ def test_run_in_label_fields_are_retained_for_audit():
 
 
 def test_versions_are_unchanged_for_sufficiency_and_plan():
+    # sufficiency/PLAN_VERSION are the frozen invariants this gate exists to protect. RULESET_VERSION is the
+    # classifier's own local version and is explicitly allowed to move with each increment that changes its outputs
+    # (I4-1c bumped it to "i4-1c.0"); it is checked here only for a non-empty i4-1 family value, not pinned to one string.
     assert se.SUFFICIENCY_SEMANTICS_VERSION == "sufficiency-semantics-v4"
     assert pl.PLAN_VERSION == "answer-plan-step2-v4"
-    assert aa.RULESET_VERSION == "i4-1b.0"
+    assert aa.RULESET_VERSION.startswith("i4-1")
 
 
 def test_outputs_are_json_safe_and_deterministic():

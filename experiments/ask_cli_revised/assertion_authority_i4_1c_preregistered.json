@@ -1,0 +1,601 @@
+{
+ "battery": "i4-1c-preregistered",
+ "frozen_before": "I4-1c classifier change",
+ "generator": "make_battery.py",
+ "expectations_are": "rule-derived predictions of the repaired contract, not outputs of the repaired code",
+ "cases": [
+  {
+   "id": "pp_A",
+   "group": "positive",
+   "text": "We found that scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Pair A baseline positive.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed",
+    "authority_veto": null
+   }
+  },
+  {
+   "id": "pp_B",
+   "group": "positive",
+   "text": "We observed that scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Pair B baseline positive.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed",
+    "authority_veto": null
+   }
+  },
+  {
+   "id": "pp_C",
+   "group": "positive",
+   "text": "We found evidence that scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Pair C: 'evidence' alone (no leading 'no') never triggers the absence-of-evidence veto.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed",
+    "authority_veto": null
+   }
+  },
+  {
+   "id": "pp_D",
+   "group": "positive",
+   "text": "We found strong evidence that scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Pair D: a qualifier before 'evidence' does not trigger the veto.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed",
+    "authority_veto": null
+   }
+  },
+  {
+   "id": "pp_E",
+   "group": "positive",
+   "text": "We did find that scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Pair E: 'did find' is emphasis, not negation; 'did' alone is not in the NEG set.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed",
+    "authority_veto": null
+   }
+  },
+  {
+   "id": "pp_F",
+   "group": "positive",
+   "text": "We found that scores did not increase.",
+   "target": {
+    "surface": "scores did not increase"
+   },
+   "note": "Pair F: the embedded clause's own predicate is negated; the positive target is not authoritatively established.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "negated_result_predicate"
+   }
+  },
+  {
+   "id": "pp_F_whole",
+   "group": "positive",
+   "text": "We found that scores did not increase.",
+   "target": {
+    "surface": "found that scores did not increase"
+   },
+   "note": "Pair F again covering the governing predicate too.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "negated_result_predicate"
+   }
+  },
+  {
+   "id": "ns_1",
+   "group": "negation_scope",
+   "text": "We did not find that scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Scope 1: governing predicate negated.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "negated_result_predicate"
+   }
+  },
+  {
+   "id": "ns_2a",
+   "group": "negation_scope",
+   "text": "We found that scores increased, not revenue.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Scope 2: a trailing elliptical 'not revenue' must not leak negation onto the unrelated target.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed",
+    "authority_veto": null
+   }
+  },
+  {
+   "id": "ns_3",
+   "group": "negation_scope",
+   "text": "We found that scores increased but not significantly.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Scope 3: a magnitude hedge after the clause is not a negation of whether scores increased; no new significance ontology is introduced, so authority follows the existing written contract (authoritative).",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed",
+    "authority_veto": null
+   }
+  },
+  {
+   "id": "ns_4",
+   "group": "negation_scope",
+   "text": "Notably, we found that scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Scope 4: 'Notably' is discourse framing, not negation.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed",
+    "authority_veto": null
+   }
+  },
+  {
+   "id": "ns_5",
+   "group": "negation_scope",
+   "text": "We found not only that scores increased, but also that revenue decreased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Scope 5: 'not only' must not veto solely from the token 'not'.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed",
+    "authority_veto": null
+   }
+  },
+  {
+   "id": "ns_5b",
+   "group": "negation_scope",
+   "text": "We found not only that scores increased, but also that revenue decreased.",
+   "target": {
+    "surface": "revenue decreased"
+   },
+   "note": "CORRECTED after the first run (not tuned to a veto; a pure expectation bug). The clause split at ', but' starts clause 2 at 'also', so clause 2 ('also that revenue decreased') carries no 'we' at all; under the existing no-cross-clause-ownership-inheritance architecture (already established in I4-1b, the same principle behind spec_2c) its subject 'revenue' is unowned. Directive pair 5's own requirement -- that 'not only' must not veto solely from the token 'not' -- is fully demonstrated by ns_5 (clause 1, 'scores increased', authoritative); it does not claim clause 2 inherits ownership via the correlative conjunction, and adding that grammar would be an unauthorised new rule, not this increment's narrow authority veto.",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved",
+    "authority_veto": null
+   }
+  },
+  {
+   "id": "ns_6",
+   "group": "negation_scope",
+   "text": "We cannot conclude that scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Scope 6: 'conclude' is not a governing predicate in the lexicon, so the only recognised assertion binds 'scores' as its own unowned subject; this already yields candidate through source=unknown, not through the new veto.",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved",
+    "authority_veto": null
+   }
+  },
+  {
+   "id": "ns_7",
+   "group": "negation_scope",
+   "text": "We failed to find evidence that scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Scope 7: 'failed' is already in the existing NEG lexicon and sits in the head-skip zone before 'find', so this is caught by the same negated-governing-predicate mechanism as 'did not find'.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "negated_result_predicate"
+   }
+  },
+  {
+   "id": "neg_var_1",
+   "group": "negated_result_predicate",
+   "text": "We did not observe that scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Generic variant.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "negated_result_predicate"
+   }
+  },
+  {
+   "id": "neg_var_2",
+   "group": "negated_result_predicate",
+   "text": "We did not detect an increase in scores.",
+   "target": {
+    "surface": "an increase in scores"
+   },
+   "note": "Generic variant; object is a bare NP, not a 'that'-clause.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "negated_result_predicate"
+   }
+  },
+  {
+   "id": "neg_var_3",
+   "group": "negated_result_predicate",
+   "text": "We did not find scores to predict revenue.",
+   "target": {
+    "surface": "scores to predict revenue"
+   },
+   "note": "Generic variant; infinitive-complement object stays merged into the single negated assertion.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "negated_result_predicate"
+   }
+  },
+  {
+   "id": "neg_var_4",
+   "group": "negated_result_predicate",
+   "text": "We never observed scores increasing.",
+   "target": {
+    "surface": "scores increasing"
+   },
+   "note": "Generic variant; 'never' is in the existing NEG lexicon.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "negated_result_predicate"
+   }
+  },
+  {
+   "id": "abs_var_1",
+   "group": "absence_of_evidence",
+   "text": "We found no evidence that scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Generic variant.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "absence_of_evidence"
+   }
+  },
+  {
+   "id": "abs_var_2",
+   "group": "absence_of_evidence",
+   "text": "We found no evidence of an increase in scores.",
+   "target": {
+    "surface": "an increase in scores"
+   },
+   "note": "Generic variant; 'of' connector.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "absence_of_evidence"
+   }
+  },
+  {
+   "id": "abs_var_3",
+   "group": "absence_of_evidence",
+   "text": "We observed no evidence that scores predicted revenue.",
+   "target": {
+    "surface": "scores predicted revenue"
+   },
+   "note": "Generic variant.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "absence_of_evidence"
+   }
+  },
+  {
+   "id": "abs_var_4",
+   "group": "absence_of_evidence",
+   "text": "We found no support for scores increasing.",
+   "target": {
+    "surface": "scores increasing"
+   },
+   "note": "Generic variant; 'support' is in the closed absence-head set.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "absence_of_evidence"
+   }
+  },
+  {
+   "id": "abs_var_5",
+   "group": "absence_of_evidence",
+   "text": "The analysis provided no evidence that scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Generic variant; 'the analysis' is an existing owner phrase (STUDY_NOUN), and 'provided/provide/provides' is added to the closed result-verb lexicon to support this required construction.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "absence_of_evidence"
+   }
+  },
+  {
+   "id": "spec_1a",
+   "group": "target_specificity",
+   "text": "We did not find that scores increased, but we found that revenue decreased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Target in the negated clause.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "negated_result_predicate"
+   }
+  },
+  {
+   "id": "spec_1b",
+   "group": "target_specificity",
+   "text": "We did not find that scores increased, but we found that revenue decreased.",
+   "target": {
+    "surface": "revenue decreased"
+   },
+   "note": "Target in the sibling positive clause.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed",
+    "authority_veto": null
+   }
+  },
+  {
+   "id": "spec_2a",
+   "group": "target_specificity",
+   "text": "We found no evidence that scores increased, while we found that revenue clearly decreased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Target under the absence-of-evidence clause.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "absence_of_evidence"
+   }
+  },
+  {
+   "id": "spec_2b",
+   "group": "target_specificity",
+   "text": "We found no evidence that scores increased, while we found that revenue clearly decreased.",
+   "target": {
+    "surface": "revenue clearly decreased"
+   },
+   "note": "Target in the sibling positive clause; both clauses have an explicit 'we' owner.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed",
+    "authority_veto": null
+   }
+  },
+  {
+   "id": "spec_2c_directive_wording",
+   "group": "target_specificity",
+   "text": "We found no evidence that scores increased, while revenue clearly decreased.",
+   "target": {
+    "surface": "revenue clearly decreased"
+   },
+   "note": "Directive's exact wording (no repeated 'we' in the second clause). Documented divergence: without an explicit owner, the second clause does not inherit ownership across a contrast boundary under the existing written contract (the same no-cross-clause-inheritance rule already governs ma_2/wp_H in I4-1b), so this resolves unknown/candidate rather than authoritative. Not tuned; reported as expected given the grammar.",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved",
+    "authority_veto": null
+   }
+  },
+  {
+   "id": "rl_1",
+   "group": "results_label",
+   "text": "Results: We did not find that scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Source resolves by ordinary parsing (owner 'We'), not the structural resolver; authority vetoed.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "negated_result_predicate"
+   }
+  },
+  {
+   "id": "rl_2",
+   "group": "results_label",
+   "text": "Results: No evidence showed that scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Subject 'No evidence' is unowned by ordinary parsing, so the structural Results resolver supplies the source; the absence-of-evidence veto (matched on the SUBJECT phrase) still blocks authority.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "structural_results_label",
+    "authority_veto": "absence_of_evidence"
+   }
+  },
+  {
+   "id": "rl_3",
+   "group": "results_label",
+   "text": "Results: Scores increased.",
+   "target": {
+    "surface": "Scores increased"
+   },
+   "note": "Unchanged existing structural-resolver behaviour (I4-1b).",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "structural_results_label",
+    "authority_veto": null
+   }
+  },
+  {
+   "id": "pw_1",
+   "group": "prior_work",
+   "text": "Previous studies did not find that scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Prior ownership unaffected; the veto is still recorded for audit even though authority was already candidate.",
+   "expect": {
+    "source": "prior_work",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "negated_result_predicate"
+   }
+  },
+  {
+   "id": "pw_2",
+   "group": "prior_work",
+   "text": "Smith et al. found no evidence that scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Prior ownership unaffected; veto recorded for audit.",
+   "expect": {
+    "source": "prior_work",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": "absence_of_evidence"
+   }
+  },
+  {
+   "id": "parity_method",
+   "group": "kind_parity",
+   "text": "We did not measure scores.",
+   "target": {
+    "surface": "scores"
+   },
+   "note": "Negation of a method predicate is untouched by this increment: the pre-existing negated_method_unknown rule already demotes kind to unknown (source stays this_study, the owner), so the new kind=result veto gate never applies here. This is a pre-existing path, unchanged.",
+   "expect": {
+    "source": "this_study",
+    "kind": "unknown",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": null
+   }
+  },
+  {
+   "id": "parity_interp",
+   "group": "kind_parity",
+   "text": "We did not suggest that scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Interpretation kind is already candidate; the new veto gate only applies to kind=result and must stay None here.",
+   "expect": {
+    "source": "this_study",
+    "kind": "interpretation",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": null
+   }
+  },
+  {
+   "id": "parity_caption",
+   "group": "kind_parity",
+   "text": "We found that scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Caption input: already candidate via is_caption; veto stays None.",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed",
+    "authority_veto": null
+   },
+   "is_caption": true
+  }
+ ]
+}

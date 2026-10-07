@@ -1,4 +1,4 @@
-"""PHASE 34 I4-1b assertion-source / assertion-kind classifier. UNWIRED: no production caller may import this module.
+"""PHASE 34 I4-1c assertion-source / assertion-kind classifier. UNWIRED: no production caller may import this module.
 
 It answers, for the assertion that BEARS ON A SUPPLIED TARGET SPAN:
 
@@ -8,14 +8,26 @@ It answers, for the assertion that BEARS ON A SUPPLIED TARGET SPAN:
 * ``is_caption``: a structural input, never a source.
 * ``source_resolution``: which rule fixed the source (``parsed`` / ``structural_results_label`` /
   ``owner_signal_context`` / ``unresolved``).
+* ``authority_veto``: a reason (``negated_result_predicate`` / ``absence_of_evidence``) that keeps a this-study result
+  from being authoritative even though source and kind alone would say so. ``None`` when nothing vetoes it.
 * audit flags: ``framing_source``, ``citation_marked``, ``hedged``, ``negated``, ``negated_replication``.
 
-I4-1b adds three repairs. (A) A leading run-in label such as ``Results:`` is isolated before ownership parsing, so the
-label cannot block a real prior or current owner. (B) That label is recognised only as a bounded, colon-delimited,
-predicate-free prefix at the start of the input, and it grants no ownership by itself. (C) An assertion's region
+I4-1b added three repairs: (A) a leading run-in label such as ``Results:`` is isolated before ownership parsing, so the
+label cannot block a real prior or current owner; (B) that label is recognised only as a bounded, colon-delimited,
+predicate-free prefix at the start of the input, and it grants no ownership by itself; (C) an assertion's region
 includes its own subject, so an assertion can cover its whole content, and :func:`classify_target_assertions` returns
 every intersecting assertion without collapsing them. One narrow resolver turns an otherwise-unknown result into
 ``this_study`` only when the label is exactly ``results`` and every veto is clear.
+
+I4-1c adds one authority-only gate on top of that: a this-study result predicate that is itself negated (``We did not
+find that X increased``), or whose predicate's own embedded clause is negated (``We found that X did not increase``),
+or whose object is governed by an absence-of-evidence construction (``We found no evidence that X increased``), still
+reports ``assertion_source = this_study`` and ``assertion_kind = result`` -- the authors are still reporting a result
+of this study -- but ``finding_authority`` is held at ``candidate``, because the governing predicate does not
+authoritatively establish the embedded positive target proposition. The veto is per-assertion and never leaks across a
+clause boundary to an unvetoed sibling. It does not change provenance (who/what), only authority (does this establish
+the target), and it never collapses ``interpretation`` / ``method_or_description`` / ``aim_or_hypothesis`` / caption
+candidates, which were already candidate before this gate existed.
 
 ``finding_authority`` is derived by ONE central function (:func:`finding_authority`). Nothing here decides observation
 polarity, role completion, recovery, relation witnessing, direction, or AnswerPlan placement.
@@ -32,7 +44,7 @@ import re
 from collections import namedtuple
 
 CLASSIFIER_ID = "i4-1-assertion-authority"
-RULESET_VERSION = "i4-1b.0"
+RULESET_VERSION = "i4-1c.0"
 
 THIS_STUDY = "this_study"
 PRIOR_WORK = "prior_work"
@@ -55,15 +67,24 @@ RESULTS_LABEL = "results"
 LABEL_MAX_WORDS = 8
 LABEL_MAX_CHARS = 80
 TARGET_SCOPES = ("within_assertion", "partial_assertion", "multi_assertion", "no_governing_assertion")
+AUTHORITY_VETO_NEGATED = "negated_result_predicate"
+AUTHORITY_VETO_ABSENCE = "absence_of_evidence"
+AUTHORITY_VETOES = (AUTHORITY_VETO_NEGATED, AUTHORITY_VETO_ABSENCE)
 
 
-def finding_authority(assertion_source, assertion_kind, is_caption=False):
-    """The one central authority function. Semantic only: no polarity, no completion, no confidence."""
+def finding_authority(assertion_source, assertion_kind, is_caption=False, authority_veto=None):
+    """The one central authority function. Semantic only: no polarity, no completion, no confidence.
+
+    ``authority_veto`` (I4-1c), when set, means the governing result predicate is negated, or its target is embedded
+    under an absence-of-evidence construction. It never promotes a candidate; it can only prevent AUTHORITATIVE.
+    """
     if assertion_source not in SOURCES:
         raise ValueError(f"unknown assertion_source: {assertion_source!r}")
     if assertion_kind not in KINDS:
         raise ValueError(f"unknown assertion_kind: {assertion_kind!r}")
-    if assertion_source == THIS_STUDY and assertion_kind == RESULT and not is_caption:
+    if authority_veto is not None and authority_veto not in AUTHORITY_VETOES:
+        raise ValueError(f"unknown authority_veto: {authority_veto!r}")
+    if assertion_source == THIS_STUDY and assertion_kind == RESULT and not is_caption and authority_veto is None:
         return AUTHORITATIVE
     return CANDIDATE
 
@@ -75,7 +96,8 @@ _RESULT_VERBS = frozenset(
     "demonstrated demonstrate demonstrates correlated correlate correlates predicted predict predicts associated associate "
     "differed differ increased increase decreased decrease reduced reduce reduces expressed express described describe "
     "describes reported yielded yield produced produce produces emerged emerge indicated indicate indicates influence "
-    "influences influenced implicated implicate implicates improved improve improves affected affect affects".split()
+    "influences influenced implicated implicate implicates improved improve improves affected affect affects provided "
+    "provide provides".split()
 )
 _REPLICATION_VERBS = frozenset(
     "confirmed confirm confirms replicated replicate replicates replicating reproduced reproduce corroborated "
@@ -137,6 +159,9 @@ _HEDGE = frozenset(
     "appears suggest suggests suggested suggesting possible".split()
 )
 _ABBREV = frozenset("al e i fig figs eq vs cf approx ca dr mr ms ref refs".split())
+# I4-1c: the closed head-noun set for the absence-of-evidence authority veto. 'no' + one of these, as either the
+# governing subject ('No evidence showed...') or the start of the object content ('...found no evidence that...').
+_ABSENCE_HEAD = frozenset("evidence support indication proof".split())
 # A run-in label may never contain a predicate, modal, negation, hedge, contrast, copula, or 'that'.
 _LABEL_BLOCK = (
     _PREDICATES | _NEG | _MODALS | _HEDGE | _CONTRAST | frozenset("that is are was were be been being".split())
@@ -481,6 +506,33 @@ def _analyze_clause_assertions(toks, cs, ce, label_scope=False, label_normalized
     return out
 
 
+# ---- authority veto detection (I4-1c): negated result predicate, absence of evidence ----
+
+
+def _content_negated(toks, cs, ce):
+    """True when the object CONTENT itself reads as a clause whose own result/replication predicate is negated
+    ('X did not increase'), distinct from the governing predicate's own head-to-pred negation ('did not find')."""
+    for i in range(cs, ce):
+        if _is_word(toks[i], *_RESULT_VERBS) or _is_word(toks[i], *_REPLICATION_VERBS):
+            h = _head_start(toks, i, cs)
+            if any(_is_word(toks[j], *_NEG) for j in range(h, i)):
+                return True
+    return False
+
+
+def _absence_of_evidence(toks, subj, content_start, content_end):
+    """True when the governing subject, or the start of the object content, is exactly 'no' + a closed absence-head
+    noun ('no evidence', 'no support', 'no indication', 'no proof'). Deliberately narrow: not a null-result ontology."""
+    s, e = subj["start"], subj["end"]
+    if s is not None and e - s == 2 and _is_word(toks[s], "no") and _is_word(toks[s + 1], *_ABSENCE_HEAD):
+        return True
+    return (
+        content_end - content_start >= 2
+        and _is_word(toks[content_start], "no")
+        and _is_word(toks[content_start + 1], *_ABSENCE_HEAD)
+    )
+
+
 def _build(toks, a, obj_start, obj_end):
     head, pred = a["head"], a["pred"]
     pt = toks[pred]
@@ -546,6 +598,17 @@ def _build(toks, a, obj_start, obj_end):
             rules.append("negated_unknown")
     if source == UNKNOWN_SOURCE and not replication and a["framing"] is None:
         rules.append("source.unowned")
+    # I4-1c: the authority veto is a property of the assertion's own structure, independent of source/label resolution.
+    # It only ever applies to a result kind -- method/aim/interpretation/caption are already candidate and untouched.
+    authority_veto = None
+    if kind == RESULT:
+        content_start, content_end = obj["content"]
+        if neg or _content_negated(toks, content_start, content_end):
+            authority_veto = AUTHORITY_VETO_NEGATED
+            rules.append(f"veto.{AUTHORITY_VETO_NEGATED}")
+        elif _absence_of_evidence(toks, subj, content_start, content_end):
+            authority_veto = AUTHORITY_VETO_ABSENCE
+            rules.append(f"veto.{AUTHORITY_VETO_ABSENCE}")
     return {
         "head": head,
         "pred": pred,
@@ -561,6 +624,7 @@ def _build(toks, a, obj_start, obj_end):
         "negated_replication": bool(replication and neg),
         "replication": replication,
         "modal_head": modal_head,
+        "authority_veto": authority_veto,
         "rules": rules,
         "framing_prior": (a["framing"] is not None and a["framing"]["source"] == PRIOR_WORK)
         or obj["prior"] is not None
@@ -774,12 +838,14 @@ def _assertion_fields(text, toks, rec, eff, is_caption):
     if rec["comparison"] is not None and framing_public is None:
         c = rec["comparison"][0]
         framing_public = {"span": [toks[c].start, toks[rec["comparison"][1] - 1].end]}
+    authority_veto = rec["authority_veto"]
     return {
         "assertion": _assertion_public(text, toks, rec),
         "span": [region[0], region[1]],
         "assertion_source": eff["source"],
         "assertion_kind": eff["kind"],
-        "finding_authority": finding_authority(eff["source"], eff["kind"], is_caption),
+        "finding_authority": finding_authority(eff["source"], eff["kind"], is_caption, authority_veto),
+        "authority_veto": authority_veto,
         "source_resolution": eff["resolution"],
         "label_scope": bool(rec["label_scope"]),
         "framing_source": PRIOR_WORK if rec["framing_prior"] else None,
@@ -877,6 +943,7 @@ def classify_assertion_authority(
         "structural_context_consumed": None,
         "source_resolution": None,
         "label_scope": False,
+        "authority_veto": None,
         "rules_applied": [],
         "fail_closed_reasons": [],
         "ambiguity": None,
@@ -907,7 +974,9 @@ def classify_assertion_authority(
 
     result["assertions_considered"] = len(covering)
     effs = [(toks, rec, _effective(rec, toks, text, owner_signal, is_caption)) for toks, rec in covering]
-    signatures = {(eff["source"], eff["kind"]) for _, _, eff in effs}
+    # I4-1c: two covering assertions must agree on authority_veto too, not just source/kind -- otherwise silently
+    # picking the first could serve an authoritative reading when another equally-covering reading is vetoed.
+    signatures = {(eff["source"], eff["kind"], rec["authority_veto"]) for _, rec, eff in effs}
     if len(signatures) > 1:
         result.update(
             assertion_source=UNKNOWN_SOURCE,
