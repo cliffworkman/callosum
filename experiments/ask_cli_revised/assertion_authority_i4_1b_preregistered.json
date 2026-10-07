@@ -1,0 +1,1419 @@
+{
+ "battery": "i4-1b-preregistered",
+ "frozen_before": "I4-1b classifier change",
+ "generator": "make_battery.py",
+ "expectations_are": "rule-derived predictions of the repaired contract, not outputs of the repaired code",
+ "cases": [
+  {
+   "id": "mp_A",
+   "group": "minimal_pair",
+   "text": "Results: Scores increased.",
+   "target": {
+    "surface": "Scores increased"
+   },
+   "note": "Pair A. Unknown subject after label removal; structural Results resolver.",
+   "i4_1_observed_prediction": "changed",
+   "directive_expectation": "this_study/result/authoritative via structural_results_label",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "structural_results_label"
+   }
+  },
+  {
+   "id": "mp_B",
+   "group": "minimal_pair",
+   "text": "Results: Previous studies found that scores increased.",
+   "target": {
+    "surface": "Previous studies found that scores increased"
+   },
+   "note": "Pair B. Label leak repaired: prior owner is recovered; no resolver.",
+   "i4_1_observed_prediction": "changed",
+   "directive_expectation": "prior_work/result/candidate",
+   "expect": {
+    "source": "prior_work",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "mp_C",
+   "group": "minimal_pair",
+   "text": "Results: Smith et al.12 found that scores increased.",
+   "target": {
+    "surface": "Smith et al.12 found that scores increased"
+   },
+   "note": "Pair C. Prior NP with citation after label removal.",
+   "i4_1_observed_prediction": "changed",
+   "directive_expectation": "prior_work/result/candidate",
+   "expect": {
+    "source": "prior_work",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "mp_D",
+   "group": "minimal_pair",
+   "text": "Results: We found that scores increased.",
+   "target": {
+    "surface": "We found that scores increased"
+   },
+   "note": "Pair D. Lexical owner; the structural resolver must NOT be the reason.",
+   "i4_1_observed_prediction": "changed",
+   "directive_expectation": "this_study/result/authoritative lexical owner",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "mp_E",
+   "group": "minimal_pair",
+   "text": "Results: We hypothesized that scores would increase.",
+   "target": {
+    "surface": "We hypothesized that scores would increase"
+   },
+   "note": "Pair E. Hypothesis scope; no Results promotion.",
+   "i4_1_observed_prediction": "unknown",
+   "directive_expectation": "this_study/aim_or_hypothesis/candidate",
+   "expect": {
+    "source": "this_study",
+    "kind": "aim_or_hypothesis",
+    "authority": "candidate",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "mp_F",
+   "group": "minimal_pair",
+   "text": "Results: These findings suggest that scores may increase.",
+   "target": {
+    "surface": "These findings suggest that scores may increase"
+   },
+   "note": "Pair F. Directive sketch says this_study; under the authorised rules 'These findings' is not an owner and the resolver needs kind=result. finding_authority is candidate either way, so no authority-relevant difference. Frozen as the rule-derived expectation; the divergence is recorded.",
+   "i4_1_observed_prediction": "unknown",
+   "directive_expectation": "this_study/interpretation/candidate (divergence: rule-derived unknown source; authority identical)",
+   "expect": {
+    "source": "unknown",
+    "kind": "interpretation",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "mp_G",
+   "group": "minimal_pair",
+   "text": "Results: Scores were measured.",
+   "target": {
+    "surface": "Scores were measured"
+   },
+   "note": "Pair G. No Results promotion for a method kind.",
+   "i4_1_observed_prediction": "unknown",
+   "directive_expectation": "method_or_description/candidate",
+   "expect": {
+    "source": "unknown",
+    "kind": "method_or_description",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "mp_H",
+   "group": "minimal_pair",
+   "text": "Discussion: Scores increased.",
+   "target": {
+    "surface": "Scores increased"
+   },
+   "note": "Pair H. Non-Results label grants nothing.",
+   "i4_1_observed_prediction": "unknown",
+   "directive_expectation": "unknown/result/candidate",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "mp_I",
+   "group": "minimal_pair",
+   "text": "Specificity: Scores increased.",
+   "target": {
+    "surface": "Scores increased"
+   },
+   "note": "Pair I. Non-Results label grants nothing.",
+   "i4_1_observed_prediction": "unknown",
+   "directive_expectation": "unknown/result/candidate",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "mp_J",
+   "group": "minimal_pair",
+   "text": "Specificity: We observed that scores increased.",
+   "target": {
+    "surface": "We observed that scores increased"
+   },
+   "note": "Pair J. Label removed; 'We observed' supplies ownership lexically.",
+   "i4_1_observed_prediction": "changed",
+   "directive_expectation": "this_study/result/authoritative",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "ll_1",
+   "group": "label_leak",
+   "text": "Results: Earlier work reported that scores increased.",
+   "target": {
+    "surface": "Earlier work reported that scores increased"
+   },
+   "note": "Prior owner after Results.",
+   "i4_1_observed_prediction": "changed",
+   "expect": {
+    "source": "prior_work",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "ll_2",
+   "group": "label_leak",
+   "text": "Results: According to Smith, scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Prior framing after Results (according-to rule).",
+   "i4_1_observed_prediction": "changed",
+   "expect": {
+    "source": "prior_work",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "ll_3",
+   "group": "label_leak",
+   "text": "Results: Previous studies found X.",
+   "target": {
+    "surface": "Previous studies found X"
+   },
+   "note": "Prior owner after Results, short object.",
+   "i4_1_observed_prediction": "changed",
+   "expect": {
+    "source": "prior_work",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "eo_1",
+   "group": "explicit_owner_after_results",
+   "text": "Results: This study found that scores increased.",
+   "target": {
+    "surface": "This study found that scores increased"
+   },
+   "note": "Explicit current owner, lexical.",
+   "i4_1_observed_prediction": "changed",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "eo_2",
+   "group": "explicit_owner_after_results",
+   "text": "Results: In this study, scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Current-study framing is not an owner; the Results label resolves the unknown subject.",
+   "i4_1_observed_prediction": "changed",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "structural_results_label"
+   }
+  },
+  {
+   "id": "mh_1",
+   "group": "methods_after_results",
+   "text": "Results: We measured scores.",
+   "target": {
+    "surface": "We measured scores"
+   },
+   "note": "Method kind is never promoted to a result.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "this_study",
+    "kind": "method_or_description",
+    "authority": "candidate",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "mh_2",
+   "group": "interpretation_after_results",
+   "text": "Results: We suggest that scores may increase.",
+   "target": {
+    "surface": "We suggest that scores may increase"
+   },
+   "note": "Interpretation scope after label.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "this_study",
+    "kind": "interpretation",
+    "authority": "candidate",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "mh_3",
+   "group": "interpretation_after_results",
+   "text": "Results: Scores would increase.",
+   "target": {
+    "surface": "Scores would increase"
+   },
+   "note": "Modal scope after label; no resolver because kind is not result.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "unknown",
+    "kind": "interpretation",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "nr_1",
+   "group": "non_results_label",
+   "text": "Background: Scores increased.",
+   "target": {
+    "surface": "Scores increased"
+   },
+   "note": "Non-Results label; no resolver.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "nr_2",
+   "group": "non_results_label",
+   "text": "Key findings: Scores increased.",
+   "target": {
+    "surface": "Scores increased"
+   },
+   "note": "'Key findings' is not the normalized label 'results'.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "nr_3",
+   "group": "non_results_label",
+   "text": "Findings: Scores increased.",
+   "target": {
+    "surface": "Scores increased"
+   },
+   "note": "'Findings' is not authorised.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "nr_4",
+   "group": "non_results_label",
+   "text": "Results and discussion: Scores increased.",
+   "target": {
+    "surface": "Scores increased"
+   },
+   "note": "Compound label is not exactly 'results'.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "nr_5",
+   "group": "non_results_label",
+   "text": "Results Of The Trial: Scores increased.",
+   "target": {
+    "surface": "Scores increased"
+   },
+   "note": "Title containing Results is not the label.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "nr_6",
+   "group": "non_results_label",
+   "text": "Results-based: Scores increased.",
+   "target": {
+    "surface": "Scores increased"
+   },
+   "note": "Hyphenated compound is not 'results'.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "nr_7",
+   "group": "non_results_label",
+   "text": "Objective: We found that scores increased.",
+   "target": {
+    "surface": "We found that scores increased"
+   },
+   "note": "Non-Results label plus lexical owner: owner works, label grants nothing.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "cp_1",
+   "group": "colon_prose",
+   "text": "These data show one thing: scores increased.",
+   "target": {
+    "surface": "These data show one thing"
+   },
+   "note": "A predicate inside the prefix means it is not a label.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "cp_2",
+   "group": "colon_prose",
+   "text": "Note the design: we found that scores increased.",
+   "target": {
+    "surface": "we found that scores increased"
+   },
+   "note": "Label-shaped prefix without predicate; owner recovered after removal.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "cp_3",
+   "group": "colon_prose",
+   "text": "Previous studies: found that scores increased.",
+   "target": {
+    "surface": "found that scores increased"
+   },
+   "note": "Prior-source prefix is never removed as a label (ownership would be lost).",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "prior_work",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "cp_4",
+   "group": "colon_prose",
+   "text": "We: found that scores increased.",
+   "target": {
+    "surface": "found that scores increased"
+   },
+   "note": "Owner-shaped prefix is not a label; punctuation blocks owner; fail closed.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "ph_1",
+   "group": "neutral_heading",
+   "text": "Specificity and generalization of intervention effects: We also observed that X increased.",
+   "target": {
+    "surface": "We also observed that X increased"
+   },
+   "note": "Colon-delimited heading of 6 words is a label; explicit owner recovered.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "ph_2",
+   "group": "neutral_heading_p30_structure",
+   "text": "Specificity and generalization of intervention effects We also observed that X increased.",
+   "target": {
+    "surface": "We also observed that X increased"
+   },
+   "note": "No structural delimiter, so the authorised run-in rule does not fire. Expected UNCHANGED from I4-1. The directive's p30 expectation is conditional on this premise and is not met by an undelimited heading.",
+   "i4_1_observed_prediction": "unknown",
+   "directive_expectation": "this_study/result/authoritative only if the heading is delimited (not met)",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "ls_1",
+   "group": "label_scope",
+   "text": "Results: Scores increased. Previous studies found that scores decreased.",
+   "target": {
+    "surface": "Scores increased"
+   },
+   "note": "Label governs the first sentence's first assertion.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "structural_results_label"
+   }
+  },
+  {
+   "id": "ls_2",
+   "group": "label_scope",
+   "text": "Results: Scores increased. Previous studies found that scores decreased.",
+   "target": {
+    "surface": "Previous studies found that scores decreased"
+   },
+   "note": "Label does not reach the second sentence.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "prior_work",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "ls_3",
+   "group": "label_scope",
+   "text": "Results: Scores increased; scores decreased.",
+   "target": {
+    "surface": "scores decreased"
+   },
+   "note": "Label does not cross a semicolon clause boundary.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "ls_4",
+   "group": "label_scope",
+   "text": "Results: Scores increased and decreased.",
+   "target": {
+    "surface": "decreased"
+   },
+   "note": "Coordinated predicate inheriting the label-governed subject is a linked run.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "structural_results_label"
+   }
+  },
+  {
+   "id": "ls_5",
+   "group": "label_scope",
+   "text": "Results: Scores increased, and we measured Y.",
+   "target": {
+    "surface": "Scores increased"
+   },
+   "note": "Label scope on the first assertion of a comma-coordinated sentence.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "structural_results_label"
+   }
+  },
+  {
+   "id": "ls_5b",
+   "group": "label_scope",
+   "text": "Results: Scores increased, and we measured Y.",
+   "target": {
+    "surface": "we measured Y"
+   },
+   "note": "A new owned subject is not inheriting the label scope.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "this_study",
+    "kind": "method_or_description",
+    "authority": "candidate",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "ls_6",
+   "group": "label_scope",
+   "text": "Results: Scores increased. Results: Previous studies found X.",
+   "target": {
+    "surface": "Previous studies found X"
+   },
+   "note": "Only an input-initial label is a label.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "ci_1",
+   "group": "citation",
+   "text": "Results: Scores increased.12",
+   "target": {
+    "surface": "Scores increased"
+   },
+   "note": "Citation alone does not make prior_work, and it vetoes the structural resolver.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "ci_2",
+   "group": "citation",
+   "text": "Results: Smith et al.12 found scores increased.",
+   "target": {
+    "surface": "Smith et al.12 found scores increased"
+   },
+   "note": "Citation governing an external-source subject is prior.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "prior_work",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "ci_3",
+   "group": "citation",
+   "text": "Results: Scores increased (Smith et al., 2019).",
+   "target": {
+    "surface": "Scores increased"
+   },
+   "note": "Prior object inside the assertion vetoes the resolver.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "ci_4",
+   "group": "citation",
+   "text": "Results: Scores increased (ref. 12).",
+   "target": {
+    "surface": "Scores increased"
+   },
+   "note": "Reference-like parenthetical vetoes the resolver.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "ci_5",
+   "group": "citation",
+   "text": "Results: Scores increased (2019).",
+   "target": {
+    "surface": "Scores increased"
+   },
+   "note": "Bare year parenthetical vetoes the resolver.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "fp_1",
+   "group": "framing_prior",
+   "text": "Results: Consistent with previous studies, scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Prior framing inside the label-governed sentence vetoes the resolver.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "ng_1",
+   "group": "negation_hedge",
+   "text": "Results: Scores did not increase.",
+   "target": {
+    "surface": "Scores did not increase"
+   },
+   "note": "Negation vetoes the structural resolver.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "ng_2",
+   "group": "negation_hedge",
+   "text": "Results: We may have found that scores increased.",
+   "target": {
+    "surface": "We may have found that scores increased"
+   },
+   "note": "Modal scope is interpretation.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "this_study",
+    "kind": "interpretation",
+    "authority": "candidate",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "wp_A",
+   "group": "whole_passage",
+   "text": "Previous studies found X. We found Y.",
+   "target": {
+    "whole": true
+   },
+   "note": "Whole-passage A: one prior candidate and one this-study authoritative; no aggregate authority.",
+   "i4_1_observed_prediction": "unknown",
+   "directive_expectation": "multi_assertion, no aggregate authority",
+   "expect_multi": {
+    "scope": "multi_assertion",
+    "assertions": [
+     {
+      "source": "prior_work",
+      "kind": "result",
+      "authority": "candidate",
+      "source_resolution": "parsed",
+      "covers_target": false
+     },
+     {
+      "source": "this_study",
+      "kind": "result",
+      "authority": "authoritative",
+      "source_resolution": "parsed",
+      "covers_target": false
+     }
+    ]
+   }
+  },
+  {
+   "id": "wp_B",
+   "group": "whole_passage",
+   "text": "We found X. We measured Y.",
+   "target": {
+    "whole": true
+   },
+   "note": "Whole-passage B: result authoritative plus method candidate; no silent selection.",
+   "i4_1_observed_prediction": "unknown",
+   "expect_multi": {
+    "scope": "multi_assertion",
+    "assertions": [
+     {
+      "source": "this_study",
+      "kind": "result",
+      "authority": "authoritative",
+      "source_resolution": "parsed",
+      "covers_target": false
+     },
+     {
+      "source": "this_study",
+      "kind": "method_or_description",
+      "authority": "candidate",
+      "source_resolution": "parsed",
+      "covers_target": false
+     }
+    ]
+   }
+  },
+  {
+   "id": "wp_C",
+   "group": "whole_passage",
+   "text": "Previous studies found X. Previous studies found Y.",
+   "target": {
+    "whole": true
+   },
+   "note": "Whole-passage C: two prior candidates.",
+   "i4_1_observed_prediction": "unknown",
+   "expect_multi": {
+    "scope": "multi_assertion",
+    "assertions": [
+     {
+      "source": "prior_work",
+      "kind": "result",
+      "authority": "candidate",
+      "source_resolution": "parsed",
+      "covers_target": false
+     },
+     {
+      "source": "prior_work",
+      "kind": "result",
+      "authority": "candidate",
+      "source_resolution": "parsed",
+      "covers_target": false
+     }
+    ]
+   }
+  },
+  {
+   "id": "wp_D",
+   "group": "whole_passage",
+   "text": "Results: X increased. Y decreased.",
+   "target": {
+    "whole": true
+   },
+   "note": "Whole-passage D: label governs only the first sentence; each assertion classified independently.",
+   "i4_1_observed_prediction": "unknown",
+   "expect_multi": {
+    "scope": "multi_assertion",
+    "assertions": [
+     {
+      "source": "this_study",
+      "kind": "result",
+      "authority": "authoritative",
+      "source_resolution": "structural_results_label",
+      "covers_target": false
+     },
+     {
+      "source": "unknown",
+      "kind": "result",
+      "authority": "candidate",
+      "source_resolution": "unresolved",
+      "covers_target": false
+     }
+    ]
+   }
+  },
+  {
+   "id": "wp_E",
+   "group": "whole_passage",
+   "text": "Previous studies found X. We found Y.",
+   "target": {
+    "surface": "X"
+   },
+   "note": "Whole-passage E: target covers only X.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "prior_work",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "wp_F",
+   "group": "whole_passage",
+   "text": "Previous studies found X. We found Y.",
+   "target": {
+    "surface": "Y"
+   },
+   "note": "Whole-passage F: target covers only Y.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "wp_G",
+   "group": "whole_passage",
+   "text": "We found that X predicted Y.",
+   "target": {
+    "whole": true
+   },
+   "note": "Single assertion, whole passage, terminal period ignored for coverage.",
+   "i4_1_observed_prediction": "changed",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "wp_H",
+   "group": "whole_passage",
+   "text": "Nevertheless, we found X.",
+   "target": {
+    "whole": true
+   },
+   "note": "Framing outside the assertion; singular fails closed.",
+   "i4_1_observed_prediction": "unchanged",
+   "expect": {
+    "fail_closed": "target_crosses_assertion_boundary"
+   }
+  },
+  {
+   "id": "wp_I",
+   "group": "whole_passage",
+   "text": "Results: X increased. Y decreased.",
+   "target": {
+    "whole": true
+   },
+   "note": "Whole-passage singular across two assertions fails closed.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "fail_closed": "target_crosses_assertion_boundary"
+   }
+  },
+  {
+   "id": "wp_J",
+   "group": "whole_passage",
+   "text": "Scores vary widely between sites.",
+   "target": {
+    "whole": true
+   },
+   "note": "No governing predicate: explicit empty result.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "fail_closed": "no_governing_predicate"
+   }
+  },
+  {
+   "id": "wp_J_multi",
+   "group": "whole_passage",
+   "text": "Scores vary widely between sites.",
+   "target": {
+    "whole": true
+   },
+   "note": "Multi API: explicit empty result.",
+   "i4_1_observed_prediction": "unknown",
+   "expect_multi": {
+    "scope": "no_governing_assertion",
+    "assertions": []
+   }
+  },
+  {
+   "id": "wp_H_multi",
+   "group": "whole_passage",
+   "text": "Nevertheless, we found X.",
+   "target": {
+    "whole": true
+   },
+   "note": "Multi API: one assertion intersects, does not cover the whole target.",
+   "i4_1_observed_prediction": "unknown",
+   "expect_multi": {
+    "scope": "partial_assertion",
+    "assertions": [
+     {
+      "source": "this_study",
+      "kind": "result",
+      "authority": "authoritative",
+      "source_resolution": "parsed",
+      "covers_target": false
+     }
+    ]
+   }
+  },
+  {
+   "id": "ma_1",
+   "group": "multi_assertion",
+   "text": "Scores increased and we found that X decreased.",
+   "target": {
+    "whole": true
+   },
+   "note": "Coordinated assertions with different owners.",
+   "i4_1_observed_prediction": "unknown",
+   "expect_multi": {
+    "scope": "multi_assertion",
+    "assertions": [
+     {
+      "source": "unknown",
+      "kind": "result",
+      "authority": "candidate",
+      "source_resolution": "unresolved",
+      "covers_target": false
+     },
+     {
+      "source": "this_study",
+      "kind": "result",
+      "authority": "authoritative",
+      "source_resolution": "parsed",
+      "covers_target": false
+     }
+    ]
+   }
+  },
+  {
+   "id": "ma_2",
+   "group": "multi_assertion",
+   "text": "Previous studies found X, but we found that Y decreased.",
+   "target": {
+    "whole": true
+   },
+   "note": "Contrast-split clauses; no aggregate.",
+   "i4_1_observed_prediction": "unknown",
+   "expect_multi": {
+    "scope": "multi_assertion",
+    "assertions": [
+     {
+      "source": "prior_work",
+      "kind": "result",
+      "authority": "candidate",
+      "source_resolution": "parsed",
+      "covers_target": false
+     },
+     {
+      "source": "this_study",
+      "kind": "result",
+      "authority": "authoritative",
+      "source_resolution": "parsed",
+      "covers_target": false
+     }
+    ]
+   }
+  },
+  {
+   "id": "ma_3",
+   "group": "multi_assertion",
+   "text": "Previous studies found X, but we found that Y decreased.",
+   "target": {
+    "surface": "Y decreased"
+   },
+   "note": "Singular on the covered second assertion.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "ma_4",
+   "group": "multi_assertion",
+   "text": "Previous studies found X, but we found that Y decreased.",
+   "target": {
+    "whole": true
+   },
+   "note": "Singular on the whole target still fails closed.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "fail_closed": "target_crosses_assertion_boundary"
+   }
+  },
+  {
+   "id": "bt_1",
+   "group": "broad_target",
+   "text": "Previous studies found X. We found Y.",
+   "target": {
+    "surface": "Previous studies found X. We found"
+   },
+   "note": "Target partially overlapping two assertions.",
+   "i4_1_observed_prediction": "unknown",
+   "expect_multi": {
+    "scope": "multi_assertion",
+    "assertions": [
+     {
+      "source": "prior_work",
+      "kind": "result",
+      "authority": "candidate",
+      "source_resolution": "parsed",
+      "covers_target": false
+     },
+     {
+      "source": "this_study",
+      "kind": "result",
+      "authority": "authoritative",
+      "source_resolution": "parsed",
+      "covers_target": false
+     }
+    ]
+   }
+  },
+  {
+   "id": "bt_2",
+   "group": "broad_target",
+   "text": "Across the ratings, Spearman correlations revealed X.",
+   "target": {
+    "whole": true
+   },
+   "note": "Framing outside the assertion.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "fail_closed": "target_crosses_assertion_boundary"
+   }
+  },
+  {
+   "id": "bt_2_multi",
+   "group": "broad_target",
+   "text": "Across the ratings, Spearman correlations revealed X.",
+   "target": {
+    "whole": true
+   },
+   "note": "Multi API: partial coverage is not authority.",
+   "i4_1_observed_prediction": "unknown",
+   "expect_multi": {
+    "scope": "partial_assertion",
+    "assertions": [
+     {
+      "source": "unknown",
+      "kind": "result",
+      "authority": "candidate",
+      "source_resolution": "unresolved",
+      "covers_target": false
+     }
+    ]
+   }
+  },
+  {
+   "id": "ro_1",
+   "group": "repeated_occurrence",
+   "text": "We tested whether X predicted Y and found that X predicted Y.",
+   "target": {
+    "surface": "X predicted Y"
+   },
+   "note": "Each occurrence classified separately.",
+   "i4_1_observed_prediction": "unknown",
+   "expect_occurrences": [
+    {
+     "source": "this_study",
+     "kind": "aim_or_hypothesis",
+     "authority": "candidate"
+    },
+    {
+     "source": "this_study",
+     "kind": "result",
+     "authority": "authoritative"
+    }
+   ]
+  },
+  {
+   "id": "ro_2",
+   "group": "repeated_occurrence",
+   "text": "Previous studies found X. We found X.",
+   "target": {
+    "surface": "X"
+   },
+   "note": "Repeated surface across assertions.",
+   "i4_1_observed_prediction": "unknown",
+   "expect_occurrences": [
+    {
+     "source": "prior_work",
+     "kind": "result",
+     "authority": "candidate"
+    },
+    {
+     "source": "this_study",
+     "kind": "result",
+     "authority": "authoritative"
+    }
+   ]
+  },
+  {
+   "id": "ro_3",
+   "group": "repeated_occurrence",
+   "text": "Results: Scores increased. Scores increased.",
+   "target": {
+    "surface": "Scores increased"
+   },
+   "note": "Label scope applies to the first occurrence only.",
+   "i4_1_observed_prediction": "unknown",
+   "expect_occurrences": [
+    {
+     "source": "this_study",
+     "kind": "result",
+     "authority": "authoritative",
+     "source_resolution": "structural_results_label"
+    },
+    {
+     "source": "unknown",
+     "kind": "result",
+     "authority": "candidate",
+     "source_resolution": "unresolved"
+    }
+   ]
+  },
+  {
+   "id": "ro_4",
+   "group": "repeated_occurrence",
+   "text": "Results: Scores increased. Scores increased.",
+   "target": {
+    "surface": "Scores increased"
+   },
+   "note": "Surface without occurrence is never silently resolved.",
+   "i4_1_observed_prediction": "unknown",
+   "expect_ambiguity": "repeated_target_occurrence"
+  },
+  {
+   "id": "pp_p41_a1",
+   "group": "preserved_sealed",
+   "text": "Results: Across the ratings for all faces, Spearman correlations revealed greater proportionality was associated with attrac- tiveness (ρ = 0.292, P < 0.001) and trustworthiness (ρ = 0.193, P < 0.001), while lesser proportionality was associated with impressions of anger (ρ = 0.132, P = 0.001), dominance (ρ = 0.259, P < 0.001), and threateningness (ρ = 0.234, P < 0.001).",
+   "target": {
+    "surface": "revealed greater proportionality was associated with attrac- tiveness"
+   },
+   "note": "POSITIVE CONTROL. Results: label is inside the sealed quote; structural resolver.",
+   "i4_1_observed_prediction": "changed",
+   "directive_expectation": "I4-1 unknown/candidate -> I4-1b this_study/result/authoritative via structural_results_label",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "structural_results_label"
+   }
+  },
+  {
+   "id": "pp_p41_a2",
+   "group": "preserved_sealed",
+   "text": "Results: Across the ratings for all faces, Spearman correlations revealed greater proportionality was associated with attrac- tiveness (ρ = 0.292, P < 0.001) and trustworthiness (ρ = 0.193, P < 0.001), while lesser proportionality was associated with impressions of anger (ρ = 0.132, P = 0.001), dominance (ρ = 0.259, P < 0.001), and threateningness (ρ = 0.234, P < 0.001).",
+   "target": {
+    "surface": "associated with impressions of anger"
+   },
+   "note": "Contrast-linked clause with its own unowned subject is outside the label scope.",
+   "i4_1_observed_prediction": "unchanged",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "pp_p41_whole",
+   "group": "preserved_sealed",
+   "text": "Results: Across the ratings for all faces, Spearman correlations revealed greater proportionality was associated with attrac- tiveness (ρ = 0.292, P < 0.001) and trustworthiness (ρ = 0.193, P < 0.001), while lesser proportionality was associated with impressions of anger (ρ = 0.132, P = 0.001), dominance (ρ = 0.259, P < 0.001), and threateningness (ρ = 0.234, P < 0.001).",
+   "target": {
+    "whole": true
+   },
+   "note": "Whole quote: singular fails closed; multi API keeps both records.",
+   "i4_1_observed_prediction": "unchanged",
+   "expect": {
+    "fail_closed": "target_crosses_assertion_boundary"
+   },
+   "expect_multi": {
+    "scope": "multi_assertion",
+    "assertions": [
+     {
+      "source": "this_study",
+      "kind": "result",
+      "authority": "authoritative",
+      "source_resolution": "structural_results_label",
+      "covers_target": false
+     },
+     {
+      "source": "unknown",
+      "kind": "result",
+      "authority": "candidate",
+      "source_resolution": "unresolved",
+      "covers_target": false
+     }
+    ]
+   }
+  },
+  {
+   "id": "pp_p30_check",
+   "group": "preserved_sealed",
+   "text": "Specificity and generalization of intervention effects We also observed that the anomalous faces variant of the NAME intervention produced a clear reduction in implicit bias against people with anomalous faces, whereas bias toward people of color in that condition remained essentially unchanged.",
+   "target": {
+    "surface": "We also observed that the anomalous faces variant"
+   },
+   "note": "NEUTRAL-HEADING CHECK. No delimiter; the authorised run-in rule does not fire; expected UNCHANGED. Do not tune.",
+   "i4_1_observed_prediction": "unchanged",
+   "directive_expectation": "this_study/result/authoritative only if premise holds (predicted not met)",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "pp_p36",
+   "group": "preserved_sealed",
+   "text": "Participants expressed explicit biases against people with facial anomalies, but their implicit biases were slight and not significant.",
+   "target": {
+    "surface": "expressed explicit biases against people with facial anomalies"
+   },
+   "note": "LOCKED NON-RECOVERY. No participant-noun cue.",
+   "i4_1_observed_prediction": "unchanged",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "pp_p11",
+   "group": "preserved_sealed",
+   "text": "Across these levels of organization, the specific amygdala response to facial anomalies correlated with stronger just-world beliefs (i.e., people get what they deserve), less dispositional empathic concern, and less prosociality toward people with facial anomalies.",
+   "target": {
+    "surface": "correlated with stronger just-world beliefs"
+   },
+   "note": "LOCKED NON-RECOVERY. Unknown absent replayable ownership.",
+   "i4_1_observed_prediction": "unchanged",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "pp_p52",
+   "group": "preserved_sealed",
+   "text": "providing direct evidence that explicit beliefs can influence the social evaluation of faces.",
+   "target": {
+    "surface": "influence the social evaluation of faces"
+   },
+   "note": "LOCKED NON-RECOVERY. Headless quote; modal scope; no outside context.",
+   "i4_1_observed_prediction": "unchanged",
+   "expect": {
+    "source": "unknown",
+    "kind": "interpretation",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "pp_p17",
+   "group": "preserved_sealed",
+   "text": "Nevertheless, we found evidence for the “anomalous-is-bad” stereotype in explicit negative attitudes about people with facial anoma- lies both as individuals (i.e., character inferences) and as a group (i.e., scores on the Explicit Bias Questionnaire).",
+   "target": {
+    "surface": "we found evidence"
+   },
+   "note": "Source authority stays this_study/result; repeated-term polarity is a separate axis.",
+   "i4_1_observed_prediction": "unchanged",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "pp_p40_a1",
+   "group": "preserved_sealed",
+   "text": "Recent work with functional magnetic resonance imaging has implicated certain neuroanatomic structures when viewing others with facial anomalies.6 Laypersons with high levels of implicit bias toward those with facial anomalies demonstrated increased amygdala reactiv- ity.6 Although previous studies have used eye-tracking to characterize visual attention toward patients with craniofacial anomalies, visual at- tention has not been analyzed alongside assessments of biases and other social dispositions.",
+   "target": {
+    "surface": "has implicated certain neuroanatomic structures"
+   },
+   "note": "Prior-work cited finding stays candidate.",
+   "i4_1_observed_prediction": "unchanged",
+   "expect": {
+    "source": "prior_work",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "pp_p40_a3",
+   "group": "preserved_sealed",
+   "text": "Recent work with functional magnetic resonance imaging has implicated certain neuroanatomic structures when viewing others with facial anomalies.6 Laypersons with high levels of implicit bias toward those with facial anomalies demonstrated increased amygdala reactiv- ity.6 Although previous studies have used eye-tracking to characterize visual attention toward patients with craniofacial anomalies, visual at- tention has not been analyzed alongside assessments of biases and other social dispositions.",
+   "target": {
+    "surface": "have used eye-tracking"
+   },
+   "note": "Prior method stays candidate.",
+   "i4_1_observed_prediction": "unchanged",
+   "expect": {
+    "source": "prior_work",
+    "kind": "method_or_description",
+    "authority": "candidate",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "pp_p43",
+   "group": "preserved_sealed",
+   "text": "Objective: The aims of this study were to conﬁrm and extend the association of proportionality with perceived levels of attrac- tiveness and character traits and determine differences in at- tractiveness and character ratings between “anomalous” and “typical” faces using a large dataset.",
+   "target": {
+    "surface": "aims of this study were to conﬁrm"
+   },
+   "note": "Non-Results label (Objective:) removed; unchanged source and kind.",
+   "i4_1_observed_prediction": "unchanged",
+   "expect": {
+    "source": "unknown",
+    "kind": "aim_or_hypothesis",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  }
+ ]
+}

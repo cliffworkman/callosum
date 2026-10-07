@@ -1,0 +1,476 @@
+{
+ "battery": "i4-1b-holdout",
+ "frozen_before": "I4-1b classifier change",
+ "generator": "make_battery.py",
+ "expectations_are": "rule-derived predictions of the repaired contract, not outputs of the repaired code",
+ "cases": [
+  {
+   "id": "ho_01",
+   "group": "holdout",
+   "text": "Results section: Scores increased.",
+   "target": {
+    "surface": "Scores increased"
+   },
+   "note": "Label is not exactly results.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "ho_02",
+   "group": "holdout",
+   "text": "Results of prior trials: Scores increased.",
+   "target": {
+    "surface": "Scores increased"
+   },
+   "note": "Misleading label containing a prior noun.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "ho_03",
+   "group": "holdout",
+   "text": "Results: Scores increased.12",
+   "target": {
+    "surface": "Scores increased"
+   },
+   "note": "Citation placement after object.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "ho_04",
+   "group": "holdout",
+   "text": "results: scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Lowercase label normalizes to results.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "structural_results_label"
+   }
+  },
+  {
+   "id": "ho_05",
+   "group": "holdout",
+   "text": "Results: Previous studies found that scores increased. We found that scores decreased.",
+   "target": {
+    "surface": "We found that scores decreased"
+   },
+   "note": "Label does not carry past the sentence; lexical owner.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "ho_06",
+   "group": "holdout",
+   "text": "Results: Previous studies found that scores increased. We found that scores decreased.",
+   "target": {
+    "surface": "Previous studies found that scores increased"
+   },
+   "note": "Prior inside Results text.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "prior_work",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "ho_07",
+   "group": "holdout",
+   "text": "Results: Scores increased; scores decreased.",
+   "target": {
+    "surface": "Scores increased"
+   },
+   "note": "First clause before a semicolon is in label scope.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "structural_results_label"
+   }
+  },
+  {
+   "id": "ho_08",
+   "group": "holdout",
+   "text": "Results: Scores increased and decreased.",
+   "target": {
+    "surface": "decreased"
+   },
+   "note": "Coordinated run.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "structural_results_label"
+   }
+  },
+  {
+   "id": "ho_09",
+   "group": "holdout",
+   "text": "Results: Scores would increase.",
+   "target": {
+    "surface": "Scores would increase"
+   },
+   "note": "Modal scope.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "unknown",
+    "kind": "interpretation",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "ho_10",
+   "group": "holdout",
+   "text": "Results: We may have found that scores increased.",
+   "target": {
+    "surface": "We may have found that scores increased"
+   },
+   "note": "Hedged own-owner.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "this_study",
+    "kind": "interpretation",
+    "authority": "candidate",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "ho_11",
+   "group": "holdout",
+   "text": "Results: Scores have not increased.",
+   "target": {
+    "surface": "Scores have not increased"
+   },
+   "note": "Negation vetoes.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "ho_12",
+   "group": "holdout",
+   "text": "Results: Smith et al. found that scores increased.",
+   "target": {
+    "whole": true
+   },
+   "note": "Whole input includes the label, which is not part of any assertion.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "fail_closed": "target_crosses_assertion_boundary"
+   }
+  },
+  {
+   "id": "ho_12_multi",
+   "group": "holdout",
+   "text": "Results: Smith et al. found that scores increased.",
+   "target": {
+    "whole": true
+   },
+   "note": "Label is outside the assertion region.",
+   "i4_1_observed_prediction": "unknown",
+   "expect_multi": {
+    "scope": "partial_assertion",
+    "assertions": [
+     {
+      "source": "prior_work",
+      "kind": "result",
+      "authority": "candidate",
+      "source_resolution": "parsed",
+      "covers_target": false
+     }
+    ]
+   }
+  },
+  {
+   "id": "ho_13",
+   "group": "holdout",
+   "text": "Results: Scores increased (ref. 12).",
+   "target": {
+    "surface": "Scores increased"
+   },
+   "note": "Reference-like parenthetical.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "ho_14",
+   "group": "holdout",
+   "text": "Results: Scores increased (Smith et al., 2019).",
+   "target": {
+    "surface": "Scores increased"
+   },
+   "note": "Prior object.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "ho_15",
+   "group": "holdout",
+   "text": "Results: Consistent with previous studies, scores increased.",
+   "target": {
+    "surface": "scores increased"
+   },
+   "note": "Prior framing.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "ho_16",
+   "group": "holdout",
+   "text": "Results Of The Trial: Scores increased.",
+   "target": {
+    "surface": "Scores increased"
+   },
+   "note": "Title containing Results.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "ho_17",
+   "group": "holdout",
+   "text": "Results-based: Scores increased.",
+   "target": {
+    "surface": "Scores increased"
+   },
+   "note": "Hyphenated compound.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "ho_18",
+   "group": "holdout",
+   "text": "Discussion: Results: Scores increased.",
+   "target": {
+    "surface": "Scores increased"
+   },
+   "note": "Only one label is removed; the second colon is not a label.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "ho_19",
+   "group": "holdout",
+   "text": "Results: Scores increased, and we measured Y.",
+   "target": {
+    "surface": "we measured Y"
+   },
+   "note": "Owned method after label.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "this_study",
+    "kind": "method_or_description",
+    "authority": "candidate",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "ho_19b",
+   "group": "holdout",
+   "text": "Results: Scores increased, and we measured Y.",
+   "target": {
+    "surface": "Scores increased"
+   },
+   "note": "Label-governed first assertion.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "structural_results_label"
+   }
+  },
+  {
+   "id": "ho_20",
+   "group": "holdout",
+   "text": "Results: This study found that scores increased, but previous studies found no change.",
+   "target": {
+    "surface": "previous studies found no change"
+   },
+   "note": "Mixed owners under a label.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "prior_work",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "ho_21",
+   "group": "holdout",
+   "text": "Results: Scores increased. We found X. Previous studies found Y.",
+   "target": {
+    "whole": true
+   },
+   "note": "Three assertions; no aggregate.",
+   "i4_1_observed_prediction": "unknown",
+   "expect_multi": {
+    "scope": "multi_assertion",
+    "assertions": [
+     {
+      "source": "this_study",
+      "kind": "result",
+      "authority": "authoritative",
+      "source_resolution": "structural_results_label",
+      "covers_target": false
+     },
+     {
+      "source": "this_study",
+      "kind": "result",
+      "authority": "authoritative",
+      "source_resolution": "parsed",
+      "covers_target": false
+     },
+     {
+      "source": "prior_work",
+      "kind": "result",
+      "authority": "candidate",
+      "source_resolution": "parsed",
+      "covers_target": false
+     }
+    ]
+   }
+  },
+  {
+   "id": "ho_22",
+   "group": "holdout",
+   "text": "Results: Across all sites, we found that scores increased.",
+   "target": {
+    "surface": "we found that scores increased"
+   },
+   "note": "Framed current result.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "ho_23",
+   "group": "holdout",
+   "text": "These data show one thing: scores increased.",
+   "target": {
+    "surface": "These data show one thing"
+   },
+   "note": "Colon prose with a predicate in the prefix.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "ho_24",
+   "group": "holdout",
+   "text": "Specificity and generalization of intervention effects We observed that X increased and Y decreased.",
+   "target": {
+    "surface": "We observed that X increased"
+   },
+   "note": "Undelimited neutral heading.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "unknown",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "unresolved"
+   }
+  },
+  {
+   "id": "ho_25",
+   "group": "holdout",
+   "text": "Results: X increased. Y decreased.",
+   "target": {
+    "surface": "X increased. Y decreased"
+   },
+   "note": "Broad span across label scope.",
+   "i4_1_observed_prediction": "unknown",
+   "expect_multi": {
+    "scope": "multi_assertion",
+    "assertions": [
+     {
+      "source": "this_study",
+      "kind": "result",
+      "authority": "authoritative",
+      "source_resolution": "structural_results_label",
+      "covers_target": false
+     },
+     {
+      "source": "unknown",
+      "kind": "result",
+      "authority": "candidate",
+      "source_resolution": "unresolved",
+      "covers_target": false
+     }
+    ]
+   }
+  }
+ ]
+}

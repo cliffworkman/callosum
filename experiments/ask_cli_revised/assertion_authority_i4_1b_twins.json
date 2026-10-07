@@ -1,0 +1,168 @@
+{
+ "battery": "i4-1b-twins",
+ "frozen_before": "I4-1b classifier change",
+ "generator": "make_battery.py",
+ "expectations_are": "rule-derived predictions of the repaired contract, not outputs of the repaired code",
+ "cases": [
+  {
+   "id": "tw_arch_1",
+   "group": "twin_architecture",
+   "text": "Results: Floor area predicted satisfaction.",
+   "target": {
+    "surface": "Floor area predicted satisfaction"
+   },
+   "note": "Architecture twin.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "structural_results_label"
+   }
+  },
+  {
+   "id": "tw_arch_2",
+   "group": "twin_architecture",
+   "text": "Results: Previous studies found that floor area predicted satisfaction.",
+   "target": {
+    "surface": "Previous studies found that floor area predicted satisfaction"
+   },
+   "note": "Architecture prior twin.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "prior_work",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "tw_clin_1",
+   "group": "twin_clinical",
+   "text": "Results: Remission increased.",
+   "target": {
+    "surface": "Remission increased"
+   },
+   "note": "Clinical twin.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "structural_results_label"
+   }
+  },
+  {
+   "id": "tw_clin_2",
+   "group": "twin_clinical",
+   "text": "Results: Smith et al. found remission increased.",
+   "target": {
+    "surface": "Smith et al. found remission increased"
+   },
+   "note": "Clinical prior twin.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "prior_work",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "tw_lang_1",
+   "group": "twin_language",
+   "text": "Results: Vocabulary scores increased.",
+   "target": {
+    "surface": "Vocabulary scores increased"
+   },
+   "note": "Language-learning twin.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "structural_results_label"
+   }
+  },
+  {
+   "id": "tw_lang_2",
+   "group": "twin_language",
+   "text": "Results: Previous work found vocabulary scores increased.",
+   "target": {
+    "surface": "Previous work found vocabulary scores increased"
+   },
+   "note": "Language prior twin.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "prior_work",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "tw_neutral_arch",
+   "group": "twin_neutral_label",
+   "text": "Methods overview: We observed that floor area predicted satisfaction.",
+   "target": {
+    "surface": "We observed that floor area predicted satisfaction"
+   },
+   "note": "Neutral label with owner.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "tw_neutral_clin",
+   "group": "twin_neutral_label",
+   "text": "Clinical course: We found remission increased.",
+   "target": {
+    "surface": "We found remission increased"
+   },
+   "note": "Neutral label with owner.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "tw_neutral_lang",
+   "group": "twin_neutral_label",
+   "text": "Learner outcomes: We observed that vocabulary scores increased.",
+   "target": {
+    "surface": "We observed that vocabulary scores increased"
+   },
+   "note": "Neutral label with owner.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "this_study",
+    "kind": "result",
+    "authority": "authoritative",
+    "source_resolution": "parsed"
+   }
+  },
+  {
+   "id": "tw_neutral_prior",
+   "group": "twin_neutral_label",
+   "text": "Learner outcomes: Earlier work found vocabulary scores increased.",
+   "target": {
+    "surface": "Earlier work found vocabulary scores increased"
+   },
+   "note": "Neutral label with prior owner.",
+   "i4_1_observed_prediction": "unknown",
+   "expect": {
+    "source": "prior_work",
+    "kind": "result",
+    "authority": "candidate",
+    "source_resolution": "parsed"
+   }
+  }
+ ]
+}

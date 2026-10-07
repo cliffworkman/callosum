@@ -33,7 +33,30 @@ def _run(case):
     return out, out["results"]
 
 
-@pytest.mark.parametrize("case", _CASES, ids=[c["id"] for c in _CASES])
+# I4-1 expectations superseded by the I4-1b subject-inclusive assertion region (PHASE34_I4_1B_STRUCTURAL_CONTEXT_RESULTS.md).
+# The frozen JSON is unchanged. Each superseded case is strict-xfail, so if one starts passing the supersession is re-reviewed.
+_SUPERSEDED_SUBJECT_REGION = (
+    "I4-1b: the target lies inside its own subject noun phrase, which the I4-1 region excluded. The assertion now covers it "
+    "and reports its real kind; authority stays candidate and source stays unknown"
+)
+SUPERSEDED_BY_I4_1B = {
+    "P07": _SUPERSEDED_SUBJECT_REGION,
+    "P42": _SUPERSEDED_SUBJECT_REGION,
+    "P52": _SUPERSEDED_SUBJECT_REGION,
+    "T06": _SUPERSEDED_SUBJECT_REGION,
+    "T09": _SUPERSEDED_SUBJECT_REGION,
+    "T17": _SUPERSEDED_SUBJECT_REGION,
+    "P62": _SUPERSEDED_SUBJECT_REGION + " (previously fail-closed target_crosses_assertion_boundary)",
+}
+_PARAMS = [
+    pytest.param(c, marks=pytest.mark.xfail(strict=True, reason=SUPERSEDED_BY_I4_1B[c["id"]]))
+    if c["id"] in SUPERSEDED_BY_I4_1B
+    else c
+    for c in _CASES
+]
+
+
+@pytest.mark.parametrize("case", _PARAMS, ids=[c["id"] for c in _CASES])
 def test_preregistered_expectations(case):
     surface_out, res = _run(case)
     if "expect_surface" in case:

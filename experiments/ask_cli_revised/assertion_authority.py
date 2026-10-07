@@ -1,4 +1,4 @@
-"""PHASE 34 I4-1 pure assertion-source / assertion-kind classifier. UNWIRED: no production caller may import this module.
+"""PHASE 34 I4-1b assertion-source / assertion-kind classifier. UNWIRED: no production caller may import this module.
 
 It answers, for the assertion that BEARS ON A SUPPLIED TARGET SPAN:
 
@@ -6,7 +6,16 @@ It answers, for the assertion that BEARS ON A SUPPLIED TARGET SPAN:
 * ``assertion_kind``: what kind of assertion is it (``result`` / ``method_or_description`` /
   ``aim_or_hypothesis`` / ``interpretation`` / ``unknown``)?
 * ``is_caption``: a structural input, never a source.
+* ``source_resolution``: which rule fixed the source (``parsed`` / ``structural_results_label`` /
+  ``owner_signal_context`` / ``unresolved``).
 * audit flags: ``framing_source``, ``citation_marked``, ``hedged``, ``negated``, ``negated_replication``.
+
+I4-1b adds three repairs. (A) A leading run-in label such as ``Results:`` is isolated before ownership parsing, so the
+label cannot block a real prior or current owner. (B) That label is recognised only as a bounded, colon-delimited,
+predicate-free prefix at the start of the input, and it grants no ownership by itself. (C) An assertion's region
+includes its own subject, so an assertion can cover its whole content, and :func:`classify_target_assertions` returns
+every intersecting assertion without collapsing them. One narrow resolver turns an otherwise-unknown result into
+``this_study`` only when the label is exactly ``results`` and every veto is clear.
 
 ``finding_authority`` is derived by ONE central function (:func:`finding_authority`). Nothing here decides observation
 polarity, role completion, recovery, relation witnessing, direction, or AnswerPlan placement.
@@ -23,7 +32,7 @@ import re
 from collections import namedtuple
 
 CLASSIFIER_ID = "i4-1-assertion-authority"
-RULESET_VERSION = "i4-1.0"
+RULESET_VERSION = "i4-1b.0"
 
 THIS_STUDY = "this_study"
 PRIOR_WORK = "prior_work"
@@ -35,9 +44,17 @@ INTERPRETATION = "interpretation"
 UNKNOWN_KIND = "unknown"
 AUTHORITATIVE = "authoritative"
 CANDIDATE = "candidate"
+PARSED = "parsed"
+STRUCTURAL_RESULTS = "structural_results_label"
+OWNER_CONTEXT = "owner_signal_context"
+UNRESOLVED = "unresolved"
 SOURCES = (THIS_STUDY, PRIOR_WORK, UNKNOWN_SOURCE)
 KINDS = (RESULT, METHOD, AIM, INTERPRETATION, UNKNOWN_KIND)
 OWNER_SIGNALS = (THIS_STUDY, PRIOR_WORK)
+RESULTS_LABEL = "results"
+LABEL_MAX_WORDS = 8
+LABEL_MAX_CHARS = 80
+TARGET_SCOPES = ("within_assertion", "partial_assertion", "multi_assertion", "no_governing_assertion")
 
 
 def finding_authority(assertion_source, assertion_kind, is_caption=False):
@@ -120,6 +137,17 @@ _HEDGE = frozenset(
     "appears suggest suggests suggested suggesting possible".split()
 )
 _ABBREV = frozenset("al e i fig figs eq vs cf approx ca dr mr ms ref refs".split())
+# A run-in label may never contain a predicate, modal, negation, hedge, contrast, copula, or 'that'.
+_LABEL_BLOCK = (
+    _PREDICATES | _NEG | _MODALS | _HEDGE | _CONTRAST | frozenset("that is are was were be been being".split())
+)
+_TERMINAL_TRIM = ".;!?"
+_YEAR_PAREN = re.compile(r"\([^()]*\b(?:18|19|20)\d{2}\b[^()]*\)")
+# A leading label: 1..LABEL_MAX_WORDS words, then ':' then whitespace then more text. Digits and punctuation are excluded.
+_LABEL_RE = re.compile(
+    r"[ \t]*(?P<label>[A-Za-z][A-Za-z'\-]*(?:[ \t]+[A-Za-z][A-Za-z'\-]*){0,%d})[ \t]*:[ \t]+(?=\S)"
+    % (LABEL_MAX_WORDS - 1)
+)
 
 # ---- tokenization ----
 
@@ -186,6 +214,32 @@ def _sentence_spans(text):
         if b > a:
             out.append((a, b))
     return out
+
+
+# ---- run-in label (I4-1b repair A/B) ----
+
+
+def _detect_run_in_label(text):
+    """A leading run-in label at the start of the classifier input, or None. Structural only: a label grants no owner.
+    Rejected when it contains a predicate/modal/negation/hedge/contrast/copula/'that', contains digits or citations, is
+    itself a prior-source phrase (its ownership would be lost), or is an owner phrase."""
+    m = _LABEL_RE.match(text)
+    if m is None:
+        return None
+    surface = m.group("label")
+    if len(surface) > LABEL_MAX_CHARS:
+        return None
+    toks = _tokenize(surface, 0, len(surface))
+    if not toks or any(t.kind != "word" or t.low in _LABEL_BLOCK for t in toks):
+        return None
+    if _match_prior_np(toks, 0, len(toks)) is not None or _owner_full(toks, 0, len(toks)):
+        return None
+    return {
+        "surface": surface,
+        "normalized": " ".join(surface.split()).lower(),
+        "span": [m.start("label"), m.end("label")],
+        "remainder_start": m.end(),
+    }
 
 
 # ---- prior-source constructions ----
@@ -409,13 +463,21 @@ def _object_content(toks, obj_start, obj_end, comparison_ok=True):
     }
 
 
-def _analyze_clause_assertions(toks, cs, ce):
+def _analyze_clause_assertions(toks, cs, ce, label_scope=False, label_normalized=None):
+    """Assertions of one clause. ``label_scope`` is True only for the first clause of a sentence whose input starts with a
+    run-in label; within it, the scope is the first assertion plus any assertion coordinated on its inherited subject."""
     asserts = _clause_assertions(toks, cs, ce)
     out = []
+    in_scope = label_scope
     for k, a in enumerate(asserts):
         next_boundary = asserts[k + 1]["boundary"] if k + 1 < len(asserts) else None
         obj_start, obj_end = _object_bounds(toks, a, next_boundary, ce)
-        out.append(_build(toks, a, obj_start, obj_end))
+        rec = _build(toks, a, obj_start, obj_end)
+        if label_scope:
+            in_scope = k == 0 or (in_scope and bool(a["subj"]["inherited"]))
+        rec["label_scope"] = bool(in_scope)
+        rec["label_normalized"] = label_normalized if in_scope else None
+        out.append(rec)
     return out
 
 
@@ -510,7 +572,11 @@ def _build(toks, a, obj_start, obj_end):
 
 
 def _region(toks, rec):
+    """Char span of an assertion: its own subject (when not inherited) through its object end."""
+    subj = rec["subj"]
     start = toks[rec["head"]].start
+    if subj["start"] is not None and not subj["inherited"]:
+        start = min(start, toks[subj["start"]].start)
     obj_start, obj_end = rec["obj"]
     end = toks[obj_end - 1].end if obj_end > obj_start else toks[rec["pred"]].end
     return start, end
@@ -521,24 +587,38 @@ def _cite_spans(toks, lo, hi):
 
 
 def _all_assertions(text):
-    """(sentence span, token list, assertion records) for every sentence, in text order."""
+    """(sentence span, token list, assertion records) for every sentence, in text order. A leading run-in label is removed
+    from the first sentence before tokenization; only that sentence's first clause run may be label-scoped."""
+    label = _detect_run_in_label(text)
     out = []
-    for s, e in _sentence_spans(text):
-        toks = _tokenize(text, s, e)
+    for idx, (s, e) in enumerate(_sentence_spans(text)):
+        scoped = label is not None and idx == 0
+        start = label["remainder_start"] if scoped else s
+        if start >= e:
+            continue
+        toks = _tokenize(text, start, e)
         recs = []
         clauses = []
-        start = 0
+        cstart = 0
         for i, t in enumerate(toks):
             if _is_punct(t, ";"):
-                clauses.append((start, i))
-                start = i + 1
+                clauses.append((cstart, i))
+                cstart = i + 1
             elif _is_punct(t, ",") and i + 1 < len(toks) and _is_word(toks[i + 1], *_CONTRAST):
-                clauses.append((start, i))
-                start = i + 2
-        clauses.append((start, len(toks)))
-        for cs, ce in clauses:
+                clauses.append((cstart, i))
+                cstart = i + 2
+        clauses.append((cstart, len(toks)))
+        for ci, (cs, ce) in enumerate(clauses):
             if ce > cs:
-                recs.extend(_analyze_clause_assertions(toks, cs, ce))
+                recs.extend(
+                    _analyze_clause_assertions(
+                        toks,
+                        cs,
+                        ce,
+                        label_scope=scoped and ci == 0,
+                        label_normalized=label["normalized"] if scoped else None,
+                    )
+                )
         out.append(((s, e), toks, recs))
     return out
 
@@ -579,6 +659,16 @@ def _covers(region, ts, te):
     return region[0] <= ts and te <= region[1]
 
 
+def _content_span(text, ts, te):
+    """The target without leading/trailing whitespace and without terminal sentence punctuation. Coverage uses this span;
+    the raw target is still reported."""
+    while ts < te and text[ts].isspace():
+        ts += 1
+    while te > ts and (text[te - 1].isspace() or text[te - 1] in _TERMINAL_TRIM):
+        te -= 1
+    return ts, te
+
+
 def _sha256(text):
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
@@ -605,6 +695,138 @@ def _resolve_owner_signal(structural_context):
     return signal
 
 
+def _validate_target(text, target_start, target_end, is_caption, structural_context):
+    if not isinstance(text, str):
+        raise TypeError("text must be a str")
+    if not (isinstance(target_start, int) and isinstance(target_end, int)):
+        raise TypeError("target_start and target_end must be int")
+    if not (0 <= target_start < target_end <= len(text)):
+        raise ValueError("target span must satisfy 0 <= start < end <= len(text)")
+    if not isinstance(is_caption, bool):
+        raise TypeError("is_caption must be bool")
+    return _resolve_owner_signal(structural_context)
+
+
+def _results_veto(rec, toks, text, is_caption):
+    """Why the structural Results resolver must NOT apply. None when it may. Under-classification is acceptable."""
+    if is_caption:
+        return "caption"
+    if rec.get("label_normalized") != RESULTS_LABEL:
+        return "label_not_results"
+    if rec["kind"] != RESULT:
+        return "kind_not_result"
+    if rec["framing_prior"]:
+        return "prior_framing_or_object"
+    if rec["replication"]:
+        return "replication_act"
+    if rec["negated"]:
+        return "negated"
+    if rec["modal_head"] or any(_is_word(toks[i], *_HEDGE) for i in range(rec["head"], rec["obj"][1])):
+        return "hedged_or_modal"
+    lo = rec["subj"]["start"] if rec["subj"]["start"] is not None else rec["head"]
+    hi = rec["obj"][1]
+    if _cite_spans(toks, lo, hi):
+        return "citation_in_assertion"
+    if any(_is_word(toks[i], "ref", "refs", "cf") for i in range(lo, hi)):
+        return "citation_like_marker"
+    if any(_is_word(toks[i], "et") and i + 1 < hi and _is_word(toks[i + 1], "al") for i in range(lo, hi)):
+        return "citation_like_marker"
+    s, e = _region(toks, rec)
+    if _YEAR_PAREN.search(text[s:e]):
+        return "citation_like_parenthetical"
+    return None
+
+
+def _effective(rec, toks, text, owner_signal, is_caption):
+    """The assertion's source after ordinary parsing, the optional caller-verified owner context, and the narrow Results
+    resolver. The resolver fires only on unknown source and never overrides an explicit owner."""
+    source, kind = rec["source"], rec["kind"]
+    rules = list(rec["rules"])
+    resolution = PARSED if source != UNKNOWN_SOURCE else UNRESOLVED
+    consumed = None
+    if source == UNKNOWN_SOURCE and owner_signal is not None and rec["subj"]["source"] == UNKNOWN_SOURCE:
+        source = owner_signal
+        rules.append("context.owner_supplied")
+        resolution = OWNER_CONTEXT
+        consumed = {"owner_signal": owner_signal, "applied_to": _region(toks, rec)}
+    elif source == UNKNOWN_SOURCE and rec["label_scope"]:
+        veto = "owner_signal_supplied" if owner_signal is not None else _results_veto(rec, toks, text, is_caption)
+        if veto is None:
+            source = THIS_STUDY
+            resolution = STRUCTURAL_RESULTS
+            rules.append("resolver.structural_results_label")
+        else:
+            rules.append(f"resolver.vetoed.{veto}")
+    return {"source": source, "kind": kind, "resolution": resolution, "rules": rules, "consumed": consumed}
+
+
+def _assertion_fields(text, toks, rec, eff, is_caption):
+    region = _region(toks, rec)
+    lo = rec["subj"]["start"] if rec["subj"]["start"] is not None else rec["head"]
+    cite = _cite_spans(toks, lo, rec["obj"][1])
+    hedged = any(_is_word(toks[i], *_HEDGE) for i in range(rec["head"], rec["obj"][1]))
+    framing_public = None
+    if rec["framing"] is not None:
+        framing_public = {"span": [toks[rec["framing"]["start"]].start, toks[rec["framing"]["end"] - 1].end]}
+    elif rec["prior_object"] is not None:
+        a, b = rec["prior_object"]
+        framing_public = {"span": [toks[a].start, toks[b - 1].end]}
+    if rec["comparison"] is not None and framing_public is None:
+        c = rec["comparison"][0]
+        framing_public = {"span": [toks[c].start, toks[rec["comparison"][1] - 1].end]}
+    return {
+        "assertion": _assertion_public(text, toks, rec),
+        "span": [region[0], region[1]],
+        "assertion_source": eff["source"],
+        "assertion_kind": eff["kind"],
+        "finding_authority": finding_authority(eff["source"], eff["kind"], is_caption),
+        "source_resolution": eff["resolution"],
+        "label_scope": bool(rec["label_scope"]),
+        "framing_source": PRIOR_WORK if rec["framing_prior"] else None,
+        "framing": framing_public,
+        "citation_marked": bool(cite),
+        "citation_spans": cite,
+        "hedged": hedged,
+        "negated": bool(rec["negated"]),
+        "negated_replication": bool(rec["negated_replication"]),
+        "structural_context_consumed": eff["consumed"],
+        "rule": eff["rules"][-1] if eff["rules"] else "none",
+        "rules_applied": eff["rules"],
+    }
+
+
+def _input_public(text, ts, te, cts, cte, is_caption, owner_signal, locator, label):
+    return {
+        "text_length": len(text),
+        "text_sha256": _sha256(text),
+        "target": {
+            "start": ts,
+            "end": te,
+            "surface": text[ts:te],
+            "content": [cts, cte],
+            "content_surface": text[cts:cte],
+        },
+        "is_caption": is_caption,
+        "structural_context_supplied": owner_signal is not None,
+        "locator": (
+            {
+                "paper_id": locator["paper_id"],
+                "evidence_anchor_chunk_id": locator["evidence_anchor_chunk_id"],
+                "quote_sha256": _sha256(text),
+            }
+            if locator
+            else None
+        ),
+        "run_in_label_surface": label["surface"] if label else None,
+        "run_in_label_normalized": label["normalized"] if label else None,
+        "run_in_label_span": label["span"] if label else None,
+    }
+
+
+def _classifier_public():
+    return {"id": CLASSIFIER_ID, "ruleset": RULESET_VERSION, "pure": True, "unwired": True}
+
+
 def classify_assertion_authority(
     text,
     *,
@@ -614,50 +836,30 @@ def classify_assertion_authority(
     structural_context=None,
     locator=None,
 ):
-    """Classify the assertion bearing on the explicit target span ``text[target_start:target_end]``.
+    """Classify the single assertion bearing on the explicit target span. Fails closed unless ONE assertion's region covers
+    the target's content (terminal punctuation ignored). Multi-assertion targets are represented by
+    :func:`classify_target_assertions`, never collapsed here.
 
     ``structural_context`` may carry ``{"owner_signal": "this_study" | "prior_work"}`` supplied by a caller that has
     ALREADY verified contextual ownership. It is applied only to an unowned governing assertion and is recorded.
     ``locator`` may carry ``{"paper_id", "evidence_anchor_chunk_id"}``; the quote hash is added here.
     """
-    if not isinstance(text, str):
-        raise TypeError("text must be a str")
-    if not (isinstance(target_start, int) and isinstance(target_end, int)):
-        raise TypeError("target_start and target_end must be int")
-    if not (0 <= target_start < target_end <= len(text)):
-        raise ValueError("target span must satisfy 0 <= start < end <= len(text)")
-    if not isinstance(is_caption, bool):
-        raise TypeError("is_caption must be bool")
-    owner_signal = _resolve_owner_signal(structural_context)
-    ts, te = target_start, target_end
-    surface = text[ts:te]
-    sentences = _all_assertions(text)
+    owner_signal = _validate_target(text, target_start, target_end, is_caption, structural_context)
+    ts, te = _content_span(text, target_start, target_end)
+    if te <= ts:
+        raise ValueError("target span has no content after trimming whitespace and terminal punctuation")
+    label = _detect_run_in_label(text)
     target_sentence = None
     all_recs = []
-    for (s, e), toks, recs in sentences:
+    for (s, e), toks, recs in _all_assertions(text):
         if s <= ts and te <= e:
             target_sentence = (s, e)
         for rec in recs:
             all_recs.append((toks, rec))
 
     result = {
-        "classifier": {"id": CLASSIFIER_ID, "ruleset": RULESET_VERSION, "pure": True, "unwired": True},
-        "input": {
-            "text_length": len(text),
-            "text_sha256": _sha256(text),
-            "target": {"start": ts, "end": te, "surface": surface},
-            "is_caption": is_caption,
-            "structural_context_supplied": owner_signal is not None,
-            "locator": (
-                {
-                    "paper_id": locator["paper_id"],
-                    "evidence_anchor_chunk_id": locator["evidence_anchor_chunk_id"],
-                    "quote_sha256": _sha256(text),
-                }
-                if locator
-                else None
-            ),
-        },
+        "classifier": _classifier_public(),
+        "input": _input_public(text, target_start, target_end, ts, te, is_caption, owner_signal, locator, label),
         "sentence": (
             {"span": [target_sentence[0], target_sentence[1]], "text": text[target_sentence[0] : target_sentence[1]]}
             if target_sentence
@@ -673,6 +875,8 @@ def classify_assertion_authority(
         "negated": False,
         "negated_replication": False,
         "structural_context_consumed": None,
+        "source_resolution": None,
+        "label_scope": False,
         "rules_applied": [],
         "fail_closed_reasons": [],
         "ambiguity": None,
@@ -702,7 +906,8 @@ def classify_assertion_authority(
         return result
 
     result["assertions_considered"] = len(covering)
-    signatures = {(rec["source"], rec["kind"]) for _, rec in covering}
+    effs = [(toks, rec, _effective(rec, toks, text, owner_signal, is_caption)) for toks, rec in covering]
+    signatures = {(eff["source"], eff["kind"]) for _, _, eff in effs}
     if len(signatures) > 1:
         result.update(
             assertion_source=UNKNOWN_SOURCE,
@@ -712,51 +917,64 @@ def classify_assertion_authority(
             rule="multiple_assertions_disagree",
         )
         result["fail_closed_reasons"].append("multiple_assertions_disagree")
-        result["rules_applied"] = sorted({r for _, rec in covering for r in rec["rules"]})
+        result["rules_applied"] = sorted({r for _, _, eff in effs for r in eff["rules"]})
         return result
 
-    toks, rec = covering[0]
-    source, kind = rec["source"], rec["kind"]
-    rules = list(rec["rules"])
-    consumed = None
-    if source == UNKNOWN_SOURCE and owner_signal is not None and rec["subj"]["source"] == UNKNOWN_SOURCE:
-        source = owner_signal
-        rules.append("context.owner_supplied")
-        consumed = {"owner_signal": owner_signal, "applied_to": _region(toks, rec)}
-    authority = finding_authority(source, kind, is_caption)
+    toks, rec, eff = effs[0]
+    result.update(_assertion_fields(text, toks, rec, eff, is_caption))
+    result["ambiguity"] = None
     region = _region(toks, rec)
-    cite = _cite_spans(toks, rec["subj"]["start"] if rec["subj"]["start"] is not None else rec["head"], rec["obj"][1])
-    hedged = any(_is_word(toks[i], *_HEDGE) for i in range(rec["head"], rec["obj"][1]))
-    framing_source = PRIOR_WORK if rec["framing_prior"] else None
-    framing_public = None
-    if rec["framing"] is not None:
-        framing_public = {"span": [toks[rec["framing"]["start"]].start, toks[rec["framing"]["end"] - 1].end]}
-    elif rec["prior_object"] is not None:
-        a, b = rec["prior_object"]
-        framing_public = {"span": [toks[a].start, toks[b - 1].end]}
-    if rec["comparison"] is not None and framing_public is None:
-        c = rec["comparison"][0]
-        framing_public = {"span": [toks[c].start, toks[rec["comparison"][1] - 1].end]}
-    result.update(
-        assertion=_assertion_public(text, toks, rec),
-        assertion_source=source,
-        assertion_kind=kind,
-        finding_authority=authority,
-        framing_source=framing_source,
-        framing=framing_public,
-        citation_marked=bool(cite),
-        citation_spans=cite,
-        hedged=hedged,
-        negated=bool(rec["negated"]),
-        negated_replication=bool(rec["negated_replication"]),
-        structural_context_consumed=consumed,
-        rule=rules[-1] if rules else "none",
-        rules_applied=rules,
-        ambiguity=None,
-    )
     if region[0] > ts or te > region[1]:
         result["fail_closed_reasons"].append("region_mismatch")
     return result
+
+
+def classify_target_assertions(
+    text,
+    *,
+    target_start,
+    target_end,
+    is_caption=False,
+    structural_context=None,
+    locator=None,
+):
+    """Represent every assertion that intersects the target span. Never collapses them to one authority.
+
+    ``target_scope``: ``within_assertion`` (one assertion covers the target), ``partial_assertion`` (one assertion
+    intersects but does not cover it), ``multi_assertion`` (two or more intersect), or ``no_governing_assertion``
+    (none intersects). Each returned record carries its own classification and ``covers_target``. ``aggregate_authority``
+    is always None, so no caller can read a single authority for a broad target from this result.
+    """
+    owner_signal = _validate_target(text, target_start, target_end, is_caption, structural_context)
+    ts, te = _content_span(text, target_start, target_end)
+    if te <= ts:
+        raise ValueError("target span has no content after trimming whitespace and terminal punctuation")
+    label = _detect_run_in_label(text)
+    hits = []
+    for _, toks, recs in _all_assertions(text):
+        for rec in recs:
+            rs, re_ = _region(toks, rec)
+            if rs < te and ts < re_:
+                hits.append((rs, toks, rec, _covers((rs, re_), ts, te)))
+    hits.sort(key=lambda h: h[0])
+    if not hits:
+        scope = "no_governing_assertion"
+    elif len(hits) == 1:
+        scope = "within_assertion" if hits[0][3] else "partial_assertion"
+    else:
+        scope = "multi_assertion"
+    assertions = []
+    for _, toks, rec, covers in hits:
+        eff = _effective(rec, toks, text, owner_signal, is_caption)
+        assertions.append({**_assertion_fields(text, toks, rec, eff, is_caption), "covers_target": covers})
+    return {
+        "classifier": _classifier_public(),
+        "input": _input_public(text, target_start, target_end, ts, te, is_caption, owner_signal, locator, label),
+        "target_scope": scope,
+        "assertions": assertions,
+        "aggregate_authority": None,
+        "ambiguity": None if hits else "no_governing_assertion",
+    }
 
 
 def classify_all_occurrences(text, surface, *, is_caption=False, structural_context=None, locator=None):
