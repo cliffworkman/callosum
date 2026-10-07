@@ -1,0 +1,11 @@
+[
+  {"id": "AR01", "assertion_source": "this_study", "expect": "current_document", "note": "I4-1e revision 2 R1/R3: pure rename, no new inference"},
+  {"id": "AR02", "assertion_source": "prior_work", "expect": "attributed_external"},
+  {"id": "AR03", "assertion_source": "unknown", "expect": "unresolved"},
+  {"id": "AR04", "assertion_source": "synthesis", "expect_raises": true, "note": "R1 lock: synthesis must never be accepted as an assertion_source/assertion_relation value"},
+  {"id": "AR05", "assertion_source": "candidate", "expect_raises": true, "note": "a finding_authority value is not an assertion_source value"},
+  {"id": "AR06", "assertion_source": "", "expect_raises": true},
+  {"id": "AR07", "assertion_source": "THIS_STUDY", "expect_raises": true, "note": "case-sensitive; no normalization"},
+  {"id": "AR08", "assertion_source": "current_document", "expect_raises": true, "note": "the output value is not itself a valid input"},
+  {"id": "AR09", "assertion_source": null, "expect_raises": true}
+]

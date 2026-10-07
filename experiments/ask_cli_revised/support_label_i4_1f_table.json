@@ -1,0 +1,31 @@
+[
+  {"id": "SL01", "relation": "current_document", "aggregation": "non_synthetic_or_unspecified", "kind": "result", "expect": "direct_empirical"},
+  {"id": "SL02", "relation": "current_document", "aggregation": "literature_synthesis", "kind": "result", "expect": "direct_synthetic"},
+  {"id": "SL03", "relation": "attributed_external", "aggregation": "non_synthetic_or_unspecified", "kind": "result", "expect": "attributed_indirect"},
+  {"id": "SL04", "relation": "attributed_external", "aggregation": "literature_synthesis", "kind": "result", "expect": "attributed_synthetic"},
+  {"id": "SL05", "relation": "unresolved", "aggregation": "non_synthetic_or_unspecified", "kind": "result", "expect": "unresolved"},
+  {"id": "SL06", "relation": "unresolved", "aggregation": "literature_synthesis", "kind": "result", "expect": "unresolved_synthetic"},
+
+  {"id": "SL07", "relation": "current_document", "aggregation": "non_synthetic_or_unspecified", "kind": "method_or_description", "expect": "descriptive"},
+  {"id": "SL08", "relation": "current_document", "aggregation": "literature_synthesis", "kind": "method_or_description", "expect": "descriptive"},
+  {"id": "SL09", "relation": "attributed_external", "aggregation": "non_synthetic_or_unspecified", "kind": "method_or_description", "expect": "descriptive"},
+  {"id": "SL10", "relation": "attributed_external", "aggregation": "literature_synthesis", "kind": "method_or_description", "expect": "descriptive"},
+  {"id": "SL11", "relation": "unresolved", "aggregation": "non_synthetic_or_unspecified", "kind": "method_or_description", "expect": "descriptive"},
+  {"id": "SL12", "relation": "unresolved", "aggregation": "literature_synthesis", "kind": "method_or_description", "expect": "descriptive"},
+
+  {"id": "SL13", "relation": "current_document", "aggregation": "non_synthetic_or_unspecified", "kind": "interpretation", "expect": "interpretive"},
+  {"id": "SL14", "relation": "current_document", "aggregation": "literature_synthesis", "kind": "interpretation", "expect": "interpretive"},
+  {"id": "SL15", "relation": "attributed_external", "aggregation": "non_synthetic_or_unspecified", "kind": "interpretation", "expect": "interpretive"},
+  {"id": "SL16", "relation": "attributed_external", "aggregation": "literature_synthesis", "kind": "interpretation", "expect": "interpretive"},
+  {"id": "SL17", "relation": "unresolved", "aggregation": "non_synthetic_or_unspecified", "kind": "interpretation", "expect": "interpretive"},
+  {"id": "SL18", "relation": "unresolved", "aggregation": "literature_synthesis", "kind": "interpretation", "expect": "interpretive"},
+
+  {"id": "SL19", "relation": "current_document", "aggregation": "non_synthetic_or_unspecified", "kind": "aim_or_hypothesis", "expect": null},
+  {"id": "SL20", "relation": "current_document", "aggregation": "literature_synthesis", "kind": "aim_or_hypothesis", "expect": null},
+  {"id": "SL21", "relation": "attributed_external", "aggregation": "non_synthetic_or_unspecified", "kind": "aim_or_hypothesis", "expect": null},
+  {"id": "SL22", "relation": "unresolved", "aggregation": "literature_synthesis", "kind": "aim_or_hypothesis", "expect": null},
+
+  {"id": "SL23", "relation": "current_document", "aggregation": "non_synthetic_or_unspecified", "kind": "unknown", "expect": null},
+  {"id": "SL24", "relation": "attributed_external", "aggregation": "literature_synthesis", "kind": "unknown", "expect": null},
+  {"id": "SL25", "relation": "unresolved", "aggregation": "non_synthetic_or_unspecified", "kind": "unknown", "expect": null}
+]

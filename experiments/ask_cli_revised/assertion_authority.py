@@ -32,6 +32,27 @@ candidates, which were already candidate before this gate existed.
 ``finding_authority`` is derived by ONE central function (:func:`finding_authority`). Nothing here decides observation
 polarity, role completion, recovery, relation witnessing, direction, or AnswerPlan placement.
 
+I4-1f (I4-1e revision 2, R1-R3, R12) adds two further pure, orthogonal, STILL UNWIRED descriptors, per-assertion:
+
+* :func:`assertion_relation`: a pure 1:1 rename-view of ``assertion_source`` (``this_study`` -> ``current_document``,
+  ``prior_work`` -> ``attributed_external``, ``unknown`` -> ``unresolved``). No new inference. ``synthesis`` is never a
+  value of either field -- R1's lock.
+* ``aggregation`` (``literature_synthesis`` / ``non_synthetic_or_unspecified``): does this ONE local assertion
+  explicitly aggregate or synthesize evidence across a literature/study set? Computed from three small, closed,
+  high-precision cue families -- a fronted literature/study-set framing phrase anywhere in the assertion's own
+  pre-predicate clause span; the assertion's own governing SUBJECT being a review/meta-analysis/literature-synthesis
+  noun phrase (independent of how that subject's ownership itself resolved); or, for a RESULT-kind assertion only, an
+  explicit synthesis-context word/phrase in its own content (never a bare pooled/combined/aggregate word alone). It
+  never answers who owns the assertion, never admissibility, never document genre, and never feeds back into
+  ``assertion_source``/``assertion_kind``/``finding_authority``/``authority_veto``. :func:`support_label` is a pure,
+  DISPLAY-ONLY convenience derived from (``assertion_relation``, ``aggregation``, ``assertion_kind``); nothing in this
+  module reads its own output back.
+
+One narrow, disclosed lexicon addition supports both of the above: a review/meta-analysis/literature-synthesis
+governing-source noun phrase (``A recent review found that X``, ``The literature suggests X``) is now recognised by
+the existing owner-phrase architecture, guarded so that a trailing noun it does NOT govern (``the review variable``)
+is never mistaken for ownership.
+
 Pure: no I/O, no model, no network, no current-version lookup. Deterministic. Output is JSON-safe. Ownership is fail-closed:
 a source the sealed text does not establish is ``unknown``. Lexical cues are a closed set of verbs, determiners,
 prior-source nouns, and first-person or study-noun owner forms. No participant or population noun list is used.
@@ -44,7 +65,7 @@ import re
 from collections import namedtuple
 
 CLASSIFIER_ID = "i4-1-assertion-authority"
-RULESET_VERSION = "i4-1c.0"
+RULESET_VERSION = "i4-1f.0"
 
 THIS_STUDY = "this_study"
 PRIOR_WORK = "prior_work"
@@ -87,6 +108,31 @@ def finding_authority(assertion_source, assertion_kind, is_caption=False, author
     if assertion_source == THIS_STUDY and assertion_kind == RESULT and not is_caption and authority_veto is None:
         return AUTHORITATIVE
     return CANDIDATE
+
+
+# I4-1f (I4-1e revision 2, R1/R3): assertion_relation is a pure, lossless, 1:1 RENAME-VIEW of assertion_source --
+# never a new classification. The production-facing names avoid the real naming-collision risk the revision-2
+# audit identified in finding_authority's own "candidate" value, and read naturally beside the orthogonal
+# aggregation axis below. "synthesis" is never accepted here or anywhere in this module (R1's lock).
+CURRENT_DOCUMENT = "current_document"
+ATTRIBUTED_EXTERNAL = "attributed_external"
+RELATION_UNRESOLVED = "unresolved"
+ASSERTION_RELATIONS = (CURRENT_DOCUMENT, ATTRIBUTED_EXTERNAL, RELATION_UNRESOLVED)
+_ASSERTION_RELATION_BY_SOURCE = {
+    THIS_STUDY: CURRENT_DOCUMENT,
+    PRIOR_WORK: ATTRIBUTED_EXTERNAL,
+    UNKNOWN_SOURCE: RELATION_UNRESOLVED,
+}
+
+
+def assertion_relation(assertion_source):
+    """Pure 1:1 rename-view of ``assertion_source``. Performs NO new inference over the exact closed vocabulary
+    ``assertion_source`` already uses; fails explicitly (never invents a fourth relation) for anything outside it,
+    including ``"synthesis"`` and any of this function's own output values."""
+    try:
+        return _ASSERTION_RELATION_BY_SOURCE[assertion_source]
+    except (KeyError, TypeError):
+        raise ValueError(f"unknown assertion_source: {assertion_source!r}") from None
 
 
 # ---- closed lexicons (lowercase). Verbs and nouns only; no population or participant nouns. ----
@@ -276,6 +322,45 @@ def _year_group(toks, j, hi):
     return j
 
 
+# I4-1f (I4-1e revision 2, section 3): a review/meta-analysis/literature-synthesis governing-source noun phrase.
+# Kept fully SELF-CONTAINED (its own determiner handling, its own trailing-noun guard) rather than folded into the
+# three branches above, so adding it can change ONLY cases whose governing source owner falls inside this new class
+# -- the pre-existing _DET/_PRIOR_ADJ/_SOURCE_NOUN branches, and every caller's behaviour for text that does not
+# contain this vocabulary, are byte-unchanged.
+_REVIEW_GENRE_ADJ = frozenset("systematic meta-analytic".split())
+_REVIEW_HEAD = frozenset("review reviews meta-analysis meta-analyses literature".split())
+_REVIEW_DET = _DET | frozenset({"a", "an"})  # local only: "a"/"an" are not in the shared _DET (see module notes)
+_REVIEW_MODIFIER_REQUIRED_HEAD = frozenset({"evidence"})  # too generic a noun to recognise bare
+
+
+def _match_review_source_np(toks, i, hi):
+    """End index (exclusive) of a review/meta-analysis/literature-synthesis governing-source noun phrase starting
+    at ``i``, or None. An optional determiner (including "a"/"an"), then an optional single temporal-priority
+    (``_PRIOR_ADJ``, e.g. "recent") or genre (``_REVIEW_GENRE_ADJ``, e.g. "systematic"/"meta-analytic") modifier,
+    then the head noun. "evidence" is recognised ONLY directly after the genre modifier (too generic a noun to
+    recognise bare, unlike "review"/"meta-analysis"/"literature"). GUARDS against the head noun modifying a
+    FOLLOWING noun it does not govern (e.g. "the review variable") by requiring nothing but a citation marker or
+    end-of-range may follow it within ``[i, hi)`` -- the exact property that makes this a GOVERNING source owner,
+    not merely a word that happens to occur."""
+    j = i
+    if j < hi and _is_word(toks[j], *_REVIEW_DET):
+        j += 1
+    genre_modifier = j < hi and _is_word(toks[j], *_REVIEW_GENRE_ADJ)
+    if j < hi and _is_word(toks[j], *_PRIOR_ADJ, *_REVIEW_GENRE_ADJ):
+        j += 1
+    if j < hi and _is_word(toks[j], *_REVIEW_HEAD):
+        j += 1
+    elif genre_modifier and j < hi and _is_word(toks[j], *_REVIEW_MODIFIER_REQUIRED_HEAD):
+        j += 1
+    else:
+        return None
+    while j < hi and toks[j].kind == "cite":
+        j += 1
+    if j < hi and toks[j].kind == "word":
+        return None
+    return j
+
+
 def _match_prior_np(toks, i, hi):
     """End index (exclusive) of an external-source noun phrase starting at ``i``, or None. Determiners are skipped."""
     j = i
@@ -293,7 +378,7 @@ def _match_prior_np(toks, i, hi):
     elif j + 3 < hi and _is_name(toks[j]) and _year_group(toks, j + 1, hi) == j + 4:
         j += 4
     else:
-        return None
+        return _match_review_source_np(toks, i, hi)
     while j < hi and toks[j].kind == "cite":
         j += 1
     return j
@@ -497,7 +582,7 @@ def _analyze_clause_assertions(toks, cs, ce, label_scope=False, label_normalized
     for k, a in enumerate(asserts):
         next_boundary = asserts[k + 1]["boundary"] if k + 1 < len(asserts) else None
         obj_start, obj_end = _object_bounds(toks, a, next_boundary, ce)
-        rec = _build(toks, a, obj_start, obj_end)
+        rec = _build(toks, a, obj_start, obj_end, cs)
         if label_scope:
             in_scope = k == 0 or (in_scope and bool(a["subj"]["inherited"]))
         rec["label_scope"] = bool(in_scope)
@@ -533,7 +618,89 @@ def _absence_of_evidence(toks, subj, content_start, content_end):
     )
 
 
-def _build(toks, a, obj_start, obj_end):
+# ---- aggregation detection (I4-1f): literature/study-set synthesis, orthogonal to source/kind/authority ----
+
+# Cue family A (section 6A): a closed, literal, literature/study-set FRAMING phrase, scanned over the assertion's
+# own pre-predicate clause span -- not the subject, since a comma-separated list inside the subject (a pre-existing,
+# unrelated parsing property; see the module notes on _first_assertion/_clause_assertions) can otherwise swallow a
+# fronted adverbial like "Across multiple studies," before subject detection ever sees it. "across trials" sits here
+# too, alongside "across studies": the directive's own conservative rule (section 7) already authorises it as an
+# explicit synthesis-context phrase, and a fronted "Across trials," is the same signal in adverbial position.
+_AGGREGATION_FRAMING_PHRASES = (
+    ("across", "multiple", "studies"),
+    ("across", "prior", "studies"),
+    ("across", "studies"),
+    ("across", "trials"),
+)
+# Cue family C (section 7): explicit synthesis-context words/phrases, checked only within a RESULT-kind assertion's
+# own content span. Deliberately NOT "pooled"/"combined"/"aggregate"/"effect" -- those describe ordinary
+# within-study statistical combination (pooled across participants/sites/conditions/time points; combined across
+# measures) and are never, by themselves, sufficient (the conservative rule this increment exists to hold).
+_SYNTHESIS_CONTEXT_WORDS = frozenset("meta-analytic meta-analysis meta-analyses".split())
+_SYNTHESIS_CONTEXT_PHRASES = (
+    ("across", "studies"),
+    ("across", "trials"),
+    ("literature-wide",),
+)
+LITERATURE_SYNTHESIS = "literature_synthesis"
+NON_SYNTHETIC = "non_synthetic_or_unspecified"
+AGGREGATIONS = (LITERATURE_SYNTHESIS, NON_SYNTHETIC)
+
+_SUPPORT_LABEL_BY_RELATION_AGGREGATION = {
+    (CURRENT_DOCUMENT, NON_SYNTHETIC): "direct_empirical",
+    (CURRENT_DOCUMENT, LITERATURE_SYNTHESIS): "direct_synthetic",
+    (ATTRIBUTED_EXTERNAL, NON_SYNTHETIC): "attributed_indirect",
+    (ATTRIBUTED_EXTERNAL, LITERATURE_SYNTHESIS): "attributed_synthetic",
+    (RELATION_UNRESOLVED, NON_SYNTHETIC): "unresolved",
+    (RELATION_UNRESOLVED, LITERATURE_SYNTHESIS): "unresolved_synthetic",
+}
+
+
+def support_label(relation, aggregation, kind):
+    """Pure, DISPLAY-ONLY convenience derived from (``assertion_relation``, ``aggregation``, ``assertion_kind``).
+    Never the semantic representation, and never consumed by any admissibility/classification function in this
+    module -- ``method_or_description``/``interpretation`` collapse to a single label regardless of relation or
+    aggregation; ``aim_or_hypothesis``/``unknown`` kinds have no label at all (a stated intention, or no assertion,
+    is not itself offered as evidence)."""
+    if relation not in ASSERTION_RELATIONS:
+        raise ValueError(f"unknown assertion_relation: {relation!r}")
+    if aggregation not in AGGREGATIONS:
+        raise ValueError(f"unknown aggregation: {aggregation!r}")
+    if kind not in KINDS:
+        raise ValueError(f"unknown assertion_kind: {kind!r}")
+    if kind == METHOD:
+        return "descriptive"
+    if kind == INTERPRETATION:
+        return "interpretive"
+    if kind in (AIM, UNKNOWN_KIND):
+        return None
+    return _SUPPORT_LABEL_BY_RELATION_AGGREGATION[(relation, aggregation)]
+
+
+def _phrase_at(toks, lo, hi, phrase):
+    """True when the exact word sequence ``phrase`` occurs contiguously anywhere in token range [lo, hi)."""
+    n = len(phrase)
+    return any(all(_is_word(toks[k + off], phrase[off]) for off in range(n)) for k in range(lo, max(lo, hi - n + 1)))
+
+
+def _compute_aggregation(toks, cs, head, subj, content_start, content_end, kind):
+    """Cue A (framing, clause-scoped) OR cue B (the governing subject is itself a review/meta-analysis/literature
+    noun phrase, independent of how its ownership resolved) OR cue C (RESULT-kind content only, an explicit
+    synthesis-context word/phrase, never a bare pooled/combined/aggregate word alone) -> LITERATURE_SYNTHESIS.
+    Never reads finding_authority, authority_veto, observation_polarity, or any requirement/RoleSpec state."""
+    if any(_phrase_at(toks, cs, head, phrase) for phrase in _AGGREGATION_FRAMING_PHRASES):
+        return LITERATURE_SYNTHESIS
+    if subj["start"] is not None and _match_review_source_np(toks, subj["start"], subj["end"]) == subj["end"]:
+        return LITERATURE_SYNTHESIS
+    if kind == RESULT and (
+        any(_is_word(toks[k], *_SYNTHESIS_CONTEXT_WORDS) for k in range(content_start, content_end))
+        or any(_phrase_at(toks, content_start, content_end, phrase) for phrase in _SYNTHESIS_CONTEXT_PHRASES)
+    ):
+        return LITERATURE_SYNTHESIS
+    return NON_SYNTHETIC
+
+
+def _build(toks, a, obj_start, obj_end, cs):
     head, pred = a["head"], a["pred"]
     pt = toks[pred]
     obj = _object_content(toks, obj_start, obj_end)
@@ -609,6 +776,10 @@ def _build(toks, a, obj_start, obj_end):
         elif _absence_of_evidence(toks, subj, content_start, content_end):
             authority_veto = AUTHORITY_VETO_ABSENCE
             rules.append(f"veto.{AUTHORITY_VETO_ABSENCE}")
+    # I4-1f: computed from this assertion's own clause/subject/content alone -- never from source, kind, or the
+    # authority veto above, and never from a neighbouring assertion's own clause/subject/content (section 5).
+    content_start, content_end = obj["content"]
+    aggregation = _compute_aggregation(toks, cs, head, subj, content_start, content_end, kind)
     return {
         "head": head,
         "pred": pred,
@@ -625,6 +796,7 @@ def _build(toks, a, obj_start, obj_end):
         "replication": replication,
         "modal_head": modal_head,
         "authority_veto": authority_veto,
+        "aggregation": aggregation,
         "rules": rules,
         "framing_prior": (a["framing"] is not None and a["framing"]["source"] == PRIOR_WORK)
         or obj["prior"] is not None
@@ -846,6 +1018,7 @@ def _assertion_fields(text, toks, rec, eff, is_caption):
         "assertion_kind": eff["kind"],
         "finding_authority": finding_authority(eff["source"], eff["kind"], is_caption, authority_veto),
         "authority_veto": authority_veto,
+        "aggregation": rec["aggregation"],
         "source_resolution": eff["resolution"],
         "label_scope": bool(rec["label_scope"]),
         "framing_source": PRIOR_WORK if rec["framing_prior"] else None,
@@ -944,6 +1117,7 @@ def classify_assertion_authority(
         "source_resolution": None,
         "label_scope": False,
         "authority_veto": None,
+        "aggregation": None,
         "rules_applied": [],
         "fail_closed_reasons": [],
         "ambiguity": None,
@@ -976,7 +1150,10 @@ def classify_assertion_authority(
     effs = [(toks, rec, _effective(rec, toks, text, owner_signal, is_caption)) for toks, rec in covering]
     # I4-1c: two covering assertions must agree on authority_veto too, not just source/kind -- otherwise silently
     # picking the first could serve an authoritative reading when another equally-covering reading is vetoed.
-    signatures = {(eff["source"], eff["kind"], rec["authority_veto"]) for _, rec, eff in effs}
+    # I4-1f: extends the same soundness rule to aggregation, now that it is a property the caller can read from a
+    # single-assertion result -- silently picking the first could otherwise report literature_synthesis (or not)
+    # from whichever covering reading happened to be first, when another equally-covering reading disagrees.
+    signatures = {(eff["source"], eff["kind"], rec["authority_veto"], rec["aggregation"]) for _, rec, eff in effs}
     if len(signatures) > 1:
         result.update(
             assertion_source=UNKNOWN_SOURCE,
@@ -996,6 +1173,25 @@ def classify_assertion_authority(
     if region[0] > ts or te > region[1]:
         result["fail_closed_reasons"].append("region_mismatch")
     return result
+
+
+def aggregation(text, *, target_start, target_end, is_caption=False, structural_context=None):
+    """Pure. Answers exactly: does the ONE local assertion governing this target span explicitly aggregate or
+    synthesize evidence across a literature/study set? Never who owns the assertion (see :func:`assertion_relation`),
+    never requirement admissibility, never document genre -- a review/meta-analysis need not itself be held in any
+    library for this to return ``LITERATURE_SYNTHESIS``. Fails closed exactly like :func:`classify_assertion_authority`
+    when no single assertion governs the target (same ``ValueError``-free ambiguity contract: this wrapper raises
+    instead, since a bare string return has nowhere to carry the fail-closed reason)."""
+    result = classify_assertion_authority(
+        text,
+        target_start=target_start,
+        target_end=target_end,
+        is_caption=is_caption,
+        structural_context=structural_context,
+    )
+    if result["ambiguity"] is not None:
+        raise ValueError(f"no single governing assertion for this target: {result['ambiguity']}")
+    return result["aggregation"]
 
 
 def classify_target_assertions(

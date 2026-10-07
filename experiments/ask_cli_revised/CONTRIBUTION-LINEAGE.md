@@ -2119,3 +2119,58 @@ READY for I4-1g or I4-2, since the pure descriptor layer those depend on does no
 own standing whole-passage-binding blocker is unchanged by either revision. The results artifact is
 `PHASE34_I4_1E_EVIDENCE_DIRECTNESS_ADMISSIBILITY_AUDIT.md`. No model was called, no network was used, and no live
 search or live end-to-end run occurred.
+
+## Phase 34 / I4-1f -- pure assertion_relation + aggregation + support_label descriptors (still pure and unwired; no sufficiency/plan version bump; appended 2026-10-07; preserves all prior entries unchanged)
+
+**Scope (Cliff Workman).** The I4-1e revision-2 design audit is accepted; implement only its exact bounded I4-1f
+contract -- a pure `assertion_relation` rename, the disclosed review/meta-analysis owner-phrase lexicon extension,
+the three-cue-family `aggregation` classifier, and the display-only `support_label` table. Pure and unwired
+throughout: no `RoleSpec` field, no `support_policy`, no `candidate_supports`, no mapping change, no achieved-
+outcome wiring, no `requested_category_terms` behaviour change, no satisfaction/recovery/relation/direction/
+effectiveness/AnswerPlan change, no version bump of either frozen identity, no model/network/live-search/live-E2E
+run. The docs-only I4-1e revision-2 checkpoint is committed and pushed separately, before any code change.
+
+**Implementation (Claude).** `assertion_relation` is a plain, exhaustively-tested dict lookup over
+`assertion_source`'s own three values, raising rather than inventing a fourth relation for anything else,
+including `"synthesis"`. The review/meta-analysis/literature-synthesis owner match (`_match_review_source_np`) is
+a new, fully self-contained function -- its own determiner handling (covering `"a"`/`"an"`, absent from the shared
+`_DET` set), its own optional single modifier, its own head-noun set, its own trailing-word guard -- wired only as
+the last-resort fallback inside the existing `_match_prior_np`, so it can change only cases whose governing source
+owner falls inside this new class; the three pre-existing branches are byte-unchanged. The trailing-word guard is
+the exact property that makes this a GOVERNING owner match rather than a bare-word hit: `"the review variable
+increased"` fails to match (`"variable"` follows `"review"` within the subject's own bound) while `"A recent
+review found X"` matches cleanly. `aggregation` is computed once per assertion from three independent cues --
+a closed clause-scoped framing phrase, the assertion's own subject matching the review/meta-analysis owner pattern
+(independent of how ownership itself resolved), or, for `RESULT`-kind content only, an explicit synthesis-context
+word/phrase, never a bare pooled/combined/aggregate word alone -- and never reads `finding_authority`,
+`authority_veto`, `is_caption`, or any requirement state. The existing "covering assertions must agree" soundness
+check (I4-1c's own precedent for `authority_veto`) now also compares `aggregation`, for the identical reason.
+`support_label` is a pure lookup over the table I4-1e revision 2 specified, proved never consumed by any other
+function in the module via a static AST guard.
+
+**Pre-registration (Claude).** Six batteries (89 cases total) were authored and hashed before any classifier edit,
+each informed by running its candidate sentences through the unmodified module first. One amendment was made
+before the implementation run reached it: a cross-domain twin originally read "Previous trials found..." under
+the mistaken assumption that `"trials"` was already a recognised prior-source noun; it is not, in the pre-
+existing, unmodified lexicon, and the sentence was corrected to `"Previous studies found..."` to exercise the
+intended branch -- a test-design error, not a classifier change, with the reasoning recorded in the case itself
+and the amended hash recorded in the results report.
+
+**Verification (Claude).** Preregistered and holdout batteries both pass in full on their first and only run,
+including the required p41-shaped `"across the ratings for all faces"` negative control and the required
+pooled/combined-without-explicit-context negatives. The full prior I4-1/I4-1b/I4-1c/I4-1d test-file set passes
+unchanged at 500 passed, 9 xfailed, with the only edit to any pre-existing file being a mechanical relaxation of
+`test_assertion_authority_i4_1c.py`'s own hard-coded `RULESET_VERSION` string check to the same `.startswith
+("i4-1")` form I4-1c had already applied to I4-1b's file for the identical, explicitly-authorised reason -- a
+version-identity literal, not a classification expectation, and disclosed rather than silently changed. The full
+offline `experiments/` suite is 3651 passed, 5 failed, 12 skipped, 9 xfailed, and the same five failures are the
+exact pre-existing/environment-artifact set every prior I4-1x report already names; zero new failures. The
+gitignored 54-quote sealed-input fixture and any reconstructed v4 map file that prior sessions' own reports
+describe are not present in this worktree, so the full preserved-corpus sweep and the v4-binding descriptor view
+could not be literally re-run -- disclosed as a blocked precondition, not worked around. In their place, the two
+complete verbatim sealed quotes already quoted in full inside I4-1b's and I4-1d's own committed reports (p41 and
+the shared p8/p4/p1 sentence) were run through the finished implementation directly, both confirming the required
+non-synthetic outcome on real preserved text. The results artifact is
+`PHASE34_I4_1F_PROVENANCE_AGGREGATION_RESULTS.md`, which recommends READY for I4-1g exactly as I4-1e revision 2
+bounds it, and explicitly does not shorten the distance to I4-2. No model was called, no network was used, and no
+live search or live end-to-end run occurred.

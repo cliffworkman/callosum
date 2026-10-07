@@ -1,0 +1,19 @@
+[
+  {"id": "RS01", "text": "A recent review found that X is associated with Y.", "target_surface": "X is associated with Y", "expect_relation": "attributed_external", "note": "steering directive's own required example B"},
+  {"id": "RS02", "text": "A systematic review reported that X increased.", "target_surface": "X increased", "expect_relation": "attributed_external"},
+  {"id": "RS03", "text": "A meta-analysis found that X increased.", "target_surface": "X increased", "expect_relation": "attributed_external"},
+  {"id": "RS04", "text": "A meta-analytic review found that X increased.", "target_surface": "X increased", "expect_relation": "attributed_external"},
+  {"id": "RS05", "text": "Reviews have found that X increased.", "target_surface": "X increased", "expect_relation": "attributed_external", "note": "bare plural head, no determiner"},
+  {"id": "RS06", "text": "The literature suggests X may be explained by Y.", "target_surface": "X may be explained by Y", "expect_relation": "attributed_external", "note": "literature is a recognized synthesis-source head alongside review/meta-analysis"},
+  {"id": "RS07", "text": "A previous meta-analysis found that X increased.", "target_surface": "X increased", "expect_relation": "attributed_external", "note": "temporal-priority modifier (previous) plus the new head noun"},
+  {"id": "RS08", "text": "Reviews12 have found that X increased.", "target_surface": "X increased", "expect_relation": "attributed_external", "note": "a trailing citation marker on the head noun must not block the match"},
+
+  {"id": "RS09", "text": "We review X.", "target_surface": "X", "expect_no_assertion": true, "note": "required negative: review as a VERB is not in any predicate lexicon -- no assertion forms at all"},
+  {"id": "RS10", "text": "The reviewed measure increased.", "target_surface": "increased", "expect_relation": "unresolved", "expect_kind": "method_or_description", "note": "required negative: 'reviewed' (participle) is a different token from 'review' and is never matched; the real governing predicate here is 'measure' (a method verb), so the resolved subject is 'The reviewed', still unowned"},
+  {"id": "RS11", "text": "Participants reviewed X.", "target_surface": "X", "expect_no_assertion": true, "note": "required negative: 'reviewed' is not a predicate -- no assertion forms"},
+  {"id": "RS12", "text": "We used a systematic review protocol.", "target_surface": "a systematic review protocol", "expect_relation": "current_document", "expect_kind": "method_or_description", "note": "required negative: the governing SUBJECT is 'We'; 'review' sits inside the object and must not steal ownership"},
+  {"id": "RS13", "text": "We conducted a review of the images.", "target_surface": "the images", "expect_relation": "current_document", "expect_kind": "method_or_description", "note": "required negative: 'review' followed by 'of' is not a governing head -- must not become attributed_external"},
+  {"id": "RS14", "text": "The review variable increased.", "target_surface": "increased", "expect_relation": "unresolved", "note": "required negative, the core guard case: 'review' modifies 'variable' here, so it is NOT the governing head noun -- must stay unresolved, not attributed_external"},
+  {"id": "RS15", "text": "A previous study found X.", "target_surface": "X", "expect_relation": "unresolved", "note": "sanity check: the pre-existing, unrelated 'a'+previous+study gap is NOT touched by this increment and must remain unchanged"},
+  {"id": "RS16", "text": "Previous studies found X.", "target_surface": "X", "expect_relation": "attributed_external", "note": "sanity check: the pre-existing plain prior-source branch (no review/meta-analysis word at all) must remain byte-unaffected"}
+]
