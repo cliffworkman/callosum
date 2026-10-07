@@ -2007,3 +2007,115 @@ The results artifact is
 direct transition to the earlier I4-2 sketch: evidence provenance/directness must determine how evidence counts
 toward a requirement, not automatically whether it counts, and that policy question remains open. No model was
 called, no network was used, and no live search or live end-to-end run occurred.
+
+## Phase 34 / I4-1e -- evidence provenance, directness, and requirement admissibility: design audit (revision 2; docs only; appended 2026-10-07; preserves all prior entries unchanged)
+
+**Steering correction (Cliff Workman).** The old I4-2 sketch -- a positive finding plus `finding_authority ==
+authoritative` may satisfy a requirement -- is not approved. The defect the I4-1 line of work closes is
+misattribution, not indirectness: indirect evidence is not bad evidence, and provenance/directness must determine
+HOW evidence counts toward a requirement, never automatically WHETHER it counts. Required architectural tests: a
+review article that synthesizes the literature must be able to answer a general empirical-existence requirement
+even when its own cited primary papers are absent from the library, without ever being rendered as that review's
+own experiment; a definitional/conceptual question must be answerable from descriptive or interpretive content,
+not only from an experiment that directly demonstrated the concept; a question that explicitly asks what THIS
+study found must still admit only direct evidence; and `authority_veto` must keep meaning "this assertion does not
+directly establish the embedded positive target," not "this assertion is useless evidence" -- a negated or
+absence-of-evidence assertion remains excellent evidence for an adjacent "was this tested" requirement. No
+production code, classifier edit, mapping edit, version bump, model call, live search, or live end-to-end run was
+authorised or performed.
+
+**Audit and design (Claude).** Read I4-1 through I4-1d's reports and the real engine contract directly
+(`sufficiency_engine.py`'s `new_role_spec`/`new_role_binding`/`new_requirement`/`recompute_instance`/
+`category_goal_satisfied`, `sufficiency_mapping.py`'s `is_admissible`/`_bind_role_candidates`) rather than assuming
+their shape, and measured `sufficiency_authoring.py`'s real, currently-authored q_aib contract directly: zero
+existing requirement wording anywhere says "this study," "this paper," "the present study," or "current study,"
+which grounds the claim that a permissive default admissibility policy changes no existing role's behaviour.
+Designed four orthogonal axes -- assertion provenance (the existing `this_study`/`prior_work`/`unknown` plus one
+new `synthesis` value for an explicit aggregative/review-framing surface cue, never a document-genre inference),
+assertion kind (unchanged), a derived support-mode/directness view computed purely from
+provenance-by-kind (`direct_empirical`/`attributed_indirect`/`synthetic`/`descriptive`/`interpretive`/`unresolved`,
+never itself a parsed or stored field), and a requirement-side admissibility contract. The admissibility mechanism
+reuses the existing `RoleSpec.disqualifying_guards`/`is_admissible` shape exactly, adding one optional
+`admissible_support_modes` allow-list defaulting, when unset, to every mode except `interpretive` and `unresolved`
+-- a default chosen to make broad scientific Ask useful without reopening the D-A/D-D unmarked-result decision
+through a lenient back door. Satisfaction state (`REQUIREMENT_STATES`) is left untouched and orthogonal to
+provenance by design. Multiple-source aggregation is designed as an extension of an already-shipped precedent --
+the v4 category machinery's own `category_observations`, which already never collapses to one representative --
+rather than a new mechanism. Ambiguous assertion attachment is designed to reuse the engine's own already-legal,
+never-yet-produced `state="ambiguous"` role-binding value plus one new, narrow reason code, rather than silently
+picking the first assertion or inventing a new state. A target-aware mapping seam is designed as a generalisation
+of the existing `requested_category_terms` precedent (`target_wording_span`), mirroring the asymmetry I4-1d's own
+report had already found between that role and `achieved_outcome_predicate`. The terminology audit recommends
+keeping `finding_authority` and its two frozen, hash-pinned enum values exactly as built, while flagging a real
+naming-collision risk for the future production boundary: the pure classifier's own `"candidate"` value shares a
+literal spelling, but not a meaning, with `paper_findings.kind="candidate"`'s unrelated AI-funnel/human-filter
+sense elsewhere in the codebase, and a renamed pair is recommended only at that future boundary, never inside the
+already-tested module. A fourteen-cell generalisation matrix across neuroscience, clinical, architecture, and
+language-learning domains, and a read-only counterfactual reclassification of the preserved q_aib ids named in the
+directive (p8, p11, p17, p30, p31, p40, p41, p52) against this design, are both included in the results artifact.
+The counterfactual's clearest concrete finding: p40's cited prior finding (`prior_work`/`attributed_indirect`)
+would have been wrongly excluded under the old rejected I4-2 sketch and survives correctly under this design,
+while p11/p30 (unmarked, no owner) and p31/p52 (interpretation/headless) remain excluded by the same disclosed,
+requirement-authored mechanism that already governed them, now with an explicit per-role opt-in escape hatch the
+old sketch never offered. Decisions E1 through E16 and a revised I4-1f/I4-1g/I4-2/I4-3/I4-4 staged sequence are
+recorded in the results artifact, which recommends READY for I4-1f (a pure, unwired support-mode derivation plus
+the one new provenance cue, each with its own frozen battery) and NOT READY for I4-2, because neither the
+support-mode derivation nor the `RoleSpec`/`new_role_binding` schema additions this design depends on exist as
+code yet, and I4-1d's own standing blocker -- the achieved-outcome mapper still binds the whole passage at the real
+call site -- is unchanged by this audit.
+
+**Steering revision (Cliff Workman).** The I4-1e audit above was accepted in broad form -- indirect evidence
+legitimate, misattribution the real defect, provenance/directness orthogonal to satisfaction state, no global
+ranking -- but four aspects of its object model required revision before I4-1f: (1) `synthesis` must not be a
+fourth `assertion_source` value, because that conflates who owns an assertion with whether it aggregates a
+literature, demonstrated by four sentences (a review's own synthesis claim; an empirical paper attributing a
+synthesis to prior work; a meta-analysis's own computed pooled result, which is simultaneously current-document
+and synthetic; and an ordinary non-aggregative prior-work citation) that one four-valued enum cannot distinguish;
+(2) the single flattened `support_mode` label must not be the sole semantic representation, for the same reason;
+(3) requirement admissibility must retain inadmissible-but-useful evidence as inspectable record, never silently
+discard it merely because one requirement's policy does not accept it; and (4) multiple-support aggregation must
+collect and classify every candidate before any satisfaction decision is made, so that no semantic state depends
+on which candidate happened to be scanned first. No production code, classifier edit, mapping edit, `RoleSpec`
+field addition, or version bump was authorised for this revision either.
+
+**Revision and re-audit (Claude).** Replaced the flat `assertion_source` extension with an orthogonal triple --
+`assertion_relation` (a pure, lossless rename-view of the unchanged, three-valued `assertion_source`, translated
+at the production boundary rather than edited in the frozen classifier), a genuinely new `aggregation` axis
+(`literature_synthesis`/`non_synthetic_or_unspecified`, detected from a small closed surface-cue set independent
+of ownership), and the unchanged `assertion_kind` -- with the old six-value label demoted to a downstream,
+display-only derivation that is never consulted by admissibility logic. Found and disclosed a concrete lexicon
+gap while working the four contrasts: the real I4-1 prior-ownership grammar does not recognise "a recent review"
+as an external-source noun phrase today ("review" is absent from its closed head-noun set), named as a bounded,
+I4-1f-scoped lexicon addition mirroring I4-1c's own `provide`/`provided`/`provides` precedent, not performed here.
+Found and corrected a genuine self-contradiction in the revision-1 default policy: applied literally to the new
+triple, it would have excluded the exact review sentence that motivated the whole design, because that sentence
+has no owner at all and so resolves to the `unresolved` relation value; the default is corrected to a single
+compound predicate that admits `unresolved` only when the aggregation cue is present, re-verified against the
+preserved corpus to introduce zero regression for p11/p30/p31 while correctly admitting the motivating case.
+Redesigned multiple-source handling as `candidate_supports`, an instance-level, per-role list built and classified
+before any satisfaction decision, generalising the already-shipped v4 `category_observations` pattern (which
+already never collapses to one representative) past category roles for the first time, with a legacy-shaped
+representative binding, if still wanted, selected only afterward from among already-admissible candidates and
+never itself deciding satisfaction. Folded the ambiguous-attachment design into the same mechanism: a
+structurally ambiguous candidate is one more reason a candidate can be inadmissible, and a role becomes
+role-level `ambiguous` only when no unambiguous admissible candidate exists and at least one ambiguous candidate
+does, never from an ambiguous candidate alone when an unambiguous admissible one is also present. Withdrew the
+proposed new `target_wording_span` field after re-auditing the existing `RoleSpec` inventory, in favour of
+extending the existing `requested_category_terms` field's documented meaning to `achieved_outcome_predicate`
+roles -- used only to disambiguate among already-locally-valid candidates sharing one passage, never to broaden
+admissibility -- which the steering round's own "avoid duplicating the same semantic target in multiple fields"
+instruction pointed toward directly. Sharpened the `finding_authority` terminology recommendation: because
+`assertion_relation` now carries the "who" information without any naming-collision risk, `finding_authority`'s
+own coarse value need not be re-exposed downstream at all, while `authority_veto`/`is_caption` remain as
+properties of a specific (assertion, target) pair rather than of the assertion alone. Explicitly separated schema/
+authoring compatibility (unchanged: no existing q_aib role needs an override) from semantic-output parity after
+wiring (not claimed to be preserved; I4-2's version bump exists precisely because real outputs may and do change),
+correcting language in the first version of this audit that risked reading as a behaviour-preserving claim.
+Produced an exact bounded contract for I4-1f (a pure `assertion_relation` translation, the new `aggregation`
+classifier plus its lexicon addition, the downstream `support_label` function, and frozen batteries including a
+required negative case against the preserved quote p41 to guard against a loose "across" trigger) and revised the
+I4-1f/I4-1g/I4-2/I4-3/I4-4 staging accordingly. The recommendation is READY for I4-1f exactly as bounded, and NOT
+READY for I4-1g or I4-2, since the pure descriptor layer those depend on does not exist as code yet and I4-1d's
+own standing whole-passage-binding blocker is unchanged by either revision. The results artifact is
+`PHASE34_I4_1E_EVIDENCE_DIRECTNESS_ADMISSIBILITY_AUDIT.md`. No model was called, no network was used, and no live
+search or live end-to-end run occurred.
