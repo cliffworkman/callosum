@@ -2234,3 +2234,133 @@ that no existing q_aib role is authored with a `support_policy`. The results art
 unresolved precondition on I4-2 and recommends READY for I4-2 planning/review only -- not for I4-2
 implementation, which remains explicitly not started. No model was called, no network was used, and no live
 search or live end-to-end run occurred.
+
+---
+
+## Phase 34 / I4-1h -- pre-I4-2 baseline reconstruction + integration contract audit (planning/read-only;
+appended 2026-10-07; preserves all prior entries unchanged)
+
+**Scope (Cliff Workman).** Before I4-2 may start, recover the preserved 54-quote input and the reconstructed
+v4 map the prior two increments reported as missing -- from wherever the originating session kept them, or by
+deterministic reconstruction with independently verified hashes, never by fabricating substitute data -- and
+use that real baseline to close the remaining I4-2 integration-contract questions (proposition identity;
+`exact_text` semantics; "relevant candidate"; `requested_category_terms`; attachment-ambiguity production
+rule; the absent-policy default's exact executable semantics vs. an authored `support_policy`'s; `authority_
+veto`/caption integration; gate order against the existing `disqualifying_guards`; a read-only I4-2 simulator
+and its quantified v4-to-v5 diff; the semantics-version boundary; and whether I4-2 should be one increment or
+split). No implementation, wiring, version bump, or live model/network/E2E run authorized.
+
+**Findings (Claude).** The 54-quote input and the v4 map were never actually lost -- `.local/e2e-runs/
+phase28-live-parent-synthesis-attempt2-20261004T014500Z/run/` (file mtimes four days before I4-1d's own commit)
+holds the real `11_verified_ledger.json` (54 verified propositions, p1-p54) and `17_sufficiency_map{.initial,
+}.json` (the real v4 map), which I4-1f's own directory listing had already named but not descended into. Both
+were recovered and independently re-verified against nine specific facts the prior six reports record (p41's
+exact text and resolver behaviour; p1/p4/p8's shared passage; p30's run-in heading; the 64-assertion,
+15-binding/8-proposition totals), with zero disagreements -- semantic identity confirmed, byte identity to the
+historical hand-extracted convenience filenames (`frozen_54_inputs.json`, `final_v4_lenient.json`) explicitly
+not claimed, since those files' own serializations were never themselves recorded anywhere to check against.
+Running the real, unmodified, pure I4-1 modules over this real baseline (via a disposable, non-committed
+scratch script) reproduced every prior report's own numbers exactly and surfaced several findings none of the
+six prior reports state: zero of the 64 real assertions ever carry `aggregation=literature_synthesis` or a
+non-null `authority_veto`, so neither I4-1e/f's own corrected default nor I4-1c's veto work has any real
+instance to validate against in this corpus; p41's own "genuine ambiguity" is a property of `achieved_
+outcome_span`'s independently-duplicated predicate-boundary layer, not of `assertion_authority`'s own spans --
+keyed to the latter (the seam I4-1d's own report recommends), p41 resolves to two clean, non-overlapping,
+already-classified assertions and is not attachment-ambiguous at all; and `c8`'s five per-trait instances all
+receive the identical whole-passage binding for `relationship_to_bias_manifestation` regardless of which trait
+each instance actually concerns, because the deterministic strategy has no per-instance parameter at
+all -- a real, present misattribution risk in the live corpus, independent of the provenance/admissibility
+work this track has otherwise designed.
+
+**Decisions (Claude).** Candidate-support proposition identity should be plural (`supporting_proposition_ids`),
+mirroring the model-nomination path's own existing shape, never a singular `[0]`-indexed id. Attachment
+ambiguity should key to `assertion_authority`'s spans, not `achieved_outcome_span`'s -- under that keying, 0 of
+the real 15 bindings land in `ambiguous` and 4 land in `missing` (support-policy-excluded, none rescued by the
+literature-synthesis correction, which this corpus never triggers). The absent-policy default must be its own
+hard-coded function, never derived from `new_support_policy()`'s own keyword defaults -- confirmed with real
+numbers that doing so would wrongly admit 24 real `unresolved`-relation assertions the intended default
+excludes. `disqualifying_guards` today silently and totally discards a non-matching unit, the opposite of
+every I4-1e/g-designed gate's own "retain and flag" discipline -- named as a real asymmetry for I4-2 to resolve
+on purpose. `sufficiency-semantics-v5` should trigger the first time `exact_text` narrows to a local span for
+any real binding or the first time `support_policy` admissibility changes any real `state`, whichever ships
+first. I4-2 should split into I4-2a (span attachment + candidate-support collection + `exact_text` narrowing,
+no admissibility change) and I4-2b (`support_policy` gating + attachment-ambiguity aggregation + a live
+all-support re-collection run), with the c8 per-instance misattribution finding explicitly excluded from both
+and reserved for its own later, explicitly-scoped increment. READY for I4-2a; NOT READY for I4-2b until the
+default-policy function is written and the guard-order asymmetry is decided on purpose.
+
+**Verification (Claude).** All numbers above were produced by running the real, unmodified `assertion_
+authority.classify_target_assertions`/`.assertion_relation`/`.support_label` and `achieved_outcome_span.find_
+achieved_outcome_matches` against the 54 real recovered quotes (zero exceptions across all 54), and by
+enumerating every `achieved_outcome_predicate` role/binding in the real recovered v4 map directly (zero
+exceptions). Every proposition-count, assertion-count, and binding-count claim cross-checks internally (kind
+totals, label totals, and relation x aggregation cross-tabulations each sum exactly to 64) and against the six
+prior reports' own previously-published figures with zero disagreements. The two scratch scripts that produced
+these numbers were never committed and never imported into any package. `git status --porcelain` after writing
+this report and its own lineage entry shows exactly these two files changed; no `.py` file, test file, frozen
+battery, pin, or version constant was touched anywhere in the repository. No model, network, or live
+end-to-end run occurred. The results artifact is `PHASE34_I4_1H_PRE_I4_2_INTEGRATION_AUDIT.md`, which recommends
+READY for I4-2a and NOT READY for I4-2b, and which this audit stops after, per its own directive.
+
+---
+
+## Phase 34 / I4-1i -- instance-local evidence target dependency audit (planning/read-only; appended
+2026-10-07; preserves all prior entries unchanged)
+
+**Scope (Cliff Workman).** Before `candidate_supports` is wired into production, determine what makes a local
+assertion relevant to a specific role IN a specific instance -- not merely "this passage contains a result
+assertion" -- using I4-1h's own recovered c8 misattribution (five trait-specific instances all receiving the
+identical whole-passage binding) as the forcing case, but auditing all seven real `achieved_outcome_predicate`
+roles generically, never biasing the design toward c8 alone or toward "no change needed." No implementation,
+`RoleSpec` change, mapping edit, version bump, or wiring of `candidate_supports`/`support_policy` authorized.
+
+**Findings (Claude).** Direct reading of `sufficiency_engine._verify_same_proposition`/`_joint_grounded`
+against the real recovered map sharpens the directive's own framing: the existing `relationship_verifiers=
+["same_proposition"]` joint-grounding check already runs on every one of the seven roles and **already
+correctly demotes two of the other three real multi-instance cases (c2, c4) to `partially_filled`/
+`complete=False`**, because their sibling and evidence roles happen to bind different propositions entirely --
+it is only blind to c8's own case, where the sibling and evidence roles share one proposition (p41) whose own
+two internal assertions get conflated. Direct reading of `sufficiency_mapping.map_requirement`/
+`_fork_instances_over_role` found that role-binding order already matches the real semantic dependency in
+every authored requirement (the identification role is always declared, and therefore always bound, before its
+evidence role) and that each instance's fork already carries its sibling's finished binding in scope at the
+exact point the evidence role is mapped -- the gap is a missing function parameter, not a missing pass, and no
+two-pass mapper or larger mapping-architecture change is needed. Empirically testing literal/canonical
+containment (reusing the already-shipped `dehyphenate_for_matching` fallback) against all real sibling values
+found it cleanly and uniquely resolves all five of c8's trait terms and one of c2's three behavior instances
+self-sufficiently, correctly yields "no target match" for c2's other two instances (their own source passages
+never satisfy the existing result-predicate lexicon, confirmed directly, not assumed), and would over-match on
+a bare anatomical noun ("amygdala") unless scoped first to the sibling's own source proposition -- which also
+resolves the one real case (c4's second instance) where the sibling value and the bound evidence come from two
+different source passages entirely. A parallel investigation of c10 (the one real role with zero filled
+bindings) confirmed it is a genuine evidentiary absence, not an invisible candidate: both real candidate
+passages fail an existing, pre-I4-1 gate (a result-predicate lexicon miss; a hedge-word match) for reasons
+unrelated to target relevance at all.
+
+**Decisions (Claude).** Role-instance relevance is strictly finer-grained than proposition identity and
+independent of admissibility. The schema answer is an extension of the existing `relationship_verifiers`/
+`_VERIFIER_FUNCS` pattern (a new, same-shaped `same_local_assertion` verifier), not a new top-level field --
+"derive the dependency from an existing structure already present," refined one granularity level. The target
+value itself needs no new schema primitive (a sibling's own `exact_text` is already a clean, minimal referent,
+confirmed empirically). A deterministic join (`locate_containing_assertion`, a thin wrapper over the existing
+`assertion_authority.classify_target_assertions`) is specified to connect `achieved_outcome_span`'s own
+predicate-level matches to assertion-level identity, fail-closed on zero or multiple containing assertions, and
+confirmed -- by an independent re-run, not merely argued -- to be structurally incapable of reintroducing
+`achieved_outcome_span`'s own narrower, previously-reported p41 ambiguity. `candidate_supports` should hold only
+target-relevant candidates; a guard-eligible-but-target-unmatched assertion belongs in a separate, not-yet-
+designed diagnostic record, never in the semantic support set itself. Recommended next increment: **B**, a
+small, pure, unwired I4-1j delivering exactly the join, the new verifier function (registered but consumed by
+no real requirement), and the scoped target-matching primitive -- explicitly not A (existing structures do not
+already supply this) and not C (no larger architecture revision is needed).
+
+**Verification (Claude).** Every claim above was checked against real code (`sufficiency_engine.py`,
+`sufficiency_mapping.py`) and the same real recovered 54-quote ledger and v4 map I4-1h located, via a second
+disposable, non-committed scratch script. The c8 five-way trait/assertion split, the c2 three-instance sibling-
+value/evidence-binding mismatch, the c4 two-instance case, and the c10 absence were each independently
+recomputed from the real data rather than re-read from a prior report, and the `same_proposition` outcome for
+every real instance examined was computed from the actual function, not inferred from its docstring. `git
+status --porcelain` after writing this report and its own lineage entry shows exactly these two files changed;
+no production file, test file, frozen battery, pin, or version constant was touched anywhere in the repository.
+No model, network, or live end-to-end run occurred. The results artifact is
+`PHASE34_I4_1I_INSTANCE_TARGET_RELEVANCE_AUDIT.md`, which recommends a new I4-1j before I4-2a consumes it, and
+which this audit stops after, per its own directive.
