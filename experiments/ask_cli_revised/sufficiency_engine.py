@@ -579,12 +579,13 @@ def _canonical_support_policy(policy: dict) -> dict:
 
 def new_candidate_support(
     *,
-    proposition_id,
+    supporting_proposition_ids: list,
     exact_text,
     assertion_relation: str,
     aggregation: str,
     assertion_kind: str,
     admissible: bool,
+    span_proposition_id: str | None = None,
     assertion_span=None,
     predicate_span=None,
     content_span=None,
@@ -599,12 +600,32 @@ def new_candidate_support(
     classifier, decide admissibility, mutate requirement state, or choose a representative -- every value is
     supplied by the (future, not-yet-built) caller that already decided it.
 
+    I4-1j correction: the canonical proposition identity is ``supporting_proposition_ids`` (plural, required,
+    non-empty, duplicate-free, DISCOVERY ORDER -- never sorted, mirroring the real `model_mapping` provenance
+    shape (`17_sufficiency_map.json`'s own `c8` bindings: `["p20", "p9"]`) rather than a second, differently-
+    ordered convention). A singular ``proposition_id`` is, as I4-1h/I4-1i both found against the real preserved
+    map, an artifact of ledger insertion order whenever more than one proposition row shares one matched
+    passage (p1/p4/p8/p24 all bound to the identical sentence) -- correcting it now, while this schema remains
+    completely unconsumed, is strictly cheaper than migrating a real caller later. No mandatory singular
+    ``primary_proposition_id`` is added; a future compatibility projection may derive one, for display only,
+    from this list's own first element -- never the reverse.
+
+    ``span_proposition_id`` is required exactly when any of ``assertion_span``/``predicate_span``/
+    ``content_span`` is present, and must itself be one of ``supporting_proposition_ids`` -- an unqualified
+    span offset is ambiguous the moment a candidate's support spans more than one proposition's worth of
+    identity, so the span is always anchored to the one proposition its own offsets index into.
+
     No `authoritative`/`candidate` ``finding_authority`` vocabulary is serialized here -- I4-1e revision 2's own
     recommendation is that a downstream consumer need not re-expose that coarse field at all, since
     ``assertion_relation`` already carries its ownership information without the real naming-collision risk that
     value's literal ``"candidate"`` string would otherwise create next to this codebase's unrelated AI-funnel
     sense of the same word (``paper_findings.kind="candidate"``). ``authority_veto``/``is_caption`` are retained,
     as properties of this specific (assertion, target) binding attempt, not of the assertion alone."""
+    if not supporting_proposition_ids:
+        raise ValueError("supporting_proposition_ids must not be empty")
+    if len(set(supporting_proposition_ids)) != len(supporting_proposition_ids):
+        raise ValueError("supporting_proposition_ids must not contain duplicates")
+    supporting = list(supporting_proposition_ids)  # defensive copy; discovery order preserved, never sorted
     if assertion_relation not in SUPPORT_ASSERTION_RELATIONS:
         raise ValueError(f"unknown assertion_relation: {assertion_relation!r}")
     if aggregation not in SUPPORT_AGGREGATIONS:
@@ -619,8 +640,14 @@ def new_candidate_support(
         raise ValueError("an admissible candidate must not carry an inadmissibility_reason")
     if not admissible and inadmissibility_reason is None:
         raise ValueError("an inadmissible candidate must carry an inadmissibility_reason")
+    has_span = assertion_span is not None or predicate_span is not None or content_span is not None
+    if has_span and span_proposition_id is None:
+        raise ValueError("span_proposition_id is required whenever a span is present")
+    if span_proposition_id is not None and span_proposition_id not in supporting:
+        raise ValueError("span_proposition_id must be one of supporting_proposition_ids")
     return {
-        "proposition_id": proposition_id,
+        "supporting_proposition_ids": supporting,
+        "span_proposition_id": span_proposition_id,
         "exact_text": exact_text,
         "assertion_span": assertion_span,
         "predicate_span": predicate_span,
@@ -639,7 +666,8 @@ def new_candidate_support(
 
 _CANDIDATE_SUPPORT_KEYS = frozenset(
     {
-        "proposition_id",
+        "supporting_proposition_ids",
+        "span_proposition_id",
         "exact_text",
         "assertion_span",
         "predicate_span",

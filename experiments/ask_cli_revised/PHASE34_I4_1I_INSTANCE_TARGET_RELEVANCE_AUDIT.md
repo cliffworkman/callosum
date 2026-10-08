@@ -320,7 +320,7 @@ anger/dominance/threateningness triple respectively, since each pair/triple woul
 | c2, instances `p35`/`p46` | "decisions… share with bad partner…" / "share decisions between partners…" | **becomes target-unmatched** (§8/§10 case C) — no passage anywhere in scope both contains the sibling's phrase and passes `has_result_predicate` | **Changes** — from a false-positive-looking (but already `partially_filled`, per §4) generic p4 binding to an honest `missing`-with-no-candidate |
 | c3 | no sibling at all | unchanged — nothing to target against; the role's existing single-instance, no-sibling behavior is untouched by this design | **No change** |
 | c4, instance 1 (p11) | "the specific amygdala response" | unchanged — already self-referential, already correct | **No change** |
-| c4, instance 2 (p40) | "increased amygdala reactiv-ity" | **becomes uniquely relevant to a sentence inside p40 itself** ("Laypersons… demonstrated increased amygdala reactivity," an `attributed_external`/`result` assertion already confirmed present in p40 by I4-1h's own sweep) — scoped-first search finds it before ever reaching p11 | **Changes** — from p11's unrelated passage to p40's own matching sentence; as a direct side effect, `same_proposition` would now also pass (both roles bound to p40), where today it correctly fails |
+| c4, instance 2 (p40) | "increased amygdala reactiv-ity" | **becomes uniquely relevant to a sentence inside p40 itself** ("Laypersons… demonstrated increased amygdala reactivity," an `unresolved`/`result` assertion — corrected under I4-1j from this table's own original, imprecise "`attributed_external`"; its subject, "Laypersons with high levels of implicit bias…," is not a recognized owner phrase, so it resolves `unknown`/`unresolved`, distinct from p40's OTHER, genuinely `prior_work`/`attributed_external` sentence, "Recent work… has implicated certain neuroanatomic structures") — scoped-first search finds it before ever reaching p11 | **Changes** — from p11's unrelated passage to p40's own matching sentence; as a direct side effect, `same_proposition` would now also pass (both roles bound to p40), where today it correctly fails |
 | c8 | 5 instances, 2 propositions | as computed in §11 | **Changes** — from one shared whole-passage binding to two distinct, correctly-split local-assertion bindings |
 | c10 | "Hadza" (×2, different propositions) | no change possible — the one real candidate passage (p29/p53's own text) is excluded by the pre-existing `hedged` guard regardless of target-matching (§13) | **No change in outcome**, but the *reason* for `missing` becomes "found a target match, excluded by an orthogonal guard" rather than "no candidate was ever examined" |
 | c12 | always missing, both siblings | no dynamic target exists to apply the mechanism to; all 3 real filled instances (p24/p30/p31) are already each from a distinct top-level `request_context`, so there is no cross-instance sharing to correct in the first place | **No change** |
@@ -669,6 +669,35 @@ spot affects, not a wrong conclusion about what to build — the design (§5's `
 §7's parameter-threading, §17's join) is unaffected. The one place the correction has real teeth is scale:
 the practical blast radius of c8's false-positive `complete=True` is **5 instances**, not 9 — smaller than
 originally reported, which is a reason for less urgency, not a reason to revisit the recommendation.
+
+---
+
+## Second correction (made under I4-1j, 2026-10-08) — §12 mislabeled p40's own relevant sentence
+
+**Found while building I4-1j's real c4 battery**, not flagged by the directive but corrected for the same
+reason as the first: building a real test battery on a misdescribed fact would compound the error, not just
+repeat it.
+
+**Original statement.** §12's non-c8 counterfactual table described c4 instance 2's target-aware correction
+as resolving to "an `attributed_external`/`result` assertion already confirmed present in p40 by I4-1h's own
+sweep."
+
+**Source of truth.** Running `assertion_authority.classify_target_assertions` directly against p40's own real
+sealed text (not re-read from a prior report's prose) shows p40 contains **three** assertions: (1) "certain
+neuroanatomic structures when viewing others with facial anomalies" — `prior_work`/`attributed_external`,
+subject "Recent work…has implicated"; (2) "increased amygdala reactiv- ity" — `unknown`/`unresolved`, subject
+"Laypersons with high levels of implicit bias…," which is **not** a recognized owner phrase; (3) "eye-tracking
+to characterize visual attention…" — `prior_work`/`attributed_external`/`method_or_description`.
+
+**Corrected fact.** The sentence that actually becomes the relevant, scoped-to-p40 evidence for c4's instance
+2 — "Laypersons… demonstrated increased amygdala reactivity" — is `unresolved`, not `attributed_external`.
+§12's table has been corrected in place.
+
+**Does this change any decision?** No. Which sentence is target-relevant, and that scoping-to-p40 finds it
+before ever reaching p11's unrelated passage, are both unaffected — only the specific `assertion_relation`
+label attached to it in the prose was wrong. (Whether `unresolved`/`result` support would be *admissible* for
+this role under a future `support_policy` is, as throughout this track, I4-2b's own deferred question, not
+reopened here.)
 
 ---
 

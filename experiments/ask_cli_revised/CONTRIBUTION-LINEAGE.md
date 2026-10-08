@@ -2364,3 +2364,84 @@ no production file, test file, frozen battery, pin, or version constant was touc
 No model, network, or live end-to-end run occurred. The results artifact is
 `PHASE34_I4_1I_INSTANCE_TARGET_RELEVANCE_AUDIT.md`, which recommends a new I4-1j before I4-2a consumes it, and
 which this audit stops after, per its own directive.
+
+---
+
+## Phase 34 / I4-1j -- pure local assertion grounding primitives (pure, schema/primitive-only, unwired; no
+sufficiency/plan version bump; appended 2026-10-08; preserves all prior entries unchanged)
+
+**Required correction, made before any code (Claude).** I4-1i's own §4 contradicted its own T9: §4 said
+`same_proposition` passes on "9 non-empty" c8 instances and all 9 land on `complete=True`; T9 said c8's 4
+p20-bound instances are correctly `missing`. Re-reading `17_sufficiency_map.json`'s real `c8` requirement
+exhaustively settled it in T9's favor: only the 5 p41-bound instances have both roles filled and pass
+`same_proposition`; the 4 p20-bound instances have `relationship_to_bias_manifestation.state=="missing"` --
+never bound at all, the same honest-absence shape as c10/c12, unrelated to `same_proposition`. §4/§5/§21/§23
+corrected in place with an explicit note; no T1-T15 decision changes; the practical blast radius is 5
+instances, not 9. A second, related error -- found while building this increment's own real battery, not
+flagged by the directive -- was corrected the same way: I4-1i §12 mislabeled p40's own relevant sentence
+("Laypersons... demonstrated increased amygdala reactivity") `attributed_external` when it is actually
+`unresolved` (its subject is not a recognized owner phrase); p40's *other* sentence is the genuinely
+`attributed_external` one. Committed as its own docs-only checkpoint (`5bdf488e`, pushed) before any
+implementation, per this increment's own explicit instruction not to mix accepted audit history with code.
+
+**Scope (Cliff Workman).** Implement only the pure, unwired primitives I4-1i's own §22 recommended before
+I4-2a: the candidate-support plural-identity correction (cheapest while still fully unconsumed); the
+deterministic assertion-localization join; the instance-local target-relevance matcher, with scope and
+lexical matching kept as explicitly separate layers; and the pure `same_local_assertion` verifier primitive,
+registered into `sufficiency_engine._VERIFIER_FUNCS` ONLY if the existing registry signature can represent
+its real inputs without a hidden global read -- otherwise implement the primitive and report why registration
+must wait, rather than distorting the function to fit. No sibling-context threading into production mapping,
+no real requirement's `relationship_verifiers` edited, no `support_policy` gating, no requirement-state
+change, no version bump, no I4-2a/I4-2b/I2-3, no model/network/live-E2E run.
+
+**Implementation (Claude).** `new_candidate_support`'s canonical identity is now `supporting_proposition_ids`
+(required, non-empty, duplicate-free, discovery-order, never sorted -- mirroring the real, already-production
+`model_mapping` provenance shape rather than inventing a second convention) plus a new `span_proposition_id`
+(required exactly when a span is present; must be a member). `new_role_binding`/`new_requirement`/
+`new_instance`/`_VERIFIER_FUNCS` untouched. `assertion_authority.locate_containing_assertion` -- added to the
+same module, continuing the I4-1b/c/f precedent rather than a sibling file that would have to import it -- is
+a thin wrapper over the module's own `classify_target_assertions`, resolving iff exactly one assertion
+intersects the target span and failing closed (with the full result retained as diagnostic) on zero or
+multiple. `RULESET_VERSION` deliberately left unchanged: this adds a function without changing any existing
+classification output, so there is no rule change for that identity to track. A new, standalone module,
+`target_relevance.py` (imports neither classifier-family sibling, confirmed by AST inspection, not a
+docstring claim), provides `local_assertion_relevance` (literal/canonical containment, reusing the existing
+`dehyphenate_for_matching` fallback -- no new mechanism), `match_target_to_assertions` (scope-then-lexical,
+returns all matches, never a first match), and `verify_shared_local_assertion` (the correctly-scoped
+`same_local_assertion` primitive). Relationship scope is derived from the already-existing `_support_set`
+compatibility helper -- no second one was written. Registration of `same_local_assertion` into
+`_VERIFIER_FUNCS` was evaluated and explicitly declined, with empirical proof rather than argument: fed
+today's real `achieved_outcome_predicate` binding shape (still the whole passage, per I4-1d's own disclosed,
+unfixed limitation), the primitive returns `True` for every one of c8's five real trait terms -- a vacuous,
+non-discriminating result that would be actively misleading if ever consulted. The primitive ships, fully
+tested against both the correct-input case and this vacuity case; a static test proves it is absent from the
+registry and that no real q_aib requirement's `relationship_verifiers` list names it.
+
+**A real, self-inflicted guard trip was found and fixed twice before it shipped, not discovered after --
+mirroring I4-1g's own precedent exactly.** The first drafts of both `target_relevance.py`'s own module
+docstring and `locate_containing_assertion`'s own docstring named the two classifier-family sibling modules
+and a domain word directly, as explanatory prose -- immediately failing the existing, pre-existing unwired
+guard for one of those modules (a plain text-substring scan with no import/comment distinction) and this
+increment's own no-domain-vocabulary check. Both fixed by rewriting the prose to describe the sibling
+module/concept generically, never spelling out the forbidden strings -- no guard was weakened or edited to
+accommodate either mistake.
+
+**Verification (Claude).** The real p41 join was frozen and proven directly: all three raw achieved-outcome
+predicate hits resolve through the new join to exactly two real assertions (the first two collapsing onto the
+same one), none `multi_assertion`/unresolved, with zero p41-specific code anywhere in the join itself. Real
+batteries for c8 (all five trait terms split correctly), c4 (both instances resolve correctly scoped, plus an
+explicit demonstration that removing scope makes the bare term over-match both propositions), c2 (one real
+positive match, two honest no-matches traced to the existing result-predicate lexicon rather than any
+target-relevance failure), and c10 (confirmed unchanged, excluded by a pre-existing hedge-word/lexicon gate
+unrelated to target relevance) all pass against the real sealed text, embedded verbatim in the new test file
+following the same disclosure precedent I4-1b/d/f's own committed reports already use. Seven generic,
+domain-neutral twin cases cover every required property with a static guard confirming zero domain
+vocabulary in the matcher's own executable source. New file: 25/25. The I4-1 classifier family plus I4-1j
+together: 575 passed, 9 xfailed (the unaffected pre-existing supersessions). The full sufficiency/engine/
+mapping/relation/direction/replay/AnswerPlan/parent-synthesis sweep: 909 passed, zero failures. The full
+offline `experiments/` suite: 3726 passed, 5 failed, 12 skipped, 9 xfailed -- the exact same pre-existing/
+environment-artifact set every prior I4-1x report already names, confirmed zero new failures by `git diff
+--stat` showing no change anywhere near the files those failures implicate. `ruff format`/`ruff check` pass
+on all five touched/new files. The results artifact is `PHASE34_I4_1J_LOCAL_GROUNDING_PRIMITIVES_RESULTS.md`,
+which recommends READY for I4-2a and NOT READY for I4-2b, and which this increment stops after, per its own
+directive.

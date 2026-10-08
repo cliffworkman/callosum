@@ -282,7 +282,7 @@ def test_no_existing_q_aib_role_is_authored_with_a_support_policy():
 
 def _direct_primary():
     return se.new_candidate_support(
-        proposition_id="p1",
+        supporting_proposition_ids=["p1"],
         exact_text="We found X.",
         assertion_relation="current_document",
         aggregation="non_synthetic_or_unspecified",
@@ -295,7 +295,7 @@ def _direct_primary():
 def test_candidate_support_examples_from_section_15():
     direct_primary = _direct_primary()
     direct_synthetic = se.new_candidate_support(
-        proposition_id="p2",
+        supporting_proposition_ids=["p2"],
         exact_text="We found a meta-analytic effect of X on Y.",
         assertion_relation="current_document",
         aggregation="literature_synthesis",
@@ -304,7 +304,7 @@ def test_candidate_support_examples_from_section_15():
         support_label="direct_synthetic",
     )
     attributed_primary = se.new_candidate_support(
-        proposition_id="p3",
+        supporting_proposition_ids=["p3"],
         exact_text="Previous studies found X.",
         assertion_relation="attributed_external",
         aggregation="non_synthetic_or_unspecified",
@@ -313,7 +313,7 @@ def test_candidate_support_examples_from_section_15():
         support_label="attributed_indirect",
     )
     attributed_synthetic = se.new_candidate_support(
-        proposition_id="p4",
+        supporting_proposition_ids=["p4"],
         exact_text="A review found X.",
         assertion_relation="attributed_external",
         aggregation="literature_synthesis",
@@ -322,7 +322,7 @@ def test_candidate_support_examples_from_section_15():
         support_label="attributed_synthetic",
     )
     unresolved_synthetic = se.new_candidate_support(
-        proposition_id="p5",
+        supporting_proposition_ids=["p5"],
         exact_text="Across studies, X has been implicated in Y.",
         assertion_relation="unresolved",
         aggregation="literature_synthesis",
@@ -331,7 +331,7 @@ def test_candidate_support_examples_from_section_15():
         support_label="unresolved_synthetic",
     )
     policy_excluded = se.new_candidate_support(
-        proposition_id="p6",
+        supporting_proposition_ids=["p6"],
         exact_text="A review found X.",
         assertion_relation="attributed_external",
         aggregation="literature_synthesis",
@@ -340,7 +340,7 @@ def test_candidate_support_examples_from_section_15():
         inadmissibility_reason="support_policy_excluded",
     )
     attachment_ambiguous = se.new_candidate_support(
-        proposition_id="p7",
+        supporting_proposition_ids=["p7"],
         exact_text="found X previous studies found Y",
         assertion_relation="unresolved",
         aggregation="non_synthetic_or_unspecified",
@@ -359,7 +359,8 @@ def test_candidate_support_examples_from_section_15():
         attachment_ambiguous,
     ):
         assert set(rec) == {
-            "proposition_id",
+            "supporting_proposition_ids",
+            "span_proposition_id",
             "exact_text",
             "assertion_span",
             "predicate_span",
@@ -389,11 +390,15 @@ def test_candidate_support_examples_from_section_15():
         {"inadmissibility_reason": "unknown_reason"},
         {"admissible": True, "inadmissibility_reason": "support_policy_excluded"},
         {"admissible": False, "inadmissibility_reason": None},
+        {"supporting_proposition_ids": []},
+        {"supporting_proposition_ids": ["p1", "p1"]},
+        {"assertion_span": [0, 5]},
+        {"assertion_span": [0, 5], "span_proposition_id": "p2"},
     ],
 )
 def test_candidate_support_rejects_invalid_or_inconsistent_input(kwargs):
     base = {
-        "proposition_id": "p1",
+        "supporting_proposition_ids": ["p1"],
         "exact_text": "X",
         "assertion_relation": "current_document",
         "aggregation": "non_synthetic_or_unspecified",
@@ -405,10 +410,49 @@ def test_candidate_support_rejects_invalid_or_inconsistent_input(kwargs):
         se.new_candidate_support(**base)
 
 
+def test_candidate_support_proposition_identity_is_plural_discovery_order_never_sorted():
+    """I4-1j correction (section 3): the canonical identity is a required, non-empty, duplicate-free,
+    discovery-ordered list -- never collapsed to a singular id, never sorted for canonical appearance."""
+    rec = se.new_candidate_support(
+        supporting_proposition_ids=["p9", "p2"],  # deliberately out of sort order
+        exact_text="X",
+        assertion_relation="current_document",
+        aggregation="non_synthetic_or_unspecified",
+        assertion_kind="result",
+        admissible=True,
+    )
+    assert rec["supporting_proposition_ids"] == ["p9", "p2"]  # order preserved, not sorted to ["p2", "p9"]
+    assert "proposition_id" not in rec
+
+
+def test_candidate_support_span_proposition_id_required_with_a_span_and_must_be_a_member():
+    rec = se.new_candidate_support(
+        supporting_proposition_ids=["p1", "p2"],
+        exact_text="greater proportionality was associated with attractiveness",
+        assertion_relation="current_document",
+        aggregation="non_synthetic_or_unspecified",
+        assertion_kind="result",
+        admissible=True,
+        assertion_span=(43, 200),
+        span_proposition_id="p1",
+    )
+    assert rec["span_proposition_id"] == "p1"
+    # no span at all -- span_proposition_id may be omitted
+    no_span = se.new_candidate_support(
+        supporting_proposition_ids=["p1"],
+        exact_text="X",
+        assertion_relation="current_document",
+        aggregation="non_synthetic_or_unspecified",
+        assertion_kind="result",
+        admissible=True,
+    )
+    assert no_span["span_proposition_id"] is None
+
+
 def test_candidate_supports_collection_preserves_order_and_drops_nothing():
     a = _direct_primary()
     b = se.new_candidate_support(
-        proposition_id="p8",
+        supporting_proposition_ids=["p8"],
         exact_text="A review found X.",
         assertion_relation="attributed_external",
         aggregation="literature_synthesis",
@@ -433,7 +477,7 @@ def test_candidate_supports_collection_validates_shape():
 def test_reference_future_role_state_filled_iff_any_admissible():
     a = _direct_primary()
     ambiguous_only = se.new_candidate_support(
-        proposition_id="p9",
+        supporting_proposition_ids=["p9"],
         exact_text="found X previous studies found Y",
         assertion_relation="unresolved",
         aggregation="non_synthetic_or_unspecified",
@@ -447,7 +491,7 @@ def test_reference_future_role_state_filled_iff_any_admissible():
 
 def test_reference_future_role_state_ambiguous_only_when_no_admissible_and_one_attachment_ambiguous():
     ambiguous_only = se.new_candidate_support(
-        proposition_id="p9",
+        supporting_proposition_ids=["p9"],
         exact_text="found X previous studies found Y",
         assertion_relation="unresolved",
         aggregation="non_synthetic_or_unspecified",
@@ -461,7 +505,7 @@ def test_reference_future_role_state_ambiguous_only_when_no_admissible_and_one_a
 
 def test_reference_future_role_state_policy_excluded_alone_is_missing_not_ambiguous():
     excluded_only = se.new_candidate_support(
-        proposition_id="p10",
+        supporting_proposition_ids=["p10"],
         exact_text="A review found X.",
         assertion_relation="attributed_external",
         aggregation="literature_synthesis",
@@ -520,6 +564,16 @@ _NEW_NAMES = (
     "new_candidate_supports",
     "reference_future_role_state",
     "reference_future_requested_terms_disambiguation",
+    "span_proposition_id",
+    # NOT "supporting_proposition_ids": I4-1j reused that exact field name for the candidate-support
+    # schema's own corrected plural identity (section 3), but the literal string already, legitimately
+    # predates I4-1j in `sufficiency_mapping.py` -- it is Phase 3's own, already-wired
+    # `RoleBinding.provenance.supporting_proposition_ids` (the anchor-dedup provenance field; confirmed
+    # present in real production data, e.g. `17_sufficiency_map.json`'s own c8 bindings:
+    # `"supporting_proposition_ids": ["p20", "p9"]`). A bare substring scan cannot tell the two apart,
+    # so including it here would fail on a genuine pre-existing feature, not a new consumption. The
+    # genuinely new candidate-support API surface (`new_candidate_support`/`new_candidate_supports`,
+    # already covered above) is what actually proves non-consumption for this schema.
 )
 
 _PRODUCTION_FILES_THAT_MUST_NOT_CONSUME_THE_NEW_SCHEMA = (

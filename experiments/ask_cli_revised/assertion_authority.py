@@ -1242,6 +1242,54 @@ def classify_target_assertions(
     }
 
 
+def locate_containing_assertion(
+    text,
+    target_start,
+    target_end,
+    *,
+    is_caption=False,
+    structural_context=None,
+    locator=None,
+):
+    """I4-1j: the deterministic join between a localized span (e.g. one of a sibling result-predicate-
+    localizing module's own predicate/content-span hits -- deliberately not named here; see the module-level
+    note below) and this classifier's own assertion-level identity. A thin wrapper over
+    :func:`classify_target_assertions` -- no new parsing, no new boundary logic; this function exists only to
+    give the join a single, fail-closed entry point rather than requiring every caller to re-derive the same
+    three-way scope check.
+
+    Resolves iff `classify_target_assertions` reports exactly one intersecting assertion
+    (`target_scope in {"within_assertion", "partial_assertion"}`) -- the span may cover that one assertion
+    wholly or only partially; either way there is exactly one governing assertion to attribute it to.
+    Fails closed, never guesses, on `"no_governing_assertion"` (zero intersecting assertions) and on
+    `"multi_assertion"` (two or more) -- the full, unmodified `classify_target_assertions` result is always
+    returned as `"diagnostic"`, so a caller that needs to understand WHY a join failed (which assertions were
+    even considered) never has to re-run the classifier a second time.
+
+    This is the one join that sibling module's own predicate hits should resolve through to acquire assertion
+    identity -- never its own, independently-duplicated, narrower boundary grammar. The two modules stay
+    independent (neither imports the other's name, each protected by its own unwired static guard); only a
+    caller that already has both results composes them, exactly as this function's own real-sealed-quote
+    join test does."""
+    result = classify_target_assertions(
+        text,
+        target_start=target_start,
+        target_end=target_end,
+        is_caption=is_caption,
+        structural_context=structural_context,
+        locator=locator,
+    )
+    scope = result["target_scope"]
+    resolved = scope in ("within_assertion", "partial_assertion")
+    return {
+        "resolved": resolved,
+        "assertion": result["assertions"][0] if resolved else None,
+        "target_scope": scope,
+        "reason": None if resolved else scope,
+        "diagnostic": result,
+    }
+
+
 def classify_all_occurrences(text, surface, *, is_caption=False, structural_context=None, locator=None):
     """Every exact occurrence of ``surface``, each classified separately. Never selects a preferred occurrence."""
     spans = []
