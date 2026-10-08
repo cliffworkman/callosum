@@ -245,7 +245,9 @@ def _instance_scope(requirement: dict, instance: dict) -> dict:
 
 
 def _incomplete_instance_targets(child_id: str, requirement: dict, instance: dict, *, semantics_version: str) -> list:
-    if semantics_version == se.SUFFICIENCY_SEMANTICS_V4 and se.is_category_requirement(requirement):
+    if semantics_version in (se.SUFFICIENCY_SEMANTICS_V4, se.SUFFICIENCY_SEMANTICS_V5) and se.is_category_requirement(
+        requirement
+    ):
         # I2-2: a bound category whose established_presence goal is unsatisfied is a semantic obligation, not a missing
         # role. Its identity carries the goal in scope; it is terminal per target once its search completed.
         role = requirement["role_completion"]["required_roles"][0]
@@ -545,12 +547,12 @@ def search_obligations(
 ) -> dict:
     """The recovery obligations whose search outcomes are accounted for (I2-2).
 
-    Historical v1-v3: the initial targets only, unchanged. v4: the initial targets plus every RAW final target (computed
+    Historical v1-v3: the initial targets only, unchanged. v4/v5 (same recovery rule): the initial targets plus every RAW final target (computed
     without status suppression), keyed by its content-derived target_id. A target first exposed by the final map has no
     recovery-log row, so its status is not_attempted and it stays recoverable. Nothing is fabricated for it."""
     se.require_supported_semantics_version(semantics_version)
     obligations = dict(recovery_targets_initial or {})
-    if semantics_version == se.SUFFICIENCY_SEMANTICS_V4:
+    if semantics_version in (se.SUFFICIENCY_SEMANTICS_V4, se.SUFFICIENCY_SEMANTICS_V5):
         for target_id, target in (raw_final_targets or {}).items():
             obligations.setdefault(target_id, target)
     return obligations

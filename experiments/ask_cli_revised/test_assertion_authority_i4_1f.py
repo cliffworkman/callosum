@@ -204,8 +204,7 @@ def test_aggregation_locality_review_then_current_document_two_sentences():
 
 
 def test_classifier_is_still_unwired_static_guard():
-    """Re-asserts I4-1's own static guard still holds after this increment's additions: no non-test module
-    anywhere in the repository references assertion_authority by name."""
+    """Only the exact I4-2a mapper path may consume the classifier in production."""
     root = HERE.parents[1]
     assert root.name == "callosum" or (root / "app").exists(), f"unexpected repo root resolved: {root}"
     offenders = []
@@ -216,12 +215,8 @@ def test_classifier_is_still_unwired_static_guard():
         for path in base.rglob("*.py"):
             if path.name.startswith("test_") or path.name == "assertion_authority.py":
                 continue
-            if "ask_cli_revised" in path.parts and path.name not in {
-                "achieved_outcome_span.py",
-            }:
-                # scoped: only the two known-pure sibling modules in this package may be inspected for a reference;
-                # everything else in this directory is this phase's own test/report material, not a production path.
-                pass
+            if path == HERE / "sufficiency_mapping.py":
+                continue
             text = path.read_text(encoding="utf-8", errors="ignore")
             if "assertion_authority" in text:
                 offenders.append(str(path))
@@ -232,5 +227,5 @@ def test_versions_are_unchanged_for_sufficiency_and_plan():
     from experiments.ask_cli_revised import sufficiency_engine as se
     from experiments.ask_cli_revised.answer_plan import plan as ap
 
-    assert se.SUFFICIENCY_SEMANTICS_VERSION == se.SUFFICIENCY_SEMANTICS_V4
+    assert se.SUFFICIENCY_SEMANTICS_VERSION == se.SUFFICIENCY_SEMANTICS_V5  # I4-2a integration
     assert ap.PLAN_VERSION == "answer-plan-step2-v4"

@@ -51,6 +51,7 @@ def units_by_child(sealed: dict) -> dict[str, list[dict]]:
     units, _claims = oe.build_units(sealed)
     tagged_for_child: dict[str, set[str]] = {}
     anchor_by_proposition: dict[str, tuple] = {}
+    passage_by_proposition = {row["proposition_id"]: row["quote"] for row in sealed["verified_propositions"]}
     for row in sealed["verified_propositions"]:
         for child_id in row.get("responsive_obligation_ids", []):
             tagged_for_child.setdefault(child_id, set()).add(row["proposition_id"])
@@ -71,7 +72,13 @@ def units_by_child(sealed: dict) -> dict[str, list[dict]]:
                 pid for pid in unit["proposition_ids"] if pid not in own_ids
             ]
             by_child.setdefault(child_id, []).append(
-                {**unit, "proposition_ids": ordered, "proposition_anchor": proposition_anchor}
+                {
+                    **unit,
+                    "proposition_ids": ordered,
+                    "proposition_anchor": proposition_anchor,
+                    # Exact quotes allow v5 to verify shared offset coordinates. No historical consumer reads this.
+                    "proposition_passages": {pid: passage_by_proposition[pid] for pid in ordered},
+                }
             )
     return by_child
 

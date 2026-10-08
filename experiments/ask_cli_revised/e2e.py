@@ -812,14 +812,15 @@ def execute(
     # Phase 27b: the SAME persisted scoped-search status the parent record carries feeds the final target computation.
     # A requirement's zero-evidence deficit closes only when its own search completed AND the final map is genuinely
     # empty for it. The initial inventory above is computed with no status, so the search obligation itself is kept.
-    # Phase 33 / I2-2: obligations are the INITIAL targets plus, under v4, the RAW final targets (no status suppression),
+    # Phase 33 / I2-2: obligations are the INITIAL targets plus, under v4/v5 (unchanged recovery rules), the RAW final targets (no status suppression),
     # so a target first exposed by the final map is accounted for. A raw-final target with no recovery-log row is
     # not_attempted and remains recoverable.
     raw_final_targets = (
         sufficiency_recovery_targets.compute_recovery_targets(
             sufficiency_map_final, sufficiency_parent_of or {}, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
         )
-        if sufficiency_map_final is not None and se.SUFFICIENCY_SEMANTICS_VERSION == se.SUFFICIENCY_SEMANTICS_V4
+        if sufficiency_map_final is not None
+        and se.SUFFICIENCY_SEMANTICS_VERSION in (se.SUFFICIENCY_SEMANTICS_V4, se.SUFFICIENCY_SEMANTICS_V5)
         else None
     )
     obligations = sufficiency_recovery_targets.search_obligations(

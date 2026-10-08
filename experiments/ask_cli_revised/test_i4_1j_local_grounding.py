@@ -500,13 +500,18 @@ _PRODUCTION_FILES = (
 
 
 def test_no_production_module_consumes_the_i4_1j_primitives():
+    # I4-2a authorizes only the exact mapper path, across every production subtree (including future files).
+    repo = HERE.parents[1]
+    allowed = {HERE / "sufficiency_mapping.py", HERE / "target_relevance.py", HERE / "assertion_authority.py"}
     offenders = {}
-    for filename in _PRODUCTION_FILES:
-        text = (HERE / filename).read_text(encoding="utf-8")
-        hit = [name for name in _I4_1J_NAMES if name in text]
-        if hit:
-            offenders[filename] = hit
-    assert offenders == {}, f"I4-1j must stay unconsumed: {offenders}"
+    for root in ("app", "integrations", "experiments", "tools", "tests", "mcp_server", "tui", "sync_server"):
+        for path in (repo / root).rglob("*.py"):
+            if path.name.startswith("test_") or path in allowed or "__pycache__" in path.parts:
+                continue
+            hit = [name for name in _I4_1J_NAMES if name in path.read_text(encoding="utf-8", errors="replace")]
+            if hit:
+                offenders[str(path.relative_to(repo))] = hit
+    assert offenders == {}, f"Only the mapper may consume local grounding: {offenders}"
 
 
 def test_answer_plan_package_does_not_consume_the_i4_1j_primitives():
@@ -544,7 +549,7 @@ def test_assertion_authority_unwired_guard_is_unaffected_by_the_new_function():
 def test_versions_are_unchanged_for_sufficiency_and_plan():
     from experiments.ask_cli_revised.answer_plan import plan as ap
 
-    assert se.SUFFICIENCY_SEMANTICS_VERSION == se.SUFFICIENCY_SEMANTICS_V4
+    assert se.SUFFICIENCY_SEMANTICS_VERSION == se.SUFFICIENCY_SEMANTICS_V5  # I4-2a integration
     assert ap.PLAN_VERSION == "answer-plan-step2-v4"
 
 

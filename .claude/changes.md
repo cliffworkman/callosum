@@ -9,6 +9,17 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-10-08 — Ask Phase 34 / I4-2a local grounding and coordinate repair
+- **Files:** experiments/ask_cli_revised sufficiency engine, mapping, diagnostics, recovery, direction/witness
+  version dispatch, integration/static tests, results report and contribution lineage.
+- **What:** Completed the preserved Claude+Cody v5 local assertion candidate integration and moved plural
+  coordinate validation after raw-hit detection, before joining. Explicit v4 semantics remain byte-identical.
+- **Why:** Whole-passage evidence could attach an unrelated result to a sibling target; the premature check
+  also rejected zero-hit pooled hierarchy fixtures. Both corrections are pinned by focused/replay gates.
+- **Revert:** Revert the single combined I4-2a implementation commit; preserve ee09b491 historical inputs.
+- **Evidence:** PHASE34_I4_2A_LOCAL_GROUNDING_INTEGRATION_RESULTS.md; local replay/test logs under .local/i4-2a;
+  security-audits/2026-10-08_ask-i4-2a-local-grounding.md. No live model/retrieval run or I4-2b work.
+
 ## 2026-09-11 — run_dev.py: reap the whole process tree + port preflight (issue #36 / legacy #83)
 - **Files:** `tools/run_dev.py`, `tests/test_run_dev.py` (new).
 - **What:** `_stop_all` now kills each child's **whole process tree** (`taskkill /T /F` on Windows;

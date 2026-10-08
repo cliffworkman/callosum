@@ -107,6 +107,8 @@ _REFERENT_CONTAINMENT = {
     se.SUFFICIENCY_SEMANTICS_V3: _contains_case_insensitive,
     # v4 changes category semantics only; referent containment is the v2/v3 rule.
     se.SUFFICIENCY_SEMANTICS_V4: _contains_case_insensitive,
+    # v5 (I4-2a) changes achieved-outcome mapping only; referent containment is the v2/v3/v4 rule, unchanged.
+    se.SUFFICIENCY_SEMANTICS_V5: _contains_case_insensitive,
 }
 
 

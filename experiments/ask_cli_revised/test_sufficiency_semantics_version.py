@@ -18,10 +18,11 @@ from experiments.ask_cli_revised import sufficiency_identity as si
 from experiments.ask_cli_revised import sufficiency_recovery_targets as srt
 from experiments.ask_cli_revised.answer_plan import relations as rel
 
-CURRENT = "sufficiency-semantics-v4"  # I2-2: the category semantics bump
+CURRENT = "sufficiency-semantics-v5"  # I4-2a: the achieved-outcome local-grounding bump
 HISTORICAL_V1 = "sufficiency-semantics-v1"
 HISTORICAL_V2 = "sufficiency-semantics-v2"
 HISTORICAL_V3 = "sufficiency-semantics-v3"
+HISTORICAL_V4 = "sufficiency-semantics-v4"
 RUN = (
     Path(__file__).resolve().parents[2]
     / ".local"
@@ -59,12 +60,16 @@ def test_a_stamped_map_carries_the_semantics_version_on_every_child():
 
 
 def test_the_constant_and_its_key_are_the_documented_values():
-    assert se.SUFFICIENCY_SEMANTICS_VERSION == CURRENT == "sufficiency-semantics-v4"
+    assert se.SUFFICIENCY_SEMANTICS_VERSION == CURRENT == "sufficiency-semantics-v5"
     assert se.SEMANTICS_VERSION_KEY == "sufficiency_semantics_version"
-    assert se.HISTORICAL_SUFFICIENCY_SEMANTICS_VERSIONS == frozenset({HISTORICAL_V1, HISTORICAL_V2, HISTORICAL_V3})
-    # Readable is not current: the supported set contains the historical version too.
+    # I4-2a: v4 moves from current to historical -- the exact, intended consequence of the bump,
+    # confirmed here rather than merely asserted in the change itself.
+    assert se.HISTORICAL_SUFFICIENCY_SEMANTICS_VERSIONS == frozenset(
+        {HISTORICAL_V1, HISTORICAL_V2, HISTORICAL_V3, HISTORICAL_V4}
+    )
+    # Readable is not current: the supported set contains every historical version too.
     assert se.SUPPORTED_SUFFICIENCY_SEMANTICS_VERSIONS == frozenset(
-        {CURRENT, HISTORICAL_V1, HISTORICAL_V2, HISTORICAL_V3}
+        {CURRENT, HISTORICAL_V1, HISTORICAL_V2, HISTORICAL_V3, HISTORICAL_V4}
     )
 
 

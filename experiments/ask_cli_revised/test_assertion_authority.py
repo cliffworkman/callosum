@@ -207,7 +207,7 @@ def test_module_has_no_q_aib_vocabulary():
 
 
 def test_semantics_and_plan_versions_are_unchanged():
-    assert se.SUFFICIENCY_SEMANTICS_VERSION == "sufficiency-semantics-v4"
+    assert se.SUFFICIENCY_SEMANTICS_VERSION == "sufficiency-semantics-v5"  # I4-2a integration
     assert pl.PLAN_VERSION == "answer-plan-step2-v4"
 
 
@@ -221,6 +221,8 @@ def test_classifier_is_unwired_static_guard():
             continue
         for path in base.rglob("*.py"):
             if path.name.startswith("test_") or path.name == "assertion_authority.py":
+                continue
+            if path == HERE / "sufficiency_mapping.py":  # sole I4-2a production seam
                 continue
             if "__pycache__" in path.relative_to(repo).parts:
                 continue

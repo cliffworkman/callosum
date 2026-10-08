@@ -25,12 +25,21 @@ from __future__ import annotations
 import re
 
 from app.backend.pdf_processing.extraction import canonical_text_contains
+from experiments.ask_cli_revised import achieved_outcome_span as aos
+from experiments.ask_cli_revised import assertion_authority as aa
 from experiments.ask_cli_revised import category_polarity as cp
 from experiments.ask_cli_revised import direction_target as dtg
 from experiments.ask_cli_revised import overview_evidence as oe
 from experiments.ask_cli_revised import sufficiency_engine as se
 from experiments.ask_cli_revised import sufficiency_model_scope as mscope
+from experiments.ask_cli_revised import target_relevance as tr
 from experiments.ask_cli_revised.contract_directed import attribution as attr
+
+# I4-2a: this is the ONE authorized production seam for the I4-1 local-grounding family
+# (assertion_authority / achieved_outcome_span / target_relevance). No other production module
+# may import any of the three -- each has its own static guard proving exactly that (see
+# test_assertion_authority.py / test_achieved_outcome_span.py / test_i4_1j_local_grounding.py's
+# own allow-list guards, all updated in this increment to name this one file and no other).
 
 _WORD_TOKEN = re.compile(r"[A-Za-z][A-Za-z']*")
 
@@ -80,8 +89,231 @@ def _match_instrument(text: str) -> str | None:
 
 def _match_achieved_outcome(text: str) -> str | None:
     """Reuses `attribution.has_result_predicate` unmodified. Returns the whole passage as the
-    supporting text -- a stated result is a property of the passage as a whole, not one token."""
+    supporting text -- a stated result is a property of the passage as a whole, not one token.
+    This is the v1-v4 HISTORICAL rule, frozen exactly as-is; see `_bind_achieved_outcome_v5` for
+    the v5 local-grounding replacement, which never calls this function."""
     return text if attr.has_result_predicate(text) else None
+
+
+# ---------------------------------------------------------------------------------------------
+# I4-2a / sufficiency-semantics-v5: local-grounding candidate collection for `achieved_outcome_
+# predicate` roles only. Every other mapping_strategy, and this same strategy under any historical
+# version, is completely untouched -- `_bind_achieved_outcome_v5` is reached only from the one
+# `semantics_version == V5` branch in `_bind_role_candidates`.
+# ---------------------------------------------------------------------------------------------
+
+
+def _sibling_support_set(binding: dict) -> set:
+    """Mirrors ``sufficiency_engine._support_set`` exactly (a private helper of that module, not
+    reached into here -- the same documented choice `parent_synthesis_ledger.py`'s own identical
+    copy already made: the formula is tiny and already covered by that module's own test suite,
+    and duplicating it avoids reaching across a module boundary into another module's private
+    name). Normalizes a binding's singular `proposition_id` UNION its plural `provenance.
+    supporting_proposition_ids` (when present) into one proposition-identity set -- the relationship-
+    derived allowed scope for I4-2a's own target-relevance matching (directive section 9)."""
+    proposition_id = binding.get("proposition_id")
+    supporting = binding.get("provenance", {}).get("supporting_proposition_ids")
+    support = set(supporting) if supporting else set()
+    if proposition_id is not None:
+        support.add(proposition_id)
+    return support
+
+
+def resolve_target_dependency(role_completion: dict | None, evidence_role: str, sibling_bindings: dict | None) -> dict:
+    """Resolve completion dependencies without interpreting role names or inventing multi-target semantics.
+
+    Each other required role and each required alternative group is a dependency slot. A group containing
+    the evidence role needs no sibling: filling the evidence itself satisfies that alternative. Optional
+    roles impose no dependency. More than one slot, or multiple filled alternatives, is ambiguous.
+    Missing completion context is unavailable, never an implicit target-free contract.
+    """
+
+    def result(status, reason, role=None, binding=None):
+        return {
+            "status": status,
+            "reason": reason,
+            "role": role,
+            "target_text": binding["exact_text"] if binding else None,
+            "allowed_proposition_ids": _sibling_support_set(binding) if binding else None,
+        }
+
+    if role_completion is None:
+        return result("unavailable", "completion_context_unavailable")
+    slots = [[r] for r in role_completion.get("required_roles", []) if r != evidence_role]
+    slots.extend(
+        list(group) for group in role_completion.get("alternative_role_groups", []) if evidence_role not in group
+    )
+    if not slots:
+        return result("target_free", "no_dependency")
+    if len(slots) > 1:
+        return result("ambiguous", "multiple_dependencies")
+    bindings = sibling_bindings or {}
+    roles = slots[0]
+    filled = [role for role in roles if bindings.get(role, {}).get("state") == "filled"]
+    if len(filled) > 1:
+        return result("ambiguous", "multiple_filled_alternatives")
+    if not filled:
+        return result("unavailable", "dependency_not_filled", roles[0] if len(roles) == 1 else None)
+    role = filled[0]
+    binding = bindings[role]
+    if not isinstance(binding.get("exact_text"), str) or not binding["exact_text"].strip():
+        return result("unavailable", "target_text_unavailable", role)
+    if not _sibling_support_set(binding):
+        return result("unavailable", "proposition_support_unavailable", role)
+    return result("ready", "unique_dependency", role, binding)
+
+
+def _bind_achieved_outcome_v5(
+    role_spec: dict,
+    units: list[dict],
+    *,
+    sibling_bindings: dict | None,
+    role_completion: dict | None,
+    diagnostics: dict | None = None,
+) -> list[dict]:
+    """Collect grounded, relevant assertions; project the first only for legacy compatibility.
+
+    Existing guards run before localization. Raw hits join to containing assertions, deduplicated by
+    (coordinate-anchor proposition, assertion span). Both target matching and exact_text use the full
+    LOCAL assertion region, including its subject; content_span retains the tighter localization.
+    Plural identity preserves input unit order. A multi-id unit must carry sealed proposition_passages
+    with byte-identical text once raw hits exist; its first id is an offset anchor, never its sole semantic source.
+    Diagnostics are optional observations and never control mapping state. No support policy is read.
+    """
+    role = role_spec["role"]
+    dependency = resolve_target_dependency(role_completion, role, sibling_bindings)
+    counts = dict.fromkeys(
+        (
+            "eligible_units",
+            "guard_excluded_units",
+            "raw_result_predicate_hits",
+            "successful_assertion_joins",
+            "join_failures",
+            "raw_hits_deduplicated",
+            "locally_grounded_assertions",
+            "target_scoped_assertions",
+            "target_matches",
+            "target_unmatched",
+            "candidate_supports_emitted",
+            "missing_no_grounded_relevant_support",
+        ),
+        0,
+    )
+    resolved = []
+    seen = set()
+    for unit in units:
+        counts["eligible_units"] += 1
+        if not is_admissible(role_spec, unit.get("flags", {})):
+            counts["guard_excluded_units"] += 1
+            continue
+        proposition_ids = list(unit.get("proposition_ids") or [])
+        if not proposition_ids:
+            continue
+        if len(set(proposition_ids)) != len(proposition_ids):
+            raise ValueError("supporting_proposition_ids must not contain duplicates")
+        passage = unit["passage"]
+        matches = aos.find_achieved_outcome_matches(passage).matches
+        if not matches:
+            continue
+        # Raw spans require a shared coordinate system before assertion joining.
+        if len(proposition_ids) > 1:
+            quotes = unit.get("proposition_passages", {})
+            if any(quotes.get(pid) != passage for pid in proposition_ids):
+                raise ValueError("plural proposition spans require byte-identical sealed passages")
+        anchor = proposition_ids[0]
+        for match in matches:
+            counts["raw_result_predicate_hits"] += 1
+            joined = aa.locate_containing_assertion(passage, match.content_span[0], match.content_span[1])
+            if not joined["resolved"]:
+                counts["join_failures"] += 1
+                continue
+            counts["successful_assertion_joins"] += 1
+            key = (anchor, tuple(joined["assertion"]["span"]))
+            if key in seen:
+                counts["raw_hits_deduplicated"] += 1
+                continue
+            seen.add(key)
+            resolved.append(
+                {
+                    "proposition_ids": proposition_ids,
+                    "assertion": joined["assertion"],
+                    "predicate_span": match.predicate_span,
+                    "content_span": match.content_span,
+                    "flags": unit.get("flags", {}),
+                }
+            )
+    counts["locally_grounded_assertions"] = len(resolved)
+    if dependency["status"] == "target_free":
+        relevant = resolved
+    elif dependency["status"] == "ready":
+        scoped = [
+            (i, r) for i, r in enumerate(resolved) if set(r["proposition_ids"]) & dependency["allowed_proposition_ids"]
+        ]
+        counts["target_scoped_assertions"] = len(scoped)
+        matcher_candidates = [
+            {"proposition_id": r["proposition_ids"][0], "text": r["assertion"]["assertion"]["text"], "_i": i}
+            for i, r in scoped
+        ]
+        matched = tr.match_target_to_assertions(
+            target_text=dependency["target_text"],
+            candidate_assertions=matcher_candidates,
+        )
+        indices = {m["_i"] for m in matched["matches"]}
+        relevant = [record for i, record in enumerate(resolved) if i in indices]
+        counts["target_matches"] = len(relevant)
+        counts["target_unmatched"] = len(scoped) - len(relevant)
+    elif dependency["status"] in ("unavailable", "ambiguous"):
+        relevant = []
+    else:
+        raise ValueError(f"unknown dependency status: {dependency['status']!r}")
+
+    candidate_supports = []
+    for record in relevant:
+        assertion = record["assertion"]
+        relation = aa.assertion_relation(assertion["assertion_source"])
+        aggregation = assertion["aggregation"]
+        kind = assertion["assertion_kind"]
+        candidate_supports.append(
+            se.new_candidate_support(
+                supporting_proposition_ids=record["proposition_ids"],
+                span_proposition_id=record["proposition_ids"][0],
+                exact_text=assertion["assertion"]["text"],
+                assertion_span=list(assertion["span"]),
+                predicate_span=list(record["predicate_span"]) if record["predicate_span"] else None,
+                content_span=list(record["content_span"]) if record["content_span"] else None,
+                assertion_relation=relation,
+                aggregation=aggregation,
+                assertion_kind=kind,
+                support_label=aa.support_label(relation, aggregation, kind),
+                authority_veto=assertion.get("authority_veto"),
+                is_caption=False,
+                attachment_ambiguous=False,
+                admissible=None,
+                inadmissibility_reason=None,
+            )
+        )
+    counts["candidate_supports_emitted"] = len(candidate_supports)
+    counts["missing_no_grounded_relevant_support"] = int(not candidate_supports)
+    if diagnostics is not None:
+        diagnostics.update(counts)
+        diagnostics["dependency"] = dependency
+    if not candidate_supports:
+        return []
+    representative = candidate_supports[0]
+    binding = se.new_role_binding(
+        role,
+        state="filled",
+        proposition_id=representative["span_proposition_id"],
+        exact_text=representative["exact_text"],
+        provenance={
+            "candidate_source": "deterministic_mapping",
+            "detail": "achieved_outcome_predicate",
+            "model": None,
+            "supporting_proposition_ids": representative["supporting_proposition_ids"],
+        },
+        guard=relevant[0]["flags"],
+    )
+    return [{**binding, "candidate_supports": candidate_supports}]
 
 
 def _match_explicit_category_term(text: str, requested_terms: list[str]) -> str | None:
@@ -320,6 +552,8 @@ def _bind_role_candidates(
     nomination_context: dict | None = None,
     request_context: str | None = None,
     semantics_version: str,
+    sibling_bindings: dict | None = None,
+    role_completion: dict | None = None,
 ) -> list[dict]:
     """0+ FILLED role bindings for this role from these units. A deterministic-strategy role can
     only ever produce 0 or 1 candidate here (the first admissible unit whose detector matches,
@@ -327,6 +561,15 @@ def _bind_role_candidates(
     `model_client` can return more than one, which is what lets a caller fork an instance
     (`map_requirement`/`map_paired_requirement`). With `model_client=None` (every existing call
     site) this function's observable behavior is identical to the old `_bind_role_from_units`.
+
+    I4-2a: `sibling_bindings`/`role_completion` are BOTH optional, default `None`, and consulted
+    ONLY by the v5 `achieved_outcome_predicate` path (`_bind_achieved_outcome_v5`) -- every other
+    strategy, and every historical semantics version, ignores them completely, so every existing
+    call site that omits them (every one before this phase) is byte-identical. `sibling_bindings`
+    is the CURRENT fork's own `role_bindings` dict as already built by `_fork_instances_over_role`
+    at the moment this role is reached -- never re-derived, never read from anywhere else -- and
+    `role_completion` is the owning requirement's own, already-authored `role_completion` (never
+    inferred from role names).
 
     Phase 19: `child_id`/`requirement_id`/`nomination_context` are ALL optional and default to
     `None`. When `nomination_context is None` (every pre-Phase-19 caller), the model branch below
@@ -347,10 +590,21 @@ def _bind_role_candidates(
     overwhelming majority -- any non-multi-instance requirement) observes `request_context=None`,
     byte-identical to before this phase."""
     se.require_supported_semantics_version(semantics_version)
-    if semantics_version == se.SUFFICIENCY_SEMANTICS_V4 and role_spec["mapping_strategy"] == "explicit_category_terms":
-        # v4 category observations are collected only by the cardinality mapper. A non-cardinality category role has
-        # no v4 rule and must not silently fall back to first-match.
-        raise ValueError("v4 category observations apply only to all_requested_categories requirements")
+    if (
+        semantics_version in (se.SUFFICIENCY_SEMANTICS_V4, se.SUFFICIENCY_SEMANTICS_V5)
+        and role_spec["mapping_strategy"] == "explicit_category_terms"
+    ):
+        # v4/v5 category observations are collected only by the cardinality mapper (v5 reuses v4's own category
+        # rule unchanged). A non-cardinality category role has no v4/v5 rule and must not silently fall back to
+        # first-match.
+        raise ValueError("v4/v5 category observations apply only to all_requested_categories requirements")
+    if (
+        semantics_version == se.SUFFICIENCY_SEMANTICS_V5
+        and role_spec["mapping_strategy"] == "achieved_outcome_predicate"
+    ):
+        return _bind_achieved_outcome_v5(
+            role_spec, units, sibling_bindings=sibling_bindings, role_completion=role_completion
+        )
     role = role_spec["role"]
     for unit in units:
         if not is_admissible(role_spec, unit.get("flags", {})):
@@ -456,6 +710,7 @@ def _fork_instances_over_role(
     nomination_context: dict | None = None,
     request_context: str | None = None,
     semantics_version: str,
+    role_completion: dict | None = None,
 ) -> list[dict]:
     """Extends each of `forks` (a list of in-progress `Instance` dicts, initially length 1) with a
     binding for `role`. When `_bind_role_candidates` returns MORE THAN ONE grounded candidate for
@@ -469,6 +724,15 @@ def _fork_instances_over_role(
     (`map_requirement`/`map_paired_requirement`) re-derives a content-based key, once, only after
     ALL roles have been processed for an original instance -- see `sufficiency_engine.
     derive_instance_key`.
+
+    I4-2a: `role_completion` (optional, default `None`) is the owning requirement's own, already-
+    authored `role_completion` -- relayed, unread, straight to `_bind_role_candidates`, which is
+    the only place it (and this fork's own `role_bindings`-so-far) is actually consulted, and only
+    for a v5 `achieved_outcome_predicate` role. A v5 achieved-outcome role still yields 0 or 1
+    candidate here, same as every other deterministic strategy -- MULTIPLE locally-grounded,
+    relevant local assertions never fork multiple instances; they are retained together inside
+    that one binding's own additive `candidate_supports` list instead (section 16 of the
+    directive). Forking remains exclusively a `model_nomination_only` behavior.
 
     Phase 16: the `parent_context_bindings` fallback this function used to offer was retired --
     own-evidence-vs-parent-context dispatch for the ONE role that can legitimately inherit a
@@ -492,6 +756,8 @@ def _fork_instances_over_role(
             nomination_context=nomination_context,
             request_context=request_context,
             semantics_version=semantics_version,
+            sibling_bindings=forked["role_bindings"],
+            role_completion=role_completion,
         )
         if not candidates:
             missing = se.new_role_binding(role, state="missing", reason="not_found")
@@ -597,6 +863,7 @@ def map_requirement(
                 nomination_context=nomination_context,
                 request_context=root_key,
                 semantics_version=semantics_version,
+                role_completion=requirement["role_completion"],
             )
         all_instances.extend(_rederive_keys_if_forked(forks, root_key))
 
@@ -657,7 +924,9 @@ def map_cardinality_requirement(
             "Refusing before any model call rather than silently colliding two terms' receipts; see "
             "sufficiency_mapping.py's map_cardinality_requirement docstring for the backlogged fix."
         )
-    if semantics_version == se.SUFFICIENCY_SEMANTICS_V4:
+    # I4-2a: category requirements are completely untouched by v5 (the local-grounding change applies only to
+    # achieved_outcome_predicate roles) -- v5 reuses v4's own rich category-observation behavior unchanged.
+    if semantics_version in (se.SUFFICIENCY_SEMANTICS_V4, se.SUFFICIENCY_SEMANTICS_V5):
         return _map_category_requirement_v4(
             requirement, candidate_units, spec=spec, role=role, semantics_version=semantics_version
         )
@@ -914,6 +1183,7 @@ def map_paired_requirement(
                 requirement_id=requirement_id,
                 nomination_context=nomination_context,
                 semantics_version=semantics_version,
+                role_completion=requirement["role_completion"],
             )
         return _rederive_keys_if_forked(forks, root_key)
 
@@ -928,6 +1198,7 @@ def map_paired_requirement(
             requirement_id=requirement_id,
             nomination_context=nomination_context,
             semantics_version=semantics_version,
+            role_completion=requirement["role_completion"],
         )
     )
     if own_candidates:
@@ -1096,7 +1367,8 @@ def find_direction_observations(
     # Only the pre-I3 versions take the historical rule. v3 is historical as an identity (I2-2) but is NOT the v1/v2 rule.
     if semantics_version in (se.SUFFICIENCY_SEMANTICS_V1, se.SUFFICIENCY_SEMANTICS_V2):
         return _find_direction_observations_v1_v2(requirement, grounding_units)
-    if semantics_version not in (se.SUFFICIENCY_SEMANTICS_V3, se.SUFFICIENCY_SEMANTICS_V4):
+    # I4-2a: v5 changes achieved-outcome mapping only; direction observations are the unchanged v3/v4 rule.
+    if semantics_version not in (se.SUFFICIENCY_SEMANTICS_V3, se.SUFFICIENCY_SEMANTICS_V4, se.SUFFICIENCY_SEMANTICS_V5):
         raise ValueError(f"no direction-observation rule for sufficiency-semantics version {semantics_version!r}")
     if requirement.get("direction") is None:
         return []

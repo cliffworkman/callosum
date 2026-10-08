@@ -165,6 +165,8 @@ def test_module_is_unwired_static_guard():
         for path in base.rglob("*.py"):
             if path.name.startswith("test_") or path.name == "achieved_outcome_span.py":
                 continue
+            if path == HERE / "sufficiency_mapping.py":  # sole I4-2a production seam
+                continue
             if "__pycache__" in path.relative_to(repo).parts:
                 continue
             text = path.read_text(encoding="utf-8", errors="replace")
@@ -187,7 +189,7 @@ def test_module_does_not_modify_attribution_module():
 
 
 def test_versions_are_unchanged_for_sufficiency_and_plan():
-    assert se.SUFFICIENCY_SEMANTICS_VERSION == "sufficiency-semantics-v4"
+    assert se.SUFFICIENCY_SEMANTICS_VERSION == "sufficiency-semantics-v5"  # I4-2a integration
     assert pl.PLAN_VERSION == "answer-plan-step2-v4"
     assert aos.SCHEMA_VERSION == "i4-1d.0"
 

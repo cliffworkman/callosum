@@ -98,12 +98,20 @@ RELATIONSHIP_VERIFIERS = ("same_proposition", "contract_directed_links")
 #       proposition. The single-operand fallback is removed (an unresolved sign with one realised operand is unknown).
 #       Literal valence includes adverbial forms ("negatively associated"). Relation summaries count only
 #       relation-eligible observations. Operand-level valence stays as observation metadata.
-#   sufficiency-semantics-v4 (I2-2, CURRENT): v3 for every non-category mapping, direction, witness, effectiveness
+#   sufficiency-semantics-v4 (I2-2): v3 for every non-category mapping, direction, witness, effectiveness
 #       and parent-context behaviour. For explicit_category_terms requirements (all_requested_categories only):
 #       every admissible literal observation is collected and classified (category_polarity); the representative
 #       binding is chosen by fixed polarity precedence; an instance is complete only when established_presence is
 #       satisfied (at least one positive observation); an unsatisfied bound category yields a semantic_goal_unsatisfied
 #       recovery target, terminal per target once its search completed. Historical v1-v3 keep first-match mapping.
+#   sufficiency-semantics-v5 (I4-2a, CURRENT): v4 except deterministic achieved_outcome_predicate mapping.
+#       Result hits join to local assertions and dedupe by (span proposition, assertion span). Only genuine
+#       no-dependency roles are target-free. One available completion sibling (including a unique filled
+#       alternative) supplies exact_text and proposition scope; unavailable or multiple dependencies fail
+#       closed. Relevant local assertions remain together in candidate_supports with admissible=None.
+#       Full local assertion text and the first candidate's anchor project to the legacy binding. No support
+#       policy is evaluated. Categories, guards, verifiers, direction, effectiveness, recovery, and witnesses
+#       inherit the explicit v4 rules. Historical v1-v4 retain whole-passage achieved-outcome mapping.
 #
 # CURRENT is the only version new production accepts. SUPPORTED lists every version this code can READ; membership in
 # it does not make a version current. Historical versions are readable only through an explicit historical path.
@@ -116,9 +124,10 @@ SUFFICIENCY_SEMANTICS_V1 = "sufficiency-semantics-v1"
 SUFFICIENCY_SEMANTICS_V2 = "sufficiency-semantics-v2"
 SUFFICIENCY_SEMANTICS_V3 = "sufficiency-semantics-v3"
 SUFFICIENCY_SEMANTICS_V4 = "sufficiency-semantics-v4"
-SUFFICIENCY_SEMANTICS_VERSION = SUFFICIENCY_SEMANTICS_V4
+SUFFICIENCY_SEMANTICS_V5 = "sufficiency-semantics-v5"
+SUFFICIENCY_SEMANTICS_VERSION = SUFFICIENCY_SEMANTICS_V5
 HISTORICAL_SUFFICIENCY_SEMANTICS_VERSIONS = frozenset(
-    {SUFFICIENCY_SEMANTICS_V1, SUFFICIENCY_SEMANTICS_V2, SUFFICIENCY_SEMANTICS_V3}
+    {SUFFICIENCY_SEMANTICS_V1, SUFFICIENCY_SEMANTICS_V2, SUFFICIENCY_SEMANTICS_V3, SUFFICIENCY_SEMANTICS_V4}
 )
 SUPPORTED_SUFFICIENCY_SEMANTICS_VERSIONS = (
     frozenset({SUFFICIENCY_SEMANTICS_VERSION}) | HISTORICAL_SUFFICIENCY_SEMANTICS_VERSIONS
@@ -584,7 +593,7 @@ def new_candidate_support(
     assertion_relation: str,
     aggregation: str,
     assertion_kind: str,
-    admissible: bool,
+    admissible: bool | None = None,
     span_proposition_id: str | None = None,
     assertion_span=None,
     predicate_span=None,
@@ -620,7 +629,15 @@ def new_candidate_support(
     ``assertion_relation`` already carries its ownership information without the real naming-collision risk that
     value's literal ``"candidate"`` string would otherwise create next to this codebase's unrelated AI-funnel
     sense of the same word (``paper_findings.kind="candidate"``). ``authority_veto``/``is_caption`` are retained,
-    as properties of this specific (assertion, target) binding attempt, not of the assertion alone."""
+    as properties of this specific (assertion, target) binding attempt, not of the assertion alone.
+
+    I4-2a correction (directive section 14): ``admissible`` is now three-valued, ``True | False | None`` --
+    ``None`` (the new default) means "not yet evaluated by any support policy," the one honest state I4-2a's own
+    local-grounding candidates actually have (I4-2b's `support_policy` does not exist yet). This is a DIFFERENT
+    fact from "evaluated and found inadmissible" (``False``) and must never collapse into it -- the prior
+    ``bool(admissible)`` coercion below, which silently turned an omitted/``None`` value into ``False``, is
+    removed; ``admissible`` is now stored exactly as given. ``True``/``False`` remain reserved for I4-2b's actual
+    policy evaluation; a candidate the policy has not yet looked at is not the same claim as one it rejected."""
     if not supporting_proposition_ids:
         raise ValueError("supporting_proposition_ids must not be empty")
     if len(set(supporting_proposition_ids)) != len(supporting_proposition_ids):
@@ -636,10 +653,14 @@ def new_candidate_support(
         raise ValueError(f"unknown authority_veto: {authority_veto!r}")
     if inadmissibility_reason not in CANDIDATE_SUPPORT_INADMISSIBILITY_REASONS:
         raise ValueError(f"unknown inadmissibility_reason: {inadmissibility_reason!r}")
-    if admissible and inadmissibility_reason is not None:
+    if admissible is not None and type(admissible) is not bool:
+        raise ValueError(f"admissible must be True, False, or None: {admissible!r}")
+    if admissible is True and inadmissibility_reason is not None:
         raise ValueError("an admissible candidate must not carry an inadmissibility_reason")
-    if not admissible and inadmissibility_reason is None:
+    if admissible is False and inadmissibility_reason is None:
         raise ValueError("an inadmissible candidate must carry an inadmissibility_reason")
+    if admissible is None and inadmissibility_reason is not None:
+        raise ValueError("a not-yet-evaluated candidate (admissible=None) must not carry an inadmissibility_reason")
     has_span = assertion_span is not None or predicate_span is not None or content_span is not None
     if has_span and span_proposition_id is None:
         raise ValueError("span_proposition_id is required whenever a span is present")
@@ -659,7 +680,7 @@ def new_candidate_support(
         "authority_veto": authority_veto,
         "is_caption": bool(is_caption),
         "attachment_ambiguous": bool(attachment_ambiguous),
-        "admissible": bool(admissible),
+        "admissible": admissible,
         "inadmissibility_reason": inadmissibility_reason,
     }
 
@@ -976,8 +997,12 @@ def recompute_instance(
     alt_ok = all(any(filled(r) for r in group) for group in alt_groups)
     complete = required_ok and alt_ok
     if goal_gate:
-        if semantics_version != SUFFICIENCY_SEMANTICS_V4:
-            raise ValueError("the category goal gate is a v4 rule")
+        # I4-2a: category semantics are completely unchanged under v5 (the achieved-outcome local-grounding
+        # change touches no category requirement), so the v4 category goal gate applies identically here --
+        # never because v5 silently inherits "whatever v4 did," but because this specific rule was audited
+        # and explicitly carried forward.
+        if semantics_version not in (SUFFICIENCY_SEMANTICS_V4, SUFFICIENCY_SEMANTICS_V5):
+            raise ValueError("the category goal gate is a v4/v5 rule")
         complete = complete and category_goal_satisfied(instance)
 
     roles_in_play = completion_roles(role_completion)
@@ -1077,7 +1102,11 @@ def recompute_requirement(requirement: dict, *, context: dict | None = None, sem
     require_supported_semantics_version(semantics_version)
     role_completion = requirement["role_completion"]
     verifiers = requirement["relationship_verifiers"]
-    goal_gate = semantics_version == SUFFICIENCY_SEMANTICS_V4 and is_category_requirement(requirement)
+    # I4-2a: v5 inherits v4's own category-goal-gate rule unchanged (see recompute_instance's own note) --
+    # named explicitly, never via a bare "not v1-v3" fallback that would silently also catch some future v6.
+    goal_gate = semantics_version in (SUFFICIENCY_SEMANTICS_V4, SUFFICIENCY_SEMANTICS_V5) and is_category_requirement(
+        requirement
+    )
     recomputed_instances = [
         recompute_instance(
             role_completion, inst, verifiers, context=context, semantics_version=semantics_version, goal_gate=goal_gate

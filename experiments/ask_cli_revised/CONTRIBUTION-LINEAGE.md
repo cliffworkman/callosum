@@ -2445,3 +2445,64 @@ environment-artifact set every prior I4-1x report already names, confirmed zero 
 on all five touched/new files. The results artifact is `PHASE34_I4_1J_LOCAL_GROUNDING_PRIMITIVES_RESULTS.md`,
 which recommends READY for I4-2a and NOT READY for I4-2b, and which this increment stops after, per its own
 directive.
+
+
+## 2026-10-08 — Phase 34 / I4-2a continuation (in progress; stopped at regression gate)
+
+**Architecture and scope (Cliff Workman).** Continue Claude's five uncommitted files on ee09b491 as one
+implementation increment. Cody's first read-only review correctly stopped on target-free/dependency
+conflation. Cliff then resolved the decision explicitly: only genuine no-dependency is target-free; one
+unavailable dependency, multiple dependencies, or ambiguous alternatives fail closed. c1 uses the unique
+filled completion alternative; c3 stays target-free; c12 loses generic outcome evidence under v5.
+
+**Implementation (Claude + Cody/Codex, uncommitted).** Claude supplied the v5 identity/routing, sibling
+threading, candidate schema correction, partial binder, and initial direction/witness/category inheritance.
+Cody replaced the conflating helper with a structured dependency resolver, preserved discovery order,
+added quote-coordinate checks and diagnostics, completed production recovery version threading, began
+narrow guard migration, and added focused and real offline replay tests. No support-policy evaluation,
+new retrieval/nomination/model work, verifier registration, or AnswerPlan version change.
+
+**Verification and second stop (Cody).** Artifact hashes match. Explicit v4 output over the preserved
+input is byte-identical to saved HEAD modules, including AnswerPlan; 15 historical filled evidence roles
+and eight proposition ids are preserved. v5 produces ten filled evidence roles, correct c2/c4/c8 cases,
+c10 unchanged, c1/c3 locally grounded, and c12 missing after normal recompute. Full experiments testing
+then exposed 25 new integration failures: Cody's byte-identity check runs before result localization and
+rejects normalized pooled QUOTE 11/12/13 fixture units that have zero result hits. A representative test
+passes with HEAD modules and fails here. Cody stopped further implementation as instructed; no commit,
+push, or bypass. Two test migrations also remain unfinished. Full results: 3738 passed, 34 failed,
+12 skipped, 9 xfailed, one missing-psutil collection error, 276 subtests passed. NOT READY for I4-2b planning.
+
+See `PHASE34_I4_2A_LOCAL_GROUNDING_INTEGRATION_RESULTS.md` and its machine-readable replay annex for
+complete role-instance differences, diagnostics, downstream exposure, failure accounting, and restart work.
+
+
+## 2026-10-08 — Phase 34 / I4-2a coordinate-regression repair and completed gates
+
+**Boundary decision (Cliff Workman).** Resume the same dirty Claude+Cody work. Existing guards run first;
+zero raw result hits skip without a coordinate claim. Once a raw hit exists, plural sealed passages must
+be byte-identical before assertion joining or resolved records. Unequal coordinates retain the existing
+fail-closed ValueError. Discovery order remains authoritative; no splitting, conversion, or subset repair.
+
+**Repair and completion (Cody/Codex).** Moved only that check boundary; added the explicit v4/v5 coordinate
+matrix and pre-join rejection proof; migrated the independent I4-1f guard to the exact mapper allow-list with
+a negative second-consumer test; changed the stale unsupported v5 assertion to v999 while accepting v4/v5.
+Repaired the scratch socket harness to respect two test-owned guards. Classified the undeclared optional
+psutil prerequisite and ran all seven affected offline tests in the existing Anaconda environment; no install.
+
+**Verification.** Exact hierarchy representative passes; coordinate tests 12 passed. Focused: 1371 passed,
+9 xfailed, 85 subtests passed, only two verified baseline pin-related failures. Full declared-environment
+experiments: 3776 passed, 5 independently reconfirmed baseline/environment failures, 12 skipped, 9 xfailed,
+276 subtests passed, no collection errors; separate optional module 7 passed. Combined: 3783 passed and
+zero new failures. Each known failure reproduced against saved byte-verified HEAD modules and current code.
+Explicit v4 combined replay on both paths remains
+`4154ebd4062d22aa25db43e947aba61abe2c5888d6aa10d8ecd14b60afa65e4a`.
+Entire repaired v5 replay, diagnostics, and downstream projections equal the stopped-run v5: 15 → 10 filled
+outcome roles; real c1/c2/c3/c4/c8/c10/c12 expectations unchanged. Ruff format/check, Bandit, and Tach pass.
+
+**Handoff.** Combined Claude+Cody implementation is ready for review/acceptance as one commit; both stops
+are preserved in the results report. I4-2b planning awaits acceptance and is not begun. No support-policy
+implementation, guard-policy change, same_local_assertion registration, AnswerPlan edit, or live model work.
+
+**Commit hook exception.** The normal attempt passed all applicable hooks except the unchanged frontend
+615-line budget. Cliff's explicit I4-2a-only `--no-verify` exception applies to the combined implementation
+commit; no substantive gate was bypassed. Detailed hook output and failure accounting are in the report.

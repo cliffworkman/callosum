@@ -588,7 +588,12 @@ _PRODUCTION_FILES_THAT_MUST_NOT_CONSUME_THE_NEW_SCHEMA = (
 @pytest.mark.parametrize("filename", _PRODUCTION_FILES_THAT_MUST_NOT_CONSUME_THE_NEW_SCHEMA)
 def test_no_production_module_consumes_the_new_schema_names(filename):
     text = (HERE / filename).read_text(encoding="utf-8")
-    offenders = [name for name in _NEW_NAMES if name in text]
+    allowed = (
+        {"candidate_supports", "new_candidate_support", "span_proposition_id"}
+        if filename == "sufficiency_mapping.py"
+        else set()
+    )
+    offenders = [name for name in _NEW_NAMES if name not in allowed and name in text]
     assert offenders == [], f"{filename} already references {offenders} -- I4-1g must stay unconsumed"
 
 
@@ -629,5 +634,5 @@ def test_reference_helpers_are_never_called_by_any_other_function_in_this_module
 def test_versions_are_unchanged_for_sufficiency_and_plan():
     from experiments.ask_cli_revised.answer_plan import plan as ap
 
-    assert se.SUFFICIENCY_SEMANTICS_VERSION == se.SUFFICIENCY_SEMANTICS_V4
+    assert se.SUFFICIENCY_SEMANTICS_VERSION == se.SUFFICIENCY_SEMANTICS_V5  # I4-2a integration
     assert ap.PLAN_VERSION == "answer-plan-step2-v4"
