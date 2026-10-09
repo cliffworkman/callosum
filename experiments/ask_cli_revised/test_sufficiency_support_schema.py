@@ -634,5 +634,5 @@ def test_reference_helpers_are_never_called_by_any_other_function_in_this_module
 def test_versions_are_unchanged_for_sufficiency_and_plan():
     from experiments.ask_cli_revised.answer_plan import plan as ap
 
-    assert se.SUFFICIENCY_SEMANTICS_VERSION == se.SUFFICIENCY_SEMANTICS_V5  # I4-2a integration
+    assert se.SUFFICIENCY_SEMANTICS_VERSION == se.SUFFICIENCY_SEMANTICS_V6  # I4-2b3 attribution-only integration
     assert ap.PLAN_VERSION == "answer-plan-step2-v4"

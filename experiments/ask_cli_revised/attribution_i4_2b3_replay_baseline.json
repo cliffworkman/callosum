@@ -1,0 +1,12 @@
+{
+  "schema_version": "attribution-replay-baseline-v1",
+  "packet_sha256": "1949dc56e4abcbb58f7ebf512387c3c6041bdf0a2176facd64aaf44bea1e83f6",
+  "v4_sha256": "4154ebd4062d22aa25db43e947aba61abe2c5888d6aa10d8ecd14b60afa65e4a",
+  "v5_sha256": "109030de83856b4384d596311dd8e3f6d46d19859c895c4b94b9efb3aa92ae77",
+  "v6_sha256": "dabef2f553b5e9301f9daa3a344b624ee6afb3e0f41fbce18b096587736822be",
+  "context_manifest_sha256": "3e3a72f4cd9be783e7932024f004b72d8177cae7788398d42ac3413567218d02",
+  "serialization": "sorted JSON, indent 2, ensure_ascii=False, UTF-8, CRLF, one terminal newline",
+  "candidate_count": 10,
+  "relation_changes": 6,
+  "policy_evaluated": false
+}

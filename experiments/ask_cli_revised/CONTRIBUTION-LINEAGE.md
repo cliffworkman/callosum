@@ -2606,3 +2606,46 @@ This increment changes only that report and this append; earlier I4-2b0/I4-2b1 f
 are preserved. No external search, retrieval, model calls, live E2E, production-code/behavior change,
 version bump, same_local_assertion registration, ParentClaims/AnswerPlan edit, or I2-3.
 STOP after I4-2b2.
+
+
+## 2026-10-08 — Phase 34 / I4-2b3 versioned attribution repair and bounded context transport
+
+**Scope (Cliff Workman).** Implement the accepted I4-2b2 design, attribution only. First checkpointed
+and pushed accepted I4-2b0/b1/b2 planning docs plus lineage in docs-only commit
+`645647044dd8cb032665283014c29bfce35bf69d`, starting from accepted production d2f3e1619a820b27479e7e00abb1e1e002fd1882.
+The implementation starts from that clean checkpoint and is a separate single commit.
+
+**Implementation (Cody/Codex).** Added explicit assertion-authority rulesets with permanently legacy
+omitted selection and AST freeze of 119 legacy nodes. Introduced pure ownership-context-v1 resident-packet
+transport, stable content-addressed context sidecars, bounded R1 verified local antecedent proofs,
+R2 adjacent shared-citation continuation, and R3 first-sentence Results while/whereas coordination.
+The sole production classifier consumer remains sufficiency_mapping.py. New sufficiency-semantics-v6
+annotates the existing v5 collector; v5 is historical/readable and selects legacy classification explicitly.
+Candidate attribution is optional and absent on historical rows. No hidden lookup or model-facing change.
+
+**Observed real effect.** Exactly six ownership uses change: c1 and c4's p2/p11 shared assertion become
+current_document; c4/p40 becomes attributed_external; c8's three p41 assertion-2 uses become current_document.
+All ten original candidates remain ten, with identical text/spans/IDs/order/kinds/aggregation/veto/caption,
+unevaluated policy fields, and legacy representatives. No seventh relation correction. All 26 evidence-role
+states (10 filled, 16 missing), 13 requirement states, 48 recovery targets, witnesses, direction/effectiveness,
+17 ParentClaims and nine AnswerPlan nodes retain their semantics; all 33 downstream invariants pass.
+The conservative absent-policy predicate passes all ten in a test-only check. Recommendation B is confirmed:
+fix attribution first; do not weaken the default. The original uncorrected six-exclusion counterfactual stays
+preserved in I4-2b0. The five guard-excluded supports are not retained in this increment.
+
+**Versioned verification.** Exact combined replay SHA-256: historical v4
+`4154ebd4062d22aa25db43e947aba61abe2c5888d6aa10d8ecd14b60afa65e4a`; historical v5
+`109030de83856b4384d596311dd8e3f6d46d19859c895c4b94b9efb3aa92ae77`; attribution-only v6
+`dabef2f553b5e9301f9daa3a344b624ee6afb3e0f41fbce18b096587736822be`.
+New tests: 558 passed. Actual historical batteries paired omitted/explicit legacy: 443 passed, 9 existing
+xfails. Full offline experiments across declared and existing optional environments: 4341 passed, five
+independently reconfirmed baseline/environment failures, 12 skipped, 9 xfailed, 276 subtests passed;
+zero unexplained new failures or unresolved collection errors. No live retrieval/model/E2E or external search.
+
+**Artifact, limitation, and stop.** See
+[PHASE34_I4_2B3_VERSIONED_ATTRIBUTION_REPAIR_RESULTS.md](PHASE34_I4_2B3_VERSIONED_ATTRIBUTION_REPAIR_RESULTS.md)
+and the committed replay/freeze/preregistration manifests. R1 is a bounded grammar, not general anaphora;
+unsupported or unavailable context remains unresolved. READY for separately authorized v7 support-policy
+planning, not bundled policy implementation. Guards remain v5 prefilters; policy and authority-veto gating,
+same_local_assertion registration, PLAN_VERSION, ParentClaims/AnswerPlan implementation and I2-3 are untouched.
+STOP after I4-2b3.

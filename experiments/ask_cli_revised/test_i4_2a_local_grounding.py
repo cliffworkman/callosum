@@ -163,7 +163,11 @@ def test_invalid_plural_coordinate_identity_is_rejected(change):
 
 
 def test_join_failure_is_missing(monkeypatch):
-    monkeypatch.setattr(aa, "locate_containing_assertion", lambda *args: {"resolved": False})
+    def failed_join(*args, ruleset_version):
+        assert ruleset_version == aa.ASSERTION_AUTHORITY_RULESET_I4_1F
+        return {"resolved": False}
+
+    monkeypatch.setattr(aa, "locate_containing_assertion", failed_join)
     diagnostics = {}
     assert bind([unit(real.P41)], diagnostics=diagnostics) == []
     assert diagnostics["join_failures"] == 3
@@ -233,7 +237,14 @@ def test_only_approved_classifier_apis_are_consumed_in_the_mapper():
     tree = ast.parse(Path(sm.__file__).read_text(encoding="utf-8"))
     allowed = {
         "aos": {"find_achieved_outcome_matches"},
-        "aa": {"locate_containing_assertion", "assertion_relation", "support_label"},
+        "aa": {
+            "locate_containing_assertion",
+            "assertion_relation",
+            "support_label",
+            "classify_target_assertions",
+            "ASSERTION_AUTHORITY_RULESET_I4_1F",
+            "ASSERTION_AUTHORITY_RULESET_I4_2B3",
+        },
         "tr": {"match_target_to_assertions"},
     }
     for node in ast.walk(tree):

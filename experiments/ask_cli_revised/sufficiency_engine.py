@@ -104,7 +104,7 @@ RELATIONSHIP_VERIFIERS = ("same_proposition", "contract_directed_links")
 #       binding is chosen by fixed polarity precedence; an instance is complete only when established_presence is
 #       satisfied (at least one positive observation); an unsatisfied bound category yields a semantic_goal_unsatisfied
 #       recovery target, terminal per target once its search completed. Historical v1-v3 keep first-match mapping.
-#   sufficiency-semantics-v5 (I4-2a, CURRENT): v4 except deterministic achieved_outcome_predicate mapping.
+#   sufficiency-semantics-v5 (I4-2a, HISTORICAL): v4 except deterministic achieved_outcome_predicate mapping.
 #       Result hits join to local assertions and dedupe by (span proposition, assertion span). Only genuine
 #       no-dependency roles are target-free. One available completion sibling (including a unique filled
 #       alternative) supplies exact_text and proposition scope; unavailable or multiple dependencies fail
@@ -112,6 +112,10 @@ RELATIONSHIP_VERIFIERS = ("same_proposition", "contract_directed_links")
 #       Full local assertion text and the first candidate's anchor project to the legacy binding. No support
 #       policy is evaluated. Categories, guards, verifiers, direction, effectiveness, recovery, and witnesses
 #       inherit the explicit v4 rules. Historical v1-v4 retain whole-passage achieved-outcome mapping.
+#
+#   sufficiency-semantics-v6 (I4-2b3, CURRENT): exactly v5 candidates and state derivation, followed by
+#       versioned ownership annotation with bounded R1/R2/R3 proofs. Guards remain prefilters and
+#       admissibility remains unevaluated. Later policy/guard integration requires another version.
 #
 # CURRENT is the only version new production accepts. SUPPORTED lists every version this code can READ; membership in
 # it does not make a version current. Historical versions are readable only through an explicit historical path.
@@ -125,9 +129,17 @@ SUFFICIENCY_SEMANTICS_V2 = "sufficiency-semantics-v2"
 SUFFICIENCY_SEMANTICS_V3 = "sufficiency-semantics-v3"
 SUFFICIENCY_SEMANTICS_V4 = "sufficiency-semantics-v4"
 SUFFICIENCY_SEMANTICS_V5 = "sufficiency-semantics-v5"
-SUFFICIENCY_SEMANTICS_VERSION = SUFFICIENCY_SEMANTICS_V5
+# v6: v5 candidates plus attribution/proof annotation only. Policy and guards are unchanged.
+SUFFICIENCY_SEMANTICS_V6 = "sufficiency-semantics-v6"
+SUFFICIENCY_SEMANTICS_VERSION = SUFFICIENCY_SEMANTICS_V6
 HISTORICAL_SUFFICIENCY_SEMANTICS_VERSIONS = frozenset(
-    {SUFFICIENCY_SEMANTICS_V1, SUFFICIENCY_SEMANTICS_V2, SUFFICIENCY_SEMANTICS_V3, SUFFICIENCY_SEMANTICS_V4}
+    {
+        SUFFICIENCY_SEMANTICS_V1,
+        SUFFICIENCY_SEMANTICS_V2,
+        SUFFICIENCY_SEMANTICS_V3,
+        SUFFICIENCY_SEMANTICS_V4,
+        SUFFICIENCY_SEMANTICS_V5,
+    }
 )
 SUPPORTED_SUFFICIENCY_SEMANTICS_VERSIONS = (
     frozenset({SUFFICIENCY_SEMANTICS_VERSION}) | HISTORICAL_SUFFICIENCY_SEMANTICS_VERSIONS
@@ -603,6 +615,7 @@ def new_candidate_support(
     is_caption: bool = False,
     attachment_ambiguous: bool = False,
     inadmissibility_reason: str | None = None,
+    attribution: dict | None = None,
 ) -> dict:
     """Pure DATA CONTRACT for one future candidate-support record (I4-1e revision 2, section 4/6). Validates
     and serializes already-computed values; this builder itself must never classify text, call any I4-1
@@ -666,7 +679,7 @@ def new_candidate_support(
         raise ValueError("span_proposition_id is required whenever a span is present")
     if span_proposition_id is not None and span_proposition_id not in supporting:
         raise ValueError("span_proposition_id must be one of supporting_proposition_ids")
-    return {
+    record = {
         "supporting_proposition_ids": supporting,
         "span_proposition_id": span_proposition_id,
         "exact_text": exact_text,
@@ -683,6 +696,50 @@ def new_candidate_support(
         "admissible": admissible,
         "inadmissibility_reason": inadmissibility_reason,
     }
+    if attribution is not None:
+        record["attribution"] = copy.deepcopy(attribution)
+        validate_candidate_attribution(record)
+    return record
+
+
+def validate_candidate_attribution(record):
+    """Validate optional corrected-path provenance without invoking classification or policy."""
+    if "attribution" not in record:
+        return
+    value = record["attribution"]
+    required = {
+        "schema_version",
+        "classifier_id",
+        "ruleset_version",
+        "assertion_relation",
+        "source_resolution",
+        "rule_ids",
+        "target",
+        "proofs",
+        "context_status",
+        "context_failure",
+    }
+    if not isinstance(value, dict) or set(value) != required:
+        raise ValueError("invalid candidate attribution shape")
+    if (
+        value["schema_version"] != "ownership-attribution-v1"
+        or value["classifier_id"] != "i4-1-assertion-authority"
+        or value["ruleset_version"] != "i4-2b3.0"
+        or value["assertion_relation"] != record["assertion_relation"]
+        or not isinstance(value["rule_ids"], list)
+        or not isinstance(value["proofs"], list)
+    ):
+        raise ValueError("invalid candidate attribution identity")
+    target = value["target"]
+    if (
+        not isinstance(target, dict)
+        or set(target) != {"quote_sha256", "span_proposition_id", "assertion_span", "supporting_proposition_ids"}
+        or any(target[k] != record[k] for k in ("span_proposition_id", "assertion_span", "supporting_proposition_ids"))
+        or not isinstance(target["quote_sha256"], str)
+        or len(target["quote_sha256"]) != 64
+        or any(c not in "0123456789abcdef" for c in target["quote_sha256"])
+    ):
+        raise ValueError("invalid candidate attribution target")
 
 
 _CANDIDATE_SUPPORT_KEYS = frozenset(
@@ -716,10 +773,14 @@ def new_candidate_supports(records: list[dict]) -> list[dict]:
     re-deciding relevance itself. Returns a fresh list (never aliases the caller's own)."""
     out = []
     for record in records:
-        if not isinstance(record, dict) or set(record) != _CANDIDATE_SUPPORT_KEYS:
+        if not isinstance(record, dict) or set(record) not in (
+            _CANDIDATE_SUPPORT_KEYS,
+            _CANDIDATE_SUPPORT_KEYS | {"attribution"},
+        ):
             raise ValueError(
                 f"candidate-support record has an unexpected shape: {sorted(record) if isinstance(record, dict) else record!r}"
             )
+        validate_candidate_attribution(record)
         out.append(dict(record))
     return out
 
@@ -1001,7 +1062,7 @@ def recompute_instance(
         # change touches no category requirement), so the v4 category goal gate applies identically here --
         # never because v5 silently inherits "whatever v4 did," but because this specific rule was audited
         # and explicitly carried forward.
-        if semantics_version not in (SUFFICIENCY_SEMANTICS_V4, SUFFICIENCY_SEMANTICS_V5):
+        if semantics_version not in (SUFFICIENCY_SEMANTICS_V4, SUFFICIENCY_SEMANTICS_V5, SUFFICIENCY_SEMANTICS_V6):
             raise ValueError("the category goal gate is a v4/v5 rule")
         complete = complete and category_goal_satisfied(instance)
 
@@ -1104,9 +1165,11 @@ def recompute_requirement(requirement: dict, *, context: dict | None = None, sem
     verifiers = requirement["relationship_verifiers"]
     # I4-2a: v5 inherits v4's own category-goal-gate rule unchanged (see recompute_instance's own note) --
     # named explicitly, never via a bare "not v1-v3" fallback that would silently also catch some future v6.
-    goal_gate = semantics_version in (SUFFICIENCY_SEMANTICS_V4, SUFFICIENCY_SEMANTICS_V5) and is_category_requirement(
-        requirement
-    )
+    goal_gate = semantics_version in (
+        SUFFICIENCY_SEMANTICS_V4,
+        SUFFICIENCY_SEMANTICS_V5,
+        SUFFICIENCY_SEMANTICS_V6,
+    ) and is_category_requirement(requirement)
     recomputed_instances = [
         recompute_instance(
             role_completion, inst, verifiers, context=context, semantics_version=semantics_version, goal_gate=goal_gate

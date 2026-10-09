@@ -22,6 +22,7 @@ this codebase's own existing deterministic lexical detectors (``overview_evidenc
 
 from __future__ import annotations
 
+import copy
 import re
 
 from app.backend.pdf_processing.extraction import canonical_text_contains
@@ -30,6 +31,7 @@ from experiments.ask_cli_revised import assertion_authority as aa
 from experiments.ask_cli_revised import category_polarity as cp
 from experiments.ask_cli_revised import direction_target as dtg
 from experiments.ask_cli_revised import overview_evidence as oe
+from experiments.ask_cli_revised import ownership_context as oc
 from experiments.ask_cli_revised import sufficiency_engine as se
 from experiments.ask_cli_revised import sufficiency_model_scope as mscope
 from experiments.ask_cli_revised import target_relevance as tr
@@ -223,7 +225,12 @@ def _bind_achieved_outcome_v5(
         anchor = proposition_ids[0]
         for match in matches:
             counts["raw_result_predicate_hits"] += 1
-            joined = aa.locate_containing_assertion(passage, match.content_span[0], match.content_span[1])
+            joined = aa.locate_containing_assertion(
+                passage,
+                match.content_span[0],
+                match.content_span[1],
+                ruleset_version=aa.ASSERTION_AUTHORITY_RULESET_I4_1F,
+            )
             if not joined["resolved"]:
                 counts["join_failures"] += 1
                 continue
@@ -314,6 +321,75 @@ def _bind_achieved_outcome_v5(
         guard=relevant[0]["flags"],
     )
     return [{**binding, "candidate_supports": candidate_supports}]
+
+
+def _bind_achieved_outcome_v6(role_spec, units, *, sibling_bindings, role_completion, diagnostics=None):
+    """Annotate the frozen v5 collector. Ownership never selects candidates or changes policy state."""
+    bindings = _bind_achieved_outcome_v5(
+        role_spec,
+        units,
+        sibling_bindings=sibling_bindings,
+        role_completion=role_completion,
+        diagnostics=diagnostics,
+    )
+    for binding in bindings:
+        for candidate in binding["candidate_supports"]:
+            frozen = copy.deepcopy(candidate)
+            ids = candidate["supporting_proposition_ids"]
+            unit = next(u for u in units if u["proposition_ids"] == ids)
+            quote = unit["passage"]
+            contexts = unit.get("ownership_contexts", {})
+            resolved = []
+            for pid in ids:
+                context = contexts.get(pid, oc.failure("context_unavailable"))
+                records = []
+                if context.get("status") == "available":
+                    paragraph = context["paragraph_text"]
+                    records = aa.classify_target_assertions(
+                        paragraph,
+                        target_start=0,
+                        target_end=len(paragraph),
+                        ruleset_version=aa.ASSERTION_AUTHORITY_RULESET_I4_1F,
+                    )["assertions"]
+                resolved.append(oc.resolve_local_antecedent(context, quote, candidate["assertion_span"], records))
+            context = oc.combine_proofs(resolved)
+            joined = aa.locate_containing_assertion(
+                quote,
+                *candidate["content_span"],
+                ruleset_version=aa.ASSERTION_AUTHORITY_RULESET_I4_2B3,
+                ownership_context=context,
+            )
+            if not joined["resolved"]:
+                raise AssertionError("STOP: corrected attribution changed assertion attachment")
+            assertion = joined["assertion"]
+            if (
+                assertion["assertion"]["text"] != candidate["exact_text"]
+                or list(assertion["span"]) != candidate["assertion_span"]
+                or any(assertion[k] != candidate[k] for k in ("assertion_kind", "aggregation", "authority_veto"))
+            ):
+                raise AssertionError("STOP: corrected attribution changed frozen grounding/classification")
+            relation = aa.assertion_relation(assertion["assertion_source"])
+            candidate["assertion_relation"] = relation
+            candidate["support_label"] = aa.support_label(
+                relation, candidate["aggregation"], candidate["assertion_kind"]
+            )
+            candidate["attribution"] = {
+                **assertion["ownership"],
+                "target": {
+                    "quote_sha256": oc.text_hash(quote),
+                    "span_proposition_id": candidate["span_proposition_id"],
+                    "assertion_span": list(candidate["assertion_span"]),
+                    "supporting_proposition_ids": list(ids),
+                },
+            }
+            se.validate_candidate_attribution(candidate)
+            if any(
+                candidate[key] != value
+                for key, value in frozen.items()
+                if key not in ("assertion_relation", "support_label")
+            ):
+                raise AssertionError("STOP: annotation changed a frozen candidate field")
+    return bindings
 
 
 def _match_explicit_category_term(text: str, requested_terms: list[str]) -> str | None:
@@ -591,13 +667,20 @@ def _bind_role_candidates(
     byte-identical to before this phase."""
     se.require_supported_semantics_version(semantics_version)
     if (
-        semantics_version in (se.SUFFICIENCY_SEMANTICS_V4, se.SUFFICIENCY_SEMANTICS_V5)
+        semantics_version in (se.SUFFICIENCY_SEMANTICS_V4, se.SUFFICIENCY_SEMANTICS_V5, se.SUFFICIENCY_SEMANTICS_V6)
         and role_spec["mapping_strategy"] == "explicit_category_terms"
     ):
         # v4/v5 category observations are collected only by the cardinality mapper (v5 reuses v4's own category
         # rule unchanged). A non-cardinality category role has no v4/v5 rule and must not silently fall back to
         # first-match.
         raise ValueError("v4/v5 category observations apply only to all_requested_categories requirements")
+    if (
+        semantics_version == se.SUFFICIENCY_SEMANTICS_V6
+        and role_spec["mapping_strategy"] == "achieved_outcome_predicate"
+    ):
+        return _bind_achieved_outcome_v6(
+            role_spec, units, sibling_bindings=sibling_bindings, role_completion=role_completion
+        )
     if (
         semantics_version == se.SUFFICIENCY_SEMANTICS_V5
         and role_spec["mapping_strategy"] == "achieved_outcome_predicate"
@@ -926,7 +1009,7 @@ def map_cardinality_requirement(
         )
     # I4-2a: category requirements are completely untouched by v5 (the local-grounding change applies only to
     # achieved_outcome_predicate roles) -- v5 reuses v4's own rich category-observation behavior unchanged.
-    if semantics_version in (se.SUFFICIENCY_SEMANTICS_V4, se.SUFFICIENCY_SEMANTICS_V5):
+    if semantics_version in (se.SUFFICIENCY_SEMANTICS_V4, se.SUFFICIENCY_SEMANTICS_V5, se.SUFFICIENCY_SEMANTICS_V6):
         return _map_category_requirement_v4(
             requirement, candidate_units, spec=spec, role=role, semantics_version=semantics_version
         )
@@ -1368,7 +1451,12 @@ def find_direction_observations(
     if semantics_version in (se.SUFFICIENCY_SEMANTICS_V1, se.SUFFICIENCY_SEMANTICS_V2):
         return _find_direction_observations_v1_v2(requirement, grounding_units)
     # I4-2a: v5 changes achieved-outcome mapping only; direction observations are the unchanged v3/v4 rule.
-    if semantics_version not in (se.SUFFICIENCY_SEMANTICS_V3, se.SUFFICIENCY_SEMANTICS_V4, se.SUFFICIENCY_SEMANTICS_V5):
+    if semantics_version not in (
+        se.SUFFICIENCY_SEMANTICS_V3,
+        se.SUFFICIENCY_SEMANTICS_V4,
+        se.SUFFICIENCY_SEMANTICS_V5,
+        se.SUFFICIENCY_SEMANTICS_V6,
+    ):
         raise ValueError(f"no direction-observation rule for sufficiency-semantics version {semantics_version!r}")
     if requirement.get("direction") is None:
         return []

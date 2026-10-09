@@ -1,0 +1,495 @@
+{
+  "source": "accepted I4-2b1/b2, frozen before production edits",
+  "initial_cases": [
+    {
+      "id": "B1-01",
+      "name": "context_same_owner",
+      "text": "We examined responses at levels A and B. At level A, scores increased. At level B, ratings decreased. Across these levels, scores correlated with ratings.",
+      "target": "scores correlated",
+      "legacy_relation": "unresolved",
+      "kind": "result",
+      "corrected_relation": "current_document"
+    },
+    {
+      "id": "B1-02",
+      "name": "context_prior_owner",
+      "text": "Previous studies examined responses at levels A and B. At level A, scores increased. At level B, ratings decreased. Across these levels, scores correlated with ratings.",
+      "target": "scores correlated",
+      "legacy_relation": "unresolved",
+      "kind": "result",
+      "corrected_relation": "attributed_external"
+    },
+    {
+      "id": "B1-03",
+      "name": "context_no_owner",
+      "text": "Responses were examined at levels A and B. At level A, scores increased. At level B, ratings decreased. Across these levels, scores correlated with ratings.",
+      "target": "scores correlated",
+      "legacy_relation": "unresolved",
+      "kind": "result",
+      "corrected_relation": "unresolved"
+    },
+    {
+      "id": "B1-04",
+      "name": "context_omitted",
+      "text": "Across these levels, scores correlated with ratings.",
+      "target": "scores correlated",
+      "legacy_relation": "unresolved",
+      "kind": "result",
+      "corrected_relation": "unresolved"
+    },
+    {
+      "id": "B1-05",
+      "name": "context_switch",
+      "text": "We examined responses at levels A and B. Previous studies examined responses at levels C and D. Across these levels, scores correlated with ratings.",
+      "target": "scores correlated",
+      "legacy_relation": "unresolved",
+      "kind": "result",
+      "corrected_relation": "unresolved"
+    },
+    {
+      "id": "B1-06",
+      "name": "context_paragraph_boundary",
+      "text": "We examined responses at levels A and B.\n\nAcross these levels, scores correlated with ratings.",
+      "target": "scores correlated",
+      "legacy_relation": "unresolved",
+      "kind": "result",
+      "corrected_relation": "unresolved"
+    },
+    {
+      "id": "B1-07",
+      "name": "context_target_citation",
+      "text": "We examined responses at levels A and B. At level A, scores increased. At level B, ratings decreased. Across these levels, scores correlated with ratings.6",
+      "target": "scores correlated",
+      "legacy_relation": "unresolved",
+      "kind": "result",
+      "corrected_relation": "unresolved"
+    },
+    {
+      "id": "B1-08",
+      "name": "context_explicit_target",
+      "text": "We examined responses at levels A and B. Across these levels, previous studies found that scores correlated with ratings.",
+      "target": "scores correlated",
+      "legacy_relation": "attributed_external",
+      "kind": "result",
+      "corrected_relation": "attributed_external"
+    },
+    {
+      "id": "B1-09",
+      "name": "citation_shared",
+      "text": "Recent work found that scores increased.6 Participants demonstrated higher ratings.6",
+      "target": "higher ratings",
+      "legacy_relation": "unresolved",
+      "kind": "result",
+      "corrected_relation": "attributed_external"
+    },
+    {
+      "id": "B1-10",
+      "name": "citation_different",
+      "text": "Recent work found that scores increased.6 Participants demonstrated higher ratings.7",
+      "target": "higher ratings",
+      "legacy_relation": "unresolved",
+      "kind": "result",
+      "corrected_relation": "unresolved"
+    },
+    {
+      "id": "B1-11",
+      "name": "citation_alone",
+      "text": "Participants demonstrated higher ratings.6",
+      "target": "higher ratings",
+      "legacy_relation": "unresolved",
+      "kind": "result",
+      "corrected_relation": "unresolved"
+    },
+    {
+      "id": "B1-12",
+      "name": "citation_explicit_current",
+      "text": "Recent work found that scores increased.6 We found higher ratings.6",
+      "target": "higher ratings",
+      "legacy_relation": "current_document",
+      "kind": "result",
+      "corrected_relation": "current_document"
+    },
+    {
+      "id": "B1-13",
+      "name": "citation_no_prior_marker",
+      "text": "Recent work found that scores increased. Participants demonstrated higher ratings.6",
+      "target": "higher ratings",
+      "legacy_relation": "unresolved",
+      "kind": "result",
+      "corrected_relation": "unresolved"
+    },
+    {
+      "id": "B1-14",
+      "name": "citation_paragraph_boundary",
+      "text": "Recent work found that scores increased.6\n\nParticipants demonstrated higher ratings.6",
+      "target": "higher ratings",
+      "legacy_relation": "unresolved",
+      "kind": "result",
+      "corrected_relation": "unresolved"
+    },
+    {
+      "id": "B1-15",
+      "name": "citation_preceding_current",
+      "text": "We found that scores increased.6 Participants demonstrated higher ratings.6",
+      "target": "higher ratings",
+      "legacy_relation": "unresolved",
+      "kind": "result",
+      "corrected_relation": "unresolved"
+    },
+    {
+      "id": "B1-16",
+      "name": "citation_missing_target",
+      "text": "Recent work found that scores increased.6 Participants demonstrated higher ratings.",
+      "target": "higher ratings",
+      "legacy_relation": "unresolved",
+      "kind": "result",
+      "corrected_relation": "unresolved"
+    },
+    {
+      "id": "B1-17",
+      "name": "label_parallel",
+      "text": "Results: Scores increased, while ratings decreased.",
+      "target": "ratings decreased",
+      "legacy_relation": "unresolved",
+      "kind": "result",
+      "corrected_relation": "current_document"
+    },
+    {
+      "id": "B1-18",
+      "name": "label_prior_override",
+      "text": "Results: Scores increased, while previous studies found that ratings decreased.",
+      "target": "ratings decreased",
+      "legacy_relation": "attributed_external",
+      "kind": "result",
+      "corrected_relation": "attributed_external"
+    },
+    {
+      "id": "B1-19",
+      "name": "label_citation",
+      "text": "Results: Scores increased, while ratings decreased.6",
+      "target": "ratings decreased",
+      "legacy_relation": "unresolved",
+      "kind": "result",
+      "corrected_relation": "unresolved"
+    },
+    {
+      "id": "B1-20",
+      "name": "label_prior_first",
+      "text": "Results: Previous studies found that scores increased, while ratings decreased.",
+      "target": "ratings decreased",
+      "legacy_relation": "unresolved",
+      "kind": "result",
+      "corrected_relation": "unresolved"
+    },
+    {
+      "id": "B1-21",
+      "name": "label_wrong_label",
+      "text": "Discussion: Scores increased, while ratings decreased.",
+      "target": "ratings decreased",
+      "legacy_relation": "unresolved",
+      "kind": "result",
+      "corrected_relation": "unresolved"
+    },
+    {
+      "id": "B1-22",
+      "name": "label_semicolon",
+      "text": "Results: Scores increased; ratings decreased.",
+      "target": "ratings decreased",
+      "legacy_relation": "unresolved",
+      "kind": "result",
+      "corrected_relation": "unresolved"
+    },
+    {
+      "id": "B1-23",
+      "name": "label_new_sentence",
+      "text": "Results: Scores increased. Ratings decreased.",
+      "target": "Ratings decreased",
+      "legacy_relation": "unresolved",
+      "kind": "result",
+      "corrected_relation": "unresolved"
+    },
+    {
+      "id": "B1-24",
+      "name": "label_absent",
+      "text": "Scores increased, while ratings decreased.",
+      "target": "ratings decreased",
+      "legacy_relation": "unresolved",
+      "kind": "result",
+      "corrected_relation": "unresolved"
+    },
+    {
+      "id": "B1-25",
+      "name": "label_explicit_current",
+      "text": "Results: Scores increased, while we found that ratings decreased.6",
+      "target": "ratings decreased",
+      "legacy_relation": "current_document",
+      "kind": "result",
+      "corrected_relation": "current_document"
+    },
+    {
+      "id": "B1-26",
+      "name": "label_interpretation",
+      "text": "Results: Scores increased, while we suggest that ratings decreased.",
+      "target": "ratings decreased",
+      "legacy_relation": "current_document",
+      "kind": "interpretation",
+      "corrected_relation": "current_document"
+    },
+    {
+      "id": "B1-27",
+      "name": "label_hedged",
+      "text": "Results: Scores increased, while ratings probably decreased.",
+      "target": "ratings probably decreased",
+      "legacy_relation": "unresolved",
+      "kind": "result",
+      "corrected_relation": "unresolved"
+    },
+    {
+      "id": "B1-28",
+      "name": "label_modal",
+      "text": "Results: Scores increased, while ratings could decrease.",
+      "target": "ratings could decrease",
+      "legacy_relation": "unresolved",
+      "kind": "interpretation",
+      "corrected_relation": "unresolved"
+    },
+    {
+      "id": "B1-29",
+      "name": "label_negated",
+      "text": "Results: Scores increased, while ratings did not increase.",
+      "target": "ratings did not increase",
+      "legacy_relation": "unresolved",
+      "kind": "result",
+      "corrected_relation": "unresolved"
+    },
+    {
+      "id": "B1-30",
+      "name": "label_unowned_interpretation",
+      "text": "Results: Scores increased, while this suggests that ratings decreased.",
+      "target": "ratings decreased",
+      "legacy_relation": "unresolved",
+      "kind": "interpretation",
+      "corrected_relation": "unresolved"
+    },
+    {
+      "id": "B1-31",
+      "name": "citation_discourse_reset",
+      "text": "Recent work found that scores increased.6 By contrast, ratings decreased.6",
+      "target": "ratings decreased",
+      "legacy_relation": "unresolved",
+      "kind": "result",
+      "corrected_relation": "unresolved"
+    },
+    {
+      "id": "B1-32",
+      "name": "citation_current_override",
+      "text": "Recent work found that scores increased.6 We found ratings decreased.6",
+      "target": "ratings decreased",
+      "legacy_relation": "current_document",
+      "kind": "result",
+      "corrected_relation": "current_document"
+    }
+  ],
+  "additional_matrix": [
+    {
+      "id": "E01",
+      "fixture": "Real p2 and p11 from preserved sealed rows + chunk 34974",
+      "expectation": "C for two uses; same physical proof, original plural order/quote spans"
+    },
+    {
+      "id": "E02",
+      "fixture": "Real p40 full sealed quote",
+      "expectation": "E for second assertion; exact shared {6}, no reference lookup"
+    },
+    {
+      "id": "E03",
+      "fixture": "Real p41 full sealed quote, both assertions and all five uses",
+      "expectation": "C for both; only three formerly U uses change; two assertion identities retained"
+    },
+    {
+      "id": "E04",
+      "fixture": "“Recent work found X.6 Scores increased.7 Ratings decreased.6” target Ratings",
+      "expectation": "U; nonadjacent repetition is not continuation"
+    },
+    {
+      "id": "E05",
+      "fixture": "“Recent work found X.6 We examined Y. Scores increased.6” target Scores",
+      "expectation": "U; intervening sentence/owner reset"
+    },
+    {
+      "id": "E06",
+      "fixture": "“Recent work found X.6” + paragraph break + “Scores increased.6”",
+      "expectation": "U; no paragraph crossing"
+    },
+    {
+      "id": "E07",
+      "fixture": "R1 positive paragraph, omit context index/proof",
+      "expectation": "U; candidate retained, context unavailable"
+    },
+    {
+      "id": "E08",
+      "fixture": "R1 positive, quote/chunk hash mismatch, out-of-bounds span, wrong target hash, wrong source identity (separate rows)",
+      "expectation": "U; invalid proof; no fallback lookup"
+    },
+    {
+      "id": "E09",
+      "fixture": "R1 positive, exact target quote appears twice without an occurrence locator",
+      "expectation": "U; ambiguous attachment to context, not a new role state"
+    },
+    {
+      "id": "E10",
+      "fixture": "R1 positive with prior-owned introduction",
+      "expectation": "E; prove prior owner, never default C"
+    },
+    {
+      "id": "E11",
+      "fixture": "R1 positive with two owner/list introductions or duplicate/missing level header (separate rows)",
+      "expectation": "U; nonunique or incomplete antecedent proof"
+    },
+    {
+      "id": "E12",
+      "fixture": "Proposed prior context + explicit “We found…” target",
+      "expectation": "C retained; contextual proof cannot override"
+    },
+    {
+      "id": "E13",
+      "fixture": "Proposed current context + explicit “Previous studies found…” target",
+      "expectation": "E retained"
+    },
+    {
+      "id": "E14",
+      "fixture": "“Results: Scores increased. Ratings decreased.”",
+      "expectation": "U for later sentence"
+    },
+    {
+      "id": "E15",
+      "fixture": "“Results: Scores increased; ratings decreased.”",
+      "expectation": "U for semicolon"
+    },
+    {
+      "id": "E16",
+      "fixture": "“Results: Scores increased, whereas ratings decreased.”",
+      "expectation": "C; same bounded coordination as while"
+    },
+    {
+      "id": "E17",
+      "fixture": "“Results: Scores increased, whereas previous studies found that ratings decreased.”",
+      "expectation": "E retained"
+    },
+    {
+      "id": "E18",
+      "fixture": "“Results: Scores increased, while previous studies found that ratings decreased.”",
+      "expectation": "E retained"
+    },
+    {
+      "id": "E19",
+      "fixture": "“Results: Scores increased, whereas ratings decreased.6”",
+      "expectation": "U; target citation veto"
+    },
+    {
+      "id": "E20",
+      "fixture": "Results second clause with probably / could / did not (separate rows, both connectors)",
+      "expectation": "U under narrow resolver; hedge/modal/negation metadata preserved"
+    },
+    {
+      "id": "E21",
+      "fixture": "“Results: Scores increased, whereas we suggest that ratings decreased.”",
+      "expectation": "C/interpretation retained; no kind promotion"
+    },
+    {
+      "id": "E22",
+      "fixture": "“Background: X changed. Results: Scores increased, while ratings decreased.”",
+      "expectation": "U target; no mid-input Results section inference"
+    },
+    {
+      "id": "E23",
+      "fixture": "“Results: Previous studies found X, whereas ratings decreased.”",
+      "expectation": "U; prior first clause cannot seed current ownership"
+    },
+    {
+      "id": "E24",
+      "fixture": "“Recent work found X.6 By contrast, scores increased.6”",
+      "expectation": "U; explicit discourse reset"
+    },
+    {
+      "id": "E25",
+      "fixture": "“Recent work found X.6,7 Scores increased.7,6”",
+      "expectation": "E; audited legacy tokens recognize both markers, normalized set {6,7}"
+    },
+    {
+      "id": "E26",
+      "fixture": "“Recent work found X.6–8 Scores increased.6,7,8”",
+      "expectation": "E; audited legacy tokens recognize both markers, normalized set {6,7,8}"
+    },
+    {
+      "id": "E27",
+      "fixture": "Same citation set represented by statistics, bare numbers, unsupported brackets, descending range (separate rows)",
+      "expectation": "U for R2; do not expand recognition to make a positive"
+    },
+    {
+      "id": "E28",
+      "fixture": "Same markers on nonadjacent unrelated sentences with an unparsed intervening sentence",
+      "expectation": "U; do not skip unparsed text to invent adjacency"
+    },
+    {
+      "id": "E29",
+      "fixture": "Positive R1 with paragraph text unavailable but locator/checksum supplied",
+      "expectation": "U; hashes cannot substitute for source bytes"
+    },
+    {
+      "id": "E30",
+      "fixture": "Pooled identical quotes from two physical anchors with conflicting/missing R1 proofs",
+      "expectation": "U; no first-anchor ownership shortcut or ID narrowing"
+    },
+    {
+      "id": "E31",
+      "fixture": "R1 proof schema/resolver version unknown or relation invalid",
+      "expectation": "U + invalid context failure; unsupported classifier ruleset itself raises ValueError"
+    },
+    {
+      "id": "E32",
+      "fixture": "Valid R2/R3 local ownership with malformed unrelated R1 proof",
+      "expectation": "Local result preserved; R1 failure recorded, no blanket invalidation"
+    },
+    {
+      "id": "E33",
+      "fixture": "Same R1 source snapshot with recovery-only entries appended",
+      "expectation": "Identical old proof entry IDs and ownership outputs"
+    },
+    {
+      "id": "E34",
+      "fixture": "Seeded packets contain candidate_spans but no source chunks",
+      "expectation": "R1 unavailable; R2/R3 still evaluated from supplied quotes"
+    },
+    {
+      "id": "E35",
+      "fixture": "New context supplied to explicit v5 diagnostic call",
+      "expectation": "Exact old replay; no context read/classification side effect"
+    },
+    {
+      "id": "E36",
+      "fixture": "Omitted classifier ruleset vs explicit i4-1f.0 across all old batteries",
+      "expectation": "Exact complete result equality, no new keys"
+    },
+    {
+      "id": "E37",
+      "fixture": "Unsupported ruleset and incompatible legacy ownership_context argument",
+      "expectation": "ValueError, never floating to current"
+    },
+    {
+      "id": "E38",
+      "fixture": "Corrected call requests whole multi-assertion quote",
+      "expectation": "Same attachment scope and separate records; singular API still fails closed"
+    },
+    {
+      "id": "E39",
+      "fixture": "Change list-item words to arbitrary neutral strings while preserving scaffolding",
+      "expectation": "Same R1 decision; no topic/identity dependence"
+    },
+    {
+      "id": "E40",
+      "fixture": "Reorder input candidate list / swap target domain nouns while holding structural scope",
+      "expectation": "Per-candidate ownership follows its proof, never a representative or domain ranking"
+    }
+  ]
+}

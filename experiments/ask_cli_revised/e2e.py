@@ -36,6 +36,7 @@ from experiments.ask_cli_revised import (
     overview,
     overview_audit,
     overview_render,
+    ownership_context,
     parent_synthesis,
     parent_synthesis_audit,
     parent_synthesis_ledger,
@@ -346,7 +347,7 @@ class _SufficiencyPostRecoveryDryClient:
 
 
 def _sufficiency_post_recovery_request_inventory(
-    sealed: dict, sufficiency_contract: dict, sufficiency_parent_of: dict
+    sealed: dict, sufficiency_contract: dict, sufficiency_parent_of: dict, *, ownership_context_index=None
 ) -> frozenset:
     """Phase 22: candidate-construction-only dry enumeration (no network, no live model call) of
     every `(ModelNominationScope, request_context)` reached with nonempty candidates against the
@@ -379,6 +380,7 @@ def _sufficiency_post_recovery_request_inventory(
         model_client=_SufficiencyPostRecoveryDryClient(),
         nomination_context=ctx,
         semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION,
+        ownership_context_index=ownership_context_index,
     )
     return frozenset(key for key, receipt in ctx["in_pass_receipts"].items() if receipt["status"] == "fresh")
 
@@ -516,12 +518,16 @@ def execute(
         # is supplied -- independent of whether any model-assisted nomination role is ever bound.
         # Inert for every profile/run that does not pass `sufficiency_contract` (every existing
         # call site): `sufficiency_map_initial` stays None and nothing below this block executes.
+        ownership_context_index = None
         sufficiency_map_initial = None
         sufficiency_u1_receipts_snapshot = None
         if sufficiency_contract is not None and contract.get("version") == hierarchy_contract.HIER_VERSION:
             early_sealed = stages.seal(
                 contract, subquestions, sink.all_records, sink.evidence_packets, coverage_initial
             )
+            if se.SUFFICIENCY_SEMANTICS_VERSION == se.SUFFICIENCY_SEMANTICS_V6:
+                ownership_context_index = ownership_context.build_context_index(early_sealed, sink.evidence_packets)
+                trace.write_json("17_ownership_context.initial.json", ownership_context_index)
             if sufficiency_u1_model_client is not None:
                 # Model-assisted U1: brought under the SAME W-role residency/stage accounting as
                 # every other bound.qwen call in this function (audit §11) -- compute_diagnostic_
@@ -538,6 +544,7 @@ def execute(
                         model_client=sufficiency_u1_model_client,
                         nomination_context=sufficiency_u1_context,
                         semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION,
+                        ownership_context_index=ownership_context_index,
                     )
                     sufficiency_diagnostic.compute_direction_and_effectiveness(
                         early_sealed, sufficiency_map_initial, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
@@ -550,6 +557,7 @@ def execute(
                     sufficiency_contract,
                     sufficiency_parent_of or {},
                     semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION,
+                    ownership_context_index=ownership_context_index,
                 )
                 sufficiency_diagnostic.compute_direction_and_effectiveness(
                     early_sealed, sufficiency_map_initial, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
@@ -693,6 +701,10 @@ def execute(
     )
     sealed_hash = hashlib.sha256(json.dumps(sealed, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
 
+    if sufficiency_contract is not None and se.SUFFICIENCY_SEMANTICS_VERSION == se.SUFFICIENCY_SEMANTICS_V6:
+        ownership_context_index = ownership_context.build_context_index(sealed, sink.evidence_packets)
+        trace.write_json("17_ownership_context.json", ownership_context_index)
+
     sufficiency_map_final = sufficiency_map_initial
     sufficiency_u2_context = None  # stays None unless the block below actually recomputes U2
     # Phase 24: minimal additive manifest diagnostic (§12) -- None whenever U2 never recomputes at
@@ -730,7 +742,10 @@ def execute(
             # request-granular policy kind rather than two different "authorize nothing" shapes.
             if recovery_targets_initial:
                 post_recovery_keys = _sufficiency_post_recovery_request_inventory(
-                    sealed, sufficiency_contract, sufficiency_parent_of or {}
+                    sealed,
+                    sufficiency_contract,
+                    sufficiency_parent_of or {},
+                    ownership_context_index=ownership_context_index,
                 )
                 initial_keys = frozenset((sufficiency_u1_receipts_snapshot or {}).keys())
                 sufficiency_u2_fresh_request_keys = sufficiency_recovery_targets.project_fresh_request_keys(
@@ -752,6 +767,7 @@ def execute(
             model_client=sufficiency_u1_model_client,
             nomination_context=sufficiency_u2_context,
             semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION,
+            ownership_context_index=ownership_context_index,
         )
         sufficiency_diagnostic.compute_direction_and_effectiveness(
             sealed, sufficiency_map_final, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
@@ -820,7 +836,8 @@ def execute(
             sufficiency_map_final, sufficiency_parent_of or {}, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
         )
         if sufficiency_map_final is not None
-        and se.SUFFICIENCY_SEMANTICS_VERSION in (se.SUFFICIENCY_SEMANTICS_V4, se.SUFFICIENCY_SEMANTICS_V5)
+        and se.SUFFICIENCY_SEMANTICS_VERSION
+        in (se.SUFFICIENCY_SEMANTICS_V4, se.SUFFICIENCY_SEMANTICS_V5, se.SUFFICIENCY_SEMANTICS_V6)
         else None
     )
     obligations = sufficiency_recovery_targets.search_obligations(

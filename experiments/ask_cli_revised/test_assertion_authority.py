@@ -198,7 +198,7 @@ def test_module_is_pure_stdlib_only():
             imported.update(a.name.split(".")[0] for a in node.names)
         elif isinstance(node, ast.ImportFrom) and node.module:
             imported.add(node.module.split(".")[0])
-    assert imported <= {"__future__", "hashlib", "re", "collections"}, imported
+    assert imported <= {"__future__", "hashlib", "json", "re", "collections"}, imported
 
 
 def test_module_has_no_q_aib_vocabulary():
@@ -207,7 +207,7 @@ def test_module_has_no_q_aib_vocabulary():
 
 
 def test_semantics_and_plan_versions_are_unchanged():
-    assert se.SUFFICIENCY_SEMANTICS_VERSION == "sufficiency-semantics-v5"  # I4-2a integration
+    assert se.SUFFICIENCY_SEMANTICS_VERSION == "sufficiency-semantics-v6"  # I4-2b3 attribution-only integration
     assert pl.PLAN_VERSION == "answer-plan-step2-v4"
 
 

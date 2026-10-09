@@ -61,11 +61,14 @@ prior-source nouns, and first-person or study-noun owner forms. No participant o
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from collections import namedtuple
 
 CLASSIFIER_ID = "i4-1-assertion-authority"
-RULESET_VERSION = "i4-1f.0"
+ASSERTION_AUTHORITY_RULESET_I4_1F = "i4-1f.0"
+ASSERTION_AUTHORITY_RULESET_I4_2B3 = "i4-2b3.0"
+RULESET_VERSION = ASSERTION_AUTHORITY_RULESET_I4_1F
 
 THIS_STUDY = "this_study"
 PRIOR_WORK = "prior_work"
@@ -1066,7 +1069,7 @@ def _classifier_public():
     return {"id": CLASSIFIER_ID, "ruleset": RULESET_VERSION, "pure": True, "unwired": True}
 
 
-def classify_assertion_authority(
+def _legacy_classify_assertion_authority(
     text,
     *,
     target_start,
@@ -1175,14 +1178,14 @@ def classify_assertion_authority(
     return result
 
 
-def aggregation(text, *, target_start, target_end, is_caption=False, structural_context=None):
+def _legacy_aggregation(text, *, target_start, target_end, is_caption=False, structural_context=None):
     """Pure. Answers exactly: does the ONE local assertion governing this target span explicitly aggregate or
     synthesize evidence across a literature/study set? Never who owns the assertion (see :func:`assertion_relation`),
     never requirement admissibility, never document genre -- a review/meta-analysis need not itself be held in any
     library for this to return ``LITERATURE_SYNTHESIS``. Fails closed exactly like :func:`classify_assertion_authority`
     when no single assertion governs the target (same ``ValueError``-free ambiguity contract: this wrapper raises
     instead, since a bare string return has nowhere to carry the fail-closed reason)."""
-    result = classify_assertion_authority(
+    result = _legacy_classify_assertion_authority(
         text,
         target_start=target_start,
         target_end=target_end,
@@ -1194,7 +1197,7 @@ def aggregation(text, *, target_start, target_end, is_caption=False, structural_
     return result["aggregation"]
 
 
-def classify_target_assertions(
+def _legacy_classify_target_assertions(
     text,
     *,
     target_start,
@@ -1242,7 +1245,7 @@ def classify_target_assertions(
     }
 
 
-def locate_containing_assertion(
+def _legacy_locate_containing_assertion(
     text,
     target_start,
     target_end,
@@ -1271,7 +1274,7 @@ def locate_containing_assertion(
     independent (neither imports the other's name, each protected by its own unwired static guard); only a
     caller that already has both results composes them, exactly as this function's own real-sealed-quote
     join test does."""
-    result = classify_target_assertions(
+    result = _legacy_classify_target_assertions(
         text,
         target_start=target_start,
         target_end=target_end,
@@ -1290,7 +1293,7 @@ def locate_containing_assertion(
     }
 
 
-def classify_all_occurrences(text, surface, *, is_caption=False, structural_context=None, locator=None):
+def _legacy_classify_all_occurrences(text, surface, *, is_caption=False, structural_context=None, locator=None):
     """Every exact occurrence of ``surface``, each classified separately. Never selects a preferred occurrence."""
     spans = []
     i = text.find(surface)
@@ -1298,7 +1301,7 @@ def classify_all_occurrences(text, surface, *, is_caption=False, structural_cont
         spans.append((i, i + len(surface)))
         i = text.find(surface, i + len(surface))
     return [
-        classify_assertion_authority(
+        _legacy_classify_assertion_authority(
             text,
             target_start=a,
             target_end=b,
@@ -1310,7 +1313,9 @@ def classify_all_occurrences(text, surface, *, is_caption=False, structural_cont
     ]
 
 
-def classify_surface(text, surface, *, occurrence=None, is_caption=False, structural_context=None, locator=None):
+def _legacy_classify_surface(
+    text, surface, *, occurrence=None, is_caption=False, structural_context=None, locator=None
+):
     """Surface-level entry point. A repeated surface without an explicit 1-based ``occurrence`` is reported as ambiguous
     and is never silently resolved to one occurrence."""
     spans = []
@@ -1332,7 +1337,7 @@ def classify_surface(text, surface, *, occurrence=None, is_caption=False, struct
     if not (isinstance(occurrence, int) and 1 <= occurrence <= len(spans)):
         raise ValueError("occurrence must be a 1-based index within the occurrences of the surface")
     a, b = spans[occurrence - 1]
-    res = classify_assertion_authority(
+    res = _legacy_classify_assertion_authority(
         text,
         target_start=a,
         target_end=b,
@@ -1341,3 +1346,447 @@ def classify_surface(text, surface, *, occurrence=None, is_caption=False, struct
         locator=locator,
     )
     return {"ambiguity": None, "occurrence_count": len(spans), "results": res}
+
+
+# ---- I4-2b3: explicit post-parse ownership. The legacy helpers above are AST-frozen. ----
+
+
+def _validate_ruleset(ruleset_version, ownership_context, structural_context):
+    if not isinstance(ruleset_version, str) or ruleset_version not in (
+        ASSERTION_AUTHORITY_RULESET_I4_1F,
+        ASSERTION_AUTHORITY_RULESET_I4_2B3,
+    ):
+        raise ValueError("unsupported assertion ruleset")
+    if ruleset_version == ASSERTION_AUTHORITY_RULESET_I4_1F and ownership_context is not None:
+        raise ValueError("legacy ruleset does not accept ownership_context")
+    if ruleset_version == ASSERTION_AUTHORITY_RULESET_I4_2B3 and structural_context is not None:
+        raise ValueError("corrected ruleset requires verified ownership_context, not owner_signal")
+
+
+def _citation_set(toks, region):
+    spans, values = [], set()
+    for token in toks:
+        if token.kind != "cite" or not region[0] <= token.start < region[1]:
+            continue
+        spans.append([token.start, token.end])
+        for item in token.raw.split(","):
+            bounds = re.split("[-–]", item)
+            if not all(x.isdigit() and int(x) > 0 for x in bounds) or len(bounds) not in (1, 2):
+                return None, []
+            a, b = int(bounds[0]), int(bounds[-1])
+            if a > b:
+                return None, []
+            values.update(range(a, b + 1))
+    return sorted(values), spans
+
+
+def _local_rule_proofs(text, all_rows, si, ri, is_caption, locator):
+    sentence, toks, records = all_rows[si]
+    rec = records[ri]
+    target = list(_region(toks, rec))
+    proofs = []
+    base = {"quote_sha256": _sha256(text), "target_assertion_span": target, "locator": locator}
+    if rec["source"] != UNKNOWN_SOURCE or rec["kind"] != RESULT:
+        return proofs
+    if si > 0 and ri == 0 and not rec["framing_prior"] and rec["comparison"] is None:
+        previous_sentence, ptoks, prevs = all_rows[si - 1]
+        prefix = text[sentence[0] : sentence[1]]
+        gap = text[previous_sentence[1] : sentence[0]]
+        reset = re.match(
+            r"(?:but|although|whereas|while|however|yet|though|by contrast|in contrast|in this study|"
+            r"in the present study|here)\b",
+            prefix,
+            re.I,
+        )
+        if prevs and not re.search(r"\n[ \t]*\n", gap) and not reset and not _detect_run_in_label(prefix):
+            prev = prevs[-1]
+            pr = list(_region(ptoks, prev))
+            left, lc = _citation_set(ptoks, pr)
+            right, rc = _citation_set(toks, target)
+            if prev["source"] == PRIOR_WORK and prev["kind"] == RESULT and left and left == right:
+                boundaries = list(re.finditer(r"\n[ \t]*\n", text[: previous_sentence[0]]))
+                paragraph_start = boundaries[-1].end() if boundaries else 0
+                proofs.append(
+                    {
+                        **base,
+                        "rule_id": "owner.adjacent_cited_continuation.v1",
+                        "relation": "attributed_external",
+                        "predecessor_assertion_span": pr,
+                        "owner_span": _assertion_public(text, ptoks, prev)["subject"]["span"],
+                        "sentence_spans": [list(previous_sentence), list(sentence)],
+                        "paragraph_span": [paragraph_start, sentence[1]],
+                        "citation_spans": [lc, rc],
+                        "citation_set": left,
+                    }
+                )
+    label = _detect_run_in_label(text)
+    if si == 0 and ri == 1 and label and label["normalized"] == RESULTS_LABEL:
+        first = records[0]
+        fr = list(_region(toks, first))
+        bridge = text[fr[1] : target[0]]
+        connector = re.fullmatch(r",\s*(while|whereas)\s+", bridge, re.I)
+        eligible_first = _effective(first, toks, text, None, is_caption)["source"] == THIS_STUDY
+        scoped = {**rec, "label_normalized": RESULTS_LABEL}
+        if (
+            connector
+            and eligible_first
+            and first["kind"] == RESULT
+            and ";" not in text[slice(*sentence)]
+            and _results_veto(scoped, toks, text, is_caption) is None
+            and not any(_is_word(t, *_HEDGE) for t in toks if target[0] <= t.start < target[1])
+        ):
+            proofs.append(
+                {
+                    **base,
+                    "rule_id": "owner.results_coordination.v1",
+                    "relation": "current_document",
+                    "label_span": label["span"],
+                    "first_assertion_span": fr,
+                    "connector": connector.group(1).lower(),
+                    "connector_span": [fr[1] + connector.start(1), fr[1] + connector.end(1)],
+                    "sentence_span": list(sentence),
+                }
+            )
+    return proofs
+
+
+def _verified_context_proofs(text, span, context):
+    if context is None:
+        return [], "unavailable", "context_unavailable"
+    if not isinstance(context, dict):
+        return [], "invalid", "context_invalid"
+    if context.get("status") in ("unavailable", "invalid", "ambiguous", "conflicting"):
+        return [], context["status"], context.get("failure")
+    try:
+        if (
+            context["status"] != "applied"
+            or not context["proofs"]
+            or len(context["proofs"]) != len(context["validation"])
+        ):
+            return [], "invalid", "context_invalid"
+        for proof, material in zip(context["proofs"], context["validation"], strict=True):
+            if (
+                proof["schema_version"] != "verified-local-owner-v1"
+                or proof["resolver_version"] != "local-antecedent-v1"
+                or proof["rule_id"] != "owner.local_antecedent.v1"
+                or proof["quote_sha256"] != _sha256(text)
+                or proof["target_assertion_span"] != list(span)
+                or proof["context_entry_id"] != material["context_entry_id"]
+                or not re.fullmatch(r"[0-9a-f]{64}", proof["context_entry_id"])
+                or proof["relation"] not in ("current_document", "attributed_external")
+            ):
+                return [], "invalid", "context_identity_mismatch"
+            entry = material["entry"]
+            source_identity = material["source_identity"]
+            source_snapshot = {**source_identity, "text": material["source_text"]}
+
+            def digest(value):
+                return _sha256(json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
+
+            if (
+                digest(entry) != proof["context_entry_id"]
+                or digest(source_snapshot) != entry["source_id"]
+                or source_identity != proof["source"]
+                or entry["quote_sha256"] != proof["quote_sha256"]
+                or entry["quote_span_in_chunk"] != proof["quote_span_in_chunk"]
+                or entry["paragraph_span_in_chunk"] != proof["paragraph_span_in_chunk"]
+            ):
+                return [], "invalid", "context_identity_mismatch"
+            source = material["source_text"]
+            qa, qb = proof["quote_span_in_chunk"]
+            pa, pb = proof["paragraph_span_in_chunk"]
+            oa, ob = proof["owner_assertion_span_in_chunk"]
+            if (
+                not all(type(v) is int for v in (qa, qb, pa, pb, oa, ob))
+                or not 0 <= pa <= oa < ob <= qa < qb <= pb <= len(source)
+                or source[qa:qb] != text
+                or _sha256(source) != proof["source"]["chunk_text_sha256"]
+            ):
+                return [], "invalid", "context_span_mismatch"
+            headers = proof["header_spans_in_chunk"]
+            items = proof["list_items"]
+            anaphor = proof["anaphor_span_in_chunk"]
+            if (
+                not isinstance(headers, list)
+                or not isinstance(items, list)
+                or len(headers) != len(items)
+                or len(items) < 2
+                or any(not isinstance(item, str) or not item for item in items)
+                or len(set(items)) != len(items)
+                or not isinstance(anaphor, list)
+                or len(anaphor) != 2
+                or any(type(v) is not int for v in anaphor)
+                or not qa == anaphor[0] < anaphor[1] <= qa + span[0]
+            ):
+                return [], "invalid", "context_structure_invalid"
+            end = ob
+            for header in headers:
+                if (
+                    not isinstance(header, list)
+                    or len(header) != 2
+                    or any(type(v) is not int for v in header)
+                    or not end <= header[0] < header[1] <= qa
+                ):
+                    return [], "invalid", "context_header_span_invalid"
+                end = header[1]
+            owner = _legacy_classify_target_assertions(source[oa:ob], target_start=0, target_end=ob - oa)
+            if (
+                len(owner["assertions"]) != 1
+                or assertion_relation(owner["assertions"][0]["assertion_source"]) != proof["relation"]
+                or owner["assertions"][0]["source_resolution"] != PARSED
+            ):
+                return [], "invalid", "context_owner_mismatch"
+        return json.loads(json.dumps(context["proofs"])), "applied", None
+    except (KeyError, TypeError, ValueError, IndexError, AttributeError):
+        return [], "invalid", "context_invalid"
+
+
+def _corrected_fields(text, fields, is_caption, context, locator):
+    span = fields["assertion"]["span"]
+    proposals, status, failure = _verified_context_proofs(text, span, context)
+    if fields["assertion_source"] != UNKNOWN_SOURCE:
+        proposals, status, failure = [], "not_needed", None
+    else:
+        for si, (_, toks, recs) in enumerate(_all_assertions(text)):
+            for ri, rec in enumerate(recs):
+                if list(_region(toks, rec)) == list(span):
+                    proposals += _local_rule_proofs(text, _all_assertions(text), si, ri, is_caption, locator)
+        if proposals and status not in ("invalid", "conflicting"):
+            status = "applied"
+            failure = None
+    relations = {p["relation"] for p in proposals}
+    updated = dict(fields)
+    rules = [p["rule_id"] for p in proposals]
+    if len(relations) > 1:
+        status, failure = "conflicting", "ownership_proposals_conflict"
+    elif len(relations) == 1 and fields["assertion_source"] == UNKNOWN_SOURCE:
+        relation = next(iter(relations))
+        source = THIS_STUDY if relation == "current_document" else PRIOR_WORK
+        updated.update(
+            assertion_source=source,
+            source_resolution="corrected_context",
+            finding_authority=finding_authority(source, fields["assertion_kind"], is_caption, fields["authority_veto"]),
+            rule=rules[-1],
+            rules_applied=[*fields["rules_applied"], *rules],
+        )
+    updated["ownership"] = {
+        "schema_version": "ownership-attribution-v1",
+        "classifier_id": CLASSIFIER_ID,
+        "ruleset_version": ASSERTION_AUTHORITY_RULESET_I4_2B3,
+        "assertion_relation": assertion_relation(updated["assertion_source"]),
+        "source_resolution": updated["source_resolution"],
+        "rule_ids": list(updated["rules_applied"]),
+        "proofs": proposals,
+        "context_status": status,
+        "context_failure": failure,
+    }
+    return updated
+
+
+def classify_target_assertions(
+    text,
+    *,
+    target_start,
+    target_end,
+    is_caption=False,
+    structural_context=None,
+    locator=None,
+    ruleset_version=ASSERTION_AUTHORITY_RULESET_I4_1F,
+    ownership_context=None,
+):
+    _validate_ruleset(ruleset_version, ownership_context, structural_context)
+    result = _legacy_classify_target_assertions(
+        text,
+        target_start=target_start,
+        target_end=target_end,
+        is_caption=is_caption,
+        structural_context=structural_context,
+        locator=locator,
+    )
+    if ruleset_version == ASSERTION_AUTHORITY_RULESET_I4_1F:
+        return result
+    result["classifier"] = {**result["classifier"], "ruleset": ruleset_version}
+    result["assertions"] = [
+        _corrected_fields(text, a, is_caption, ownership_context, result["input"]["locator"])
+        for a in result["assertions"]
+    ]
+    return result
+
+
+def classify_assertion_authority(
+    text,
+    *,
+    target_start,
+    target_end,
+    is_caption=False,
+    structural_context=None,
+    locator=None,
+    ruleset_version=ASSERTION_AUTHORITY_RULESET_I4_1F,
+    ownership_context=None,
+):
+    _validate_ruleset(ruleset_version, ownership_context, structural_context)
+    result = _legacy_classify_assertion_authority(
+        text,
+        target_start=target_start,
+        target_end=target_end,
+        is_caption=is_caption,
+        structural_context=structural_context,
+        locator=locator,
+    )
+    if ruleset_version == ASSERTION_AUTHORITY_RULESET_I4_1F:
+        return result
+    result["classifier"] = {**result["classifier"], "ruleset": ruleset_version}
+    if result["assertion"] is not None and result["ambiguity"] is None:
+        result = _corrected_fields(text, result, is_caption, ownership_context, result["input"]["locator"])
+    return result
+
+
+def locate_containing_assertion(
+    text,
+    target_start,
+    target_end,
+    *,
+    is_caption=False,
+    structural_context=None,
+    locator=None,
+    ruleset_version=ASSERTION_AUTHORITY_RULESET_I4_1F,
+    ownership_context=None,
+):
+    _validate_ruleset(ruleset_version, ownership_context, structural_context)
+    if ruleset_version == ASSERTION_AUTHORITY_RULESET_I4_1F:
+        return _legacy_locate_containing_assertion(
+            text,
+            target_start,
+            target_end,
+            is_caption=is_caption,
+            structural_context=structural_context,
+            locator=locator,
+        )
+    result = classify_target_assertions(
+        text,
+        target_start=target_start,
+        target_end=target_end,
+        is_caption=is_caption,
+        locator=locator,
+        ruleset_version=ruleset_version,
+        ownership_context=ownership_context,
+    )
+    scope = result["target_scope"]
+    resolved = scope in ("within_assertion", "partial_assertion")
+    return {
+        "resolved": resolved,
+        "assertion": result["assertions"][0] if resolved else None,
+        "target_scope": scope,
+        "reason": None if resolved else scope,
+        "diagnostic": result,
+    }
+
+
+def classify_all_occurrences(
+    text,
+    surface,
+    *,
+    is_caption=False,
+    structural_context=None,
+    locator=None,
+    ruleset_version=ASSERTION_AUTHORITY_RULESET_I4_1F,
+    ownership_context=None,
+):
+    _validate_ruleset(ruleset_version, ownership_context, structural_context)
+    if ruleset_version == ASSERTION_AUTHORITY_RULESET_I4_1F:
+        return _legacy_classify_all_occurrences(
+            text, surface, is_caption=is_caption, structural_context=structural_context, locator=locator
+        )
+    spans = []
+    i = text.find(surface) if surface else -1
+    while i != -1:
+        spans.append((i, i + len(surface)))
+        i = text.find(surface, i + len(surface))
+    return [
+        classify_assertion_authority(
+            text,
+            target_start=a,
+            target_end=b,
+            is_caption=is_caption,
+            locator=locator,
+            ruleset_version=ruleset_version,
+            ownership_context=ownership_context,
+        )
+        for a, b in spans
+    ]
+
+
+def classify_surface(
+    text,
+    surface,
+    *,
+    occurrence=None,
+    is_caption=False,
+    structural_context=None,
+    locator=None,
+    ruleset_version=ASSERTION_AUTHORITY_RULESET_I4_1F,
+    ownership_context=None,
+):
+    _validate_ruleset(ruleset_version, ownership_context, structural_context)
+    if ruleset_version == ASSERTION_AUTHORITY_RULESET_I4_1F:
+        return _legacy_classify_surface(
+            text,
+            surface,
+            occurrence=occurrence,
+            is_caption=is_caption,
+            structural_context=structural_context,
+            locator=locator,
+        )
+    results = classify_all_occurrences(
+        text,
+        surface,
+        is_caption=is_caption,
+        locator=locator,
+        ruleset_version=ruleset_version,
+        ownership_context=ownership_context,
+    )
+    if not results:
+        return {"ambiguity": "surface_not_found", "occurrence_count": 0, "results": None}
+    if occurrence is None and len(results) > 1:
+        return {
+            "ambiguity": "repeated_target_occurrence",
+            "occurrence_count": len(results),
+            "occurrence_spans": [[r["input"]["target"]["start"], r["input"]["target"]["end"]] for r in results],
+            "results": None,
+        }
+    occurrence = 1 if occurrence is None else occurrence
+    if not isinstance(occurrence, int) or not 1 <= occurrence <= len(results):
+        raise ValueError("occurrence must be a 1-based index within the occurrences of the surface")
+    return {"ambiguity": None, "occurrence_count": len(results), "results": results[occurrence - 1]}
+
+
+def aggregation(
+    text,
+    *,
+    target_start,
+    target_end,
+    is_caption=False,
+    structural_context=None,
+    ruleset_version=ASSERTION_AUTHORITY_RULESET_I4_1F,
+    ownership_context=None,
+):
+    _validate_ruleset(ruleset_version, ownership_context, structural_context)
+    if ruleset_version == ASSERTION_AUTHORITY_RULESET_I4_1F:
+        return _legacy_aggregation(
+            text,
+            target_start=target_start,
+            target_end=target_end,
+            is_caption=is_caption,
+            structural_context=structural_context,
+        )
+    result = classify_assertion_authority(
+        text,
+        target_start=target_start,
+        target_end=target_end,
+        is_caption=is_caption,
+        ruleset_version=ruleset_version,
+        ownership_context=ownership_context,
+    )
+    if result["ambiguity"] is not None:
+        raise ValueError(f"no single governing assertion for this target: {result['ambiguity']}")
+    return result["aggregation"]

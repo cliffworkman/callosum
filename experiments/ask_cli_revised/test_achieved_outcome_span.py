@@ -189,7 +189,7 @@ def test_module_does_not_modify_attribution_module():
 
 
 def test_versions_are_unchanged_for_sufficiency_and_plan():
-    assert se.SUFFICIENCY_SEMANTICS_VERSION == "sufficiency-semantics-v5"  # I4-2a integration
+    assert se.SUFFICIENCY_SEMANTICS_VERSION == "sufficiency-semantics-v6"  # I4-2b3 attribution-only integration
     assert pl.PLAN_VERSION == "answer-plan-step2-v4"
     assert aos.SCHEMA_VERSION == "i4-1d.0"
 

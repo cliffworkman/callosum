@@ -14,13 +14,14 @@ that on its own.
 from __future__ import annotations
 
 from experiments.ask_cli_revised import overview_evidence as oe
+from experiments.ask_cli_revised import ownership_context as oc
 from experiments.ask_cli_revised import relation_witness as rw
 from experiments.ask_cli_revised import sufficiency_engine as se
 from experiments.ask_cli_revised import sufficiency_identity as si
 from experiments.ask_cli_revised import sufficiency_mapping as sm
 
 
-def units_by_child(sealed: dict) -> dict[str, list[dict]]:
+def units_by_child(sealed: dict, *, ownership_context_index=None) -> dict[str, list[dict]]:
     """``{child_id: [unit, ...]}`` -- units whose ``attached_children`` include that child, in
     ``overview_evidence.build_units``'s own first-restating-claim order. `attached_children` is
     the coverage authority's own topical judgment (already computed elsewhere in the pipeline);
@@ -48,6 +49,11 @@ def units_by_child(sealed: dict) -> dict[str, list[dict]]:
     happens to be identical (confirmed live in the Phase 2 diagnostic's own Finding 2). A
     proposition missing from `sealed` is simply absent from this map, never guessed.
     """
+    context_by_pid = (
+        {r["proposition_id"]: oc.context_for(ownership_context_index, r) for r in sealed["verified_propositions"]}
+        if ownership_context_index is not None
+        else {}
+    )
     units, _claims = oe.build_units(sealed)
     tagged_for_child: dict[str, set[str]] = {}
     anchor_by_proposition: dict[str, tuple] = {}
@@ -78,6 +84,7 @@ def units_by_child(sealed: dict) -> dict[str, list[dict]]:
                     "proposition_anchor": proposition_anchor,
                     # Exact quotes allow v5 to verify shared offset coordinates. No historical consumer reads this.
                     "proposition_passages": {pid: passage_by_proposition[pid] for pid in ordered},
+                    **({"ownership_contexts": {pid: context_by_pid[pid] for pid in ordered}} if context_by_pid else {}),
                 }
             )
     return by_child
@@ -91,6 +98,7 @@ def compute_diagnostic_sufficiency_map(
     model_client=None,
     nomination_context: dict | None = None,
     semantics_version: str,
+    ownership_context_index=None,
 ) -> dict:
     """`contract_by_child`: `{child_id: SufficiencyContract}` (Layer B's frozen instance, e.g.
     `sufficiency_authoring.build_qaib_contract(...)`). `parent_of`: `{child_id: parent_child_id}`,
@@ -120,7 +128,10 @@ def compute_diagnostic_sufficiency_map(
     authoring convention, not a structural guarantee). Omitted entirely, this function's
     behavior is unchanged."""
     se.require_supported_semantics_version(semantics_version)
-    by_child = units_by_child(sealed)
+    by_child = units_by_child(
+        sealed,
+        ownership_context_index=ownership_context_index if semantics_version == se.SUFFICIENCY_SEMANTICS_V6 else None,
+    )
     mapped: dict[str, dict] = {}
     child_ids = list(contract_by_child)
     no_parent_context = [

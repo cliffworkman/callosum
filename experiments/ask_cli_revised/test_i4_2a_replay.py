@@ -56,7 +56,7 @@ def canonical(value):
     )
 
 
-def remap(version):
+def remap(version, *, ownership_context_index=None):
     """Run the real mapper/fork/recompute pipeline with only model-role selection replaced by frozen bindings.
 
     The keyed replay reads source request_context, never current instance keys or role-name heuristics.
@@ -88,9 +88,15 @@ def remap(version):
             assert key in held, f"unrecorded nomination scope: {key}"
             return copy.deepcopy(held[key])
         result = original(spec, units, **kwargs)
-        if version == "sufficiency-semantics-v5" and spec["mapping_strategy"] == "achieved_outcome_predicate":
+        if (
+            version in ("sufficiency-semantics-v5", "sufficiency-semantics-v6")
+            and spec["mapping_strategy"] == "achieved_outcome_predicate"
+        ):
             diag = {}
-            checked = sm._bind_achieved_outcome_v5(
+            binder = (
+                sm._bind_achieved_outcome_v6 if version == "sufficiency-semantics-v6" else sm._bind_achieved_outcome_v5
+            )
+            checked = binder(
                 spec,
                 units,
                 sibling_bindings=kwargs.get("sibling_bindings"),
@@ -111,7 +117,11 @@ def remap(version):
     parent_of = hc.parent_of(hc.load_contract(BENCHMARK_QUESTION, pins=None))
     with patch.object(sm, "_bind_role_candidates", replay):
         mapped = sd.compute_diagnostic_sufficiency_map(
-            sealed, copy.deepcopy(preserved), parent_of, semantics_version=version
+            sealed,
+            copy.deepcopy(preserved),
+            parent_of,
+            semantics_version=version,
+            ownership_context_index=ownership_context_index,
         )
     sd.compute_direction_and_effectiveness(sealed, mapped, semantics_version=version)
     targets = srt.compute_recovery_targets(mapped, parent_of, semantics_version=version)

@@ -109,6 +109,7 @@ _REFERENT_CONTAINMENT = {
     se.SUFFICIENCY_SEMANTICS_V4: _contains_case_insensitive,
     # v5 (I4-2a) changes achieved-outcome mapping only; referent containment is the v2/v3/v4 rule, unchanged.
     se.SUFFICIENCY_SEMANTICS_V5: _contains_case_insensitive,
+    se.SUFFICIENCY_SEMANTICS_V6: _contains_case_insensitive,  # attribution-only; identical inherited rule
 }
 
 
