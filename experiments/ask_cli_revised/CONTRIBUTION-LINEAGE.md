@@ -2820,3 +2820,59 @@ observation-alignment integration design**; not authorization to implement v8 no
 design closes reference serialization, selected-span/operand transport and the legacy answer-layer
 handoff. STOP after I4-3A. No relationship implementation, verifier registration, I4-4, claim-goal/veto
 work or I2-3.
+
+## Phase 34 / I4-3B — v8 compatible-witness and observation-alignment design (2026-10-09)
+
+**Scope and base.** Planning/docs only on canonical branch
+`experiment/ask-060-hier11-recpm3-citefix-20260929T212442Z`, clean starting HEAD
+`d1768f48d3ac8a3ff6a618e3a94ba49afe381205`. The complete
+[I4-3B design](PHASE34_I4_3B_V8_COMPATIBLE_WITNESS_OBSERVATION_DESIGN.md)
+and this append are the only changes. No production behavior, version, candidate collection,
+attribution, support policy, guard, ParentClaim or AnswerPlan implementation changes.
+
+**Closed selection contract.** One pure shared support-view adapter validates evaluated candidates
+and returns only admissible, attachment-resolved views for filled roles. A present empty/ineligible
+candidate list never falls back to the legacy representative. Legacy bindings retain an explicit
+singleton view and their existing evidence contract. Own/inherited source is determined by current
+outer placement; carried parent candidates remain inherited. Stable content-derived, placement-scoped
+support references distinguish local assertions; identical duplicates collapse and conflicting
+identity payloads raise before filtering. Proofs preserve actual compatible assignments, global
+common proposition IDs, distinct verifier-OR bases and inherited alternatives. Engine completion
+and I1 retain their different participation contracts. Historical witness_ids remain proposition
+IDs; additive registries and proof references explain completion and I1 separately.
+
+**Closed observation contract.** Candidate-backed own evidence uses exact selected assertion scope,
+with reversible offsets for the unchanged direction sentence splitter. Sentence/proposition/unit
+expansion can reintroduce excluded neighboring clauses and is rejected. Legacy-only own evidence
+keeps historical unit scope. Observations carry selected operand references, locators and proof paths;
+duplicate physical observations merge paths while distinct same-proposition assertions survive.
+Opposing eligible assertions produce both directions and the existing conflict/no-consensus result
+independent of candidate order. Effectiveness retains its independent eligibility and existing local
+negation/absence detector; no new I1 or authority-veto gate.
+
+**Real and synthetic verification.** Fresh v4-v7 offline reruns match all four frozen hashes exactly.
+The independent oracle inspects 46 instances, 51 eligible views and 20 relationship proofs, with zero
+real role, requirement, I1 Boolean/ID, direction or effectiveness deltas. All 48 recovery targets,
+17 ParentClaims, nine AnswerPlan nodes, rendered output and 33 passing invariants are preserved.
+The prospective semantic projection is not a serialized/version-stamped v8 artifact. Planning checks
+cover 42 original/exclusion permutation executions, 23 added scenario executions, seven identity/edge
+assertions, eight offset probes and scope/recovery/downstream characterizations. Wire-schema and
+complete routing tests are preregistered, not reported as passing implementation tests.
+
+**Layer C boundary.** A synthetic non-representative proof can make an instance complete while
+unchanged ParentClaim construction raises for no legacy shared support. Unchanged AnswerPlan can
+disagree with new witness metadata; even a counterfactual shared proof-aware I1 result leaves its
+representative operand projection stale. Preserve exact proof/text/locator handoff for I4-4 and
+characterize these failures. Do not repair Layer C covertly through an unversioned helper.
+
+**Readiness and next increment.** READY for one bounded atomic Layer A/B v8 implementation:
+**I4-3C — V8 compatible-witness proofs and aligned observations: bounded integration and offline
+qualification**. Do not activate Boolean changes separately from observation alignment. Explicit
+v4-v7 replay/shape must remain exact; v8 routing is explicit and inherits v7 evidence/classifier/
+quantifier/recovery behavior. General proof-aligned end-to-end answer qualification remains NOT READY.
+Current-default activation must be addressed explicitly under the next instruction, with these
+Layer C limits acknowledged. No v8 baseline is created here.
+
+**Stop.** No external search, live retrieval, model calls, live E2E or full-suite run occurred.
+Only the report and this lineage append are materialized. STOP after I4-3B; no v8 implementation,
+same_local_assertion registration, claim-goal/veto work, I4-4 or I2-3.
