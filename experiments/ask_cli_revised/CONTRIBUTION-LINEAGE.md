@@ -2649,3 +2649,55 @@ unsupported or unavailable context remains unresolved. READY for separately auth
 planning, not bundled policy implementation. Guards remain v5 prefilters; policy and authority-veto gating,
 same_local_assertion registration, PLAN_VERSION, ParentClaims/AnswerPlan implementation and I2-3 are untouched.
 STOP after I4-2b3.
+
+
+## 2026-10-09 — Phase 34 / I4-2b4 v7 support-policy and guard-retention integration design
+
+**Scope (Cliff Workman).** Design the next boundary after accepted attribution-only I4-2b3, starting
+from clean canonical HEAD `11486c031f0a3d9280866ef5bc4039301166f2c4`. Planning/docs only:
+this report and this lineage append. No production/test implementation or behavior change.
+
+**Design (Cody/Codex).** Recommend explicit sufficiency-semantics-v7 using unchanged i4-2b3.0 attribution.
+For achieved_outcome_predicate only, preserve passage-level guard detection and authored identities,
+retain only successfully grounded/relevant candidates, evaluate every candidate's absent or complete
+authored policy, and record independent guard_exclusions and support_policy_evaluation. Define
+admissible as guard pass AND policy pass, with attachment independent. Engine-owned set aggregation
+uses corrected B9; only afterward select a resolved eligible legacy representative. Singular rejection
+reason remains derived compatibility data, never semantic authority. The report documents existing
+binding-level witness consumers; it does not silently redesign relationship semantics.
+
+**Frozen policy and boundaries.** Keep the conservative empirical result predicate; explicit complete
+policy replaces it with three-dimensional AND semantics. Never implement absence through
+new_support_policy(). Recommend a pure triple-only support_policy.py evaluator with deterministic policy
+identity/snapshot and closed failure reasons. Authority veto and captions remain metadata; no goal/polarity
+inference, same_local_assertion registration, other-strategy guard change, or PLAN_VERSION change.
+The report specifies reference/schema migration, all explicit v6 routing sites and exact historical replay
+preservation. Recommendation B remains satisfied by the preceding attribution repair; the original
+uncorrected six-exclusion counterfactual remains untouched.
+
+**Observed in-memory projection.** Actual v6 annotation classifies all five newly retained p9/p20
+supports as current_document / non_synthetic_or_unspecified / interpretation, with no R1/R2/R3 correction.
+Ten original candidates pass; five new supports independently fail both hedged and empirical policy.
+Candidate count becomes 15. c3 stays filled; four missing c8 bindings gain excluded supports and change
+their reason from not_found to candidate_supports_excluded. c10/c12 remain candidate-empty.
+All 26 evidence-role states (10 filled, 16 missing, zero ambiguous), 13 requirement states, 48 recovery
+records, witnesses/relations, direction/effectiveness, 17 ParentClaims, nine AnswerPlan nodes and Layer 1
+remain unchanged; all 33 downstream invariants pass. The projection used the accepted v6 identity and
+existing downstream machinery, not a production or version-stamped v7 replay; no v7 hash is frozen.
+
+**Verification.** Rerun combined replay hashes match exact historical v4
+`4154ebd4062d22aa25db43e947aba61abe2c5888d6aa10d8ecd14b60afa65e4a`, v5
+`109030de83856b4384d596311dd8e3f6d46d19859c895c4b94b9efb3aa92ae77`, and accepted v6
+`dabef2f553b5e9301f9daa3a344b624ee6afb3e0f41fbce18b096587736822be`.
+All 31 reached nomination attempts across 29 unique scopes retain exact candidate rows, prompts and
+fingerprints without a model call. Independent audit oracles checked 30 default triples, 180 authored
+triples, eight orthogonal truth-table rows, 14 multi-candidate cases in both orders, and 3,780 metadata
+non-gate comparisons. These are design checks, not passing tests for an implemented v7 evaluator.
+No live retrieval, model calls, external search, library lookup, or live E2E occurred.
+
+**Artifact, readiness, and stop.** See
+[PHASE34_I4_2B4_V7_SUPPORT_POLICY_GUARD_DESIGN.md](PHASE34_I4_2B4_V7_SUPPORT_POLICY_GUARD_DESIGN.md).
+READY for separately authorized **PHASE 34 / I4-2b5 — V7 support-policy evaluation + achieved-outcome
+guard-retention integration**, strictly within the report's boundaries. No implementation authorization
+is inferred from readiness. No version bump, classifier/guard/policy implementation, reference-helper
+edit, ParentClaims/AnswerPlan change, or I2-3. STOP after I4-2b4.
