@@ -2506,3 +2506,103 @@ implementation, guard-policy change, same_local_assertion registration, AnswerPl
 **Commit hook exception.** The normal attempt passed all applicable hooks except the unchanged frontend
 615-line budget. Cliff's explicit I4-2a-only `--no-verify` exception applies to the combined implementation
 commit; no substantive gate was bypassed. Detailed hook output and failure accounting are in the report.
+
+
+## 2026-10-08 — Phase 34 / I4-2b0 support-policy and guard audit accepted
+
+**Architecture and acceptance (Cliff Workman).** Accept the planning audit with corrected B9: filled
+requires an attachment-resolved candidate passing every guard and policy gate; ambiguous requires no
+filled candidate and an attachment-ambiguous candidate that would otherwise pass every gate; missing
+otherwise. Attachment uncertainty, guard exclusion, and policy exclusion are orthogonal facts, with no
+semantic failure precedence. An excluded candidate cannot create ambiguity.
+
+**Read-only audit and materialization (Cody/Codex).** Recorded all ten committed I4-2a candidate supports,
+the exact absent empirical predicate, complete explicit-policy replacement with AND semantics, the
+builder/default distinction, synthetic controls, generic matrix, and guard alternatives/history.
+Accepted retain-and-flag after successful grounding/relevance. Deferred authority-veto gating until
+structured claim-goal authoring; captions remain metadata; same_local_assertion remains deferred;
+hierarchical and Simple Ask share authored policy machinery. Likely eventual v6 boundary, exact
+historical v5 preservation, and later I4-4 metadata requirements retained.
+
+**Historical counterfactual preserved.** With original relation labels, four supports pass and six fail;
+six of 26 evidence roles become missing, four of 13 requirement states change, recovery targets 48 → 39,
+and ParentClaims 17 → 13. This is explicitly the uncorrected-attribution projection, not a judgment that
+those six assertions are intrinsically unusable. The corrected aggregation does not change those counts
+because all real attachments are resolved. Fourteen aggregation checks and 33 downstream invariants pass.
+The old reference helper needs a future revision; it is unchanged.
+
+**Artifact and stop.** See [PHASE34_I4_2B0_SUPPORT_POLICY_GUARD_AUDIT.md](PHASE34_I4_2B0_SUPPORT_POLICY_GUARD_AUDIT.md).
+I4-2b implementation is NOT READY pending the ownership audit/correction. This entry and report are
+documentation only; no implementation or version change.
+
+## 2026-10-08 — Phase 34 / I4-2b1 ownership uncertainty audit accepted
+
+**Scope and acceptance (Cliff Workman).** Audit only the three contexts responsible for the original
+six exclusions. Preserve the original counterfactual and all other I4-2b0 decisions. Accept
+Recommendation B: fix attribution first; do not weaken the conservative support-policy default.
+
+**Local evidence audit (Cody/Codex).** p2/p11 is a classifier_input_gap: the preserved owner-bearing
+paragraph was read in the run but omitted from the quote-only classifier input. Its two uses justify
+current_document. p40 is a classifier_rule_gap: adjacent explicit Recent work framing and matching
+citation 6 justify attributed_external, corroborated by the frozen local reference list. p41 assertion 2
+is a classifier_rule_gap: Results scope is deliberately limited to the first clause in the old contract;
+the preserved coordination and structured abstract justify current_document for three uses. All six
+are recoverable; none requires genuinely_unresolved given the complete local evidence. Proposed three
+bounded generic upstream rules and documented 32 neutral cases with observed outputs separated from
+manual proposed-rule expectations. No new classifier rule was implemented or claimed to pass tests.
+
+**Counterfactual and verification.** Correcting only the six justified relation values leaves zero of
+the original six exclusions and all ten original supports policy-admissible. All 26 evidence-role states,
+13 requirement states, 48 recovery records, 17 ParentClaims, nine-node AnswerPlan, and rendered Layer 1
+match v5. All 33 downstream invariants pass. Retain-and-flag additionally exposes five interpretation
+candidates independently excluded by the hedge guard and policy; four c8 missing reasons become
+inspectable exclusions, so the full map is not byte-identical. Frozen library fingerprint, input hashes,
+and accepted v5 baseline replay verified. No external search, retrieval, model calls, or live E2E.
+
+**Artifact and final stop.** See [PHASE34_I4_2B1_OWNERSHIP_UNCERTAINTY_AUDIT.md](PHASE34_I4_2B1_OWNERSHIP_UNCERTAINTY_AUDIT.md).
+I4-2b remains NOT READY until separately specified, authorized, implemented, and validated attribution
+work preserves historical v5 replay. Materialization changes exactly the two audit reports and this
+experiment lineage file. No production-code or behavior changes, classifier/support-policy/guard
+implementation, version bump, same_local_assertion registration, ParentClaims/AnswerPlan edit, or I2-3.
+Stop after I4-2b1.
+
+
+## 2026-10-08 — Phase 34 / I4-2b2 versioned attribution repair design audit
+
+**Scope (Cliff Workman).** Design the smallest generic attribution repair for the three accepted
+ownership failure families while preserving exact explicit historical v5 replay. Planning/docs only;
+no attribution, support-policy, guard, or version implementation.
+
+**Current-code audit (Cody/Codex).** Confirmed one global assertion-authority ruleset, i4-1f.0, no
+version parameter on the public classifier/join APIs, and a v5 mapper call that consumes that global
+behavior. Classifier identity is returned but not retained in candidate_support; existing provenance
+does not freeze classifier behavior. Inspected exact/prefix version tests, frozen batteries, sole-mapper
+consumer guards, unit reconstruction, sealing, resident E2E packets, and recovery remapping seams.
+The diagnostic path has sealed quotes and locators, not full source chunk text.
+
+**Design recommendation.** Choose explicit ruleset dispatch with a permanently legacy default and
+explicit v5 selection; preserve legacy parser/output behavior. Proposed corrected path annotates the
+same v5-grounded candidates, with bounded R1 context proof supplied through a pure transport/resolver
+module, R2 adjacent matched-citation attribution, and R3 first-sentence Results while/whereas scope.
+Keep the mapper as the sole production classifier consumer, with no hidden library lookup or domain
+vocabulary. Candidate attribution metadata records ruleset, rule, target and context/citation/label
+spans, source identity, and proof references independently of support text.
+
+**Version boundary and readiness.** Recommend attribution-only sufficiency-semantics-v6 with
+i4-2b3.0, followed by a separately versioned policy/guard increment (expected v7). This supersedes
+the earlier provisional policy-v6 numbering, not the conservative default or accepted guard decision.
+In the proposed attribution increment guards remain prefilters, the original ten candidates remain ten,
+and admissible/inadmissibility_reason remain None. READY for the separately authorized bounded
+I4-2b3 — Versioned attribution repair + bounded context transport (attribution-only sufficiency v6);
+not ready to bundle support policy. Preserve the initial 32-case battery and preregister 40 additional
+matrix rows with explicit variants, source cases, provenance failure cases, static gates, and replay checks.
+
+**Verification and artifact.** The unchanged v5 replay was rerun and matches
+109030de83856b4384d596311dd8e3f6d46d19859c895c4b94b9efb3aa92ae77 exactly, including saved canonical output.
+Real quote/context offsets and existing citation-token behavior were inspected. Proposed corrected rules
+were not implemented or represented as passing tests. See
+[PHASE34_I4_2B2_VERSIONED_ATTRIBUTION_REPAIR_DESIGN.md](PHASE34_I4_2B2_VERSIONED_ATTRIBUTION_REPAIR_DESIGN.md).
+This increment changes only that report and this append; earlier I4-2b0/I4-2b1 files and lineage entries
+are preserved. No external search, retrieval, model calls, live E2E, production-code/behavior change,
+version bump, same_local_assertion registration, ParentClaims/AnswerPlan edit, or I2-3.
+STOP after I4-2b2.
