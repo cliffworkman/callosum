@@ -52,6 +52,7 @@ _SINGLE_OPERAND_FALLBACK = {
     se.SUFFICIENCY_SEMANTICS_V4: False,  # v4 changes category semantics only; direction is the v3 rule
     se.SUFFICIENCY_SEMANTICS_V5: False,  # v5 (I4-2a) changes achieved-outcome mapping only; direction is the v3 rule
     se.SUFFICIENCY_SEMANTICS_V6: False,  # attribution-only; identical inherited rule
+    se.SUFFICIENCY_SEMANTICS_V7: False,  # unchanged inherited rule
 }
 
 

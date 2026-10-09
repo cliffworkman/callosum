@@ -2701,3 +2701,60 @@ READY for separately authorized **PHASE 34 / I4-2b5 — V7 support-policy evalua
 guard-retention integration**, strictly within the report's boundaries. No implementation authorization
 is inferred from readiness. No version bump, classifier/guard/policy implementation, reference-helper
 edit, ParentClaims/AnswerPlan change, or I2-3. STOP after I4-2b4.
+
+
+## 2026-10-09 — Phase 34 / I4-2b5 v7 support-policy evaluation and achieved-outcome guard retention
+
+**Scope (Cliff Workman).** Implement the accepted I4-2b4 design from clean canonical
+`e3e7e729defb9ebe2d0ab66e38fa4459f613d683`, as one implementation commit.
+No attribution-rule, authored-guard, detector, claim-goal, relationship-verifier or rendering expansion.
+
+**Implementation (Cody/Codex).** Made sufficiency-semantics-v7 current with v6 historical/readable.
+One achieved-outcome collector has closed historical_prefilter/retain_for_v7 modes; unchanged
+i4-2b3.0 annotation is shared. New pure support_policy.py evaluates only the supplied triple and
+complete authored policy, with key-absence empirical default and complete authored replacement.
+The engine owns canonical identities, evaluated candidate validation and orthogonal set aggregation.
+Candidates independently retain guard_exclusions and support_policy_evaluation; admissible means
+guard pass AND policy pass, excluding attachment. Legacy projection occurs only after aggregation
+and selects resolved eligible evidence. The reference helper now delegates to this corrected contract.
+
+**Guard-derivation decision.** Validated ledger/unit identity prevents two source-unit guard surfaces
+from collapsing into one (anchor proposition, assertion span) candidate. All four requested synthetic
+pairs pass through actual production: distinct guard contexts stay separate anchored candidates;
+one clear candidate is not poisoned. The real 15 candidates include three repeated raw-hit derivations,
+zero cross-unit derivation groups and zero mixed guards. Ordered derivation/unit facts are preserved
+internally through relevance; mixed authored-guard sets raise STOP rather than inventing a schema.
+
+**Observed effect.** Ten original candidates retain exact grounding/provenance/order and full v6
+attribution, pass policy and remain eligible. Five p9/p20 interpretations are added: current_document,
+non_synthetic_or_unspecified, interpretation; all independently fail hedged and empirical kind policy.
+c3 keeps its filled original representative. Four missing c8 relationship bindings gain excluded
+candidate evidence and candidate_supports_excluded explanations. c10/c12 remain candidate-empty.
+All 26 evidence-role states (10 filled, 16 missing), 13 requirement states, 48 recovery targets,
+witness/relation/direction/effectiveness outcomes, 17 ParentClaims, nine AnswerPlan nodes and Layer 1
+retain their semantics. All 33 downstream invariants pass. Exact 31-attempt/29-scope model-facing
+rows, prompts and fingerprints are unchanged; no model was called.
+
+**Frozen replay gates.** Historical v4
+`4154ebd4062d22aa25db43e947aba61abe2c5888d6aa10d8ecd14b60afa65e4a`;
+historical v5 `109030de83856b4384d596311dd8e3f6d46d19859c895c4b94b9efb3aa92ae77`;
+historical v6 `dabef2f553b5e9301f9daa3a344b624ee6afb3e0f41fbce18b096587736822be`;
+new v7 `04eb38b1ef12dc694c075279f7d03228a96ac5938cdb7d1bd9782957fb960c72`.
+Explicit v6 keeps ten candidates, prefilter guards, None eligibility and no v7 fields.
+
+**Verification.** 554 new v7 tests including the post-gate frozen baseline check pass.
+Full offline experiments: 4,885 passed; exactly five independently reconfirmed checkpoint/environment
+failures, 12 skipped, nine xfailed, 276 subtests passed. Optional dependency-complete module: seven
+passed. Paired legacy batteries: 443 passed, nine existing xfails. No unexplained new failures.
+Ruff, Bandit, Tach and content hooks pass; the sole hook failure is the hash-unchanged frontend
+615-line limit, covered by the user's explicit I4-2b5-only --no-verify authorization.
+No live retrieval/model/E2E or external search occurred.
+
+**Artifact, readiness, stop.** See
+[PHASE34_I4_2B5_V7_SUPPORT_POLICY_GUARD_RESULTS.md](PHASE34_I4_2B5_V7_SUPPORT_POLICY_GUARD_RESULTS.md)
+and the preregistered policies, independent five-candidate fixture and four-version baseline manifest.
+READY for the next separately authorized planning increment. Passage-level hedging and historical
+binding-level witness consumption remain explicit limitations. Authority veto/captions remain metadata;
+same_local_assertion is unregistered; PLAN_VERSION and ParentClaims/AnswerPlan implementation are untouched.
+Recommendation B remains satisfied by attribution-first v6; the conservative default and original
+uncorrected six-exclusion record remain intact. STOP after I4-2b5: no I4-3, I4-4 or I2-3.

@@ -1,0 +1,1860 @@
+{
+  "starting_head": "e3e7e729defb9ebe2d0ab66e38fa4459f613d683",
+  "source": "Accepted I4-2b4; frozen before I4-2b5 production edits",
+  "policies": {
+    "A_current_document": {
+      "allowed_assertion_relations": [
+        "current_document"
+      ],
+      "aggregation_requirement": "any",
+      "allowed_assertion_kinds": [
+        "result"
+      ]
+    },
+    "B_attributed_allowed": {
+      "allowed_assertion_relations": [
+        "attributed_external",
+        "current_document"
+      ],
+      "aggregation_requirement": "any",
+      "allowed_assertion_kinds": [
+        "result"
+      ]
+    },
+    "C_synthesis_required": {
+      "allowed_assertion_relations": [
+        "attributed_external",
+        "current_document",
+        "unresolved"
+      ],
+      "aggregation_requirement": "require_synthesis",
+      "allowed_assertion_kinds": [
+        "result"
+      ]
+    },
+    "D_synthesis_excluded": {
+      "allowed_assertion_relations": [
+        "attributed_external",
+        "current_document",
+        "unresolved"
+      ],
+      "aggregation_requirement": "exclude_synthesis",
+      "allowed_assertion_kinds": [
+        "result"
+      ]
+    },
+    "E_definitional": {
+      "allowed_assertion_relations": [
+        "attributed_external",
+        "current_document",
+        "unresolved"
+      ],
+      "aggregation_requirement": "any",
+      "allowed_assertion_kinds": [
+        "interpretation",
+        "method_or_description"
+      ]
+    },
+    "F_unresolved_result": {
+      "allowed_assertion_relations": [
+        "unresolved"
+      ],
+      "aggregation_requirement": "any",
+      "allowed_assertion_kinds": [
+        "result"
+      ]
+    }
+  },
+  "policy_ids": {
+    "A_current_document": "authored-support-policy-v1:sha256:977744c615123c960f30d635250d6fdfbcf01131a689f3519023f66222e64afc",
+    "B_attributed_allowed": "authored-support-policy-v1:sha256:f15c087db180eeb5a77b96c5cb8894084ab2b5597419c0d86f51282b605a1e6a",
+    "C_synthesis_required": "authored-support-policy-v1:sha256:334763497256432de3b153168113d78885ce6f635369934a19fe6a572ce86f95",
+    "D_synthesis_excluded": "authored-support-policy-v1:sha256:89c6fb0b58eaf19ceddee3fb200674acfd7eb5d769b92d79fbf3457dde1876c0",
+    "E_definitional": "authored-support-policy-v1:sha256:ada46b62425fffbcd72b6a137295276c6b430695a0e383ad38e2b77108beb10d",
+    "F_unresolved_result": "authored-support-policy-v1:sha256:41a1759826f14e72e00999ab36c2d274acfc7edd218a4e537ec595b278b46cc1"
+  },
+  "triples": [
+    {
+      "assertion_relation": "current_document",
+      "aggregation": "literature_synthesis",
+      "assertion_kind": "result",
+      "outcomes": {
+        "absent_default": [],
+        "A_current_document": [],
+        "B_attributed_allowed": [],
+        "C_synthesis_required": [],
+        "D_synthesis_excluded": [
+          [
+            "aggregation",
+            "aggregation_excludes_synthesis"
+          ]
+        ],
+        "E_definitional": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "F_unresolved_result": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ]
+        ]
+      }
+    },
+    {
+      "assertion_relation": "current_document",
+      "aggregation": "literature_synthesis",
+      "assertion_kind": "method_or_description",
+      "outcomes": {
+        "absent_default": [
+          [
+            "kind",
+            "non_result_kind"
+          ]
+        ],
+        "A_current_document": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "B_attributed_allowed": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "C_synthesis_required": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "D_synthesis_excluded": [
+          [
+            "aggregation",
+            "aggregation_excludes_synthesis"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "E_definitional": [],
+        "F_unresolved_result": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ]
+      }
+    },
+    {
+      "assertion_relation": "current_document",
+      "aggregation": "literature_synthesis",
+      "assertion_kind": "aim_or_hypothesis",
+      "outcomes": {
+        "absent_default": [
+          [
+            "kind",
+            "non_result_kind"
+          ]
+        ],
+        "A_current_document": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "B_attributed_allowed": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "C_synthesis_required": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "D_synthesis_excluded": [
+          [
+            "aggregation",
+            "aggregation_excludes_synthesis"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "E_definitional": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "F_unresolved_result": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ]
+      }
+    },
+    {
+      "assertion_relation": "current_document",
+      "aggregation": "literature_synthesis",
+      "assertion_kind": "interpretation",
+      "outcomes": {
+        "absent_default": [
+          [
+            "kind",
+            "non_result_kind"
+          ]
+        ],
+        "A_current_document": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "B_attributed_allowed": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "C_synthesis_required": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "D_synthesis_excluded": [
+          [
+            "aggregation",
+            "aggregation_excludes_synthesis"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "E_definitional": [],
+        "F_unresolved_result": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ]
+      }
+    },
+    {
+      "assertion_relation": "current_document",
+      "aggregation": "literature_synthesis",
+      "assertion_kind": "unknown",
+      "outcomes": {
+        "absent_default": [
+          [
+            "kind",
+            "non_result_kind"
+          ]
+        ],
+        "A_current_document": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "B_attributed_allowed": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "C_synthesis_required": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "D_synthesis_excluded": [
+          [
+            "aggregation",
+            "aggregation_excludes_synthesis"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "E_definitional": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "F_unresolved_result": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ]
+      }
+    },
+    {
+      "assertion_relation": "current_document",
+      "aggregation": "non_synthetic_or_unspecified",
+      "assertion_kind": "result",
+      "outcomes": {
+        "absent_default": [],
+        "A_current_document": [],
+        "B_attributed_allowed": [],
+        "C_synthesis_required": [
+          [
+            "aggregation",
+            "aggregation_requires_synthesis"
+          ]
+        ],
+        "D_synthesis_excluded": [],
+        "E_definitional": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "F_unresolved_result": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ]
+        ]
+      }
+    },
+    {
+      "assertion_relation": "current_document",
+      "aggregation": "non_synthetic_or_unspecified",
+      "assertion_kind": "method_or_description",
+      "outcomes": {
+        "absent_default": [
+          [
+            "kind",
+            "non_result_kind"
+          ]
+        ],
+        "A_current_document": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "B_attributed_allowed": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "C_synthesis_required": [
+          [
+            "aggregation",
+            "aggregation_requires_synthesis"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "D_synthesis_excluded": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "E_definitional": [],
+        "F_unresolved_result": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ]
+      }
+    },
+    {
+      "assertion_relation": "current_document",
+      "aggregation": "non_synthetic_or_unspecified",
+      "assertion_kind": "aim_or_hypothesis",
+      "outcomes": {
+        "absent_default": [
+          [
+            "kind",
+            "non_result_kind"
+          ]
+        ],
+        "A_current_document": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "B_attributed_allowed": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "C_synthesis_required": [
+          [
+            "aggregation",
+            "aggregation_requires_synthesis"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "D_synthesis_excluded": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "E_definitional": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "F_unresolved_result": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ]
+      }
+    },
+    {
+      "assertion_relation": "current_document",
+      "aggregation": "non_synthetic_or_unspecified",
+      "assertion_kind": "interpretation",
+      "outcomes": {
+        "absent_default": [
+          [
+            "kind",
+            "non_result_kind"
+          ]
+        ],
+        "A_current_document": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "B_attributed_allowed": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "C_synthesis_required": [
+          [
+            "aggregation",
+            "aggregation_requires_synthesis"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "D_synthesis_excluded": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "E_definitional": [],
+        "F_unresolved_result": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ]
+      }
+    },
+    {
+      "assertion_relation": "current_document",
+      "aggregation": "non_synthetic_or_unspecified",
+      "assertion_kind": "unknown",
+      "outcomes": {
+        "absent_default": [
+          [
+            "kind",
+            "non_result_kind"
+          ]
+        ],
+        "A_current_document": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "B_attributed_allowed": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "C_synthesis_required": [
+          [
+            "aggregation",
+            "aggregation_requires_synthesis"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "D_synthesis_excluded": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "E_definitional": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "F_unresolved_result": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ]
+      }
+    },
+    {
+      "assertion_relation": "attributed_external",
+      "aggregation": "literature_synthesis",
+      "assertion_kind": "result",
+      "outcomes": {
+        "absent_default": [],
+        "A_current_document": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ]
+        ],
+        "B_attributed_allowed": [],
+        "C_synthesis_required": [],
+        "D_synthesis_excluded": [
+          [
+            "aggregation",
+            "aggregation_excludes_synthesis"
+          ]
+        ],
+        "E_definitional": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "F_unresolved_result": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ]
+        ]
+      }
+    },
+    {
+      "assertion_relation": "attributed_external",
+      "aggregation": "literature_synthesis",
+      "assertion_kind": "method_or_description",
+      "outcomes": {
+        "absent_default": [
+          [
+            "kind",
+            "non_result_kind"
+          ]
+        ],
+        "A_current_document": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "B_attributed_allowed": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "C_synthesis_required": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "D_synthesis_excluded": [
+          [
+            "aggregation",
+            "aggregation_excludes_synthesis"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "E_definitional": [],
+        "F_unresolved_result": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ]
+      }
+    },
+    {
+      "assertion_relation": "attributed_external",
+      "aggregation": "literature_synthesis",
+      "assertion_kind": "aim_or_hypothesis",
+      "outcomes": {
+        "absent_default": [
+          [
+            "kind",
+            "non_result_kind"
+          ]
+        ],
+        "A_current_document": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "B_attributed_allowed": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "C_synthesis_required": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "D_synthesis_excluded": [
+          [
+            "aggregation",
+            "aggregation_excludes_synthesis"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "E_definitional": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "F_unresolved_result": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ]
+      }
+    },
+    {
+      "assertion_relation": "attributed_external",
+      "aggregation": "literature_synthesis",
+      "assertion_kind": "interpretation",
+      "outcomes": {
+        "absent_default": [
+          [
+            "kind",
+            "non_result_kind"
+          ]
+        ],
+        "A_current_document": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "B_attributed_allowed": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "C_synthesis_required": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "D_synthesis_excluded": [
+          [
+            "aggregation",
+            "aggregation_excludes_synthesis"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "E_definitional": [],
+        "F_unresolved_result": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ]
+      }
+    },
+    {
+      "assertion_relation": "attributed_external",
+      "aggregation": "literature_synthesis",
+      "assertion_kind": "unknown",
+      "outcomes": {
+        "absent_default": [
+          [
+            "kind",
+            "non_result_kind"
+          ]
+        ],
+        "A_current_document": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "B_attributed_allowed": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "C_synthesis_required": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "D_synthesis_excluded": [
+          [
+            "aggregation",
+            "aggregation_excludes_synthesis"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "E_definitional": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "F_unresolved_result": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ]
+      }
+    },
+    {
+      "assertion_relation": "attributed_external",
+      "aggregation": "non_synthetic_or_unspecified",
+      "assertion_kind": "result",
+      "outcomes": {
+        "absent_default": [],
+        "A_current_document": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ]
+        ],
+        "B_attributed_allowed": [],
+        "C_synthesis_required": [
+          [
+            "aggregation",
+            "aggregation_requires_synthesis"
+          ]
+        ],
+        "D_synthesis_excluded": [],
+        "E_definitional": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "F_unresolved_result": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ]
+        ]
+      }
+    },
+    {
+      "assertion_relation": "attributed_external",
+      "aggregation": "non_synthetic_or_unspecified",
+      "assertion_kind": "method_or_description",
+      "outcomes": {
+        "absent_default": [
+          [
+            "kind",
+            "non_result_kind"
+          ]
+        ],
+        "A_current_document": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "B_attributed_allowed": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "C_synthesis_required": [
+          [
+            "aggregation",
+            "aggregation_requires_synthesis"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "D_synthesis_excluded": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "E_definitional": [],
+        "F_unresolved_result": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ]
+      }
+    },
+    {
+      "assertion_relation": "attributed_external",
+      "aggregation": "non_synthetic_or_unspecified",
+      "assertion_kind": "aim_or_hypothesis",
+      "outcomes": {
+        "absent_default": [
+          [
+            "kind",
+            "non_result_kind"
+          ]
+        ],
+        "A_current_document": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "B_attributed_allowed": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "C_synthesis_required": [
+          [
+            "aggregation",
+            "aggregation_requires_synthesis"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "D_synthesis_excluded": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "E_definitional": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "F_unresolved_result": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ]
+      }
+    },
+    {
+      "assertion_relation": "attributed_external",
+      "aggregation": "non_synthetic_or_unspecified",
+      "assertion_kind": "interpretation",
+      "outcomes": {
+        "absent_default": [
+          [
+            "kind",
+            "non_result_kind"
+          ]
+        ],
+        "A_current_document": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "B_attributed_allowed": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "C_synthesis_required": [
+          [
+            "aggregation",
+            "aggregation_requires_synthesis"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "D_synthesis_excluded": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "E_definitional": [],
+        "F_unresolved_result": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ]
+      }
+    },
+    {
+      "assertion_relation": "attributed_external",
+      "aggregation": "non_synthetic_or_unspecified",
+      "assertion_kind": "unknown",
+      "outcomes": {
+        "absent_default": [
+          [
+            "kind",
+            "non_result_kind"
+          ]
+        ],
+        "A_current_document": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "B_attributed_allowed": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "C_synthesis_required": [
+          [
+            "aggregation",
+            "aggregation_requires_synthesis"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "D_synthesis_excluded": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "E_definitional": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "F_unresolved_result": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ]
+      }
+    },
+    {
+      "assertion_relation": "unresolved",
+      "aggregation": "literature_synthesis",
+      "assertion_kind": "result",
+      "outcomes": {
+        "absent_default": [],
+        "A_current_document": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ]
+        ],
+        "B_attributed_allowed": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ]
+        ],
+        "C_synthesis_required": [],
+        "D_synthesis_excluded": [
+          [
+            "aggregation",
+            "aggregation_excludes_synthesis"
+          ]
+        ],
+        "E_definitional": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "F_unresolved_result": []
+      }
+    },
+    {
+      "assertion_relation": "unresolved",
+      "aggregation": "literature_synthesis",
+      "assertion_kind": "method_or_description",
+      "outcomes": {
+        "absent_default": [
+          [
+            "kind",
+            "non_result_kind"
+          ]
+        ],
+        "A_current_document": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "B_attributed_allowed": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "C_synthesis_required": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "D_synthesis_excluded": [
+          [
+            "aggregation",
+            "aggregation_excludes_synthesis"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "E_definitional": [],
+        "F_unresolved_result": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ]
+      }
+    },
+    {
+      "assertion_relation": "unresolved",
+      "aggregation": "literature_synthesis",
+      "assertion_kind": "aim_or_hypothesis",
+      "outcomes": {
+        "absent_default": [
+          [
+            "kind",
+            "non_result_kind"
+          ]
+        ],
+        "A_current_document": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "B_attributed_allowed": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "C_synthesis_required": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "D_synthesis_excluded": [
+          [
+            "aggregation",
+            "aggregation_excludes_synthesis"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "E_definitional": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "F_unresolved_result": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ]
+      }
+    },
+    {
+      "assertion_relation": "unresolved",
+      "aggregation": "literature_synthesis",
+      "assertion_kind": "interpretation",
+      "outcomes": {
+        "absent_default": [
+          [
+            "kind",
+            "non_result_kind"
+          ]
+        ],
+        "A_current_document": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "B_attributed_allowed": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "C_synthesis_required": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "D_synthesis_excluded": [
+          [
+            "aggregation",
+            "aggregation_excludes_synthesis"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "E_definitional": [],
+        "F_unresolved_result": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ]
+      }
+    },
+    {
+      "assertion_relation": "unresolved",
+      "aggregation": "literature_synthesis",
+      "assertion_kind": "unknown",
+      "outcomes": {
+        "absent_default": [
+          [
+            "kind",
+            "non_result_kind"
+          ]
+        ],
+        "A_current_document": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "B_attributed_allowed": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "C_synthesis_required": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "D_synthesis_excluded": [
+          [
+            "aggregation",
+            "aggregation_excludes_synthesis"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "E_definitional": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "F_unresolved_result": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ]
+      }
+    },
+    {
+      "assertion_relation": "unresolved",
+      "aggregation": "non_synthetic_or_unspecified",
+      "assertion_kind": "result",
+      "outcomes": {
+        "absent_default": [
+          [
+            "relation_aggregation",
+            "unresolved_non_synthetic"
+          ]
+        ],
+        "A_current_document": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ]
+        ],
+        "B_attributed_allowed": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ]
+        ],
+        "C_synthesis_required": [
+          [
+            "aggregation",
+            "aggregation_requires_synthesis"
+          ]
+        ],
+        "D_synthesis_excluded": [],
+        "E_definitional": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "F_unresolved_result": []
+      }
+    },
+    {
+      "assertion_relation": "unresolved",
+      "aggregation": "non_synthetic_or_unspecified",
+      "assertion_kind": "method_or_description",
+      "outcomes": {
+        "absent_default": [
+          [
+            "relation_aggregation",
+            "unresolved_non_synthetic"
+          ],
+          [
+            "kind",
+            "non_result_kind"
+          ]
+        ],
+        "A_current_document": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "B_attributed_allowed": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "C_synthesis_required": [
+          [
+            "aggregation",
+            "aggregation_requires_synthesis"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "D_synthesis_excluded": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "E_definitional": [],
+        "F_unresolved_result": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ]
+      }
+    },
+    {
+      "assertion_relation": "unresolved",
+      "aggregation": "non_synthetic_or_unspecified",
+      "assertion_kind": "aim_or_hypothesis",
+      "outcomes": {
+        "absent_default": [
+          [
+            "relation_aggregation",
+            "unresolved_non_synthetic"
+          ],
+          [
+            "kind",
+            "non_result_kind"
+          ]
+        ],
+        "A_current_document": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "B_attributed_allowed": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "C_synthesis_required": [
+          [
+            "aggregation",
+            "aggregation_requires_synthesis"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "D_synthesis_excluded": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "E_definitional": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "F_unresolved_result": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ]
+      }
+    },
+    {
+      "assertion_relation": "unresolved",
+      "aggregation": "non_synthetic_or_unspecified",
+      "assertion_kind": "interpretation",
+      "outcomes": {
+        "absent_default": [
+          [
+            "relation_aggregation",
+            "unresolved_non_synthetic"
+          ],
+          [
+            "kind",
+            "non_result_kind"
+          ]
+        ],
+        "A_current_document": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "B_attributed_allowed": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "C_synthesis_required": [
+          [
+            "aggregation",
+            "aggregation_requires_synthesis"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "D_synthesis_excluded": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "E_definitional": [],
+        "F_unresolved_result": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ]
+      }
+    },
+    {
+      "assertion_relation": "unresolved",
+      "aggregation": "non_synthetic_or_unspecified",
+      "assertion_kind": "unknown",
+      "outcomes": {
+        "absent_default": [
+          [
+            "relation_aggregation",
+            "unresolved_non_synthetic"
+          ],
+          [
+            "kind",
+            "non_result_kind"
+          ]
+        ],
+        "A_current_document": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "B_attributed_allowed": [
+          [
+            "relation",
+            "assertion_relation_not_allowed"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "C_synthesis_required": [
+          [
+            "aggregation",
+            "aggregation_requires_synthesis"
+          ],
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "D_synthesis_excluded": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "E_definitional": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ],
+        "F_unresolved_result": [
+          [
+            "kind",
+            "assertion_kind_not_allowed"
+          ]
+        ]
+      }
+    }
+  ],
+  "multiple_candidates": [
+    {
+      "id": "resolved_direct_and_attributed",
+      "candidates": [
+        {
+          "ambiguous": false,
+          "guard": true,
+          "policy": true
+        },
+        {
+          "ambiguous": false,
+          "guard": true,
+          "policy": true
+        }
+      ],
+      "expected": "filled"
+    },
+    {
+      "id": "excluded_direct_eligible_attributed",
+      "candidates": [
+        {
+          "ambiguous": false,
+          "guard": true,
+          "policy": false
+        },
+        {
+          "ambiguous": false,
+          "guard": true,
+          "policy": true
+        }
+      ],
+      "expected": "filled"
+    },
+    {
+      "id": "eligible_resolved_and_ambiguous",
+      "candidates": [
+        {
+          "ambiguous": false,
+          "guard": true,
+          "policy": true
+        },
+        {
+          "ambiguous": true,
+          "guard": true,
+          "policy": true
+        }
+      ],
+      "expected": "filled"
+    },
+    {
+      "id": "all_policy_excluded",
+      "candidates": [
+        {
+          "ambiguous": false,
+          "guard": true,
+          "policy": false
+        },
+        {
+          "ambiguous": false,
+          "guard": true,
+          "policy": false
+        }
+      ],
+      "expected": "missing"
+    },
+    {
+      "id": "all_guard_excluded",
+      "candidates": [
+        {
+          "ambiguous": false,
+          "guard": false,
+          "policy": true
+        },
+        {
+          "ambiguous": false,
+          "guard": false,
+          "policy": true
+        }
+      ],
+      "expected": "missing"
+    },
+    {
+      "id": "guard_failure_and_policy_failure",
+      "candidates": [
+        {
+          "ambiguous": false,
+          "guard": false,
+          "policy": true
+        },
+        {
+          "ambiguous": false,
+          "guard": true,
+          "policy": false
+        }
+      ],
+      "expected": "missing"
+    },
+    {
+      "id": "eligible_ambiguous_only",
+      "candidates": [
+        {
+          "ambiguous": true,
+          "guard": true,
+          "policy": true
+        }
+      ],
+      "expected": "ambiguous"
+    },
+    {
+      "id": "guard_excluded_ambiguous",
+      "candidates": [
+        {
+          "ambiguous": true,
+          "guard": false,
+          "policy": true
+        }
+      ],
+      "expected": "missing"
+    },
+    {
+      "id": "policy_excluded_ambiguous",
+      "candidates": [
+        {
+          "ambiguous": true,
+          "guard": true,
+          "policy": false
+        }
+      ],
+      "expected": "missing"
+    },
+    {
+      "id": "multiple_eligible_syntheses",
+      "candidates": [
+        {
+          "ambiguous": false,
+          "guard": true,
+          "policy": true
+        },
+        {
+          "ambiguous": false,
+          "guard": true,
+          "policy": true
+        }
+      ],
+      "expected": "filled"
+    },
+    {
+      "id": "dual_excluded_ambiguous",
+      "candidates": [
+        {
+          "ambiguous": true,
+          "guard": false,
+          "policy": false
+        }
+      ],
+      "expected": "missing"
+    },
+    {
+      "id": "empty",
+      "candidates": [],
+      "expected": "missing"
+    },
+    {
+      "id": "excluded_resolved_eligible_ambiguous",
+      "candidates": [
+        {
+          "ambiguous": false,
+          "guard": true,
+          "policy": false
+        },
+        {
+          "ambiguous": true,
+          "guard": true,
+          "policy": true
+        }
+      ],
+      "expected": "ambiguous"
+    },
+    {
+      "id": "resolved_eligible_excluded_ambiguous",
+      "candidates": [
+        {
+          "ambiguous": false,
+          "guard": true,
+          "policy": true
+        },
+        {
+          "ambiguous": true,
+          "guard": false,
+          "policy": false
+        }
+      ],
+      "expected": "filled"
+    }
+  ]
+}

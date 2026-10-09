@@ -474,47 +474,18 @@ def test_candidate_supports_collection_validates_shape():
 # ---- reference-only helpers (section 10, 12, frozen contract, not production behaviour) ----
 
 
-def test_reference_future_role_state_filled_iff_any_admissible():
-    a = _direct_primary()
-    ambiguous_only = se.new_candidate_support(
-        supporting_proposition_ids=["p9"],
-        exact_text="found X previous studies found Y",
-        assertion_relation="unresolved",
-        aggregation="non_synthetic_or_unspecified",
-        assertion_kind="result",
-        admissible=False,
-        attachment_ambiguous=True,
-        inadmissibility_reason="assertion_attachment_ambiguous",
-    )
-    assert se.reference_future_role_state([ambiguous_only, a]) == ("filled", None)
+def test_reference_future_role_state_uses_corrected_evaluated_contract():
+    from experiments.ask_cli_revised.test_i4_2b5_policy import candidate
 
-
-def test_reference_future_role_state_ambiguous_only_when_no_admissible_and_one_attachment_ambiguous():
-    ambiguous_only = se.new_candidate_support(
-        supporting_proposition_ids=["p9"],
-        exact_text="found X previous studies found Y",
-        assertion_relation="unresolved",
-        aggregation="non_synthetic_or_unspecified",
-        assertion_kind="result",
-        admissible=False,
-        attachment_ambiguous=True,
-        inadmissibility_reason="assertion_attachment_ambiguous",
-    )
-    assert se.reference_future_role_state([ambiguous_only]) == ("ambiguous", "assertion_attachment_ambiguous")
-
-
-def test_reference_future_role_state_policy_excluded_alone_is_missing_not_ambiguous():
-    excluded_only = se.new_candidate_support(
-        supporting_proposition_ids=["p10"],
-        exact_text="A review found X.",
-        assertion_relation="attributed_external",
-        aggregation="literature_synthesis",
-        assertion_kind="result",
-        admissible=False,
-        inadmissibility_reason="support_policy_excluded",
-    )
-    state, reason = se.reference_future_role_state([excluded_only])
-    assert state == "missing"
+    resolved = candidate()
+    ambiguous = candidate(ambiguous=True)
+    excluded = candidate(ambiguous=True, policy=False)
+    assert se.reference_future_role_state([ambiguous, resolved]) == ("filled", None)
+    assert se.reference_future_role_state([ambiguous]) == ("ambiguous", "assertion_attachment_ambiguous")
+    assert se.reference_future_role_state([excluded]) == ("missing", "candidate_supports_excluded")
+    # The old unevaluated/reference convention is no longer a valid v7 input.
+    with pytest.raises(ValueError):
+        se.reference_future_role_state([_direct_primary()])
 
 
 def test_reference_future_role_state_empty_is_missing():
@@ -589,7 +560,7 @@ _PRODUCTION_FILES_THAT_MUST_NOT_CONSUME_THE_NEW_SCHEMA = (
 def test_no_production_module_consumes_the_new_schema_names(filename):
     text = (HERE / filename).read_text(encoding="utf-8")
     allowed = (
-        {"candidate_supports", "new_candidate_support", "span_proposition_id"}
+        {"candidate_supports", "new_candidate_support", "span_proposition_id", "support_policy"}
         if filename == "sufficiency_mapping.py"
         else set()
     )
@@ -634,5 +605,5 @@ def test_reference_helpers_are_never_called_by_any_other_function_in_this_module
 def test_versions_are_unchanged_for_sufficiency_and_plan():
     from experiments.ask_cli_revised.answer_plan import plan as ap
 
-    assert se.SUFFICIENCY_SEMANTICS_VERSION == se.SUFFICIENCY_SEMANTICS_V6  # I4-2b3 attribution-only integration
+    assert se.SUFFICIENCY_SEMANTICS_VERSION == se.SUFFICIENCY_SEMANTICS_V7  # I4-2b5 evaluated support integration
     assert ap.PLAN_VERSION == "answer-plan-step2-v4"

@@ -1,0 +1,13 @@
+{
+  "starting_head": "e3e7e729defb9ebe2d0ab66e38fa4459f613d683",
+  "classifier_ruleset": "i4-2b3.0",
+  "plan_version": "answer-plan-step2-v4",
+  "encoding": "sorted indent=2 ensure_ascii=False JSON; CRLF; terminal newline",
+  "hashes": {
+    "v4": "4154ebd4062d22aa25db43e947aba61abe2c5888d6aa10d8ecd14b60afa65e4a",
+    "v5": "109030de83856b4384d596311dd8e3f6d46d19859c895c4b94b9efb3aa92ae77",
+    "v6": "dabef2f553b5e9301f9daa3a344b624ee6afb3e0f41fbce18b096587736822be",
+    "v7": "04eb38b1ef12dc694c075279f7d03228a96ac5938cdb7d1bd9782957fb960c72"
+  },
+  "context_manifest_sha256": "3e3a72f4cd9be783e7932024f004b72d8177cae7788398d42ac3413567218d02"
+}

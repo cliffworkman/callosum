@@ -204,7 +204,14 @@ def test_policy_is_never_consumed_and_verifier_remains_unregistered(monkeypatch)
     )
     assert "same_local_assertion" not in se._VERIFIER_FUNCS
     tree = ast.parse(Path(sm.__file__).read_text(encoding="utf-8"))
-    assert not any(isinstance(n, ast.Constant) and n.value == "support_policy" for n in ast.walk(tree))
+    historical = {
+        "_bind_achieved_outcome_v5",
+        "_bind_achieved_outcome_v6",
+        "_collect_achieved_outcome",
+        "_annotate_achieved_bindings",
+    }
+    for fn in (n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in historical):
+        assert not any(isinstance(n, ast.Constant) and n.value == "support_policy" for n in ast.walk(fn))
 
 
 @pytest.mark.parametrize("invalid", [0, 1, "true", [], {}])

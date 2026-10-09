@@ -265,7 +265,7 @@ def test_8b_a_bound_null_is_never_genuinely_empty_or_zero_evidence_terminal():
 
 
 def test_v4_remains_historical_and_supported_after_v5_integration():
-    assert se.SUFFICIENCY_SEMANTICS_VERSION == se.SUFFICIENCY_SEMANTICS_V6
+    assert se.SUFFICIENCY_SEMANTICS_VERSION == se.SUFFICIENCY_SEMANTICS_V7
     assert V3 in se.HISTORICAL_SUFFICIENCY_SEMANTICS_VERSIONS
     assert V4 in se.HISTORICAL_SUFFICIENCY_SEMANTICS_VERSIONS
     assert V4 in se.SUPPORTED_SUFFICIENCY_SEMANTICS_VERSIONS

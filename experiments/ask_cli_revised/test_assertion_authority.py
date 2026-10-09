@@ -207,7 +207,7 @@ def test_module_has_no_q_aib_vocabulary():
 
 
 def test_semantics_and_plan_versions_are_unchanged():
-    assert se.SUFFICIENCY_SEMANTICS_VERSION == "sufficiency-semantics-v6"  # I4-2b3 attribution-only integration
+    assert se.SUFFICIENCY_SEMANTICS_VERSION == "sufficiency-semantics-v7"  # I4-2b5 support-policy integration
     assert pl.PLAN_VERSION == "answer-plan-step2-v4"
 
 

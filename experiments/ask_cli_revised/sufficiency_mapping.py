@@ -34,6 +34,7 @@ from experiments.ask_cli_revised import overview_evidence as oe
 from experiments.ask_cli_revised import ownership_context as oc
 from experiments.ask_cli_revised import sufficiency_engine as se
 from experiments.ask_cli_revised import sufficiency_model_scope as mscope
+from experiments.ask_cli_revised import support_policy as sp
 from experiments.ask_cli_revised import target_relevance as tr
 from experiments.ask_cli_revised.contract_directed import attribution as attr
 
@@ -165,23 +166,23 @@ def resolve_target_dependency(role_completion: dict | None, evidence_role: str, 
     return result("ready", "unique_dependency", role, binding)
 
 
-def _bind_achieved_outcome_v5(
+def _collect_achieved_outcome(
     role_spec: dict,
     units: list[dict],
     *,
+    guard_mode: str,
     sibling_bindings: dict | None,
     role_completion: dict | None,
     diagnostics: dict | None = None,
-) -> list[dict]:
-    """Collect grounded, relevant assertions; project the first only for legacy compatibility.
+) -> tuple[list[dict], list[dict]]:
+    """One grounding path, with explicit historical filtering or v7 guard observation.
 
-    Existing guards run before localization. Raw hits join to containing assertions, deduplicated by
-    (coordinate-anchor proposition, assertion span). Both target matching and exact_text use the full
-    LOCAL assertion region, including its subject; content_span retains the tighter localization.
-    Plural identity preserves input unit order. A multi-id unit must carry sealed proposition_passages
-    with byte-identical text once raw hits exist; its first id is an offset anchor, never its sole semantic source.
-    Diagnostics are optional observations and never control mapping state. No support policy is read.
+    Candidate identity remains (anchor proposition, assertion span). Preserve raw derivation and
+    source-unit association through relevance before checking whether the flat guard schema is safe.
     """
+    if guard_mode not in ("historical_prefilter", "retain_for_v7"):
+        raise ValueError("unknown achieved-outcome guard mode")
+    retain = guard_mode == "retain_for_v7"
     role = role_spec["role"]
     dependency = resolve_target_dependency(role_completion, role, sibling_bindings)
     counts = dict.fromkeys(
@@ -201,11 +202,27 @@ def _bind_achieved_outcome_v5(
         ),
         0,
     )
+    if retain:
+        counts.update(
+            dict.fromkeys(
+                (
+                    "guard_triggered_units",
+                    "guard_prefiltered_units",
+                    "guard_excluded_candidates",
+                    "policy_excluded_candidates",
+                    "admissible_candidates",
+                ),
+                0,
+            )
+        )
     resolved = []
-    seen = set()
-    for unit in units:
+    seen = {}
+    for unit_index, unit in enumerate(units):
         counts["eligible_units"] += 1
-        if not is_admissible(role_spec, unit.get("flags", {})):
+        guarded = not is_admissible(role_spec, unit.get("flags", {}))
+        if retain:
+            counts["guard_triggered_units"] += int(guarded)
+        if guarded and not retain:
             counts["guard_excluded_units"] += 1
             continue
         proposition_ids = list(unit.get("proposition_ids") or [])
@@ -236,10 +253,18 @@ def _bind_achieved_outcome_v5(
                 continue
             counts["successful_assertion_joins"] += 1
             key = (anchor, tuple(joined["assertion"]["span"]))
+            derivation = {
+                "unit_index": unit_index,
+                "proposition_ids": proposition_ids,
+                "flags": unit.get("flags", {}),
+                "predicate_span": match.predicate_span,
+                "content_span": match.content_span,
+            }
             if key in seen:
                 counts["raw_hits_deduplicated"] += 1
+                if retain:
+                    seen[key]["derivations"].append(derivation)
                 continue
-            seen.add(key)
             resolved.append(
                 {
                     "proposition_ids": proposition_ids,
@@ -247,8 +272,10 @@ def _bind_achieved_outcome_v5(
                     "predicate_span": match.predicate_span,
                     "content_span": match.content_span,
                     "flags": unit.get("flags", {}),
+                    "derivations": [derivation] if retain else [],
                 }
             )
+            seen[key] = resolved[-1]
     counts["locally_grounded_assertions"] = len(resolved)
     if dependency["status"] == "target_free":
         relevant = resolved
@@ -276,6 +303,14 @@ def _bind_achieved_outcome_v5(
 
     candidate_supports = []
     for record in relevant:
+        if retain:
+            guard_sets = [
+                tuple(g for g in dict.fromkeys(role_spec["disqualifying_guards"]) if d["flags"].get(g))
+                for d in record["derivations"]
+            ]
+            if any(guards != guard_sets[0] for guards in guard_sets):
+                raise ValueError("STOP: mixed guard derivations require reviewed candidate schema")
+            record["guard_exclusions"] = list(guard_sets[0])
         assertion = record["assertion"]
         relation = aa.assertion_relation(assertion["assertion_source"])
         aggregation = assertion["aggregation"]
@@ -304,6 +339,20 @@ def _bind_achieved_outcome_v5(
     if diagnostics is not None:
         diagnostics.update(counts)
         diagnostics["dependency"] = dependency
+    return candidate_supports, relevant
+
+
+def _bind_achieved_outcome_v5(role_spec, units, *, sibling_bindings, role_completion, diagnostics=None):
+    """Exact historical prefilter and first-candidate projection."""
+    candidate_supports, relevant = _collect_achieved_outcome(
+        role_spec,
+        units,
+        guard_mode="historical_prefilter",
+        sibling_bindings=sibling_bindings,
+        role_completion=role_completion,
+        diagnostics=diagnostics,
+    )
+    role = role_spec["role"]
     if not candidate_supports:
         return []
     representative = candidate_supports[0]
@@ -332,6 +381,11 @@ def _bind_achieved_outcome_v6(role_spec, units, *, sibling_bindings, role_comple
         role_completion=role_completion,
         diagnostics=diagnostics,
     )
+    return _annotate_achieved_bindings(bindings, units)
+
+
+def _annotate_achieved_bindings(bindings, units):
+    """Shared unchanged i4-2b3.0 annotation; guards and policy never influence ownership."""
     for binding in bindings:
         for candidate in binding["candidate_supports"]:
             frozen = copy.deepcopy(candidate)
@@ -390,6 +444,66 @@ def _bind_achieved_outcome_v6(role_spec, units, *, sibling_bindings, role_comple
             ):
                 raise AssertionError("STOP: annotation changed a frozen candidate field")
     return bindings
+
+
+def _project_evaluated_supports(role_spec, candidates, records):
+    """State precedes representation. Ineligible or unresolved evidence never fills legacy fields."""
+    if not candidates:
+        return []
+    state, reason = se.aggregate_support_role(candidates)
+    if state == "filled":
+        i = next(i for i, c in enumerate(candidates) if c["admissible"] and not c["attachment_ambiguous"])
+        c = candidates[i]
+        binding = se.new_role_binding(
+            role_spec["role"],
+            state=state,
+            reason=reason,
+            proposition_id=c["span_proposition_id"],
+            exact_text=c["exact_text"],
+            provenance={
+                "candidate_source": "deterministic_mapping",
+                "detail": "achieved_outcome_predicate",
+                "model": None,
+                "supporting_proposition_ids": c["supporting_proposition_ids"],
+            },
+            guard=records[i]["flags"],
+        )
+    else:
+        binding = se.new_role_binding(role_spec["role"], state=state, reason=reason)
+    return [{**binding, "candidate_supports": candidates}]
+
+
+def _bind_achieved_outcome_v7(role_spec, units, *, sibling_bindings, role_completion, diagnostics=None):
+    """Ground, annotate, evaluate independent gates, aggregate the set, then project."""
+    authored = "support_policy" in role_spec
+    policy = se.canonical_support_policy(role_spec["support_policy"]) if authored else None
+    candidates, records = _collect_achieved_outcome(
+        role_spec,
+        units,
+        guard_mode="retain_for_v7",
+        sibling_bindings=sibling_bindings,
+        role_completion=role_completion,
+        diagnostics=diagnostics,
+    )
+    _annotate_achieved_bindings([{"candidate_supports": candidates}], units)
+    evaluated = []
+    for candidate, record in zip(candidates, records, strict=True):
+        triple = {k: candidate[k] for k in ("assertion_relation", "aggregation", "assertion_kind")}
+        evaluation = (
+            sp.evaluate_authored_support_policy(policy, **triple) if authored else sp.default_support_policy(**triple)
+        )
+        evaluated.append(
+            se.new_evaluated_candidate_support(
+                candidate,
+                guard_exclusions=record["guard_exclusions"],
+                support_policy_evaluation=evaluation,
+            )
+        )
+    if diagnostics is not None:
+        diagnostics["guard_excluded_candidates"] = sum(bool(c["guard_exclusions"]) for c in evaluated)
+        diagnostics["policy_excluded_candidates"] = sum(not c["support_policy_evaluation"]["passed"] for c in evaluated)
+        diagnostics["admissible_candidates"] = sum(c["admissible"] for c in evaluated)
+    return _project_evaluated_supports(role_spec, evaluated, records)
 
 
 def _match_explicit_category_term(text: str, requested_terms: list[str]) -> str | None:
@@ -667,13 +781,26 @@ def _bind_role_candidates(
     byte-identical to before this phase."""
     se.require_supported_semantics_version(semantics_version)
     if (
-        semantics_version in (se.SUFFICIENCY_SEMANTICS_V4, se.SUFFICIENCY_SEMANTICS_V5, se.SUFFICIENCY_SEMANTICS_V6)
+        semantics_version
+        in (
+            se.SUFFICIENCY_SEMANTICS_V4,
+            se.SUFFICIENCY_SEMANTICS_V5,
+            se.SUFFICIENCY_SEMANTICS_V6,
+            se.SUFFICIENCY_SEMANTICS_V7,
+        )
         and role_spec["mapping_strategy"] == "explicit_category_terms"
     ):
         # v4/v5 category observations are collected only by the cardinality mapper (v5 reuses v4's own category
         # rule unchanged). A non-cardinality category role has no v4/v5 rule and must not silently fall back to
         # first-match.
         raise ValueError("v4/v5 category observations apply only to all_requested_categories requirements")
+    if (
+        semantics_version == se.SUFFICIENCY_SEMANTICS_V7
+        and role_spec["mapping_strategy"] == "achieved_outcome_predicate"
+    ):
+        return _bind_achieved_outcome_v7(
+            role_spec, units, sibling_bindings=sibling_bindings, role_completion=role_completion
+        )
     if (
         semantics_version == se.SUFFICIENCY_SEMANTICS_V6
         and role_spec["mapping_strategy"] == "achieved_outcome_predicate"
@@ -1009,7 +1136,12 @@ def map_cardinality_requirement(
         )
     # I4-2a: category requirements are completely untouched by v5 (the local-grounding change applies only to
     # achieved_outcome_predicate roles) -- v5 reuses v4's own rich category-observation behavior unchanged.
-    if semantics_version in (se.SUFFICIENCY_SEMANTICS_V4, se.SUFFICIENCY_SEMANTICS_V5, se.SUFFICIENCY_SEMANTICS_V6):
+    if semantics_version in (
+        se.SUFFICIENCY_SEMANTICS_V4,
+        se.SUFFICIENCY_SEMANTICS_V5,
+        se.SUFFICIENCY_SEMANTICS_V6,
+        se.SUFFICIENCY_SEMANTICS_V7,
+    ):
         return _map_category_requirement_v4(
             requirement, candidate_units, spec=spec, role=role, semantics_version=semantics_version
         )
@@ -1456,6 +1588,7 @@ def find_direction_observations(
         se.SUFFICIENCY_SEMANTICS_V4,
         se.SUFFICIENCY_SEMANTICS_V5,
         se.SUFFICIENCY_SEMANTICS_V6,
+        se.SUFFICIENCY_SEMANTICS_V7,
     ):
         raise ValueError(f"no direction-observation rule for sufficiency-semantics version {semantics_version!r}")
     if requirement.get("direction") is None:

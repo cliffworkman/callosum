@@ -130,7 +130,9 @@ def compute_diagnostic_sufficiency_map(
     se.require_supported_semantics_version(semantics_version)
     by_child = units_by_child(
         sealed,
-        ownership_context_index=ownership_context_index if semantics_version == se.SUFFICIENCY_SEMANTICS_V6 else None,
+        ownership_context_index=ownership_context_index
+        if semantics_version in (se.SUFFICIENCY_SEMANTICS_V6, se.SUFFICIENCY_SEMANTICS_V7)
+        else None,
     )
     mapped: dict[str, dict] = {}
     child_ids = list(contract_by_child)

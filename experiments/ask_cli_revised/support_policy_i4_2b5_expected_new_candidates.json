@@ -1,0 +1,420 @@
+{
+  "source": "I4-2b4 accepted in-memory audit at e3e7e729, not regenerated from v7 implementation",
+  "candidates": [
+    {
+      "child": "c3",
+      "requirement": "c3#suff:attitude-manifestation",
+      "role": "attitude_manifestation_evidence",
+      "instance_key": null,
+      "supporting_proposition_ids": [
+        "p9",
+        "p20"
+      ],
+      "span_proposition_id": "p9",
+      "exact_text": "We suggest that dehumanization is underpinned by a suite of negative attitudes (IAT and EBQ), social cognitive biases (just-world beliefs), emotional dispositions (affective empathy), and undesirable behaviors (less generosity in the DG)—all factors associated with the functioning of the left amygdala",
+      "assertion_span": [
+        0,
+        302
+      ],
+      "predicate_span": [
+        250,
+        260
+      ],
+      "content_span": [
+        250,
+        303
+      ],
+      "assertion_relation": "current_document",
+      "aggregation": "non_synthetic_or_unspecified",
+      "assertion_kind": "interpretation",
+      "support_label": "interpretive",
+      "authority_veto": null,
+      "is_caption": false,
+      "attachment_ambiguous": false,
+      "admissible": false,
+      "inadmissibility_reason": "guard_and_support_policy_excluded",
+      "attribution": {
+        "schema_version": "ownership-attribution-v1",
+        "classifier_id": "i4-1-assertion-authority",
+        "ruleset_version": "i4-2b3.0",
+        "assertion_relation": "current_document",
+        "source_resolution": "parsed",
+        "rule_ids": [
+          "predicate.suggest",
+          "subject.owner",
+          "kind.interpretation_verb"
+        ],
+        "proofs": [],
+        "context_status": "not_needed",
+        "context_failure": null,
+        "target": {
+          "quote_sha256": "752351aca817663468ef574847360502d02443b20572e1a6d5148a0ce028906a",
+          "span_proposition_id": "p9",
+          "assertion_span": [
+            0,
+            302
+          ],
+          "supporting_proposition_ids": [
+            "p9",
+            "p20"
+          ]
+        }
+      },
+      "guard_exclusions": [
+        "hedged"
+      ],
+      "support_policy_evaluation": {
+        "schema_version": "support-policy-evaluation-v1",
+        "policy_source": "absent_default",
+        "policy_identity": "empirical-default-v1",
+        "policy_snapshot": {
+          "kind": "empirical_default",
+          "required_assertion_kind": "result",
+          "excluded_relation_aggregation": {
+            "assertion_relation": "unresolved",
+            "aggregation": "non_synthetic_or_unspecified"
+          }
+        },
+        "passed": false,
+        "failed_dimensions": [
+          "kind"
+        ],
+        "reasons": [
+          "non_result_kind"
+        ]
+      }
+    },
+    {
+      "child": "c8",
+      "requirement": "c8#suff:trait-construct",
+      "role": "relationship_to_bias_manifestation",
+      "instance_key": "U6::b2958c5ad5164563",
+      "supporting_proposition_ids": [
+        "p20",
+        "p9"
+      ],
+      "span_proposition_id": "p20",
+      "exact_text": "We suggest that dehumanization is underpinned by a suite of negative attitudes (IAT and EBQ), social cognitive biases (just-world beliefs), emotional dispositions (affective empathy), and undesirable behaviors (less generosity in the DG)—all factors associated with the functioning of the left amygdala",
+      "assertion_span": [
+        0,
+        302
+      ],
+      "predicate_span": [
+        250,
+        260
+      ],
+      "content_span": [
+        250,
+        303
+      ],
+      "assertion_relation": "current_document",
+      "aggregation": "non_synthetic_or_unspecified",
+      "assertion_kind": "interpretation",
+      "support_label": "interpretive",
+      "authority_veto": null,
+      "is_caption": false,
+      "attachment_ambiguous": false,
+      "admissible": false,
+      "inadmissibility_reason": "guard_and_support_policy_excluded",
+      "attribution": {
+        "schema_version": "ownership-attribution-v1",
+        "classifier_id": "i4-1-assertion-authority",
+        "ruleset_version": "i4-2b3.0",
+        "assertion_relation": "current_document",
+        "source_resolution": "parsed",
+        "rule_ids": [
+          "predicate.suggest",
+          "subject.owner",
+          "kind.interpretation_verb"
+        ],
+        "proofs": [],
+        "context_status": "not_needed",
+        "context_failure": null,
+        "target": {
+          "quote_sha256": "752351aca817663468ef574847360502d02443b20572e1a6d5148a0ce028906a",
+          "span_proposition_id": "p20",
+          "assertion_span": [
+            0,
+            302
+          ],
+          "supporting_proposition_ids": [
+            "p20",
+            "p9"
+          ]
+        }
+      },
+      "guard_exclusions": [
+        "hedged"
+      ],
+      "support_policy_evaluation": {
+        "schema_version": "support-policy-evaluation-v1",
+        "policy_source": "absent_default",
+        "policy_identity": "empirical-default-v1",
+        "policy_snapshot": {
+          "kind": "empirical_default",
+          "required_assertion_kind": "result",
+          "excluded_relation_aggregation": {
+            "assertion_relation": "unresolved",
+            "aggregation": "non_synthetic_or_unspecified"
+          }
+        },
+        "passed": false,
+        "failed_dimensions": [
+          "kind"
+        ],
+        "reasons": [
+          "non_result_kind"
+        ]
+      }
+    },
+    {
+      "child": "c8",
+      "requirement": "c8#suff:trait-construct",
+      "role": "relationship_to_bias_manifestation",
+      "instance_key": "U6::ce8933c59b53a00f",
+      "supporting_proposition_ids": [
+        "p20",
+        "p9"
+      ],
+      "span_proposition_id": "p20",
+      "exact_text": "We suggest that dehumanization is underpinned by a suite of negative attitudes (IAT and EBQ), social cognitive biases (just-world beliefs), emotional dispositions (affective empathy), and undesirable behaviors (less generosity in the DG)—all factors associated with the functioning of the left amygdala",
+      "assertion_span": [
+        0,
+        302
+      ],
+      "predicate_span": [
+        250,
+        260
+      ],
+      "content_span": [
+        250,
+        303
+      ],
+      "assertion_relation": "current_document",
+      "aggregation": "non_synthetic_or_unspecified",
+      "assertion_kind": "interpretation",
+      "support_label": "interpretive",
+      "authority_veto": null,
+      "is_caption": false,
+      "attachment_ambiguous": false,
+      "admissible": false,
+      "inadmissibility_reason": "guard_and_support_policy_excluded",
+      "attribution": {
+        "schema_version": "ownership-attribution-v1",
+        "classifier_id": "i4-1-assertion-authority",
+        "ruleset_version": "i4-2b3.0",
+        "assertion_relation": "current_document",
+        "source_resolution": "parsed",
+        "rule_ids": [
+          "predicate.suggest",
+          "subject.owner",
+          "kind.interpretation_verb"
+        ],
+        "proofs": [],
+        "context_status": "not_needed",
+        "context_failure": null,
+        "target": {
+          "quote_sha256": "752351aca817663468ef574847360502d02443b20572e1a6d5148a0ce028906a",
+          "span_proposition_id": "p20",
+          "assertion_span": [
+            0,
+            302
+          ],
+          "supporting_proposition_ids": [
+            "p20",
+            "p9"
+          ]
+        }
+      },
+      "guard_exclusions": [
+        "hedged"
+      ],
+      "support_policy_evaluation": {
+        "schema_version": "support-policy-evaluation-v1",
+        "policy_source": "absent_default",
+        "policy_identity": "empirical-default-v1",
+        "policy_snapshot": {
+          "kind": "empirical_default",
+          "required_assertion_kind": "result",
+          "excluded_relation_aggregation": {
+            "assertion_relation": "unresolved",
+            "aggregation": "non_synthetic_or_unspecified"
+          }
+        },
+        "passed": false,
+        "failed_dimensions": [
+          "kind"
+        ],
+        "reasons": [
+          "non_result_kind"
+        ]
+      }
+    },
+    {
+      "child": "c8",
+      "requirement": "c8#suff:trait-construct",
+      "role": "relationship_to_bias_manifestation",
+      "instance_key": "U6::da37435ef9b489b6",
+      "supporting_proposition_ids": [
+        "p20",
+        "p9"
+      ],
+      "span_proposition_id": "p20",
+      "exact_text": "We suggest that dehumanization is underpinned by a suite of negative attitudes (IAT and EBQ), social cognitive biases (just-world beliefs), emotional dispositions (affective empathy), and undesirable behaviors (less generosity in the DG)—all factors associated with the functioning of the left amygdala",
+      "assertion_span": [
+        0,
+        302
+      ],
+      "predicate_span": [
+        250,
+        260
+      ],
+      "content_span": [
+        250,
+        303
+      ],
+      "assertion_relation": "current_document",
+      "aggregation": "non_synthetic_or_unspecified",
+      "assertion_kind": "interpretation",
+      "support_label": "interpretive",
+      "authority_veto": null,
+      "is_caption": false,
+      "attachment_ambiguous": false,
+      "admissible": false,
+      "inadmissibility_reason": "guard_and_support_policy_excluded",
+      "attribution": {
+        "schema_version": "ownership-attribution-v1",
+        "classifier_id": "i4-1-assertion-authority",
+        "ruleset_version": "i4-2b3.0",
+        "assertion_relation": "current_document",
+        "source_resolution": "parsed",
+        "rule_ids": [
+          "predicate.suggest",
+          "subject.owner",
+          "kind.interpretation_verb"
+        ],
+        "proofs": [],
+        "context_status": "not_needed",
+        "context_failure": null,
+        "target": {
+          "quote_sha256": "752351aca817663468ef574847360502d02443b20572e1a6d5148a0ce028906a",
+          "span_proposition_id": "p20",
+          "assertion_span": [
+            0,
+            302
+          ],
+          "supporting_proposition_ids": [
+            "p20",
+            "p9"
+          ]
+        }
+      },
+      "guard_exclusions": [
+        "hedged"
+      ],
+      "support_policy_evaluation": {
+        "schema_version": "support-policy-evaluation-v1",
+        "policy_source": "absent_default",
+        "policy_identity": "empirical-default-v1",
+        "policy_snapshot": {
+          "kind": "empirical_default",
+          "required_assertion_kind": "result",
+          "excluded_relation_aggregation": {
+            "assertion_relation": "unresolved",
+            "aggregation": "non_synthetic_or_unspecified"
+          }
+        },
+        "passed": false,
+        "failed_dimensions": [
+          "kind"
+        ],
+        "reasons": [
+          "non_result_kind"
+        ]
+      }
+    },
+    {
+      "child": "c8",
+      "requirement": "c8#suff:trait-construct",
+      "role": "relationship_to_bias_manifestation",
+      "instance_key": "U6::d41542e10edf3ea7",
+      "supporting_proposition_ids": [
+        "p20",
+        "p9"
+      ],
+      "span_proposition_id": "p20",
+      "exact_text": "We suggest that dehumanization is underpinned by a suite of negative attitudes (IAT and EBQ), social cognitive biases (just-world beliefs), emotional dispositions (affective empathy), and undesirable behaviors (less generosity in the DG)—all factors associated with the functioning of the left amygdala",
+      "assertion_span": [
+        0,
+        302
+      ],
+      "predicate_span": [
+        250,
+        260
+      ],
+      "content_span": [
+        250,
+        303
+      ],
+      "assertion_relation": "current_document",
+      "aggregation": "non_synthetic_or_unspecified",
+      "assertion_kind": "interpretation",
+      "support_label": "interpretive",
+      "authority_veto": null,
+      "is_caption": false,
+      "attachment_ambiguous": false,
+      "admissible": false,
+      "inadmissibility_reason": "guard_and_support_policy_excluded",
+      "attribution": {
+        "schema_version": "ownership-attribution-v1",
+        "classifier_id": "i4-1-assertion-authority",
+        "ruleset_version": "i4-2b3.0",
+        "assertion_relation": "current_document",
+        "source_resolution": "parsed",
+        "rule_ids": [
+          "predicate.suggest",
+          "subject.owner",
+          "kind.interpretation_verb"
+        ],
+        "proofs": [],
+        "context_status": "not_needed",
+        "context_failure": null,
+        "target": {
+          "quote_sha256": "752351aca817663468ef574847360502d02443b20572e1a6d5148a0ce028906a",
+          "span_proposition_id": "p20",
+          "assertion_span": [
+            0,
+            302
+          ],
+          "supporting_proposition_ids": [
+            "p20",
+            "p9"
+          ]
+        }
+      },
+      "guard_exclusions": [
+        "hedged"
+      ],
+      "support_policy_evaluation": {
+        "schema_version": "support-policy-evaluation-v1",
+        "policy_source": "absent_default",
+        "policy_identity": "empirical-default-v1",
+        "policy_snapshot": {
+          "kind": "empirical_default",
+          "required_assertion_kind": "result",
+          "excluded_relation_aggregation": {
+            "assertion_relation": "unresolved",
+            "aggregation": "non_synthetic_or_unspecified"
+          }
+        },
+        "passed": false,
+        "failed_dimensions": [
+          "kind"
+        ],
+        "reasons": [
+          "non_result_kind"
+        ]
+      }
+    }
+  ]
+}

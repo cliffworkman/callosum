@@ -55,6 +55,8 @@ REASON_CODES = (
     "insufficient_specificity",  # evidence is generic, not a named/specific instance
     "category_missing",  # a required category has zero evidence
     "evidence_conflicting",  # verified evidence disagrees
+    "assertion_attachment_ambiguous",
+    "candidate_supports_excluded",
 )
 
 INSTANCE_QUANTIFIER_POLICIES = (
@@ -113,9 +115,12 @@ RELATIONSHIP_VERIFIERS = ("same_proposition", "contract_directed_links")
 #       policy is evaluated. Categories, guards, verifiers, direction, effectiveness, recovery, and witnesses
 #       inherit the explicit v4 rules. Historical v1-v4 retain whole-passage achieved-outcome mapping.
 #
-#   sufficiency-semantics-v6 (I4-2b3, CURRENT): exactly v5 candidates and state derivation, followed by
+#   sufficiency-semantics-v6 (I4-2b3, HISTORICAL): exactly v5 candidates and state derivation, followed by
 #       versioned ownership annotation with bounded R1/R2/R3 proofs. Guards remain prefilters and
 #       admissibility remains unevaluated. Later policy/guard integration requires another version.
+#
+# v7 (I4-2b5, CURRENT): v6 attribution; achieved-outcome guard retention, policy gates,
+# independent evaluated records, set aggregation and eligible-only projection.
 #
 # CURRENT is the only version new production accepts. SUPPORTED lists every version this code can READ; membership in
 # it does not make a version current. Historical versions are readable only through an explicit historical path.
@@ -131,7 +136,8 @@ SUFFICIENCY_SEMANTICS_V4 = "sufficiency-semantics-v4"
 SUFFICIENCY_SEMANTICS_V5 = "sufficiency-semantics-v5"
 # v6: v5 candidates plus attribution/proof annotation only. Policy and guards are unchanged.
 SUFFICIENCY_SEMANTICS_V6 = "sufficiency-semantics-v6"
-SUFFICIENCY_SEMANTICS_VERSION = SUFFICIENCY_SEMANTICS_V6
+SUFFICIENCY_SEMANTICS_V7 = "sufficiency-semantics-v7"
+SUFFICIENCY_SEMANTICS_VERSION = SUFFICIENCY_SEMANTICS_V7
 HISTORICAL_SUFFICIENCY_SEMANTICS_VERSIONS = frozenset(
     {
         SUFFICIENCY_SEMANTICS_V1,
@@ -139,6 +145,7 @@ HISTORICAL_SUFFICIENCY_SEMANTICS_VERSIONS = frozenset(
         SUFFICIENCY_SEMANTICS_V3,
         SUFFICIENCY_SEMANTICS_V4,
         SUFFICIENCY_SEMANTICS_V5,
+        SUFFICIENCY_SEMANTICS_V6,
     }
 )
 SUPPORTED_SUFFICIENCY_SEMANTICS_VERSIONS = (
@@ -598,6 +605,153 @@ def _canonical_support_policy(policy: dict) -> dict:
     )
 
 
+def canonical_support_policy(policy: dict) -> dict:
+    """Strict stored-policy schema boundary; None is valid only as builder omission shorthand."""
+    if not isinstance(policy, dict) or set(policy) != _SUPPORT_POLICY_KEYS:
+        raise ValueError("support_policy must contain exactly the three declared dimensions")
+    for key in ("allowed_assertion_relations", "allowed_assertion_kinds"):
+        if not isinstance(policy[key], (list, tuple)) or not all(isinstance(v, str) for v in policy[key]):
+            raise ValueError("policy allowed sets must be lists or tuples of strings")
+    if not isinstance(policy["aggregation_requirement"], str):
+        raise ValueError("aggregation_requirement must be a string")
+    return _canonical_support_policy(policy)
+
+
+def default_support_policy_snapshot() -> dict:
+    """Identity data for the fixed empirical predicate, not an expression interpreter."""
+    return {
+        "kind": "empirical_default",
+        "required_assertion_kind": "result",
+        "excluded_relation_aggregation": {
+            "assertion_relation": "unresolved",
+            "aggregation": "non_synthetic_or_unspecified",
+        },
+    }
+
+
+def support_policy_identity(source: str, snapshot: dict) -> str:
+    """Pure schema identity. The engine does not execute evidence policy."""
+    if source == "absent_default":
+        if snapshot != default_support_policy_snapshot():
+            raise ValueError("invalid empirical default snapshot")
+        return "empirical-default-v1"
+    if source != "authored" or canonical_support_policy(snapshot) != snapshot:
+        raise ValueError("invalid normalized authored policy snapshot")
+    data = json.dumps(snapshot, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    return "authored-support-policy-v1:sha256:" + hashlib.sha256(data).hexdigest()
+
+
+def validate_support_policy_evaluation(value: dict) -> None:
+    """Validate supplied gate data without duplicating the evidence evaluator."""
+    keys = {
+        "schema_version",
+        "policy_source",
+        "policy_identity",
+        "policy_snapshot",
+        "passed",
+        "failed_dimensions",
+        "reasons",
+    }
+    if not isinstance(value, dict) or set(value) != keys:
+        raise ValueError("invalid support_policy_evaluation shape")
+    if value["schema_version"] != "support-policy-evaluation-v1":
+        raise ValueError("unsupported support-policy evaluation schema")
+    if value["policy_identity"] != support_policy_identity(value["policy_source"], value["policy_snapshot"]):
+        raise ValueError("support-policy identity mismatch")
+    dims, reasons = value["failed_dimensions"], value["reasons"]
+    if not isinstance(dims, list) or not isinstance(reasons, list):
+        raise ValueError("policy failures must be lists")
+    if not all(isinstance(x, str) for x in dims + reasons):
+        raise ValueError("invalid policy failure code")
+    if type(value["passed"]) is not bool or value["passed"] != (not dims):
+        raise ValueError("policy passed/failure inconsistency")
+    if value["policy_source"] == "absent_default":
+        codes = {"relation_aggregation": "unresolved_non_synthetic", "kind": "non_result_kind"}
+    else:
+        codes = {"relation": "assertion_relation_not_allowed", "kind": "assertion_kind_not_allowed"}
+        agg = value["policy_snapshot"]["aggregation_requirement"]
+        if agg != "any":
+            codes = {
+                "relation": codes["relation"],
+                "aggregation": "aggregation_requires_synthesis"
+                if agg == "require_synthesis"
+                else "aggregation_excludes_synthesis",
+                "kind": codes["kind"],
+            }
+    if dims != [d for d in codes if d in dims] or reasons != [codes[d] for d in dims]:
+        raise ValueError("policy failures must use complete ordered closed dimension/reason pairs")
+
+
+def _support_gate_projection(guards, evaluation):
+    failed_guard, failed_policy = bool(guards), not evaluation["passed"]
+    reason = (
+        "guard_and_support_policy_excluded"
+        if failed_guard and failed_policy
+        else "disqualifying_guard_excluded"
+        if failed_guard
+        else "support_policy_excluded"
+        if failed_policy
+        else None
+    )
+    return not (failed_guard or failed_policy), reason
+
+
+_EVALUATED_SUPPORT_KEYS = frozenset({"guard_exclusions", "support_policy_evaluation"})
+
+
+def new_evaluated_candidate_support(base_candidate, *, guard_exclusions, support_policy_evaluation):
+    """Add independent evaluated gates to a historical-shaped candidate; never classify or rank."""
+    if not isinstance(base_candidate, dict) or set(base_candidate) not in (
+        _CANDIDATE_SUPPORT_KEYS,
+        _CANDIDATE_SUPPORT_KEYS | {"attribution"},
+    ):
+        raise ValueError("evaluated builder requires a historical-shaped base candidate")
+    base = copy.deepcopy(base_candidate)
+    if type(base["attachment_ambiguous"]) is not bool:
+        raise ValueError("attachment_ambiguous must be bool")
+    if not isinstance(guard_exclusions, list) or not all(isinstance(g, str) and g for g in guard_exclusions):
+        raise ValueError("guard_exclusions must be a list of authored guard identities")
+    if len(set(guard_exclusions)) != len(guard_exclusions):
+        raise ValueError("guard_exclusions must be duplicate-free")
+    validate_support_policy_evaluation(support_policy_evaluation)
+    # Validate the pre-existing candidate's semantic/coordinate schema, independent of gate projection.
+    base["admissible"], base["inadmissibility_reason"] = None, None
+    base = new_candidate_support(**base)
+    base["guard_exclusions"] = list(guard_exclusions)
+    base["support_policy_evaluation"] = copy.deepcopy(support_policy_evaluation)
+    base["admissible"], base["inadmissibility_reason"] = _support_gate_projection(
+        guard_exclusions, support_policy_evaluation
+    )
+    return base
+
+
+def validate_evaluated_candidate_support(record):
+    if not isinstance(record, dict) or set(record) not in (
+        _CANDIDATE_SUPPORT_KEYS | _EVALUATED_SUPPORT_KEYS,
+        _CANDIDATE_SUPPORT_KEYS | _EVALUATED_SUPPORT_KEYS | {"attribution"},
+    ):
+        raise ValueError("incomplete or invalid evaluated candidate schema")
+    base = {k: v for k, v in record.items() if k not in _EVALUATED_SUPPORT_KEYS}
+    expected = new_evaluated_candidate_support(
+        base,
+        guard_exclusions=record["guard_exclusions"],
+        support_policy_evaluation=record["support_policy_evaluation"],
+    )
+    if type(record["admissible"]) is not bool or record != expected:
+        raise ValueError("evaluated candidate gate/projection inconsistency")
+
+
+def aggregate_support_role(candidate_supports: list[dict]) -> tuple[str, str | None]:
+    """V7 role authority: independent attachment and evidence gates; all supports participate."""
+    for candidate in candidate_supports:
+        validate_evaluated_candidate_support(candidate)
+    if any(not c["attachment_ambiguous"] and c["admissible"] is True for c in candidate_supports):
+        return "filled", None
+    if any(c["attachment_ambiguous"] and c["admissible"] is True for c in candidate_supports):
+        return "ambiguous", "assertion_attachment_ambiguous"
+    return "missing", "candidate_supports_excluded" if candidate_supports else None
+
+
 def new_candidate_support(
     *,
     supporting_proposition_ids: list,
@@ -773,6 +927,10 @@ def new_candidate_supports(records: list[dict]) -> list[dict]:
     re-deciding relevance itself. Returns a fresh list (never aliases the caller's own)."""
     out = []
     for record in records:
+        if isinstance(record, dict) and set(record) & _EVALUATED_SUPPORT_KEYS:
+            validate_evaluated_candidate_support(record)
+            out.append(copy.deepcopy(record))
+            continue
         if not isinstance(record, dict) or set(record) not in (
             _CANDIDATE_SUPPORT_KEYS,
             _CANDIDATE_SUPPORT_KEYS | {"attribution"},
@@ -786,23 +944,8 @@ def new_candidate_supports(records: list[dict]) -> list[dict]:
 
 
 def reference_future_role_state(candidate_supports: list[dict]) -> tuple[str, str | None]:
-    """REFERENCE ONLY -- freezes the I4-1e revision 2 section 6/10 future role-state aggregation contract for
-    this increment's own tests (`test_sufficiency_support_schema.py`). NOT called by `recompute_instance`/
-    `recompute_requirement` or any production path; a static guard proves this.
-
-    Future I4-2 semantics, exactly: ``"filled"`` iff at least one relevant candidate is admissible;
-    ``"ambiguous"`` iff no candidate is admissible AND at least one relevant candidate is blocked specifically
-    because assertion attachment is ambiguous; ``"missing"`` otherwise. Policy-excluded evidence alone never
-    creates ambiguity -- a role with only `support_policy_excluded` candidates aggregates to plain `"missing"`,
-    not `"ambiguous"`. One ambiguous candidate never poisons another, separate, unambiguous admissible support:
-    `"filled"` is checked FIRST, unconditionally on the presence of any admissible candidate regardless of what
-    else the list also contains. The exact production reason-code mapping for the `"missing"` case is future
-    I4-2 work, not decided here."""
-    if any(candidate["admissible"] for candidate in candidate_supports):
-        return "filled", None
-    if any(candidate["inadmissibility_reason"] == "assertion_attachment_ambiguous" for candidate in candidate_supports):
-        return "ambiguous", "assertion_attachment_ambiguous"
-    return "missing", None
+    """Reference-only adapter for the corrected orthogonal v7 contract."""
+    return aggregate_support_role(candidate_supports)
 
 
 def reference_future_requested_terms_disambiguation(candidates: list[dict], requested_terms: list[str]) -> dict | None:
@@ -1062,7 +1205,12 @@ def recompute_instance(
         # change touches no category requirement), so the v4 category goal gate applies identically here --
         # never because v5 silently inherits "whatever v4 did," but because this specific rule was audited
         # and explicitly carried forward.
-        if semantics_version not in (SUFFICIENCY_SEMANTICS_V4, SUFFICIENCY_SEMANTICS_V5, SUFFICIENCY_SEMANTICS_V6):
+        if semantics_version not in (
+            SUFFICIENCY_SEMANTICS_V4,
+            SUFFICIENCY_SEMANTICS_V5,
+            SUFFICIENCY_SEMANTICS_V6,
+            SUFFICIENCY_SEMANTICS_V7,
+        ):
             raise ValueError("the category goal gate is a v4/v5 rule")
         complete = complete and category_goal_satisfied(instance)
 
@@ -1169,6 +1317,7 @@ def recompute_requirement(requirement: dict, *, context: dict | None = None, sem
         SUFFICIENCY_SEMANTICS_V4,
         SUFFICIENCY_SEMANTICS_V5,
         SUFFICIENCY_SEMANTICS_V6,
+        SUFFICIENCY_SEMANTICS_V7,
     ) and is_category_requirement(requirement)
     recomputed_instances = [
         recompute_instance(

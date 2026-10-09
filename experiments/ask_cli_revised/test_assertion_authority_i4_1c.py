@@ -163,7 +163,7 @@ def test_versions_are_unchanged_for_sufficiency_and_plan():
     # sufficiency/PLAN_VERSION are the frozen invariants this gate exists to protect. RULESET_VERSION is the
     # classifier's own ruleset identity, explicitly allowed to move per increment (I4-1b's own test file already
     # relaxed this exact check for the same reason); I4-1f moves it again, to "i4-1f.0".
-    assert se.SUFFICIENCY_SEMANTICS_VERSION == "sufficiency-semantics-v6"  # I4-2b3 attribution-only integration
+    assert se.SUFFICIENCY_SEMANTICS_VERSION == "sufficiency-semantics-v7"  # I4-2b5 support-policy integration
     assert pl.PLAN_VERSION == "answer-plan-step2-v4"
     assert aa.RULESET_VERSION.startswith("i4-1")
 

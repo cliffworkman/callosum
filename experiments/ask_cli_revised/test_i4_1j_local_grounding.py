@@ -549,7 +549,7 @@ def test_assertion_authority_unwired_guard_is_unaffected_by_the_new_function():
 def test_versions_are_unchanged_for_sufficiency_and_plan():
     from experiments.ask_cli_revised.answer_plan import plan as ap
 
-    assert se.SUFFICIENCY_SEMANTICS_VERSION == se.SUFFICIENCY_SEMANTICS_V6  # I4-2b3 attribution-only integration
+    assert se.SUFFICIENCY_SEMANTICS_VERSION == se.SUFFICIENCY_SEMANTICS_V7  # I4-2b5 support-policy integration
     assert ap.PLAN_VERSION == "answer-plan-step2-v4"
 
 
