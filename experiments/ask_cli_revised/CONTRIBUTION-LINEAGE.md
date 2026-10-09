@@ -2758,3 +2758,65 @@ binding-level witness consumption remain explicit limitations. Authority veto/ca
 same_local_assertion is unregistered; PLAN_VERSION and ParentClaims/AnswerPlan implementation are untouched.
 Recommendation B remains satisfied by attribution-first v6; the conservative default and original
 uncorrected six-exclusion record remain intact. STOP after I4-2b5: no I4-3, I4-4 or I2-3.
+
+## Phase 34 / I4-3A — candidate-set relationship witness necessity audit (2026-10-09)
+
+**Scope and base.** Read-only architectural audit on canonical branch
+`experiment/ask-060-hier11-recpm3-citefix-20260929T212442Z`, clean starting HEAD
+`8c14689e14f5017da6d638566dddafe4dfbfff65`. Tracked changes are only the
+[I4-3A audit](PHASE34_I4_3A_CANDIDATE_SET_RELATIONSHIP_WITNESS_AUDIT.md)
+and this lineage append. No relationship, classifier, candidate-aggregation, policy, guard,
+version, ParentClaim or AnswerPlan behavior changed.
+
+**Finding.** V7 role satisfaction reads evaluated candidate sets, but downstream joint grounding,
+I1 relation witnessing and observation scoping still consume representative-level text/plural IDs.
+Unchanged production binding consumers fail the eligible A/P1 then B/P2 versus sibling P2 case;
+reversing candidate order makes the relationship true. The audit distinguishes that consumer-boundary
+proof from current collector reachability: unique-sibling proposition scoping prevents that exact
+P1 candidate from entering the current two-role collector. This restriction is not a general
+candidate-aware witness contract.
+
+**Independent observation defect.** The real v7 collector can ground two eligible local assertions
+under the same P2 target. With one positive and one negative association sentence, reversing the
+emitted candidate set changes the representative operand text and production direction consensus
+from positive to negative, while completeness and witnessed P2 remain true. Consuming both
+assignment-eligible observations yields the existing within-instance-conflict/no-consensus result.
+Thus differing eligible support sets are not the only concern for text-consuming downstream stages.
+
+**Real audit.** Exact v7 rerun: 40 I1 relational instances plus c1's required/alternative joint case;
+zero Boolean or witness-ID disagreements against an independent eligible-assignment oracle.
+Eight witnessed, eight complete-but-unwitnessed c5/c6 instances, 24 incomplete relational instances.
+c9 retains five incomplete scale pairings. c3 is the only filled role with >1 retained candidate:
+two total, one eligible. Zero real multi-admissible-resolved roles; zero differing eligible
+support-set cases. All six real direction observations remain relation-ineligible; effectiveness
+lists remain empty. No projected role/requirement/recovery/downstream semantic change on q_aib:
+48 recovery targets, 17 ParentClaims, nine AnswerPlan nodes, 33 passing invariants.
+
+**Decisions.** Relationship-eligible means admissible=True AND attachment-resolved; validate
+evaluated records and never fall back to representative evidence for a present empty/excluded
+candidate set. Legacy roles without candidate_supports retain an explicit singleton adapter.
+Generalize historical same_proposition through actual compatible eligible assignments and a global
+common proposition, retaining separate engine-completion and I1 own/inherited contracts.
+Do not overwrite provenance with unions: a filtered per-role union/intersection is a valid Boolean
+index for pure same-proposition, but is not a candidate proof or observation contract. Preserve
+assignment references, locators, gate/attribution receipts, join basis, rule and version. Direction
+and effectiveness must use the same successful assignment's evidence and operands, preserving all
+supported alternatives and conflicts. same_local_assertion remains unregistered and deferred.
+
+**Verification.** Four explicit historical reruns match exactly:
+v4 `4154ebd4062d22aa25db43e947aba61abe2c5888d6aa10d8ecd14b60afa65e4a`;
+v5 `109030de83856b4384d596311dd8e3f6d46d19859c895c4b94b9efb3aa92ae77`;
+v6 `dabef2f553b5e9301f9daa3a344b624ee6afb3e0f41fbce18b096587736822be`;
+v7 `04eb38b1ef12dc694c075279f7d03228a96ac5938cdb7d1bd9782957fb960c72`.
+Required synthetic matrix: 33 permutation executions; expanded matrix: 42, with 12 disclosed
+current false negatives and order-dependent families C/D/I/J. Existential expectations pass
+all permutations. Four additional I1 source/verification cases preserved. Targeted unchanged
+historical battery: 130 passed, two subtests passed. No full suite, retrieval, model calls,
+external search or live E2E.
+
+**Readiness and stop.** Candidate-set witness semantics are required before I4-4, under an eventual
+v8 boundary preserving explicit v4-v7. READY for **I4-3B — V8 compatible-witness selection and
+observation-alignment integration design**; not authorization to implement v8 now. That bounded
+design closes reference serialization, selected-span/operand transport and the legacy answer-layer
+handoff. STOP after I4-3A. No relationship implementation, verifier registration, I4-4, claim-goal/veto
+work or I2-3.
