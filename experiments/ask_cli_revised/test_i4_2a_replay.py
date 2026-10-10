@@ -89,7 +89,13 @@ def remap(version, *, ownership_context_index=None):
             return copy.deepcopy(held[key])
         result = original(spec, units, **kwargs)
         if (
-            version in ("sufficiency-semantics-v5", "sufficiency-semantics-v6", "sufficiency-semantics-v7")
+            version
+            in (
+                "sufficiency-semantics-v5",
+                "sufficiency-semantics-v6",
+                "sufficiency-semantics-v7",
+                "sufficiency-semantics-v8",
+            )
             and spec["mapping_strategy"] == "achieved_outcome_predicate"
         ):
             diag = {}
@@ -97,6 +103,7 @@ def remap(version, *, ownership_context_index=None):
                 "sufficiency-semantics-v5": sm._bind_achieved_outcome_v5,
                 "sufficiency-semantics-v6": sm._bind_achieved_outcome_v6,
                 "sufficiency-semantics-v7": sm._bind_achieved_outcome_v7,
+                "sufficiency-semantics-v8": sm._bind_achieved_outcome_v7,
             }[version]
             checked = binder(
                 spec,

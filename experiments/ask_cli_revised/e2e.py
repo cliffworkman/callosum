@@ -525,7 +525,11 @@ def execute(
             early_sealed = stages.seal(
                 contract, subquestions, sink.all_records, sink.evidence_packets, coverage_initial
             )
-            if se.SUFFICIENCY_SEMANTICS_VERSION in (se.SUFFICIENCY_SEMANTICS_V6, se.SUFFICIENCY_SEMANTICS_V7):
+            if se.SUFFICIENCY_SEMANTICS_VERSION in (
+                se.SUFFICIENCY_SEMANTICS_V6,
+                se.SUFFICIENCY_SEMANTICS_V7,
+                se.SUFFICIENCY_SEMANTICS_V8,
+            ):
                 ownership_context_index = ownership_context.build_context_index(early_sealed, sink.evidence_packets)
                 trace.write_json("17_ownership_context.initial.json", ownership_context_index)
             if sufficiency_u1_model_client is not None:
@@ -704,6 +708,7 @@ def execute(
     if sufficiency_contract is not None and se.SUFFICIENCY_SEMANTICS_VERSION in (
         se.SUFFICIENCY_SEMANTICS_V6,
         se.SUFFICIENCY_SEMANTICS_V7,
+        se.SUFFICIENCY_SEMANTICS_V8,
     ):
         ownership_context_index = ownership_context.build_context_index(sealed, sink.evidence_packets)
         trace.write_json("17_ownership_context.json", ownership_context_index)
@@ -845,6 +850,7 @@ def execute(
             se.SUFFICIENCY_SEMANTICS_V5,
             se.SUFFICIENCY_SEMANTICS_V6,
             se.SUFFICIENCY_SEMANTICS_V7,
+            se.SUFFICIENCY_SEMANTICS_V8,
         )
         else None
     )

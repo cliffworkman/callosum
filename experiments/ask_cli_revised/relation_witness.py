@@ -111,6 +111,7 @@ _REFERENT_CONTAINMENT = {
     se.SUFFICIENCY_SEMANTICS_V5: _contains_case_insensitive,
     se.SUFFICIENCY_SEMANTICS_V6: _contains_case_insensitive,  # attribution-only; identical inherited rule
     se.SUFFICIENCY_SEMANTICS_V7: _contains_case_insensitive,  # unchanged inherited rule
+    se.SUFFICIENCY_SEMANTICS_V8: _contains_case_insensitive,  # same full-quote containment
 }
 
 
@@ -138,6 +139,8 @@ def witness_instance(
         raise si.SemanticsIdentityError(
             f"no inherited-referent containment rule for sufficiency-semantics version {semantics_version!r}"
         )
+    if semantics_version == se.SUFFICIENCY_SEMANTICS_V8:
+        return _witness_instance_v8(requirement, instance, proposition_by_id)
     required = sorted(requirement["role_completion"]["required_roles"])
     bindings = instance["role_bindings"]
     sources = {role: operand_source(bindings.get(role) or {}) for role in required}
@@ -206,6 +209,10 @@ def attach_relation_witnesses(mapped: dict, sealed: dict, *, semantics_version: 
     proposition_by_id = {row["proposition_id"]: row for row in sealed.get("verified_propositions", [])}
     for contract in mapped.values():
         for requirement in contract["requirements"]:
+            if semantics_version == se.SUFFICIENCY_SEMANTICS_V8:
+                for instance in requirement["instances"]:
+                    instance.update(_witness_instance_v8(requirement, instance, proposition_by_id))
+                continue
             if not is_relational(requirement):
                 continue
             for instance in requirement["instances"]:
@@ -223,3 +230,18 @@ def project_out_i1(smap: dict) -> dict:
                 for key in I1_FIELDS:
                     instance.pop(key, None)
     return projected
+
+
+def _witness_instance_v8(requirement, instance, proposition_by_id):
+    from experiments.ask_cli_revised import compatible_witness as cw
+
+    if "witness_bundle" not in instance:
+        raise cw.WitnessIntegrityError("v8 requires an initialized witness bundle")
+    return cw.finalize_instance(
+        requirement,
+        instance,
+        proposition_by_id,
+        se.own_evidence_roles(requirement["role_completion"], instance["role_bindings"]),
+        is_admissible,
+        lambda surface, quote: referent_present(surface, quote, semantics_version=se.SUFFICIENCY_SEMANTICS_V8),
+    )

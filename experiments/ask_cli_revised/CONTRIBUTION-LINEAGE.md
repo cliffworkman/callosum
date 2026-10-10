@@ -2911,3 +2911,49 @@ Current/default remains v7; production supported/historical sets are unchanged. 
 membership, routing, baseline, witness/proof/observation implementation or field is added.
 No candidate/policy/guard/attribution/ParentClaim/AnswerPlan semantic changes; no live retrieval,
 model call or live E2E. STOP after I4-3C0. Do not automatically resume I4-3C or begin I4-4/I2-3.
+
+## Phase 34 / I4-3C — v8 compatible-witness proofs and aligned observations (2026-10-09)
+
+**Scope and base.** Bounded implementation from clean canonical HEAD
+`693672bf34582f3ba111bef1381b6c622a0e4bea` on
+`experiment/ask-060-hier11-recpm3-citefix-20260929T212442Z`. See the
+[I4-3C results](PHASE34_I4_3C_V8_COMPATIBLE_WITNESS_OBSERVATION_RESULTS.md).
+The accepted I4-3C0 identity substrate is unchanged.
+
+**Contract.** Add explicit v8 as supported_noncurrent, never current or historical.
+Current/default remains v7. One pure compatible_witness authority validates all retained
+candidate records, adapts eligible views without representative fallback, and emits stable
+placement-scoped support references, compatible assignment proofs, joint receipts and observation
+bases. Immediate own/inherited source follows outer binding provenance. Completion and I1 retain
+their distinct participation/verification contracts; every compatible assignment survives.
+No new verifier or same_local_assertion registration.
+
+**Atomic observation alignment.** Direction and effectiveness consume the same selected
+evidence/operand references as the proofs. Own evaluated evidence uses exact assertion scope;
+legacy-only bases retain unit scope. Opposite signs on the same proposition both survive,
+yielding within-instance conflict; local supported/not_supported effectiveness assertions both
+survive without a new I1 gate. Duplicate provenance paths merge without merging distinct
+assertions or unproven distinct physical sources. Classifiers, policy, attribution and grounding
+remain unchanged.
+
+**Qualification.** The preregistered 17 families cover 42 independent permutations plus the
+additional frozen cases. Final focused qualification: 195 passed (79 v8 cases plus 116 identity cases). Full final offline
+experiments: 5,081 passed, five known failures, 12 skipped, nine xfailed and 276 subtests passed. Optional dependency-complete offline module: seven passed.
+Five known baseline/environment failures were independently reproduced from the starting
+checkpoint; zero unexplained new failures. Exact v4-v7 hashes are unchanged, with historical
+selector bypass verified. The qualified explicit v8 combined hash is `1b8c89473bf1cf7d562483c29f6d14c1ef503de2788f3d81563842a1cc7659f0`, recorded in
+`witness_i4_3c_replay_baseline.json`.
+
+**Real corpus.** 46 instances, 51 eligible support views, 11 completion proofs, nine I1 proofs,
+eight witnessed instances. No changes to 13 requirement states, 40 I1 Booleans, witness IDs,
+six relation-ineligible direction outcomes, zero effectiveness observations, 48 recovery targets,
+17 ParentClaims, nine AnswerPlan nodes or Layer 1 semantic content. All 33 invariants pass.
+Default/historical-only replay rejects v8; the real explicit noncurrent CLI path accepts it
+and binds exact supported_noncurrent/v8 authorization.
+
+**Boundary and stop.** READY for I4-4 planning only. Synthetic non-representative corrections
+still expose the unchanged ParentClaim mismatch exception and stale AnswerPlan operand metadata;
+Layer C production files remain unchanged. V8 is not unrestricted answer-qualified and is not
+promoted. All content/lint/security/module-boundary hooks pass except the unchanged 615-line
+frontend cap; the user's scoped bypass applies. No model calls, live retrieval or live E2E.
+STOP after I4-3C; no I4-4 implementation, claim-goal/veto work or I2-3.

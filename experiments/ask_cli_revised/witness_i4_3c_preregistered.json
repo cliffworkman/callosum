@@ -1,0 +1,248 @@
+{
+  "record": "i4-3c-preregistered-expectations",
+  "source_design_commit": "5dbd73946b02a8910fa477d6e74f2dccd09c9867",
+  "implementation_base": "693672bf34582f3ba111bef1381b6c622a0e4bea",
+  "permutations": "L: all independent candidate-order permutations of every matrix group",
+  "singleton_sibling": "P2",
+  "matrix": [
+    {
+      "id": "A",
+      "groups": [
+        [
+          "P2"
+        ]
+      ],
+      "I1": true
+    },
+    {
+      "id": "B",
+      "groups": [
+        [
+          "P1"
+        ]
+      ],
+      "I1": false
+    },
+    {
+      "id": "C",
+      "groups": [
+        [
+          "P2",
+          "P1"
+        ]
+      ],
+      "I1": true
+    },
+    {
+      "id": "D",
+      "groups": [
+        [
+          "P1",
+          "P2"
+        ]
+      ],
+      "I1": true
+    },
+    {
+      "id": "E",
+      "groups": [
+        [
+          "P1",
+          "P3"
+        ]
+      ],
+      "I1": false
+    },
+    {
+      "id": "F",
+      "groups": [
+        [
+          "P2:both",
+          "P1"
+        ]
+      ],
+      "I1": false
+    },
+    {
+      "id": "G",
+      "groups": [
+        [
+          "P2",
+          "P1:both"
+        ]
+      ],
+      "I1": true
+    },
+    {
+      "id": "H",
+      "groups": [
+        [
+          "P2:ambiguous"
+        ]
+      ],
+      "I1": false
+    },
+    {
+      "id": "I",
+      "groups": [
+        [
+          "P1",
+          "P2"
+        ],
+        [
+          "P2",
+          "P3"
+        ]
+      ],
+      "I1": true
+    },
+    {
+      "id": "J",
+      "groups": [
+        [
+          "P1",
+          "P2"
+        ],
+        [
+          "P3",
+          "P2"
+        ],
+        [
+          "P4",
+          "P2"
+        ]
+      ],
+      "I1": true
+    },
+    {
+      "id": "K",
+      "groups": [
+        [
+          "P1",
+          "P2"
+        ],
+        [
+          "P2",
+          "P3"
+        ],
+        [
+          "P1",
+          "P3"
+        ]
+      ],
+      "I1": false
+    },
+    {
+      "id": "M-empty",
+      "groups": [
+        []
+      ],
+      "I1": false
+    },
+    {
+      "id": "N-excluded",
+      "groups": [
+        [
+          "P2:both"
+        ]
+      ],
+      "I1": false
+    },
+    {
+      "id": "O-ambiguous-plus-eligible",
+      "groups": [
+        [
+          "P2:ambiguous",
+          "P1"
+        ]
+      ],
+      "I1": false
+    },
+    {
+      "id": "P-guard-only",
+      "groups": [
+        [
+          "P2:guard",
+          "P1"
+        ]
+      ],
+      "I1": false
+    },
+    {
+      "id": "Q-policy-only",
+      "groups": [
+        [
+          "P2:policy",
+          "P1"
+        ]
+      ],
+      "I1": false
+    },
+    {
+      "id": "R-ambiguous-excluded",
+      "groups": [
+        [
+          "P2:ambiguous_excluded"
+        ]
+      ],
+      "I1": false
+    }
+  ],
+  "additional": {
+    "opposite_same_P2": {
+      "signs": [
+        "negative",
+        "positive"
+      ],
+      "consensus_value": null,
+      "observed_values": [],
+      "has_within_instance_conflict": true,
+      "has_across_instance_heterogeneity": false
+    },
+    "distinct_same_sign": {
+      "observations": 2,
+      "consensus_value": "positive"
+    },
+    "duplicate_proof_paths": "one physical observation, all successful paths",
+    "inherited_alternatives": "only contained alternatives produce I1 and eligible direction paths",
+    "two_contained_inherited": "both proofs survive; one physical observation per semantic result",
+    "candidate_and_legacy": "shared eligible proposition succeeds",
+    "candidate_inherited": "outer parent_context remains inherited",
+    "all_inherited": "I1 false; engine less-than-two-own bypass preserved",
+    "stale_legacy": "present empty/all-ineligible list has zero views; no fallback",
+    "links_no_context": "no proof",
+    "verifier_OR": "second-only succeeds; both retain distinct bases; duplicate verifier collapses",
+    "identical_candidate": "collapse",
+    "conflicting_candidate": "typed error before filtering",
+    "reference_stability": "reorder and unrelated insertion preserve IDs at fixed placement",
+    "placement": "different placement yields different reference",
+    "unlocated": "structural proof allowed; zero local observations; explicit diagnostic",
+    "legacy_empty_support": "one view, no proposition join",
+    "legacy_null_text": "structural join allowed",
+    "continuation": "all verbatim anchors accepted; any false anchor rejected",
+    "local_scope": "excluded coordinated clause contributes no text or flags",
+    "effectiveness": {
+      "conclusions": [
+        "not_supported",
+        "supported"
+      ],
+      "I1_gate": false
+    },
+    "malformed": "wrong hashes, references, spans, alias coordinates and stale input fail loudly",
+    "support_ID_order": "set normalization without input mutation",
+    "physical_dedup": "aliases of same proven source merge paths; distinct sources and offsets remain distinct",
+    "layer_C": "known ParentClaim exception and stale AnswerPlan operand projection remain visible",
+    "real": {
+      "instances": 46,
+      "eligible_views": 51,
+      "joint_proofs": 11,
+      "I1_proofs": 9,
+      "witnessed": 8,
+      "requirements": 13,
+      "recovery": 48,
+      "claims": 17,
+      "nodes": 9,
+      "invariants": 33
+    }
+  }
+}

@@ -787,6 +787,7 @@ def _bind_role_candidates(
             se.SUFFICIENCY_SEMANTICS_V5,
             se.SUFFICIENCY_SEMANTICS_V6,
             se.SUFFICIENCY_SEMANTICS_V7,
+            se.SUFFICIENCY_SEMANTICS_V8,
         )
         and role_spec["mapping_strategy"] == "explicit_category_terms"
     ):
@@ -795,7 +796,7 @@ def _bind_role_candidates(
         # first-match.
         raise ValueError("v4/v5 category observations apply only to all_requested_categories requirements")
     if (
-        semantics_version == se.SUFFICIENCY_SEMANTICS_V7
+        semantics_version in (se.SUFFICIENCY_SEMANTICS_V7, se.SUFFICIENCY_SEMANTICS_V8)
         and role_spec["mapping_strategy"] == "achieved_outcome_predicate"
     ):
         return _bind_achieved_outcome_v7(
@@ -1000,6 +1001,7 @@ def map_requirement(
     child_id: str | None = None,
     nomination_context: dict | None = None,
     semantics_version: str,
+    witness_context: dict | None = None,
 ) -> dict:
     """Mapping for one requirement with NO parent context (see `map_paired_requirement` for that
     shape -- Phase 16 retired this function's own former `parent_context_bindings` fallback,
@@ -1078,7 +1080,11 @@ def map_requirement(
         all_instances.extend(_rederive_keys_if_forked(forks, root_key))
 
     new_requirement = {**requirement, "instances": all_instances}
-    return se.recompute_requirement(new_requirement, semantics_version=semantics_version)
+    return se.recompute_requirement(
+        new_requirement,
+        semantics_version=semantics_version,
+        **({"witness_context": witness_context} if semantics_version == se.SUFFICIENCY_SEMANTICS_V8 else {}),
+    )
 
 
 def map_cardinality_requirement(
@@ -1089,6 +1095,7 @@ def map_cardinality_requirement(
     child_id: str | None = None,
     nomination_context: dict | None = None,
     semantics_version: str,
+    witness_context: dict | None = None,
 ) -> dict:
     """Specialization for `all_requested_categories`: one instance per named category (from the
     role's own `requested_category_terms` -- the contract's own wording-derived terms, never a
@@ -1141,9 +1148,15 @@ def map_cardinality_requirement(
         se.SUFFICIENCY_SEMANTICS_V5,
         se.SUFFICIENCY_SEMANTICS_V6,
         se.SUFFICIENCY_SEMANTICS_V7,
+        se.SUFFICIENCY_SEMANTICS_V8,
     ):
         return _map_category_requirement_v4(
-            requirement, candidate_units, spec=spec, role=role, semantics_version=semantics_version
+            requirement,
+            candidate_units,
+            spec=spec,
+            role=role,
+            semantics_version=semantics_version,
+            **({"witness_context": witness_context} if semantics_version == se.SUFFICIENCY_SEMANTICS_V8 else {}),
         )
     instances = []
     for term in spec["requested_category_terms"]:
@@ -1163,7 +1176,11 @@ def map_cardinality_requirement(
         )
         instances.append(instance)
     new_requirement = {**requirement, "instances": instances}
-    return se.recompute_requirement(new_requirement, semantics_version=semantics_version)
+    return se.recompute_requirement(
+        new_requirement,
+        semantics_version=semantics_version,
+        **({"witness_context": witness_context} if semantics_version == se.SUFFICIENCY_SEMANTICS_V8 else {}),
+    )
 
 
 _CATEGORY_AUDIT_KEYS = (
@@ -1233,7 +1250,13 @@ def _representative_observation(observations: list) -> dict | None:
 
 
 def _map_category_requirement_v4(
-    requirement: dict, candidate_units: list, *, spec: dict, role: str, semantics_version: str
+    requirement: dict,
+    candidate_units: list,
+    *,
+    spec: dict,
+    role: str,
+    semantics_version: str,
+    witness_context: dict | None = None,
 ) -> dict:
     instances = []
     terms = spec["requested_category_terms"]
@@ -1262,7 +1285,11 @@ def _map_category_requirement_v4(
             )
         instances.append(instance)
     new_requirement = {**requirement, "instances": instances}
-    return se.recompute_requirement(new_requirement, semantics_version=semantics_version)
+    return se.recompute_requirement(
+        new_requirement,
+        semantics_version=semantics_version,
+        **({"witness_context": witness_context} if semantics_version == se.SUFFICIENCY_SEMANTICS_V8 else {}),
+    )
 
 
 def _propagated_provenance(parent_requirement_id: str, source_binding: dict) -> dict:
@@ -1326,6 +1353,7 @@ def map_paired_requirement(
     child_id: str | None = None,
     nomination_context: dict | None = None,
     semantics_version: str,
+    witness_context: dict | None = None,
 ) -> dict:
     """The SOLE parent-context instance-generation path (Phase 16) -- used for EVERY quantifier a
     `parent_context_roles` requirement declares, `exists` (e.g. c4->c5/c6's region inheritance)
@@ -1445,7 +1473,11 @@ def map_paired_requirement(
                 }
                 instances.extend(_forked_over_other_roles([instance], root_key))
     new_requirement = {**requirement, "instances": instances}
-    return se.recompute_requirement(new_requirement, semantics_version=semantics_version)
+    return se.recompute_requirement(
+        new_requirement,
+        semantics_version=semantics_version,
+        **({"witness_context": witness_context} if semantics_version == se.SUFFICIENCY_SEMANTICS_V8 else {}),
+    )
 
 
 def map_any_requirement(
@@ -1457,6 +1489,7 @@ def map_any_requirement(
     child_id: str | None = None,
     nomination_context: dict | None = None,
     semantics_version: str,
+    witness_context: dict | None = None,
 ) -> dict:
     """Generic dispatch, by the requirement's OWN declared shape -- never by child/role identity.
 
@@ -1497,6 +1530,7 @@ def map_any_requirement(
             child_id=child_id,
             nomination_context=nomination_context,
             semantics_version=semantics_version,
+            **({"witness_context": witness_context} if semantics_version == se.SUFFICIENCY_SEMANTICS_V8 else {}),
         )
     if requirement["parent_context_roles"]:
         if parent_requirement is None:
@@ -1513,6 +1547,7 @@ def map_any_requirement(
             child_id=child_id,
             nomination_context=nomination_context,
             semantics_version=semantics_version,
+            **({"witness_context": witness_context} if semantics_version == se.SUFFICIENCY_SEMANTICS_V8 else {}),
         )
     return map_requirement(
         requirement,
@@ -1521,6 +1556,7 @@ def map_any_requirement(
         child_id=child_id,
         nomination_context=nomination_context,
         semantics_version=semantics_version,
+        **({"witness_context": witness_context} if semantics_version == se.SUFFICIENCY_SEMANTICS_V8 else {}),
     )
 
 
@@ -1589,6 +1625,7 @@ def find_direction_observations(
         se.SUFFICIENCY_SEMANTICS_V5,
         se.SUFFICIENCY_SEMANTICS_V6,
         se.SUFFICIENCY_SEMANTICS_V7,
+        se.SUFFICIENCY_SEMANTICS_V8,
     ):
         raise ValueError(f"no direction-observation rule for sufficiency-semantics version {semantics_version!r}")
     if requirement.get("direction") is None:
@@ -1650,3 +1687,222 @@ def find_effectiveness_observations(requirement: dict, grounding_units: list[dic
             )
         )
     return observations
+
+
+# Explicit v8 observation transport. Classifier functions above remain unchanged.
+def _aligned_sentence_spans(text):
+    """Match the existing splitter exactly and map normalized characters back to raw offsets."""
+    from experiments.ask_cli_revised import compatible_witness as cw
+
+    normalized = []
+    ranges = []
+    for match in re.finditer(r"\S+|\s+", text):
+        token = match.group()
+        if token.isspace():
+            normalized.append(" ")
+            ranges.append((match.start(), match.end()))
+        else:
+            normalized.extend(token)
+            ranges.extend((i, i + 1) for i in range(match.start(), match.end()))
+    while normalized and normalized[0] == " ":
+        normalized.pop(0)
+        ranges.pop(0)
+    while normalized and normalized[-1] == " ":
+        normalized.pop()
+        ranges.pop()
+    joined = "".join(normalized)
+    cursor = 0
+    result = []
+    for sentence in dtg.split_sentences(text):
+        start = joined.find(sentence, cursor)
+        if start < 0 or joined[cursor:start].strip():
+            raise cw.WitnessIntegrityError("sentence locator transport mismatch")
+        end = start + len(sentence)
+        raw = [ranges[start][0], ranges[end - 1][1]]
+        if " ".join(text[slice(*raw)].split()) != sentence:
+            raise cw.WitnessIntegrityError("sentence locator roundtrip mismatch")
+        result.append((sentence, raw))
+        cursor = end
+    return result
+
+
+def _aligned_scopes(bundle, basis, units_by_pid, props):
+    """Read selected own views only; inherited views never donate an evidence passage."""
+    from experiments.ask_cli_revised import compatible_witness as cw
+
+    views = [bundle["support_views"][vid] for vid in basis["selected_views"].values()]
+    selected = [v for v in views if v["representation_kind"] == "evaluated_candidate"]
+    pid = basis["common_proposition_id"]
+    if selected:
+        for view in selected:
+            record = bundle["support_records"][view["support_ref"]]
+            span = record["assertion_span"]
+            if span is None:
+                continue
+            prop = props[record["span_proposition_id"]]
+            text = prop["quote"][slice(*span)]
+            if text != record["exact_text"]:
+                raise cw.WitnessIntegrityError("selected assertion no longer matches sealed quote")
+            source = cw.source_identity(prop)
+            physical = {
+                "source_identity": source,
+                "sealed_quote_sha256": cw.text_hash(prop["quote"]),
+                "assertion_span": span,
+            }
+            if any(source[k] is None for k in ("paper_id", "evidence_anchor_chunk_id", "evidence_span_id")):
+                physical["fallback_proposition_id"] = record["span_proposition_id"]
+            unit = {
+                "unit_id": cw.digest(physical),
+                "passage": text,
+                "proposition_ids": [pid],
+                "flags": oe.passage_flags(text),
+            }
+            yield unit, "candidate_assertion", physical, view["evidence_locator_ref"]
+    elif pid in units_by_pid:
+        unit = units_by_pid[pid]
+        physical = {
+            "legacy_unit_identity": unit["unit_id"],
+            "legacy_passage_sha256": cw.text_hash(unit["passage"]),
+            "locators": copy.deepcopy(unit.get("locators", [])),
+            "assertion_span": None,
+        }
+        yield {**unit, "proposition_ids": [pid]}, "legacy_unit", physical, None
+
+
+def attach_aligned_observations(requirement, instance, units, props):
+    """Consume proof/basis output without reading or reselecting candidate lists."""
+    from experiments.ask_cli_revised import compatible_witness as cw
+
+    bundle = instance["witness_bundle"]
+    cw.validate_witness_bundle(
+        bundle, requirement["role_completion"], instance["role_bindings"], requirement["relationship_verifiers"], props
+    )
+    lookup = {pid: unit for unit in units for pid in unit["proposition_ids"]}
+    grouped = {"direction": {}, "effectiveness": {}}
+    order = {}
+    for basis in bundle["observation_bases"].values():
+        pid = basis["common_proposition_id"]
+        for unit, scope, physical, locator in _aligned_scopes(bundle, basis, lookup, props):
+            sentence_spans = _aligned_sentence_spans(unit["passage"]) if scope == "candidate_assertion" else []
+            # Each direction path is a complete selected required-role assignment.
+            for path in basis["direction_paths"]:
+                operands = {
+                    r: bundle["support_records"][ref["support_ref"]]["exact_text"]
+                    for r, ref in path["operand_text_refs"].items()
+                    if bundle["support_records"][ref["support_ref"]]["exact_text"]
+                }
+                observations = find_direction_observations(
+                    requirement,
+                    [unit],
+                    semantics_version=se.SUFFICIENCY_SEMANTICS_V8,
+                    operands=operands,
+                    relation_witness_ids=frozenset([pid]) if path["i1_proof_refs"] else None,
+                )
+                span_cursor = 0
+                for observation in observations:
+                    observation_span = None
+                    raw = observation["exact_text"]
+                    if scope == "candidate_assertion":
+                        while span_cursor < len(sentence_spans) and sentence_spans[span_cursor][0] != raw:
+                            span_cursor += 1
+                        if span_cursor == len(sentence_spans):
+                            raise cw.WitnessIntegrityError("missing exact observation sentence locator")
+                        local_span = sentence_spans[span_cursor][1]
+                        span_cursor += 1
+                        raw = unit["passage"][slice(*local_span)]
+                        observation_span = [n + physical["assertion_span"][0] for n in local_span]
+                    _merge_aligned_observation(
+                        grouped["direction"],
+                        order,
+                        "direction",
+                        observation,
+                        bundle,
+                        basis,
+                        path,
+                        unit,
+                        scope,
+                        physical,
+                        locator,
+                        observation_span,
+                        raw,
+                    )
+            # No I1 gate, no inherited-choice dependency for effectiveness.
+            effect_path = {"selected_views": basis["selected_views"], "i1_proof_refs": [], "operand_text_refs": {}}
+            for observation in find_effectiveness_observations(requirement, [unit]):
+                span = physical["assertion_span"] if scope == "candidate_assertion" else None
+                _merge_aligned_observation(
+                    grouped["effectiveness"],
+                    order,
+                    "effectiveness",
+                    observation,
+                    bundle,
+                    basis,
+                    effect_path,
+                    unit,
+                    scope,
+                    physical,
+                    locator,
+                    span,
+                    unit["passage"],
+                )
+    for kind, records in grouped.items():
+        if requirement.get(kind) is None:
+            continue
+        values = []
+        for _key, obs in sorted(records.items(), key=lambda item: order[item[0]]):
+            alignment = obs["evidence_alignment"]
+            alignment["paths"] = sorted({cw.canonical(p): p for p in alignment["paths"]}.values(), key=cw.canonical)
+            alignment["evidence_proposition_ids"] = sorted(set(alignment["evidence_proposition_ids"]))
+            obs["proposition_id"] = min(alignment["evidence_proposition_ids"])
+            values.append(obs)
+        instance[kind + "_observations"] = values
+
+
+def _merge_aligned_observation(
+    grouped, order, kind, observation, bundle, basis, path, unit, scope, physical, locator, observation_span, raw
+):
+    from experiments.ask_cli_revised import compatible_witness as cw
+
+    semantic = {k: v for k, v in observation.items() if k != "proposition_id"}
+    physical = {
+        **physical,
+        "observation_span": observation_span,
+        "raw_text_sha256": cw.text_hash(raw),
+        "normalization_id": "direction-whitespace-v1"
+        if scope == "candidate_assertion" and kind == "direction"
+        else None,
+    }
+    key = cw.reference(
+        "observation-v1",
+        {
+            "placement": bundle["placement"],
+            "kind": kind,
+            "scope_kind": scope,
+            "physical_scope": physical,
+            "semantic_result": semantic,
+            "classifier_version": cw.VERSION,
+        },
+    )
+    evidence_path = {
+        "basis_ref": basis["basis_id"],
+        "witness_proof_refs": sorted(set(basis["completion_proof_refs"] + path["i1_proof_refs"])),
+        "selected_support_view_refs": dict(sorted(path["selected_views"].items())),
+        "evidence_locator_ref": locator,
+        "operand_text_refs": path["operand_text_refs"],
+    }
+    if key not in grouped:
+        grouped[key] = {
+            **observation,
+            "evidence_alignment": {
+                "schema_version": "observation-alignment-v1",
+                "observation_id": key,
+                "scope_kind": scope,
+                "physical_scope": physical,
+                "evidence_proposition_ids": [],
+                "paths": [],
+                "semantic_version": cw.VERSION,
+            },
+        }
+        order[key] = (unit["unit_id"], observation_span or [0, 0], observation["exact_text"], key)
+    grouped[key]["evidence_alignment"]["paths"].append(evidence_path)
+    grouped[key]["evidence_alignment"]["evidence_proposition_ids"].append(basis["common_proposition_id"])

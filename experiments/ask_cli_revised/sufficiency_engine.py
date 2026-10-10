@@ -137,6 +137,7 @@ SUFFICIENCY_SEMANTICS_V5 = "sufficiency-semantics-v5"
 # v6: v5 candidates plus attribution/proof annotation only. Policy and guards are unchanged.
 SUFFICIENCY_SEMANTICS_V6 = "sufficiency-semantics-v6"
 SUFFICIENCY_SEMANTICS_V7 = "sufficiency-semantics-v7"
+SUFFICIENCY_SEMANTICS_V8 = "sufficiency-semantics-v8"  # Explicit supported-noncurrent A/B semantics.
 SUFFICIENCY_SEMANTICS_VERSION = SUFFICIENCY_SEMANTICS_V7
 HISTORICAL_SUFFICIENCY_SEMANTICS_VERSIONS = frozenset(
     {
@@ -149,7 +150,7 @@ HISTORICAL_SUFFICIENCY_SEMANTICS_VERSIONS = frozenset(
     }
 )
 SUPPORTED_SUFFICIENCY_SEMANTICS_VERSIONS = (
-    frozenset({SUFFICIENCY_SEMANTICS_VERSION}) | HISTORICAL_SUFFICIENCY_SEMANTICS_VERSIONS
+    frozenset({SUFFICIENCY_SEMANTICS_VERSION, SUFFICIENCY_SEMANTICS_V8}) | HISTORICAL_SUFFICIENCY_SEMANTICS_VERSIONS
 )
 # Where the version is recorded: at the top level of every per-child contract in a produced map. The map keeps its
 # child-keyed shape, which every existing consumer indexes by child.
@@ -1185,6 +1186,7 @@ def recompute_instance(
     context: dict | None = None,
     semantics_version: str,
     goal_gate: bool = False,
+    witness_context: dict | None = None,
 ) -> dict:
     """Pure: returns a NEW instance dict with `complete`/`state`/`reason` derived from
     `role_bindings`. `exists` (at the requirement level) means "at least one instance for which
@@ -1210,12 +1212,28 @@ def recompute_instance(
             SUFFICIENCY_SEMANTICS_V5,
             SUFFICIENCY_SEMANTICS_V6,
             SUFFICIENCY_SEMANTICS_V7,
+            SUFFICIENCY_SEMANTICS_V8,
         ):
             raise ValueError("the category goal gate is a v4/v5 rule")
         complete = complete and category_goal_satisfied(instance)
 
     roles_in_play = completion_roles(role_completion)
-    if complete:
+    additions = {}
+    if semantics_version == SUFFICIENCY_SEMANTICS_V8:
+        from experiments.ask_cli_revised import compatible_witness as cw
+
+        bundle, receipt = cw.initialize_instance(
+            role_completion,
+            instance,
+            relationship_verifiers,
+            witness_context,
+            complete,
+            own_evidence_roles(role_completion, bindings),
+            context,
+        )
+        additions = {"witness_bundle": bundle, "joint_grounding": receipt, "witness_proofs": []}
+        complete = receipt["status"] in ("bypassed_lt_two_own", "proved")
+    elif complete:
         # Parent-context roles are trusted as background context, not evidence this child itself
         # retrieved -- they can never by themselves complete an instance (a required/alternative
         # role check already enforces that), and they structurally cannot share a proposition
@@ -1242,7 +1260,7 @@ def recompute_instance(
         reason = next(iter(seen_reasons), "not_found")
         state = "missing"
 
-    return {**instance, "complete": bool(complete), "state": state, "reason": reason}
+    return {**instance, **additions, "complete": bool(complete), "state": state, "reason": reason}
 
 
 def _aggregate_exists(instances: list[dict]) -> tuple[str, str | None]:
@@ -1304,13 +1322,21 @@ _AGGREGATORS = {
 }
 
 
-def recompute_requirement(requirement: dict, *, context: dict | None = None, semantics_version: str) -> dict:
+def recompute_requirement(
+    requirement: dict, *, context: dict | None = None, semantics_version: str, witness_context: dict | None = None
+) -> dict:
     """Pure: returns a NEW requirement dict. Recomputes every instance's `complete`/`state`/
     `reason` from its `role_bindings`, then aggregates across instances per
     `instance_quantifier`. Never mutates the input."""
     require_supported_semantics_version(semantics_version)
     role_completion = requirement["role_completion"]
     verifiers = requirement["relationship_verifiers"]
+    if semantics_version == SUFFICIENCY_SEMANTICS_V8:
+        keys = [inst["instance_key"] for inst in requirement["instances"]]
+        if len(keys) != len(set(keys)):
+            raise ValueError("v8 duplicate outer instance placement")
+        if not witness_context or witness_context.get("requirement_id") != requirement["id"]:
+            raise ValueError("v8 witness context must name the actual requirement")
     # I4-2a: v5 inherits v4's own category-goal-gate rule unchanged (see recompute_instance's own note) --
     # named explicitly, never via a bare "not v1-v3" fallback that would silently also catch some future v6.
     goal_gate = semantics_version in (
@@ -1318,10 +1344,17 @@ def recompute_requirement(requirement: dict, *, context: dict | None = None, sem
         SUFFICIENCY_SEMANTICS_V5,
         SUFFICIENCY_SEMANTICS_V6,
         SUFFICIENCY_SEMANTICS_V7,
+        SUFFICIENCY_SEMANTICS_V8,
     ) and is_category_requirement(requirement)
     recomputed_instances = [
         recompute_instance(
-            role_completion, inst, verifiers, context=context, semantics_version=semantics_version, goal_gate=goal_gate
+            role_completion,
+            inst,
+            verifiers,
+            context=context,
+            semantics_version=semantics_version,
+            goal_gate=goal_gate,
+            **({"witness_context": witness_context} if semantics_version == SUFFICIENCY_SEMANTICS_V8 else {}),
         )
         for inst in requirement["instances"]
     ]

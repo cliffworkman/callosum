@@ -250,6 +250,7 @@ def _incomplete_instance_targets(child_id: str, requirement: dict, instance: dic
         se.SUFFICIENCY_SEMANTICS_V5,
         se.SUFFICIENCY_SEMANTICS_V6,
         se.SUFFICIENCY_SEMANTICS_V7,
+        se.SUFFICIENCY_SEMANTICS_V8,
     ) and se.is_category_requirement(requirement):
         # I2-2: a bound category whose established_presence goal is unsatisfied is a semantic obligation, not a missing
         # role. Its identity carries the goal in scope; it is terminal per target once its search completed.
@@ -560,6 +561,7 @@ def search_obligations(
         se.SUFFICIENCY_SEMANTICS_V5,
         se.SUFFICIENCY_SEMANTICS_V6,
         se.SUFFICIENCY_SEMANTICS_V7,
+        se.SUFFICIENCY_SEMANTICS_V8,
     ):
         for target_id, target in (raw_final_targets or {}).items():
             obligations.setdefault(target_id, target)

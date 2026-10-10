@@ -261,8 +261,8 @@ def test_opt_in_call_sites_are_closed_and_explicit():
     assert all(signature.parameters[flag].default is False for flag in FLAGS)
 
 
-def test_no_real_new_version_support():
+def test_supported_noncurrent_does_not_promote_default_or_sentinel():
     assert se.SUFFICIENCY_SEMANTICS_VERSION == "sufficiency-semantics-v7"
     assert SENTINEL not in se.SUPPORTED_SUFFICIENCY_SEMANTICS_VERSIONS
-    assert "sufficiency-semantics-v8" not in se.SUPPORTED_SUFFICIENCY_SEMANTICS_VERSIONS
-    assert not hasattr(se, "SUFFICIENCY_SEMANTICS_V8")
+    assert se.SUFFICIENCY_SEMANTICS_V8 in se.SUPPORTED_SUFFICIENCY_SEMANTICS_VERSIONS
+    assert se.SUFFICIENCY_SEMANTICS_V8 not in se.HISTORICAL_SUFFICIENCY_SEMANTICS_VERSIONS

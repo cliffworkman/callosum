@@ -71,7 +71,16 @@ def test_the_constant_and_its_key_are_the_documented_values():
     )
     # Readable is not current: the supported set contains every historical version too.
     assert se.SUPPORTED_SUFFICIENCY_SEMANTICS_VERSIONS == frozenset(
-        {CURRENT, HISTORICAL_V1, HISTORICAL_V2, HISTORICAL_V3, HISTORICAL_V4, HISTORICAL_V5, HISTORICAL_V6}
+        {
+            CURRENT,
+            HISTORICAL_V1,
+            HISTORICAL_V2,
+            HISTORICAL_V3,
+            HISTORICAL_V4,
+            HISTORICAL_V5,
+            HISTORICAL_V6,
+            se.SUFFICIENCY_SEMANTICS_V8,
+        }
     )
 
 

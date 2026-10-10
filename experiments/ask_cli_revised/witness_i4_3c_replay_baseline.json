@@ -1,0 +1,29 @@
+{
+  "starting_head": "693672bf34582f3ba111bef1381b6c622a0e4bea",
+  "encoding": "sorted indent=2 ensure_ascii=False JSON; CRLF; terminal newline",
+  "identity": {
+    "status": "supported_noncurrent",
+    "version": "sufficiency-semantics-v8"
+  },
+  "current_default": "sufficiency-semantics-v7",
+  "qualification": "Layer A/B qualified; Layer C not yet generally candidate-aligned",
+  "hashes": {
+    "v4": "4154ebd4062d22aa25db43e947aba61abe2c5888d6aa10d8ecd14b60afa65e4a",
+    "v5": "109030de83856b4384d596311dd8e3f6d46d19859c895c4b94b9efb3aa92ae77",
+    "v6": "dabef2f553b5e9301f9daa3a344b624ee6afb3e0f41fbce18b096587736822be",
+    "v7": "04eb38b1ef12dc694c075279f7d03228a96ac5938cdb7d1bd9782957fb960c72",
+    "v8": "1b8c89473bf1cf7d562483c29f6d14c1ef503de2788f3d81563842a1cc7659f0"
+  },
+  "real": {
+    "instances": 46,
+    "eligible_views": 51,
+    "completion_proofs": 11,
+    "i1_proofs": 9,
+    "witnessed": 8,
+    "requirements": 13,
+    "recovery_targets": 48,
+    "parent_claims": 17,
+    "plan_nodes": 9,
+    "invariants": 33
+  }
+}

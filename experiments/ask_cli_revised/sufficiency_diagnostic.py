@@ -131,7 +131,7 @@ def compute_diagnostic_sufficiency_map(
     by_child = units_by_child(
         sealed,
         ownership_context_index=ownership_context_index
-        if semantics_version in (se.SUFFICIENCY_SEMANTICS_V6, se.SUFFICIENCY_SEMANTICS_V7)
+        if semantics_version in (se.SUFFICIENCY_SEMANTICS_V6, se.SUFFICIENCY_SEMANTICS_V7, se.SUFFICIENCY_SEMANTICS_V8)
         else None,
     )
     mapped: dict[str, dict] = {}
@@ -174,6 +174,17 @@ def compute_diagnostic_sufficiency_map(
                 child_id=child_id,
                 nomination_context=nomination_context,
                 semantics_version=semantics_version,
+                **(
+                    {
+                        "witness_context": {
+                            "child_id": child_id,
+                            "requirement_id": req["id"],
+                            "proposition_index": {p["proposition_id"]: p for p in sealed["verified_propositions"]},
+                        }
+                    }
+                    if semantics_version == se.SUFFICIENCY_SEMANTICS_V8
+                    else {}
+                ),
             )
             new_requirements.append(_stamp_model_dependency_origins(mapped_req, child_id))
         mapped[child_id] = se.new_contract(child_id, new_requirements)
@@ -325,6 +336,14 @@ def compute_direction_and_effectiveness(
             if not has_direction and not has_effectiveness:
                 continue
             for instance in req["instances"]:
+                if semantics_version == se.SUFFICIENCY_SEMANTICS_V8:
+                    sm.attach_aligned_observations(
+                        req,
+                        instance,
+                        units_for_child,
+                        {p["proposition_id"]: p for p in sealed["verified_propositions"]},
+                    )
+                    continue
                 witness_ids = se.relationship_witness_support_ids(
                     req["role_completion"], instance["role_bindings"], req["relationship_verifiers"]
                 )
