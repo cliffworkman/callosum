@@ -3054,3 +3054,47 @@ V8 map semantics suffice; no v9 scientific change is needed.
 ParentClaims/AnswerPlan/rendering, PLAN_VERSION, category/role/recovery, collector/attribution/
 policy/guard, same_local_assertion, claim-goal/veto or I2-3 changes. No external search, model/NLI,
 live retrieval or live E2E. STOP after I4-4B; I4-4C not begun.
+
+## Phase 34 / I4-4C — pure Layer C validation/reference/value-coverage substrate
+
+**Date:** 2026-10-10. **Result:** READY for separately authorized I4-4D; no consumer activation.
+See [I4-4C results](PHASE34_I4_4C_LAYERC_VALIDATION_REFERENCE_SUBSTRATE_RESULTS.md).
+
+**Checkpoint and scope.** Accepted I4-4B documentation was committed/pushed separately as
+396e7c396ca035bf1d5993bd78861d3bd7ca379c. Implementation started from that clean HEAD.
+One public validate_layerc_inputs authority returns immutable layerc-validated-projection-v1
+records under explicit v8-layerc-v2-plan-v5 validation identity. Five new pure modules validate
+stored references, proofs, observations and exact input/profile hashes without scientific selection,
+classification or mutation. No existing production file changed; production consumers remain inactive.
+
+**Values and authority.** All 32 preregistered own semantic values match exact IDs/classes:
+19 literal_value, nine evidence_slot, one literal_assertion, three authored_category.
+All 38 own and 13 inherited filled placements are represented with zero unexpected unsupported
+mappings. All seven category-observation refs and five retained exclusions resolve. Exclusions
+remain diagnostic only. Explicit c3 retains selected p8; scoped p8/p36/p52 positive observations
+are authorized inputs with p36 frozen as the future display/citation expectation. Implicit retains
+its own p36 null report, unestablished positive goal and open recovery. No p36 explicit view is created.
+
+**Closed presentation boundary.** Value-specific coverage templates separate establishment,
+scientific coverage, typed reporting, display inputs and citations. Final presentation checks are
+deferred to I4-4D and may not add evidence edges. Exact envelopes add only permitted source-authentic
+adjacent punctuation/whitespace. Missing link context preserves narrow proof without joint quotation;
+matching context is independently referenced, mismatch fails. Seventeen claim/member fixtures,
+future nine-node states and orthogonal node-3 axes are frozen but not activated.
+
+**Qualification.** New substrate tests: 92 passed. Combined targeted run: 312 passed.
+Final frozen-code full offline run: 5,173 passed, five independently reconfirmed known
+baseline/environment failures, 12 skipped, nine xfailed, 276 subtests passed. Optional
+psutil-dependent mocked module: seven passed. All five v4-v8 combined replay hashes remain exact;
+all 33 existing real downstream invariants pass. Purity/static/runtime guards prohibit activation,
+selectors/classifiers/policy evaluation, I/O and input mutation. The earlier mixed-snapshot static
+failure is documented and superseded by the final run; zero unexplained new failures remain.
+
+**Commit qualification.** All applicable hooks pass except the unchanged frontend 615-line cap;
+the user's one-commit --no-verify authorization applies only to that pre-existing failure.
+The implementation commit containing this entry follows the separate documentation checkpoint.
+
+**Stop.** Current/default remains v7/plan-v4; v8 remains supported_noncurrent/nonhistorical.
+No ParentClaims/AnswerPlan/render activation, version bump, map/role/category/recovery/observation
+change, same_local_assertion, claim-goal/authority-veto behavior or I2-3. No external search,
+live retrieval, model/NLI or live E2E. STOP after I4-4C; I4-4D requires separate authorization.

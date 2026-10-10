@@ -1,0 +1,4231 @@
+{
+  "schema": "i4-4c-preregistered-v1",
+  "source_design_commit": "396e7c396ca035bf1d5993bd78861d3bd7ca379c",
+  "values": [
+    {
+      "claim_n": 1,
+      "class": "literal_value",
+      "display": "restricted",
+      "display_attempts": [
+        {
+          "ok": false,
+          "pid": "p11",
+          "reasons": [
+            "referentially_closed"
+          ]
+        },
+        {
+          "ok": false,
+          "pid": "p2",
+          "reasons": [
+            "referentially_closed"
+          ]
+        }
+      ],
+      "display_ids": [],
+      "establishment": [
+        {
+          "anchor": "p11",
+          "assertion_span": null,
+          "ids": [
+            "p11",
+            "p2"
+          ],
+          "placement": [
+            "c1",
+            "c1#suff:neural-manifestation",
+            null
+          ],
+          "source": "own",
+          "support_ref": "legacy-support-ref-v1:sha256:720b2b7c1670a5201c411751fa02c20b7cc956c73b0c53018bee695298c78ed4",
+          "view_id": "support-view-v1:sha256:014205f6fdd3b492402a9364a008def912f8578fa1ab682f40472abe2f618043"
+        }
+      ],
+      "family": "relational",
+      "finding": "not_applicable",
+      "label": "the specific amygdala response",
+      "material": {
+        "kind": "literal_value",
+        "literal": "the specific amygdala response",
+        "schema": "semantic-value-v1",
+        "scope": {
+          "owner_id": "c1",
+          "requirement_id": "c1#suff:neural-manifestation",
+          "role": "brain_region_or_network"
+        }
+      },
+      "n": 1,
+      "observations": [],
+      "old_claim_id": "relational::203c254207f97488",
+      "proofs": [
+        "witness-proof-v1:sha256:4269e99ca6633b8102b456902700ac8419fc77f2bbeb5a961f190730f39b515c",
+        "witness-proof-v1:sha256:964fc7068f43468918d8850736c51eee22b3711806a97ee15c78705b4e48878f"
+      ],
+      "role": "brain_region_or_network",
+      "scientific": "established",
+      "scope": "c1#suff:neural-manifestation",
+      "support_ids": [
+        "p11",
+        "p2"
+      ],
+      "value_id": "semantic-value-v1:sha256:71e539b97612a8e6b7c55805d777aa625355908b317a8657322a26f331a2dd08",
+      "authorized_display_source_inputs": [
+        "p11",
+        "p2"
+      ],
+      "presentation_finalization_expected_display_ids": [],
+      "own_inherited_source": "own"
+    },
+    {
+      "claim_n": 1,
+      "class": "evidence_slot",
+      "display": "restricted",
+      "display_attempts": [
+        {
+          "ok": false,
+          "pid": "p11",
+          "reasons": [
+            "referentially_closed"
+          ]
+        },
+        {
+          "ok": false,
+          "pid": "p2",
+          "reasons": [
+            "referentially_closed"
+          ]
+        }
+      ],
+      "display_ids": [],
+      "establishment": [
+        {
+          "anchor": "p2",
+          "assertion_span": [
+            37,
+            264
+          ],
+          "ids": [
+            "p11",
+            "p2"
+          ],
+          "placement": [
+            "c1",
+            "c1#suff:neural-manifestation",
+            null
+          ],
+          "source": "own",
+          "support_ref": "support-ref-v1:sha256:68228b2dacd10c226a1d86cb08c04537793b5dd2aed9c5c24a2d4b8544ccee5b",
+          "view_id": "support-view-v1:sha256:832b22daa18d0c6cfc934ebb874cdf0f2f77adca027842315c43a5392ce6f0d2"
+        }
+      ],
+      "family": "relational",
+      "finding": "not_applicable",
+      "label": "an observed neural finding bearing on the bias",
+      "material": {
+        "kind": "evidence_slot",
+        "operand_tuple": [
+          {
+            "literal": "the specific amygdala response",
+            "role": "brain_region_or_network"
+          }
+        ],
+        "schema": "semantic-value-v1",
+        "scope": {
+          "owner_id": "c1",
+          "requirement_id": "c1#suff:neural-manifestation",
+          "role": "neural_manifestation_evidence"
+        },
+        "slot": "an observed neural finding bearing on the bias"
+      },
+      "n": 2,
+      "observations": [],
+      "old_claim_id": "relational::203c254207f97488",
+      "proofs": [
+        "witness-proof-v1:sha256:4269e99ca6633b8102b456902700ac8419fc77f2bbeb5a961f190730f39b515c",
+        "witness-proof-v1:sha256:964fc7068f43468918d8850736c51eee22b3711806a97ee15c78705b4e48878f"
+      ],
+      "role": "neural_manifestation_evidence",
+      "scientific": "established",
+      "scope": "c1#suff:neural-manifestation",
+      "support_ids": [
+        "p11",
+        "p2"
+      ],
+      "value_id": "semantic-value-v1:sha256:dfb887dc4970e0245a4f3f7b0c85ae39d7c3a6e7a8607c0da71b5a86f7052d00",
+      "authorized_display_source_inputs": [
+        "p11",
+        "p2"
+      ],
+      "presentation_finalization_expected_display_ids": [],
+      "own_inherited_source": "own"
+    },
+    {
+      "claim_n": 2,
+      "class": "literal_value",
+      "display": "restricted",
+      "display_attempts": [
+        {
+          "ok": false,
+          "pid": "p47",
+          "reasons": [
+            "requested_construct_direct"
+          ]
+        }
+      ],
+      "display_ids": [],
+      "establishment": [
+        {
+          "anchor": "p47",
+          "assertion_span": null,
+          "ids": [
+            "p47"
+          ],
+          "placement": [
+            "c2",
+            "c2#suff:behavioral-manifestation",
+            "i::76d9e54baf790d84"
+          ],
+          "source": "own",
+          "support_ref": "legacy-support-ref-v1:sha256:88527c3d4d66e840ef7c2fbbbc8820e231d51c2d5cc147fea9e7e483994798b8",
+          "view_id": "support-view-v1:sha256:a3155ee5b21b07eed12b449d46f4aaa9f218912a6b329406c80b65720c4b6125"
+        }
+      ],
+      "family": "relational",
+      "finding": "not_applicable",
+      "label": "faster to share when playing with the good partner compared to the bad",
+      "material": {
+        "kind": "literal_value",
+        "literal": "faster to share when playing with the good partner compared to the bad",
+        "schema": "semantic-value-v1",
+        "scope": {
+          "owner_id": "c2",
+          "requirement_id": "c2#suff:behavioral-manifestation",
+          "role": "behavior_or_behavioral_measure"
+        }
+      },
+      "n": 3,
+      "observations": [],
+      "old_claim_id": "relational::51f7d49ce0af93a4",
+      "proofs": [
+        "witness-proof-v1:sha256:26c230d5aa7f8a23955b2213bd191b303c74ca95164ecfdd95ba683279942674",
+        "witness-proof-v1:sha256:34404a6dcd1b4034eaf700b4642c412692b897d8c421b9fec08bc3d7c1bdfa5f"
+      ],
+      "role": "behavior_or_behavioral_measure",
+      "scientific": "established",
+      "scope": "c2#suff:behavioral-manifestation",
+      "support_ids": [
+        "p47"
+      ],
+      "value_id": "semantic-value-v1:sha256:3fcebcec37ff6f5b014a578c90da202ed158c969a2ab9b8fd6363c18ddebe25c",
+      "authorized_display_source_inputs": [
+        "p47"
+      ],
+      "presentation_finalization_expected_display_ids": [],
+      "own_inherited_source": "own"
+    },
+    {
+      "claim_n": 2,
+      "class": "evidence_slot",
+      "display": "restricted",
+      "display_attempts": [
+        {
+          "ok": false,
+          "pid": "p47",
+          "reasons": [
+            "requested_construct_direct"
+          ]
+        }
+      ],
+      "display_ids": [],
+      "establishment": [
+        {
+          "anchor": "p47",
+          "assertion_span": [
+            76,
+            251
+          ],
+          "ids": [
+            "p47"
+          ],
+          "placement": [
+            "c2",
+            "c2#suff:behavioral-manifestation",
+            "i::76d9e54baf790d84"
+          ],
+          "source": "own",
+          "support_ref": "support-ref-v1:sha256:d2273fa5f35dbe538292682c5174b34ad122d4b3612dacd5cdbc1a8441e515d0",
+          "view_id": "support-view-v1:sha256:f2efae4f60e6ab2b5d3ffe735efd6606d3dbec9c41e691eecc582dbcda675fcd"
+        }
+      ],
+      "family": "relational",
+      "finding": "not_applicable",
+      "label": "an observed behavioral finding bearing on the bias",
+      "material": {
+        "kind": "evidence_slot",
+        "operand_tuple": [
+          {
+            "literal": "faster to share when playing with the good partner compared to the bad",
+            "role": "behavior_or_behavioral_measure"
+          }
+        ],
+        "schema": "semantic-value-v1",
+        "scope": {
+          "owner_id": "c2",
+          "requirement_id": "c2#suff:behavioral-manifestation",
+          "role": "behavioral_manifestation_evidence"
+        },
+        "slot": "an observed behavioral finding bearing on the bias"
+      },
+      "n": 4,
+      "observations": [],
+      "old_claim_id": "relational::51f7d49ce0af93a4",
+      "proofs": [
+        "witness-proof-v1:sha256:26c230d5aa7f8a23955b2213bd191b303c74ca95164ecfdd95ba683279942674",
+        "witness-proof-v1:sha256:34404a6dcd1b4034eaf700b4642c412692b897d8c421b9fec08bc3d7c1bdfa5f"
+      ],
+      "role": "behavioral_manifestation_evidence",
+      "scientific": "established",
+      "scope": "c2#suff:behavioral-manifestation",
+      "support_ids": [
+        "p47"
+      ],
+      "value_id": "semantic-value-v1:sha256:751e23ed92b57b22709dd30b7adb5b6e928f5cb5f87aca818d592ed254d878da",
+      "authorized_display_source_inputs": [
+        "p47"
+      ],
+      "presentation_finalization_expected_display_ids": [],
+      "own_inherited_source": "own"
+    },
+    {
+      "claim_n": 3,
+      "class": "evidence_slot",
+      "display": "restricted",
+      "display_attempts": [
+        {
+          "ok": false,
+          "pid": "p11",
+          "reasons": [
+            "referentially_closed"
+          ]
+        },
+        {
+          "ok": false,
+          "pid": "p2",
+          "reasons": [
+            "referentially_closed"
+          ]
+        }
+      ],
+      "display_ids": [],
+      "establishment": [
+        {
+          "anchor": "p11",
+          "assertion_span": [
+            37,
+            264
+          ],
+          "ids": [
+            "p11",
+            "p2"
+          ],
+          "placement": [
+            "c4",
+            "c4#suff:specific-region",
+            "i::ac9b72f14d53f532"
+          ],
+          "source": "own",
+          "support_ref": "support-ref-v1:sha256:db9927abd97bc240ea9433465b2332f0ffa1c7dd6fec1c90fc6d9f4255117a21",
+          "view_id": "support-view-v1:sha256:094220b3515ca2ff2ebcaeae7c8776fd2bee93c8706b7635b7dfd53344d886ad"
+        }
+      ],
+      "family": "relational",
+      "finding": "not_applicable",
+      "label": "evidence that the named region bears on the bias",
+      "material": {
+        "kind": "evidence_slot",
+        "operand_tuple": [
+          {
+            "literal": "the specific amygdala response",
+            "role": "named_brain_region_or_network"
+          }
+        ],
+        "schema": "semantic-value-v1",
+        "scope": {
+          "owner_id": "c4",
+          "requirement_id": "c4#suff:specific-region",
+          "role": "region_bears_on_bias_evidence"
+        },
+        "slot": "evidence that the named region bears on the bias"
+      },
+      "n": 5,
+      "observations": [],
+      "old_claim_id": "relational::493c9ae66cd9558c",
+      "proofs": [
+        "witness-proof-v1:sha256:2ede3bf06f89b5be50a16d89d7d877b59415f9f090068ee8273778007c80e609",
+        "witness-proof-v1:sha256:3509748e5c51591b21f36d953f13d41349d6b370d90feaad0c7e2a6e609eac49",
+        "witness-proof-v1:sha256:58009789634e9e3da02d4c755df8b872d1a99a5ecb0aed2bcf9ebb65c5cb5461",
+        "witness-proof-v1:sha256:a5ba2130b2ce8b8bf2e7b15c2094a24fb0230a3562ef8f3ef8a443e568fa9610"
+      ],
+      "role": "region_bears_on_bias_evidence",
+      "scientific": "established",
+      "scope": "c4#suff:specific-region",
+      "support_ids": [
+        "p11",
+        "p2"
+      ],
+      "value_id": "semantic-value-v1:sha256:02e3471955ebe76fd628662fd3be9bb03341d58f7678b0bd24222fe1783e4689",
+      "authorized_display_source_inputs": [
+        "p11",
+        "p2"
+      ],
+      "presentation_finalization_expected_display_ids": [],
+      "own_inherited_source": "own"
+    },
+    {
+      "claim_n": 3,
+      "class": "literal_value",
+      "display": "restricted",
+      "display_attempts": [
+        {
+          "ok": false,
+          "pid": "p11",
+          "reasons": [
+            "referentially_closed"
+          ]
+        },
+        {
+          "ok": false,
+          "pid": "p2",
+          "reasons": [
+            "referentially_closed"
+          ]
+        }
+      ],
+      "display_ids": [],
+      "establishment": [
+        {
+          "anchor": "p11",
+          "assertion_span": null,
+          "ids": [
+            "p11",
+            "p2"
+          ],
+          "placement": [
+            "c4",
+            "c4#suff:specific-region",
+            "i::ac9b72f14d53f532"
+          ],
+          "source": "own",
+          "support_ref": "legacy-support-ref-v1:sha256:3a37dfcc471a06cb1bd79f0e72bbe2cdbed09851727fb6e94c2c71c735e845dc",
+          "view_id": "support-view-v1:sha256:338e0c7eca7b9ba07497637356fb6ea0a47fd72024d1da8380cd5c3054b3a94b"
+        }
+      ],
+      "family": "relational",
+      "finding": "not_applicable",
+      "label": "the specific amygdala response",
+      "material": {
+        "kind": "literal_value",
+        "literal": "the specific amygdala response",
+        "schema": "semantic-value-v1",
+        "scope": {
+          "owner_id": "c4",
+          "requirement_id": "c4#suff:specific-region",
+          "role": "named_brain_region_or_network"
+        }
+      },
+      "n": 6,
+      "observations": [],
+      "old_claim_id": "relational::493c9ae66cd9558c",
+      "proofs": [
+        "witness-proof-v1:sha256:2ede3bf06f89b5be50a16d89d7d877b59415f9f090068ee8273778007c80e609",
+        "witness-proof-v1:sha256:3509748e5c51591b21f36d953f13d41349d6b370d90feaad0c7e2a6e609eac49",
+        "witness-proof-v1:sha256:58009789634e9e3da02d4c755df8b872d1a99a5ecb0aed2bcf9ebb65c5cb5461",
+        "witness-proof-v1:sha256:a5ba2130b2ce8b8bf2e7b15c2094a24fb0230a3562ef8f3ef8a443e568fa9610"
+      ],
+      "role": "named_brain_region_or_network",
+      "scientific": "established",
+      "scope": "c4#suff:specific-region",
+      "support_ids": [
+        "p11",
+        "p2"
+      ],
+      "value_id": "semantic-value-v1:sha256:c71d74c74520515a44822188e345418c1546cb83e49d8f910e2a448c3be81067",
+      "authorized_display_source_inputs": [
+        "p11",
+        "p2"
+      ],
+      "presentation_finalization_expected_display_ids": [],
+      "own_inherited_source": "own"
+    },
+    {
+      "claim_n": 4,
+      "class": "literal_value",
+      "display": "restricted",
+      "display_attempts": [
+        {
+          "ok": false,
+          "pid": "p40",
+          "reasons": [
+            "attribution_prior_work"
+          ]
+        }
+      ],
+      "display_ids": [],
+      "establishment": [
+        {
+          "anchor": "p40",
+          "assertion_span": null,
+          "ids": [
+            "p40"
+          ],
+          "placement": [
+            "c4",
+            "c4#suff:specific-region",
+            "i::a3ab9566580a7fe4"
+          ],
+          "source": "own",
+          "support_ref": "legacy-support-ref-v1:sha256:623765fe1371dedf2b860f5286bc28e9d1703e51c14f892a2c6c3bf5cd312a57",
+          "view_id": "support-view-v1:sha256:ecfb03ab4648443f3d81514f6414f633f171d02968cb0098a579ad85d33f81e5"
+        }
+      ],
+      "family": "relational",
+      "finding": "not_applicable",
+      "label": "increased amygdala reactiv- ity",
+      "material": {
+        "kind": "literal_value",
+        "literal": "increased amygdala reactiv- ity",
+        "schema": "semantic-value-v1",
+        "scope": {
+          "owner_id": "c4",
+          "requirement_id": "c4#suff:specific-region",
+          "role": "named_brain_region_or_network"
+        }
+      },
+      "n": 7,
+      "observations": [],
+      "old_claim_id": "relational::f2151b28ac6f7906",
+      "proofs": [
+        "witness-proof-v1:sha256:6bec33ccb657068cfbfb5b4cc1b5e8202fb2f6ff4dddbd30f9b3a42cda79b924",
+        "witness-proof-v1:sha256:cbe33360d4ee9aab129c29c7efac028d42f29e1eccbe61ba0702bfa39f4f7533"
+      ],
+      "role": "named_brain_region_or_network",
+      "scientific": "established",
+      "scope": "c4#suff:specific-region",
+      "support_ids": [
+        "p40"
+      ],
+      "value_id": "semantic-value-v1:sha256:e29229098dae6fa5dc269d953ad2b2c3a070e02fa88dd39647956dde5972de93",
+      "authorized_display_source_inputs": [
+        "p40"
+      ],
+      "presentation_finalization_expected_display_ids": [],
+      "own_inherited_source": "own"
+    },
+    {
+      "claim_n": 4,
+      "class": "evidence_slot",
+      "display": "restricted",
+      "display_attempts": [
+        {
+          "ok": false,
+          "pid": "p40",
+          "reasons": [
+            "attribution_prior_work"
+          ]
+        }
+      ],
+      "display_ids": [],
+      "establishment": [
+        {
+          "anchor": "p40",
+          "assertion_span": [
+            147,
+            273
+          ],
+          "ids": [
+            "p40"
+          ],
+          "placement": [
+            "c4",
+            "c4#suff:specific-region",
+            "i::a3ab9566580a7fe4"
+          ],
+          "source": "own",
+          "support_ref": "support-ref-v1:sha256:1e3075bf8e9cf3a367fd09ec24279229fc9d45174bf5599cbcc3111fe10511ba",
+          "view_id": "support-view-v1:sha256:fa4ef6d5ecd4a8a3335c877e49e5e0c80b6d64dfa08aed9c0c444be6cb93d562"
+        }
+      ],
+      "family": "relational",
+      "finding": "not_applicable",
+      "label": "evidence that the named region bears on the bias",
+      "material": {
+        "kind": "evidence_slot",
+        "operand_tuple": [
+          {
+            "literal": "increased amygdala reactiv- ity",
+            "role": "named_brain_region_or_network"
+          }
+        ],
+        "schema": "semantic-value-v1",
+        "scope": {
+          "owner_id": "c4",
+          "requirement_id": "c4#suff:specific-region",
+          "role": "region_bears_on_bias_evidence"
+        },
+        "slot": "evidence that the named region bears on the bias"
+      },
+      "n": 8,
+      "observations": [],
+      "old_claim_id": "relational::f2151b28ac6f7906",
+      "proofs": [
+        "witness-proof-v1:sha256:6bec33ccb657068cfbfb5b4cc1b5e8202fb2f6ff4dddbd30f9b3a42cda79b924",
+        "witness-proof-v1:sha256:cbe33360d4ee9aab129c29c7efac028d42f29e1eccbe61ba0702bfa39f4f7533"
+      ],
+      "role": "region_bears_on_bias_evidence",
+      "scientific": "established",
+      "scope": "c4#suff:specific-region",
+      "support_ids": [
+        "p40"
+      ],
+      "value_id": "semantic-value-v1:sha256:0010d9051d1776feefd833e762303a1b5e1fc5b031202b6af75add7496d1a82f",
+      "authorized_display_source_inputs": [
+        "p40"
+      ],
+      "presentation_finalization_expected_display_ids": [],
+      "own_inherited_source": "own"
+    },
+    {
+      "claim_n": 5,
+      "class": "evidence_slot",
+      "display": "restricted",
+      "display_attempts": [
+        {
+          "ok": false,
+          "pid": "p41",
+          "reasons": [
+            "not_stimulus_rating"
+          ]
+        }
+      ],
+      "display_ids": [],
+      "establishment": [
+        {
+          "anchor": "p41",
+          "assertion_span": [
+            43,
+            200
+          ],
+          "ids": [
+            "p41"
+          ],
+          "placement": [
+            "c8",
+            "c8#suff:trait-construct",
+            "U23::24d132203292cebb"
+          ],
+          "source": "own",
+          "support_ref": "support-ref-v1:sha256:8ce3497bc232901956187ea197037ca5ed9ce30b1dc6ec31f4b4da05ff58f72f",
+          "view_id": "support-view-v1:sha256:7f3cbc09943aa838239964c2d07410a4f22a2dba3b736c89c77fa26c05b6d649"
+        }
+      ],
+      "family": "relational",
+      "finding": "not_applicable",
+      "label": "evidence relating the trait/construct to the bias's manifestation",
+      "material": {
+        "kind": "evidence_slot",
+        "operand_tuple": [
+          {
+            "literal": "attractiveness",
+            "role": "individual_difference_trait_or_construct"
+          }
+        ],
+        "schema": "semantic-value-v1",
+        "scope": {
+          "owner_id": "c8",
+          "requirement_id": "c8#suff:trait-construct",
+          "role": "relationship_to_bias_manifestation"
+        },
+        "slot": "evidence relating the trait/construct to the bias's manifestation"
+      },
+      "n": 9,
+      "observations": [],
+      "old_claim_id": "relational::b98797f466e662e8",
+      "proofs": [
+        "witness-proof-v1:sha256:958f91525c2e3052731cf3898e2098fb6e7e645d24e032404c95ba3745f07ec5",
+        "witness-proof-v1:sha256:aa0b381d0c5e0c174ca5246be51022e5e89aa9f5427f65704a79fb430eefe2c3"
+      ],
+      "role": "relationship_to_bias_manifestation",
+      "scientific": "established",
+      "scope": "c8#suff:trait-construct",
+      "support_ids": [
+        "p41"
+      ],
+      "value_id": "semantic-value-v1:sha256:9871c85eb64726c5b1394e3051e8e6f7e5e6013311fc846e8ec4f11d885d7587",
+      "authorized_display_source_inputs": [
+        "p41"
+      ],
+      "presentation_finalization_expected_display_ids": [],
+      "own_inherited_source": "own"
+    },
+    {
+      "claim_n": 5,
+      "class": "literal_value",
+      "display": "restricted",
+      "display_attempts": [
+        {
+          "ok": false,
+          "pid": "p41",
+          "reasons": [
+            "not_stimulus_rating"
+          ]
+        }
+      ],
+      "display_ids": [],
+      "establishment": [
+        {
+          "anchor": "p41",
+          "assertion_span": null,
+          "ids": [
+            "p41"
+          ],
+          "placement": [
+            "c8",
+            "c8#suff:trait-construct",
+            "U23::24d132203292cebb"
+          ],
+          "source": "own",
+          "support_ref": "legacy-support-ref-v1:sha256:96c418c4aa33c11ff62a47c88e9aa4cee602a7a30db8c2526b45273bf28b62a7",
+          "view_id": "support-view-v1:sha256:af446c4b3cba8517a3d7f9016a03f56a30208fcc5659710ba9226ff2e8a0b6ef"
+        }
+      ],
+      "family": "relational",
+      "finding": "not_applicable",
+      "label": "attractiveness",
+      "material": {
+        "kind": "literal_value",
+        "literal": "attractiveness",
+        "schema": "semantic-value-v1",
+        "scope": {
+          "owner_id": "c8",
+          "requirement_id": "c8#suff:trait-construct",
+          "role": "individual_difference_trait_or_construct"
+        }
+      },
+      "n": 10,
+      "observations": [],
+      "old_claim_id": "relational::b98797f466e662e8",
+      "proofs": [
+        "witness-proof-v1:sha256:958f91525c2e3052731cf3898e2098fb6e7e645d24e032404c95ba3745f07ec5",
+        "witness-proof-v1:sha256:aa0b381d0c5e0c174ca5246be51022e5e89aa9f5427f65704a79fb430eefe2c3"
+      ],
+      "role": "individual_difference_trait_or_construct",
+      "scientific": "established",
+      "scope": "c8#suff:trait-construct",
+      "support_ids": [
+        "p41"
+      ],
+      "value_id": "semantic-value-v1:sha256:637bdfd2f6c67012d4617655bd7c09e1a13d615b207f3185916e625f4eabe595",
+      "authorized_display_source_inputs": [
+        "p41"
+      ],
+      "presentation_finalization_expected_display_ids": [],
+      "own_inherited_source": "own"
+    },
+    {
+      "claim_n": 6,
+      "class": "evidence_slot",
+      "display": "restricted",
+      "display_attempts": [
+        {
+          "ok": false,
+          "pid": "p41",
+          "reasons": [
+            "not_stimulus_rating"
+          ]
+        }
+      ],
+      "display_ids": [],
+      "establishment": [
+        {
+          "anchor": "p41",
+          "assertion_span": [
+            43,
+            200
+          ],
+          "ids": [
+            "p41"
+          ],
+          "placement": [
+            "c8",
+            "c8#suff:trait-construct",
+            "U23::8d7156b76bf6a6f7"
+          ],
+          "source": "own",
+          "support_ref": "support-ref-v1:sha256:870a92e6c54d4970aac7fd3efcc463783a02af3a15933d7cc461d723201257df",
+          "view_id": "support-view-v1:sha256:a3bd781cf3610b955a38e89134060d25eed38d9b7a0dc9c2f3a46cf98547832d"
+        }
+      ],
+      "family": "relational",
+      "finding": "not_applicable",
+      "label": "evidence relating the trait/construct to the bias's manifestation",
+      "material": {
+        "kind": "evidence_slot",
+        "operand_tuple": [
+          {
+            "literal": "trustworthiness",
+            "role": "individual_difference_trait_or_construct"
+          }
+        ],
+        "schema": "semantic-value-v1",
+        "scope": {
+          "owner_id": "c8",
+          "requirement_id": "c8#suff:trait-construct",
+          "role": "relationship_to_bias_manifestation"
+        },
+        "slot": "evidence relating the trait/construct to the bias's manifestation"
+      },
+      "n": 11,
+      "observations": [],
+      "old_claim_id": "relational::ffd4e0ac38b79c90",
+      "proofs": [
+        "witness-proof-v1:sha256:5555f3257b9acef56142f4cdb0d73f68271307685ff9911994c1c2633bfe0b68",
+        "witness-proof-v1:sha256:ac1743f72ada182d6e09477e6a48b4dfe699d5cc9f97b1459bc9b4505f4986aa"
+      ],
+      "role": "relationship_to_bias_manifestation",
+      "scientific": "established",
+      "scope": "c8#suff:trait-construct",
+      "support_ids": [
+        "p41"
+      ],
+      "value_id": "semantic-value-v1:sha256:1d84fca93f15e3cbf8dfce00c41e153e7e957ded16c6477f9babc664b119a162",
+      "authorized_display_source_inputs": [
+        "p41"
+      ],
+      "presentation_finalization_expected_display_ids": [],
+      "own_inherited_source": "own"
+    },
+    {
+      "claim_n": 6,
+      "class": "literal_value",
+      "display": "restricted",
+      "display_attempts": [
+        {
+          "ok": false,
+          "pid": "p41",
+          "reasons": [
+            "not_stimulus_rating"
+          ]
+        }
+      ],
+      "display_ids": [],
+      "establishment": [
+        {
+          "anchor": "p41",
+          "assertion_span": null,
+          "ids": [
+            "p41"
+          ],
+          "placement": [
+            "c8",
+            "c8#suff:trait-construct",
+            "U23::8d7156b76bf6a6f7"
+          ],
+          "source": "own",
+          "support_ref": "legacy-support-ref-v1:sha256:e47046f80bb5274af4b632753db67edc26bfd54d5e4de1b53f3846e3a326ddd3",
+          "view_id": "support-view-v1:sha256:c3c78b9489293909d7bda74b0b049a9596049a487481c4b56d672b977b149a64"
+        }
+      ],
+      "family": "relational",
+      "finding": "not_applicable",
+      "label": "trustworthiness",
+      "material": {
+        "kind": "literal_value",
+        "literal": "trustworthiness",
+        "schema": "semantic-value-v1",
+        "scope": {
+          "owner_id": "c8",
+          "requirement_id": "c8#suff:trait-construct",
+          "role": "individual_difference_trait_or_construct"
+        }
+      },
+      "n": 12,
+      "observations": [],
+      "old_claim_id": "relational::ffd4e0ac38b79c90",
+      "proofs": [
+        "witness-proof-v1:sha256:5555f3257b9acef56142f4cdb0d73f68271307685ff9911994c1c2633bfe0b68",
+        "witness-proof-v1:sha256:ac1743f72ada182d6e09477e6a48b4dfe699d5cc9f97b1459bc9b4505f4986aa"
+      ],
+      "role": "individual_difference_trait_or_construct",
+      "scientific": "established",
+      "scope": "c8#suff:trait-construct",
+      "support_ids": [
+        "p41"
+      ],
+      "value_id": "semantic-value-v1:sha256:8c3e973976d23a8472f3f094b9b1ed52cd7f012e33e84a0eedd306add0422f20",
+      "authorized_display_source_inputs": [
+        "p41"
+      ],
+      "presentation_finalization_expected_display_ids": [],
+      "own_inherited_source": "own"
+    },
+    {
+      "claim_n": 7,
+      "class": "evidence_slot",
+      "display": "restricted",
+      "display_attempts": [
+        {
+          "ok": false,
+          "pid": "p41",
+          "reasons": [
+            "not_stimulus_rating"
+          ]
+        }
+      ],
+      "display_ids": [],
+      "establishment": [
+        {
+          "anchor": "p41",
+          "assertion_span": [
+            208,
+            372
+          ],
+          "ids": [
+            "p41"
+          ],
+          "placement": [
+            "c8",
+            "c8#suff:trait-construct",
+            "U23::50b0d4004f2f502f"
+          ],
+          "source": "own",
+          "support_ref": "support-ref-v1:sha256:bd6118b840a0e02fa55a9d73870d57bc0148ac8b70ac15c44c375d5304fcf5de",
+          "view_id": "support-view-v1:sha256:8edd2fd356f099900375a40992cce1169a6146f798e4e86a768ded94a45474e9"
+        }
+      ],
+      "family": "relational",
+      "finding": "not_applicable",
+      "label": "evidence relating the trait/construct to the bias's manifestation",
+      "material": {
+        "kind": "evidence_slot",
+        "operand_tuple": [
+          {
+            "literal": "anger",
+            "role": "individual_difference_trait_or_construct"
+          }
+        ],
+        "schema": "semantic-value-v1",
+        "scope": {
+          "owner_id": "c8",
+          "requirement_id": "c8#suff:trait-construct",
+          "role": "relationship_to_bias_manifestation"
+        },
+        "slot": "evidence relating the trait/construct to the bias's manifestation"
+      },
+      "n": 13,
+      "observations": [],
+      "old_claim_id": "relational::cf491ce7743dc485",
+      "proofs": [
+        "witness-proof-v1:sha256:069b54dced3beca4ebf8dcbf2d3d41555416aa650c9a66a246ef9948b8a05dd1",
+        "witness-proof-v1:sha256:8bc629887559221dd8a75db232cd196e215f4adbdae6e9636050eb6e56f4d717"
+      ],
+      "role": "relationship_to_bias_manifestation",
+      "scientific": "established",
+      "scope": "c8#suff:trait-construct",
+      "support_ids": [
+        "p41"
+      ],
+      "value_id": "semantic-value-v1:sha256:15046f1f6a3546697d0c77fde5d61e70e19eded91538b4aaac6bb14d65e8f902",
+      "authorized_display_source_inputs": [
+        "p41"
+      ],
+      "presentation_finalization_expected_display_ids": [],
+      "own_inherited_source": "own"
+    },
+    {
+      "claim_n": 7,
+      "class": "literal_value",
+      "display": "restricted",
+      "display_attempts": [
+        {
+          "ok": false,
+          "pid": "p41",
+          "reasons": [
+            "not_stimulus_rating"
+          ]
+        }
+      ],
+      "display_ids": [],
+      "establishment": [
+        {
+          "anchor": "p41",
+          "assertion_span": null,
+          "ids": [
+            "p41"
+          ],
+          "placement": [
+            "c8",
+            "c8#suff:trait-construct",
+            "U23::50b0d4004f2f502f"
+          ],
+          "source": "own",
+          "support_ref": "legacy-support-ref-v1:sha256:9714fb0c71f530937b50126b6b5d2ec1fdf2b2289ced9e84b121466790178e86",
+          "view_id": "support-view-v1:sha256:ea828fcc3b14e2fc0e955519aa6d22c3a9175dec4a9b070e6bd7505fddf457fb"
+        }
+      ],
+      "family": "relational",
+      "finding": "not_applicable",
+      "label": "anger",
+      "material": {
+        "kind": "literal_value",
+        "literal": "anger",
+        "schema": "semantic-value-v1",
+        "scope": {
+          "owner_id": "c8",
+          "requirement_id": "c8#suff:trait-construct",
+          "role": "individual_difference_trait_or_construct"
+        }
+      },
+      "n": 14,
+      "observations": [],
+      "old_claim_id": "relational::cf491ce7743dc485",
+      "proofs": [
+        "witness-proof-v1:sha256:069b54dced3beca4ebf8dcbf2d3d41555416aa650c9a66a246ef9948b8a05dd1",
+        "witness-proof-v1:sha256:8bc629887559221dd8a75db232cd196e215f4adbdae6e9636050eb6e56f4d717"
+      ],
+      "role": "individual_difference_trait_or_construct",
+      "scientific": "established",
+      "scope": "c8#suff:trait-construct",
+      "support_ids": [
+        "p41"
+      ],
+      "value_id": "semantic-value-v1:sha256:c2247677d32bf4a9e3ab39db7d2e1cf63ba398f24258302bdf19afa2a448c46c",
+      "authorized_display_source_inputs": [
+        "p41"
+      ],
+      "presentation_finalization_expected_display_ids": [],
+      "own_inherited_source": "own"
+    },
+    {
+      "claim_n": 8,
+      "class": "literal_value",
+      "display": "restricted",
+      "display_attempts": [
+        {
+          "ok": false,
+          "pid": "p41",
+          "reasons": [
+            "not_stimulus_rating"
+          ]
+        }
+      ],
+      "display_ids": [],
+      "establishment": [
+        {
+          "anchor": "p41",
+          "assertion_span": null,
+          "ids": [
+            "p41"
+          ],
+          "placement": [
+            "c8",
+            "c8#suff:trait-construct",
+            "U23::f6027eb43b85593c"
+          ],
+          "source": "own",
+          "support_ref": "legacy-support-ref-v1:sha256:a0c81290c308e591d2da89e1bd73779989df0869d69ae0632569d5bb6adfce7e",
+          "view_id": "support-view-v1:sha256:189b7ebaf794bee0d3644b92aff49f755b3c36c7bc7bc75031829b4bbb902050"
+        }
+      ],
+      "family": "relational",
+      "finding": "not_applicable",
+      "label": "dominance",
+      "material": {
+        "kind": "literal_value",
+        "literal": "dominance",
+        "schema": "semantic-value-v1",
+        "scope": {
+          "owner_id": "c8",
+          "requirement_id": "c8#suff:trait-construct",
+          "role": "individual_difference_trait_or_construct"
+        }
+      },
+      "n": 15,
+      "observations": [],
+      "old_claim_id": "relational::b87b1fc33715f29b",
+      "proofs": [
+        "witness-proof-v1:sha256:0f4b79eb5f558aae69c19ded8e4f5a02aac471ecefbf16e473b1926c6d0031cc",
+        "witness-proof-v1:sha256:881672bef3cad61fd15394eb9a63197442bb082abd194ae6d58358775d5e9e22"
+      ],
+      "role": "individual_difference_trait_or_construct",
+      "scientific": "established",
+      "scope": "c8#suff:trait-construct",
+      "support_ids": [
+        "p41"
+      ],
+      "value_id": "semantic-value-v1:sha256:52de78a144af120d61898d196d1ffbca88c38e71a7f3de2c7cb735679f2adcdc",
+      "authorized_display_source_inputs": [
+        "p41"
+      ],
+      "presentation_finalization_expected_display_ids": [],
+      "own_inherited_source": "own"
+    },
+    {
+      "claim_n": 8,
+      "class": "evidence_slot",
+      "display": "restricted",
+      "display_attempts": [
+        {
+          "ok": false,
+          "pid": "p41",
+          "reasons": [
+            "not_stimulus_rating"
+          ]
+        }
+      ],
+      "display_ids": [],
+      "establishment": [
+        {
+          "anchor": "p41",
+          "assertion_span": [
+            208,
+            372
+          ],
+          "ids": [
+            "p41"
+          ],
+          "placement": [
+            "c8",
+            "c8#suff:trait-construct",
+            "U23::f6027eb43b85593c"
+          ],
+          "source": "own",
+          "support_ref": "support-ref-v1:sha256:2993ad45d9bfd2046e923382010d16b6195501b96d11c1255f2c1632854a76cf",
+          "view_id": "support-view-v1:sha256:85ba7279d8d14127a6b46a2a453d458ce5922e3cc8a63c0c9238cc31e4286fd1"
+        }
+      ],
+      "family": "relational",
+      "finding": "not_applicable",
+      "label": "evidence relating the trait/construct to the bias's manifestation",
+      "material": {
+        "kind": "evidence_slot",
+        "operand_tuple": [
+          {
+            "literal": "dominance",
+            "role": "individual_difference_trait_or_construct"
+          }
+        ],
+        "schema": "semantic-value-v1",
+        "scope": {
+          "owner_id": "c8",
+          "requirement_id": "c8#suff:trait-construct",
+          "role": "relationship_to_bias_manifestation"
+        },
+        "slot": "evidence relating the trait/construct to the bias's manifestation"
+      },
+      "n": 16,
+      "observations": [],
+      "old_claim_id": "relational::b87b1fc33715f29b",
+      "proofs": [
+        "witness-proof-v1:sha256:0f4b79eb5f558aae69c19ded8e4f5a02aac471ecefbf16e473b1926c6d0031cc",
+        "witness-proof-v1:sha256:881672bef3cad61fd15394eb9a63197442bb082abd194ae6d58358775d5e9e22"
+      ],
+      "role": "relationship_to_bias_manifestation",
+      "scientific": "established",
+      "scope": "c8#suff:trait-construct",
+      "support_ids": [
+        "p41"
+      ],
+      "value_id": "semantic-value-v1:sha256:0a612abee98c488f11ecaef9b20538d3a2050125d5dc06f8acc78a1bef0f0608",
+      "authorized_display_source_inputs": [
+        "p41"
+      ],
+      "presentation_finalization_expected_display_ids": [],
+      "own_inherited_source": "own"
+    },
+    {
+      "claim_n": 9,
+      "class": "evidence_slot",
+      "display": "restricted",
+      "display_attempts": [
+        {
+          "ok": false,
+          "pid": "p41",
+          "reasons": [
+            "not_stimulus_rating"
+          ]
+        }
+      ],
+      "display_ids": [],
+      "establishment": [
+        {
+          "anchor": "p41",
+          "assertion_span": [
+            208,
+            372
+          ],
+          "ids": [
+            "p41"
+          ],
+          "placement": [
+            "c8",
+            "c8#suff:trait-construct",
+            "U23::910466e6604581fa"
+          ],
+          "source": "own",
+          "support_ref": "support-ref-v1:sha256:f4d7f35056f9b7360859d9e7751b6fda69d7208b8d84584a74bd47fe3fdf683f",
+          "view_id": "support-view-v1:sha256:20f4cad76aaa8955cfeb733e886c2a41e7e4d88205fd980819c2dae0ddf8f44f"
+        }
+      ],
+      "family": "relational",
+      "finding": "not_applicable",
+      "label": "evidence relating the trait/construct to the bias's manifestation",
+      "material": {
+        "kind": "evidence_slot",
+        "operand_tuple": [
+          {
+            "literal": "threateningness",
+            "role": "individual_difference_trait_or_construct"
+          }
+        ],
+        "schema": "semantic-value-v1",
+        "scope": {
+          "owner_id": "c8",
+          "requirement_id": "c8#suff:trait-construct",
+          "role": "relationship_to_bias_manifestation"
+        },
+        "slot": "evidence relating the trait/construct to the bias's manifestation"
+      },
+      "n": 17,
+      "observations": [],
+      "old_claim_id": "relational::5a0a02f415cffd79",
+      "proofs": [
+        "witness-proof-v1:sha256:3abcec9881cd29dfeadf3c139215fe69fa898868b3cc34f0247104bb6269a7d7",
+        "witness-proof-v1:sha256:ec5068e6e7dacdfc2bc70972516e9c4f9373fcd1598484c657b56fe31e3efb4d"
+      ],
+      "role": "relationship_to_bias_manifestation",
+      "scientific": "established",
+      "scope": "c8#suff:trait-construct",
+      "support_ids": [
+        "p41"
+      ],
+      "value_id": "semantic-value-v1:sha256:972f2149ad56f9a9d9e28f17eed71fcb2181e5ef6d0e92d5bec12c80eb9228d3",
+      "authorized_display_source_inputs": [
+        "p41"
+      ],
+      "presentation_finalization_expected_display_ids": [],
+      "own_inherited_source": "own"
+    },
+    {
+      "claim_n": 9,
+      "class": "literal_value",
+      "display": "restricted",
+      "display_attempts": [
+        {
+          "ok": false,
+          "pid": "p41",
+          "reasons": [
+            "not_stimulus_rating"
+          ]
+        }
+      ],
+      "display_ids": [],
+      "establishment": [
+        {
+          "anchor": "p41",
+          "assertion_span": null,
+          "ids": [
+            "p41"
+          ],
+          "placement": [
+            "c8",
+            "c8#suff:trait-construct",
+            "U23::910466e6604581fa"
+          ],
+          "source": "own",
+          "support_ref": "legacy-support-ref-v1:sha256:9a3b33925d59738682acb8f039522f0072932bf9602059c71ec6d1ef6ebc5fe0",
+          "view_id": "support-view-v1:sha256:67f97cb604f5c10dfe370b6774386f1410fb952955ef39aef5bf22c6ffbead73"
+        }
+      ],
+      "family": "relational",
+      "finding": "not_applicable",
+      "label": "threateningness",
+      "material": {
+        "kind": "literal_value",
+        "literal": "threateningness",
+        "schema": "semantic-value-v1",
+        "scope": {
+          "owner_id": "c8",
+          "requirement_id": "c8#suff:trait-construct",
+          "role": "individual_difference_trait_or_construct"
+        }
+      },
+      "n": 18,
+      "observations": [],
+      "old_claim_id": "relational::5a0a02f415cffd79",
+      "proofs": [
+        "witness-proof-v1:sha256:3abcec9881cd29dfeadf3c139215fe69fa898868b3cc34f0247104bb6269a7d7",
+        "witness-proof-v1:sha256:ec5068e6e7dacdfc2bc70972516e9c4f9373fcd1598484c657b56fe31e3efb4d"
+      ],
+      "role": "individual_difference_trait_or_construct",
+      "scientific": "established",
+      "scope": "c8#suff:trait-construct",
+      "support_ids": [
+        "p41"
+      ],
+      "value_id": "semantic-value-v1:sha256:a4e6cf453349208936e627f051220b0cf0736d4cb37c658f8e65814f943ca8d5",
+      "authorized_display_source_inputs": [
+        "p41"
+      ],
+      "presentation_finalization_expected_display_ids": [],
+      "own_inherited_source": "own"
+    },
+    {
+      "claim_n": 10,
+      "class": "literal_assertion",
+      "display": "supported",
+      "display_attempts": [
+        {
+          "ok": true,
+          "pid": "p14",
+          "reasons": []
+        },
+        {
+          "ok": true,
+          "pid": "p17",
+          "reasons": []
+        },
+        {
+          "ok": true,
+          "pid": "p26",
+          "reasons": []
+        },
+        {
+          "ok": true,
+          "pid": "p3",
+          "reasons": []
+        },
+        {
+          "ok": true,
+          "pid": "p7",
+          "reasons": []
+        }
+      ],
+      "display_ids": [
+        "p14",
+        "p17",
+        "p26",
+        "p3",
+        "p7"
+      ],
+      "establishment": [
+        {
+          "anchor": "p7",
+          "assertion_span": [
+            14,
+            251
+          ],
+          "ids": [
+            "p14",
+            "p17",
+            "p26",
+            "p3",
+            "p7"
+          ],
+          "placement": [
+            "c3",
+            "c3#suff:attitude-manifestation",
+            null
+          ],
+          "source": "own",
+          "support_ref": "support-ref-v1:sha256:6860b445e97c9c4d67f28b582fd309a491535b00ba3464e3df839d86f8b61c3b",
+          "view_id": "support-view-v1:sha256:d441ff1b3cff490bbf21a79e80cf1914810c66cbce1cb25035d25db87a7730f3"
+        }
+      ],
+      "family": "role_value",
+      "finding": "not_applicable",
+      "label": "we found evidence for the “anomalous-is-bad” stereotype in explicit negative attitudes about people with facial anoma- lies both as individuals (i.e., character inferences) and as a group (i.e., scores on the Explicit Bias Questionnaire)",
+      "material": {
+        "kind": "literal_assertion",
+        "literal": "we found evidence for the “anomalous-is-bad” stereotype in explicit negative attitudes about people with facial anoma- lies both as individuals (i.e., character inferences) and as a group (i.e., scores on the Explicit Bias Questionnaire)",
+        "schema": "semantic-value-v1",
+        "scope": {
+          "owner_id": "c3",
+          "requirement_id": "c3#suff:attitude-manifestation",
+          "role": "attitude_manifestation_evidence"
+        }
+      },
+      "n": 19,
+      "observations": [],
+      "old_claim_id": "role_value::c24ac1ab2f5259b2",
+      "proofs": [],
+      "role": "attitude_manifestation_evidence",
+      "scientific": "established",
+      "scope": "c3#suff:attitude-manifestation",
+      "support_ids": [
+        "p14",
+        "p17",
+        "p26",
+        "p3",
+        "p7"
+      ],
+      "value_id": "semantic-value-v1:sha256:20ab47f0575592ac3519357d1ce20dd537f68e8caa32384b0f1bf8dabe4e171f",
+      "authorized_display_source_inputs": [
+        "p14",
+        "p17",
+        "p26",
+        "p3",
+        "p7"
+      ],
+      "presentation_finalization_expected_display_ids": [
+        "p14",
+        "p17",
+        "p26",
+        "p3",
+        "p7"
+      ],
+      "own_inherited_source": "own"
+    },
+    {
+      "claim_n": 11,
+      "class": "authored_category",
+      "display": "restricted",
+      "display_attempts": [
+        {
+          "ok": false,
+          "pid": "p52",
+          "reasons": [
+            "attribution_unknown"
+          ]
+        }
+      ],
+      "display_ids": [],
+      "establishment": [
+        {
+          "anchor": "p52",
+          "assertion_span": null,
+          "ids": [
+            "p52"
+          ],
+          "placement": [
+            "c6",
+            "c6#suff:implicit-explicit-coverage",
+            "explicit"
+          ],
+          "source": "own",
+          "support_ref": "legacy-support-ref-v1:sha256:275f8f82172c8032411d8d87f62ef0f3e5cc2bbaa0a5dc9797032ee797447741",
+          "view_id": "support-view-v1:sha256:92a831943179b9bc11a4781038becb69d7c60ed5a440ad3ee9eefef89cd8cc5c"
+        }
+      ],
+      "family": "role_value",
+      "finding": "positive_finding",
+      "label": "explicit",
+      "material": {
+        "category_identity": {
+          "role": "category_evidence",
+          "term": "explicit"
+        },
+        "kind": "authored_category",
+        "literal": "explicit",
+        "schema": "semantic-value-v1",
+        "scope": {
+          "owner_id": "c6",
+          "requirement_id": "c6#suff:implicit-explicit-coverage",
+          "role": "category_evidence"
+        }
+      },
+      "n": 20,
+      "observations": [
+        {
+          "body": {
+            "observation": {
+              "ambiguity": "repeated_term_occurrence",
+              "classifier": "observation-polarity/i2-1",
+              "classifier_audit": {
+                "matched_surface": null,
+                "occurrence_results": [
+                  {
+                    "observation_polarity": "mentioned_only",
+                    "rule": "no_finding_predicate",
+                    "sentence": "Nevertheless, we found evidence for the “anomalous-is-bad” stereotype in explicit negative attitudes about people with facial anoma- lies both as individuals (i.e., character inferences) and as a group (i.e., scores on the Explicit Bias Questionnaire).",
+                    "term_clause": "we found evidence for the “anomalous-is-bad” stereotype in explicit negative attitudes about people with facial anoma- lies both as individuals (i.e."
+                  },
+                  {
+                    "observation_polarity": "mentioned_only",
+                    "rule": "no_finding_predicate",
+                    "sentence": "Nevertheless, we found evidence for the “anomalous-is-bad” stereotype in explicit negative attitudes about people with facial anoma- lies both as individuals (i.e., character inferences) and as a group (i.e., scores on the Explicit Bias Questionnaire).",
+                    "term_clause": "scores on the Explicit Bias Questionnaire)."
+                  }
+                ],
+                "result_complement": null,
+                "term_occurrences": 2
+              },
+              "competing_terms": [
+                "implicit"
+              ],
+              "exact_text": "explicit",
+              "guard": {
+                "absence_statement": false,
+                "causal_cues": [],
+                "correlational": false,
+                "fragment": false,
+                "hedged": false,
+                "negated": false,
+                "starts_mid_sentence": false,
+                "study_description": false
+              },
+              "observation_polarity": "unknown",
+              "proposition_id": "p17",
+              "rule": "repeated_term_occurrence",
+              "source_passage": "Nevertheless, we found evidence for the “anomalous-is-bad” stereotype in explicit negative attitudes about people with facial anoma- lies both as individuals (i.e., character inferences) and as a group (i.e., scores on the Explicit Bias Questionnaire).",
+              "term": "explicit",
+              "unit_id": "U3"
+            },
+            "placement": {
+              "child_id": "c6",
+              "instance_key": "explicit",
+              "requirement_id": "c6#suff:implicit-explicit-coverage",
+              "role": "category_evidence"
+            },
+            "quote_sha256": "96942b107a63ca4adf8aeead14e406ee2844bb369fe3fbc0d67be7c16dcab1f7",
+            "schema": "category-observation-ref-v1",
+            "source_identity": {
+              "evidence_anchor_chunk_id": 35068,
+              "evidence_span_id": "e4",
+              "paper_id": 67
+            }
+          },
+          "id": "category-observation-ref-v1:sha256:343929ad76396bc8bae765f0236d871deeb92dc88325494f151df0155c8bbd87"
+        },
+        {
+          "body": {
+            "observation": {
+              "ambiguity": null,
+              "classifier": "observation-polarity/i2-1",
+              "classifier_audit": {
+                "absence_statement": false,
+                "competing_terms_in_contrast": [],
+                "contrast_clause": null,
+                "contrast_connective": [],
+                "directional_cues": [
+                  "influence"
+                ],
+                "finding_cues": [
+                  "influence"
+                ],
+                "hedge": false,
+                "matched_surface": "explicit",
+                "measurement_cues": [],
+                "null_cues": {
+                  "complement": [
+                    "evidence"
+                  ],
+                  "negation": [],
+                  "self_null": []
+                },
+                "occurrence_results": [],
+                "result_complement": null,
+                "term_clause": "providing direct evidence that explicit beliefs can influence the social evaluation of faces.",
+                "term_occurrences": 1
+              },
+              "competing_terms": [
+                "implicit"
+              ],
+              "exact_text": "explicit",
+              "guard": {
+                "absence_statement": false,
+                "causal_cues": [],
+                "correlational": false,
+                "fragment": false,
+                "hedged": false,
+                "negated": false,
+                "starts_mid_sentence": true,
+                "study_description": false
+              },
+              "observation_polarity": "positive_finding",
+              "proposition_id": "p52",
+              "rule": "local_finding_predicate",
+              "source_passage": "providing direct evidence that explicit beliefs can influence the social evaluation of faces.",
+              "term": "explicit",
+              "unit_id": "U33"
+            },
+            "placement": {
+              "child_id": "c6",
+              "instance_key": "explicit",
+              "requirement_id": "c6#suff:implicit-explicit-coverage",
+              "role": "category_evidence"
+            },
+            "quote_sha256": "5b9c169437735ebcbae80afe1cecfef876a824781c95c4d8bc805867e8369d25",
+            "schema": "category-observation-ref-v1",
+            "source_identity": {
+              "evidence_anchor_chunk_id": 14547,
+              "evidence_span_id": "e6",
+              "paper_id": 68
+            }
+          },
+          "id": "category-observation-ref-v1:sha256:86131c9eeacef6834c7b8048ad033cf64e367f53225115d19841530af0a96163"
+        }
+      ],
+      "old_claim_id": "role_value::cb9192d62bbccd00",
+      "proofs": [],
+      "role": "category_evidence",
+      "scientific": "established",
+      "scope": "c6#suff:implicit-explicit-coverage",
+      "support_ids": [
+        "p52"
+      ],
+      "value_id": "semantic-value-v1:sha256:0b2d5d6507dbbc6f6d0212b7cc0411c9be3d2663cc7798295605d85659716980",
+      "authorized_display_source_inputs": [
+        "p52"
+      ],
+      "presentation_finalization_expected_display_ids": [],
+      "own_inherited_source": "own"
+    },
+    {
+      "claim_n": 12,
+      "class": "literal_value",
+      "display": "restricted",
+      "display_attempts": [
+        {
+          "ok": false,
+          "pid": "p29",
+          "reasons": [
+            "passage_complete"
+          ]
+        },
+        {
+          "ok": false,
+          "pid": "p53",
+          "reasons": [
+            "passage_complete"
+          ]
+        }
+      ],
+      "display_ids": [],
+      "establishment": [
+        {
+          "anchor": "p29",
+          "assertion_span": null,
+          "ids": [
+            "p29"
+          ],
+          "placement": [
+            "c10",
+            "c10#suff:culture-existence",
+            "i::e506b4436247cda9"
+          ],
+          "source": "own",
+          "support_ref": "legacy-support-ref-v1:sha256:87867c9d204b734c4a0965454faf8b25a2299c2e8fa885e9dbbff5bc87906010",
+          "view_id": "support-view-v1:sha256:7a5239485837928a403acda9e565004b18b857d5ad2edaab8d8244974164bdb6"
+        },
+        {
+          "anchor": "p53",
+          "assertion_span": null,
+          "ids": [
+            "p53"
+          ],
+          "placement": [
+            "c10",
+            "c10#suff:culture-existence",
+            "i::22b9d69edba8b78a"
+          ],
+          "source": "own",
+          "support_ref": "legacy-support-ref-v1:sha256:e1fec84afd651a6899297ac81b46fb5b055a0c957c61369d430d8d6f84b3208b",
+          "view_id": "support-view-v1:sha256:bfac72827a7b503b8e488f38894bd308c42c9f47c74a911afbfd2a963e269c34"
+        }
+      ],
+      "family": "category_list",
+      "finding": "not_applicable",
+      "label": "Hadza",
+      "material": {
+        "kind": "literal_value",
+        "literal": "Hadza",
+        "schema": "semantic-value-v1",
+        "scope": {
+          "owner_id": "c10",
+          "requirement_id": "c10#suff:culture-existence",
+          "role": "named_culture_or_population"
+        }
+      },
+      "n": 21,
+      "observations": [],
+      "old_claim_id": "category_list::775fda7778860372",
+      "proofs": [],
+      "role": "named_culture_or_population",
+      "scientific": "established",
+      "scope": "c10#suff:culture-existence",
+      "support_ids": [
+        "p29",
+        "p53"
+      ],
+      "value_id": "semantic-value-v1:sha256:ec620d2e915553dd9fc9bb83a0dc3330247d83aa357b1ff02ccaedd9e59eba7b",
+      "authorized_display_source_inputs": [
+        "p29",
+        "p53"
+      ],
+      "presentation_finalization_expected_display_ids": [],
+      "own_inherited_source": "own"
+    },
+    {
+      "claim_n": 13,
+      "class": "literal_value",
+      "display": "restricted",
+      "display_attempts": [
+        {
+          "ok": false,
+          "pid": "p35",
+          "reasons": [
+            "requested_construct_direct"
+          ]
+        }
+      ],
+      "display_ids": [],
+      "establishment": [
+        {
+          "anchor": "p35",
+          "assertion_span": null,
+          "ids": [
+            "p35"
+          ],
+          "placement": [
+            "c2",
+            "c2#suff:behavioral-manifestation",
+            "i::4777c74a36ed08b9"
+          ],
+          "source": "own",
+          "support_ref": "legacy-support-ref-v1:sha256:08a96419c2266db62ee26170811024e931e4342c60f032e8065899209cc6224a",
+          "view_id": "support-view-v1:sha256:75bdab4e7946dce84262bc1d8759554853f5d8957348062426d93ae2e4b96f36"
+        }
+      ],
+      "family": "category_list",
+      "finding": "not_applicable",
+      "label": "decisions that were incongruent with behavioral bias (share with bad partner and keep with good partner versus the alternative choices)",
+      "material": {
+        "kind": "literal_value",
+        "literal": "decisions that were incongruent with behavioral bias (share with bad partner and keep with good partner versus the alternative choices)",
+        "schema": "semantic-value-v1",
+        "scope": {
+          "owner_id": "c2",
+          "requirement_id": "c2#suff:behavioral-manifestation",
+          "role": "behavior_or_behavioral_measure"
+        }
+      },
+      "n": 22,
+      "observations": [],
+      "old_claim_id": "category_list::ed3e1d5fd3979f2e",
+      "proofs": [],
+      "role": "behavior_or_behavioral_measure",
+      "scientific": "established",
+      "scope": "c2#suff:behavioral-manifestation",
+      "support_ids": [
+        "p35"
+      ],
+      "value_id": "semantic-value-v1:sha256:236ced83cf41481eb76b7733518a532c21bc2d2f4b808530c35c01e5c8d6dbc9",
+      "authorized_display_source_inputs": [
+        "p35"
+      ],
+      "presentation_finalization_expected_display_ids": [],
+      "own_inherited_source": "own"
+    },
+    {
+      "claim_n": 13,
+      "class": "literal_value",
+      "display": "restricted",
+      "display_attempts": [
+        {
+          "ok": false,
+          "pid": "p46",
+          "reasons": [
+            "requested_construct_direct"
+          ]
+        }
+      ],
+      "display_ids": [],
+      "establishment": [
+        {
+          "anchor": "p46",
+          "assertion_span": null,
+          "ids": [
+            "p46"
+          ],
+          "placement": [
+            "c2",
+            "c2#suff:behavioral-manifestation",
+            "i::9fb27754ba7442ef"
+          ],
+          "source": "own",
+          "support_ref": "legacy-support-ref-v1:sha256:d8db464571314cb80d6f0194255110c7af4422cbc9ae270022123df1a3ac690b",
+          "view_id": "support-view-v1:sha256:657ed5efe978fe56111ddc37e019120663e25fc05762f545d8aa708498e59cee"
+        }
+      ],
+      "family": "category_list",
+      "finding": "not_applicable",
+      "label": "share decisions between partners (good versus bad)",
+      "material": {
+        "kind": "literal_value",
+        "literal": "share decisions between partners (good versus bad)",
+        "schema": "semantic-value-v1",
+        "scope": {
+          "owner_id": "c2",
+          "requirement_id": "c2#suff:behavioral-manifestation",
+          "role": "behavior_or_behavioral_measure"
+        }
+      },
+      "n": 23,
+      "observations": [],
+      "old_claim_id": "category_list::ed3e1d5fd3979f2e",
+      "proofs": [],
+      "role": "behavior_or_behavioral_measure",
+      "scientific": "established",
+      "scope": "c2#suff:behavioral-manifestation",
+      "support_ids": [
+        "p46"
+      ],
+      "value_id": "semantic-value-v1:sha256:f6dcd8bfe866cd5c62411674f25e50d2ad99279174bd34a1f3b5b183e8d2edba",
+      "authorized_display_source_inputs": [
+        "p46"
+      ],
+      "presentation_finalization_expected_display_ids": [],
+      "own_inherited_source": "own"
+    },
+    {
+      "claim_n": 14,
+      "class": "authored_category",
+      "display": "supported",
+      "display_attempts": [
+        {
+          "ok": true,
+          "pid": "p36",
+          "reasons": []
+        }
+      ],
+      "display_ids": [
+        "p36"
+      ],
+      "establishment": [
+        {
+          "anchor": "p36",
+          "assertion_span": null,
+          "ids": [
+            "p36"
+          ],
+          "placement": [
+            "c3",
+            "c3#suff:implicit-explicit-coverage",
+            "implicit"
+          ],
+          "source": "own",
+          "support_ref": "legacy-support-ref-v1:sha256:ee9d60beed9db5e5d2cbd7be84850787804309f825ab90fdb2a27fdc2ab9f7d6",
+          "view_id": "support-view-v1:sha256:a01b445f6091ab1e379587d05b331a8e9d8c3bf945a4a2391109756a2f488913"
+        }
+      ],
+      "family": "category_list",
+      "finding": "null_finding",
+      "label": "implicit",
+      "material": {
+        "category_identity": {
+          "role": "category_evidence",
+          "term": "implicit"
+        },
+        "kind": "authored_category",
+        "literal": "implicit",
+        "schema": "semantic-value-v1",
+        "scope": {
+          "owner_id": "c3",
+          "requirement_id": "c3#suff:implicit-explicit-coverage",
+          "role": "category_evidence"
+        }
+      },
+      "n": 24,
+      "observations": [
+        {
+          "body": {
+            "observation": {
+              "ambiguity": null,
+              "classifier": "observation-polarity/i2-1",
+              "classifier_audit": {
+                "absence_statement": false,
+                "competing_terms_in_contrast": [],
+                "contrast_clause": null,
+                "contrast_connective": [],
+                "directional_cues": [],
+                "finding_cues": [],
+                "hedge": false,
+                "matched_surface": "implicit",
+                "measurement_cues": [],
+                "null_cues": {
+                  "complement": [
+                    "significant"
+                  ],
+                  "negation": [
+                    "not"
+                  ],
+                  "self_null": []
+                },
+                "occurrence_results": [],
+                "result_complement": null,
+                "term_clause": "their implicit biases were slight and not significant.",
+                "term_occurrences": 1
+              },
+              "competing_terms": [
+                "explicit"
+              ],
+              "exact_text": "implicit",
+              "guard": {
+                "absence_statement": false,
+                "causal_cues": [],
+                "correlational": false,
+                "fragment": false,
+                "hedged": false,
+                "negated": true,
+                "starts_mid_sentence": false,
+                "study_description": false
+              },
+              "observation_polarity": "null_finding",
+              "proposition_id": "p36",
+              "rule": "local_null_same_clause",
+              "source_passage": "Participants expressed explicit biases against people with facial anomalies, but their implicit biases were slight and not significant.",
+              "term": "implicit",
+              "unit_id": "U8"
+            },
+            "placement": {
+              "child_id": "c3",
+              "instance_key": "implicit",
+              "requirement_id": "c3#suff:implicit-explicit-coverage",
+              "role": "category_evidence"
+            },
+            "quote_sha256": "3dce0d037e6e0c9fbacb173f4ddadf96d04bc8fe4821d8992eda53820ca80b8e",
+            "schema": "category-observation-ref-v1",
+            "source_identity": {
+              "evidence_anchor_chunk_id": 35068,
+              "evidence_span_id": "e7",
+              "paper_id": 67
+            }
+          },
+          "id": "category-observation-ref-v1:sha256:00d5a665483085e7f8771d1de013a285832773505751207797273270450f7b55"
+        }
+      ],
+      "old_claim_id": "category_list::351d34bff55b518f",
+      "proofs": [],
+      "role": "category_evidence",
+      "scientific": "unestablished",
+      "scope": "c3#suff:implicit-explicit-coverage",
+      "support_ids": [
+        "p36"
+      ],
+      "value_id": "semantic-value-v1:sha256:8eb2403f24906e5a891c736b9c91bd3b29610c9a46866a1685e7105c656a6ea0",
+      "authorized_display_source_inputs": [
+        "p36"
+      ],
+      "presentation_finalization_expected_display_ids": [
+        "p36"
+      ],
+      "own_inherited_source": "own"
+    },
+    {
+      "claim_n": 14,
+      "class": "authored_category",
+      "display": "supported",
+      "display_attempts": [
+        {
+          "ok": true,
+          "pid": "p36",
+          "reasons": []
+        },
+        {
+          "ok": false,
+          "pid": "p52",
+          "reasons": [
+            "attribution_unknown"
+          ]
+        },
+        {
+          "ok": false,
+          "pid": "p8",
+          "reasons": [
+            "attribution_prior_work"
+          ]
+        }
+      ],
+      "display_ids": [
+        "p36"
+      ],
+      "establishment": [
+        {
+          "anchor": "p8",
+          "assertion_span": null,
+          "ids": [
+            "p8"
+          ],
+          "placement": [
+            "c3",
+            "c3#suff:implicit-explicit-coverage",
+            "explicit"
+          ],
+          "source": "own",
+          "support_ref": "legacy-support-ref-v1:sha256:7579862389a712fb866915ff929bb4835442f9d02832fcdc575f356ca0544e27",
+          "view_id": "support-view-v1:sha256:b7b8cfa3588ca88c87e30c5f4031a9d764a70147a99f0bdc423cf4296fdfb04b"
+        }
+      ],
+      "family": "category_list",
+      "finding": "positive_finding",
+      "label": "explicit",
+      "material": {
+        "category_identity": {
+          "role": "category_evidence",
+          "term": "explicit"
+        },
+        "kind": "authored_category",
+        "literal": "explicit",
+        "schema": "semantic-value-v1",
+        "scope": {
+          "owner_id": "c3",
+          "requirement_id": "c3#suff:implicit-explicit-coverage",
+          "role": "category_evidence"
+        }
+      },
+      "n": 25,
+      "observations": [
+        {
+          "body": {
+            "observation": {
+              "ambiguity": null,
+              "classifier": "observation-polarity/i2-1",
+              "classifier_audit": {
+                "absence_statement": false,
+                "competing_terms_in_contrast": [],
+                "contrast_clause": null,
+                "contrast_connective": [],
+                "directional_cues": [
+                  "detected"
+                ],
+                "finding_cues": [
+                  "detected"
+                ],
+                "hedge": false,
+                "matched_surface": "explicit",
+                "measurement_cues": [],
+                "null_cues": {
+                  "complement": [],
+                  "negation": [],
+                  "self_null": []
+                },
+                "occurrence_results": [],
+                "result_complement": null,
+                "term_clause": "detected explicit biases against people with facial anomalies",
+                "term_occurrences": 1
+              },
+              "competing_terms": [
+                "implicit"
+              ],
+              "exact_text": "explicit",
+              "guard": {
+                "absence_statement": false,
+                "causal_cues": [],
+                "correlational": false,
+                "fragment": false,
+                "hedged": false,
+                "negated": false,
+                "starts_mid_sentence": false,
+                "study_description": false
+              },
+              "observation_polarity": "positive_finding",
+              "proposition_id": "p8",
+              "rule": "local_finding_predicate",
+              "source_passage": "This research confirmed earlier reports that people with anomalous faces are imbued with negative personality characteristics, detected explicit biases against people with facial anomalies, and described a behavioral manifestation of the “anomalous-is- bad” stereotype affecting prosociality.",
+              "term": "explicit",
+              "unit_id": "U1"
+            },
+            "placement": {
+              "child_id": "c3",
+              "instance_key": "explicit",
+              "requirement_id": "c3#suff:implicit-explicit-coverage",
+              "role": "category_evidence"
+            },
+            "quote_sha256": "7b7e5eccbe689b49a776d2aa263abb961f718027891d41c9d7b796d9f2683b03",
+            "schema": "category-observation-ref-v1",
+            "source_identity": {
+              "evidence_anchor_chunk_id": 35111,
+              "evidence_span_id": "e1",
+              "paper_id": 67
+            }
+          },
+          "id": "category-observation-ref-v1:sha256:4a873cc16345b5304f83fe3b3f000de448d820c8d02ed79498887d7bace6f2fb"
+        },
+        {
+          "body": {
+            "observation": {
+              "ambiguity": "repeated_term_occurrence",
+              "classifier": "observation-polarity/i2-1",
+              "classifier_audit": {
+                "matched_surface": null,
+                "occurrence_results": [
+                  {
+                    "observation_polarity": "mentioned_only",
+                    "rule": "no_finding_predicate",
+                    "sentence": "Nevertheless, we found evidence for the “anomalous-is-bad” stereotype in explicit negative attitudes about people with facial anoma- lies both as individuals (i.e., character inferences) and as a group (i.e., scores on the Explicit Bias Questionnaire).",
+                    "term_clause": "we found evidence for the “anomalous-is-bad” stereotype in explicit negative attitudes about people with facial anoma- lies both as individuals (i.e."
+                  },
+                  {
+                    "observation_polarity": "mentioned_only",
+                    "rule": "no_finding_predicate",
+                    "sentence": "Nevertheless, we found evidence for the “anomalous-is-bad” stereotype in explicit negative attitudes about people with facial anoma- lies both as individuals (i.e., character inferences) and as a group (i.e., scores on the Explicit Bias Questionnaire).",
+                    "term_clause": "scores on the Explicit Bias Questionnaire)."
+                  }
+                ],
+                "result_complement": null,
+                "term_occurrences": 2
+              },
+              "competing_terms": [
+                "implicit"
+              ],
+              "exact_text": "explicit",
+              "guard": {
+                "absence_statement": false,
+                "causal_cues": [],
+                "correlational": false,
+                "fragment": false,
+                "hedged": false,
+                "negated": false,
+                "starts_mid_sentence": false,
+                "study_description": false
+              },
+              "observation_polarity": "unknown",
+              "proposition_id": "p7",
+              "rule": "repeated_term_occurrence",
+              "source_passage": "Nevertheless, we found evidence for the “anomalous-is-bad” stereotype in explicit negative attitudes about people with facial anoma- lies both as individuals (i.e., character inferences) and as a group (i.e., scores on the Explicit Bias Questionnaire).",
+              "term": "explicit",
+              "unit_id": "U3"
+            },
+            "placement": {
+              "child_id": "c3",
+              "instance_key": "explicit",
+              "requirement_id": "c3#suff:implicit-explicit-coverage",
+              "role": "category_evidence"
+            },
+            "quote_sha256": "96942b107a63ca4adf8aeead14e406ee2844bb369fe3fbc0d67be7c16dcab1f7",
+            "schema": "category-observation-ref-v1",
+            "source_identity": {
+              "evidence_anchor_chunk_id": 35068,
+              "evidence_span_id": "e4",
+              "paper_id": 67
+            }
+          },
+          "id": "category-observation-ref-v1:sha256:92ee023dc64d0adec826b61f941318648789f919284cf45ef30bafed908323fa"
+        },
+        {
+          "body": {
+            "observation": {
+              "ambiguity": null,
+              "classifier": "observation-polarity/i2-1",
+              "classifier_audit": {
+                "absence_statement": false,
+                "competing_terms_in_contrast": [
+                  "implicit"
+                ],
+                "contrast_clause": null,
+                "contrast_connective": [],
+                "directional_cues": [
+                  "expressed"
+                ],
+                "finding_cues": [
+                  "expressed"
+                ],
+                "hedge": false,
+                "matched_surface": "explicit",
+                "measurement_cues": [],
+                "null_cues": {
+                  "complement": [],
+                  "negation": [],
+                  "self_null": []
+                },
+                "occurrence_results": [],
+                "result_complement": null,
+                "term_clause": "Participants expressed explicit biases against people with facial anomalies",
+                "term_occurrences": 1
+              },
+              "competing_terms": [
+                "implicit"
+              ],
+              "exact_text": "explicit",
+              "guard": {
+                "absence_statement": false,
+                "causal_cues": [],
+                "correlational": false,
+                "fragment": false,
+                "hedged": false,
+                "negated": true,
+                "starts_mid_sentence": false,
+                "study_description": false
+              },
+              "observation_polarity": "positive_finding",
+              "proposition_id": "p36",
+              "rule": "local_finding_predicate",
+              "source_passage": "Participants expressed explicit biases against people with facial anomalies, but their implicit biases were slight and not significant.",
+              "term": "explicit",
+              "unit_id": "U8"
+            },
+            "placement": {
+              "child_id": "c3",
+              "instance_key": "explicit",
+              "requirement_id": "c3#suff:implicit-explicit-coverage",
+              "role": "category_evidence"
+            },
+            "quote_sha256": "3dce0d037e6e0c9fbacb173f4ddadf96d04bc8fe4821d8992eda53820ca80b8e",
+            "schema": "category-observation-ref-v1",
+            "source_identity": {
+              "evidence_anchor_chunk_id": 35068,
+              "evidence_span_id": "e7",
+              "paper_id": 67
+            }
+          },
+          "id": "category-observation-ref-v1:sha256:354a9a5e01c3ebfb147ba25e1c6c7cbf38d450272ea273262f793783c501d110"
+        },
+        {
+          "body": {
+            "observation": {
+              "ambiguity": null,
+              "classifier": "observation-polarity/i2-1",
+              "classifier_audit": {
+                "absence_statement": false,
+                "competing_terms_in_contrast": [],
+                "contrast_clause": null,
+                "contrast_connective": [],
+                "directional_cues": [
+                  "influence"
+                ],
+                "finding_cues": [
+                  "influence"
+                ],
+                "hedge": false,
+                "matched_surface": "explicit",
+                "measurement_cues": [],
+                "null_cues": {
+                  "complement": [
+                    "evidence"
+                  ],
+                  "negation": [],
+                  "self_null": []
+                },
+                "occurrence_results": [],
+                "result_complement": null,
+                "term_clause": "providing direct evidence that explicit beliefs can influence the social evaluation of faces.",
+                "term_occurrences": 1
+              },
+              "competing_terms": [
+                "implicit"
+              ],
+              "exact_text": "explicit",
+              "guard": {
+                "absence_statement": false,
+                "causal_cues": [],
+                "correlational": false,
+                "fragment": false,
+                "hedged": false,
+                "negated": false,
+                "starts_mid_sentence": true,
+                "study_description": false
+              },
+              "observation_polarity": "positive_finding",
+              "proposition_id": "p52",
+              "rule": "local_finding_predicate",
+              "source_passage": "providing direct evidence that explicit beliefs can influence the social evaluation of faces.",
+              "term": "explicit",
+              "unit_id": "U33"
+            },
+            "placement": {
+              "child_id": "c3",
+              "instance_key": "explicit",
+              "requirement_id": "c3#suff:implicit-explicit-coverage",
+              "role": "category_evidence"
+            },
+            "quote_sha256": "5b9c169437735ebcbae80afe1cecfef876a824781c95c4d8bc805867e8369d25",
+            "schema": "category-observation-ref-v1",
+            "source_identity": {
+              "evidence_anchor_chunk_id": 14547,
+              "evidence_span_id": "e6",
+              "paper_id": 68
+            }
+          },
+          "id": "category-observation-ref-v1:sha256:a71be5ce3306f1d352d78f448ce0077a4f81f1e6435c9b39c14aa902b9456667"
+        }
+      ],
+      "old_claim_id": "category_list::351d34bff55b518f",
+      "proofs": [],
+      "role": "category_evidence",
+      "scientific": "established",
+      "scope": "c3#suff:implicit-explicit-coverage",
+      "support_ids": [
+        "p8"
+      ],
+      "value_id": "semantic-value-v1:sha256:bc62af4f96a9b58b0d2cd5c38de50473a465baf5e23665a718971518907978c5",
+      "authorized_display_source_inputs": [
+        "p36",
+        "p52",
+        "p8"
+      ],
+      "presentation_finalization_expected_display_ids": [
+        "p36"
+      ],
+      "own_inherited_source": "own"
+    },
+    {
+      "claim_n": 15,
+      "class": "literal_value",
+      "display": "restricted",
+      "display_attempts": [
+        {
+          "ok": false,
+          "pid": "p20",
+          "reasons": [
+            "attribution_aim_or_hypothesis"
+          ]
+        },
+        {
+          "ok": false,
+          "pid": "p9",
+          "reasons": [
+            "attribution_aim_or_hypothesis"
+          ]
+        }
+      ],
+      "display_ids": [],
+      "establishment": [
+        {
+          "anchor": "p20",
+          "assertion_span": null,
+          "ids": [
+            "p20",
+            "p9"
+          ],
+          "placement": [
+            "c8",
+            "c8#suff:trait-construct",
+            "U6::b2958c5ad5164563"
+          ],
+          "source": "own",
+          "support_ref": "legacy-support-ref-v1:sha256:f47a7828f822f91d58c9ed6d9600bbf0d2bc8c5ad98e7784dcb0afa4d593ef86",
+          "view_id": "support-view-v1:sha256:1905baba683c4cc3c72a5464760aac8b3e3f35f577893af5664b38a9b2ae48f7"
+        }
+      ],
+      "family": "category_list",
+      "finding": "not_applicable",
+      "label": "negative attitudes (IAT and EBQ)",
+      "material": {
+        "kind": "literal_value",
+        "literal": "negative attitudes (IAT and EBQ)",
+        "schema": "semantic-value-v1",
+        "scope": {
+          "owner_id": "c8",
+          "requirement_id": "c8#suff:trait-construct",
+          "role": "individual_difference_trait_or_construct"
+        }
+      },
+      "n": 26,
+      "observations": [],
+      "old_claim_id": "category_list::f1f51b4ba55bad3c",
+      "proofs": [],
+      "role": "individual_difference_trait_or_construct",
+      "scientific": "established",
+      "scope": "c8#suff:trait-construct",
+      "support_ids": [
+        "p20",
+        "p9"
+      ],
+      "value_id": "semantic-value-v1:sha256:460dfdd5d724ad401ae421c98262ddea836c1e1b51a50946652c9f0331455992",
+      "authorized_display_source_inputs": [
+        "p20",
+        "p9"
+      ],
+      "presentation_finalization_expected_display_ids": [],
+      "own_inherited_source": "own"
+    },
+    {
+      "claim_n": 15,
+      "class": "literal_value",
+      "display": "restricted",
+      "display_attempts": [
+        {
+          "ok": false,
+          "pid": "p20",
+          "reasons": [
+            "attribution_aim_or_hypothesis"
+          ]
+        },
+        {
+          "ok": false,
+          "pid": "p9",
+          "reasons": [
+            "attribution_aim_or_hypothesis"
+          ]
+        }
+      ],
+      "display_ids": [],
+      "establishment": [
+        {
+          "anchor": "p20",
+          "assertion_span": null,
+          "ids": [
+            "p20",
+            "p9"
+          ],
+          "placement": [
+            "c8",
+            "c8#suff:trait-construct",
+            "U6::ce8933c59b53a00f"
+          ],
+          "source": "own",
+          "support_ref": "legacy-support-ref-v1:sha256:b6505669c63eeb285f0724d485b42f3477283413a8fa11b57c4eb9a3df73a51d",
+          "view_id": "support-view-v1:sha256:9c43d8b81d98c8fa4ca2b42c36229945354310b21011255d6c28f8f8ddc315be"
+        }
+      ],
+      "family": "category_list",
+      "finding": "not_applicable",
+      "label": "social cognitive biases (just-world beliefs)",
+      "material": {
+        "kind": "literal_value",
+        "literal": "social cognitive biases (just-world beliefs)",
+        "schema": "semantic-value-v1",
+        "scope": {
+          "owner_id": "c8",
+          "requirement_id": "c8#suff:trait-construct",
+          "role": "individual_difference_trait_or_construct"
+        }
+      },
+      "n": 27,
+      "observations": [],
+      "old_claim_id": "category_list::f1f51b4ba55bad3c",
+      "proofs": [],
+      "role": "individual_difference_trait_or_construct",
+      "scientific": "established",
+      "scope": "c8#suff:trait-construct",
+      "support_ids": [
+        "p20",
+        "p9"
+      ],
+      "value_id": "semantic-value-v1:sha256:67404b8a0b0b338af1eb1440bb7fd438174e8050771d99bfef940924f67c7d29",
+      "authorized_display_source_inputs": [
+        "p20",
+        "p9"
+      ],
+      "presentation_finalization_expected_display_ids": [],
+      "own_inherited_source": "own"
+    },
+    {
+      "claim_n": 15,
+      "class": "literal_value",
+      "display": "restricted",
+      "display_attempts": [
+        {
+          "ok": false,
+          "pid": "p20",
+          "reasons": [
+            "attribution_aim_or_hypothesis"
+          ]
+        },
+        {
+          "ok": false,
+          "pid": "p9",
+          "reasons": [
+            "attribution_aim_or_hypothesis"
+          ]
+        }
+      ],
+      "display_ids": [],
+      "establishment": [
+        {
+          "anchor": "p20",
+          "assertion_span": null,
+          "ids": [
+            "p20",
+            "p9"
+          ],
+          "placement": [
+            "c8",
+            "c8#suff:trait-construct",
+            "U6::da37435ef9b489b6"
+          ],
+          "source": "own",
+          "support_ref": "legacy-support-ref-v1:sha256:0771acb9845f122873f9156ace35b5481aa471b163b341b51abb10dd1620d9b8",
+          "view_id": "support-view-v1:sha256:298178cfe3d71a0bb9326bad2ed5c88f499e3e4248a1c30f7035858983aa515e"
+        }
+      ],
+      "family": "category_list",
+      "finding": "not_applicable",
+      "label": "emotional dispositions (affective empathy)",
+      "material": {
+        "kind": "literal_value",
+        "literal": "emotional dispositions (affective empathy)",
+        "schema": "semantic-value-v1",
+        "scope": {
+          "owner_id": "c8",
+          "requirement_id": "c8#suff:trait-construct",
+          "role": "individual_difference_trait_or_construct"
+        }
+      },
+      "n": 28,
+      "observations": [],
+      "old_claim_id": "category_list::f1f51b4ba55bad3c",
+      "proofs": [],
+      "role": "individual_difference_trait_or_construct",
+      "scientific": "established",
+      "scope": "c8#suff:trait-construct",
+      "support_ids": [
+        "p20",
+        "p9"
+      ],
+      "value_id": "semantic-value-v1:sha256:be4fdda9a1c7a097f7098d7333cb28702273ade4921d78726b0289e720ec89d4",
+      "authorized_display_source_inputs": [
+        "p20",
+        "p9"
+      ],
+      "presentation_finalization_expected_display_ids": [],
+      "own_inherited_source": "own"
+    },
+    {
+      "claim_n": 15,
+      "class": "literal_value",
+      "display": "restricted",
+      "display_attempts": [
+        {
+          "ok": false,
+          "pid": "p20",
+          "reasons": [
+            "attribution_aim_or_hypothesis"
+          ]
+        },
+        {
+          "ok": false,
+          "pid": "p9",
+          "reasons": [
+            "attribution_aim_or_hypothesis"
+          ]
+        }
+      ],
+      "display_ids": [],
+      "establishment": [
+        {
+          "anchor": "p20",
+          "assertion_span": null,
+          "ids": [
+            "p20",
+            "p9"
+          ],
+          "placement": [
+            "c8",
+            "c8#suff:trait-construct",
+            "U6::d41542e10edf3ea7"
+          ],
+          "source": "own",
+          "support_ref": "legacy-support-ref-v1:sha256:2b0a517bb1b1664e74939bd3d3a82b9f3003f428807b30e2e631a05763640118",
+          "view_id": "support-view-v1:sha256:135238c68ebc7ab85f03aabcc18039766775327b68889f5d0ace1a651b6eb8aa"
+        }
+      ],
+      "family": "category_list",
+      "finding": "not_applicable",
+      "label": "undesirable behaviors (less generosity in the DG)",
+      "material": {
+        "kind": "literal_value",
+        "literal": "undesirable behaviors (less generosity in the DG)",
+        "schema": "semantic-value-v1",
+        "scope": {
+          "owner_id": "c8",
+          "requirement_id": "c8#suff:trait-construct",
+          "role": "individual_difference_trait_or_construct"
+        }
+      },
+      "n": 29,
+      "observations": [],
+      "old_claim_id": "category_list::f1f51b4ba55bad3c",
+      "proofs": [],
+      "role": "individual_difference_trait_or_construct",
+      "scientific": "established",
+      "scope": "c8#suff:trait-construct",
+      "support_ids": [
+        "p20",
+        "p9"
+      ],
+      "value_id": "semantic-value-v1:sha256:13da9580be9944534392f504551b6bad7cad0d7c54e9eacbbc97d46957d1187e",
+      "authorized_display_source_inputs": [
+        "p20",
+        "p9"
+      ],
+      "presentation_finalization_expected_display_ids": [],
+      "own_inherited_source": "own"
+    },
+    {
+      "claim_n": 16,
+      "class": "literal_value",
+      "display": "restricted",
+      "display_attempts": [
+        {
+          "ok": false,
+          "pid": "p46",
+          "reasons": [
+            "requested_construct_direct"
+          ]
+        },
+        {
+          "ok": false,
+          "pid": "p46",
+          "reasons": [
+            "requested_construct_direct"
+          ]
+        }
+      ],
+      "display_ids": [],
+      "establishment": [
+        {
+          "anchor": "p46",
+          "assertion_span": null,
+          "ids": [
+            "p46"
+          ],
+          "placement": [
+            "c5",
+            "c5#suff:brain-behavior",
+            "i::a3ab9566580a7fe4::13b13ddc969b96ae"
+          ],
+          "source": "own",
+          "support_ref": "legacy-support-ref-v1:sha256:2ca0e69fd452f3bc42bb7ab122085832993f5668aa1700e0f608dcb75c10e58f",
+          "view_id": "support-view-v1:sha256:976945fc59d4fe210126e731e1116a8f248d585a0bcf4b2ffc3b16532eb8494d"
+        },
+        {
+          "anchor": "p46",
+          "assertion_span": null,
+          "ids": [
+            "p46"
+          ],
+          "placement": [
+            "c5",
+            "c5#suff:brain-behavior",
+            "i::ac9b72f14d53f532::4a3f8a1c59aaa360"
+          ],
+          "source": "own",
+          "support_ref": "legacy-support-ref-v1:sha256:a262b48ca43e1d7e433820568cdfcc4071342a747b083d406feb3c2942b3dcda",
+          "view_id": "support-view-v1:sha256:2e8e6111eb93edbcbb6ffa897ce8d30c34320ffbcfd25a4db6e8bf1fe6c3a9cb"
+        }
+      ],
+      "family": "category_list",
+      "finding": "not_applicable",
+      "label": "participants made more share decisions overall when playing with the good partner than with the bad",
+      "material": {
+        "kind": "literal_value",
+        "literal": "participants made more share decisions overall when playing with the good partner than with the bad",
+        "schema": "semantic-value-v1",
+        "scope": {
+          "owner_id": "c5",
+          "requirement_id": "c5#suff:brain-behavior",
+          "role": "behavior_or_behavioral_measure"
+        }
+      },
+      "n": 30,
+      "observations": [],
+      "old_claim_id": "category_list::7ca8d31e2ecc7709",
+      "proofs": [],
+      "role": "behavior_or_behavioral_measure",
+      "scientific": "established",
+      "scope": "c5#suff:brain-behavior",
+      "support_ids": [
+        "p46"
+      ],
+      "value_id": "semantic-value-v1:sha256:c7fe32e9c37b15c9bc91fe0261f24cf922eac5561a5dcff7463bcb916b5ecf4b",
+      "authorized_display_source_inputs": [
+        "p46"
+      ],
+      "presentation_finalization_expected_display_ids": [],
+      "own_inherited_source": "own"
+    },
+    {
+      "claim_n": 16,
+      "class": "literal_value",
+      "display": "restricted",
+      "display_attempts": [
+        {
+          "ok": false,
+          "pid": "p47",
+          "reasons": [
+            "requested_construct_direct"
+          ]
+        },
+        {
+          "ok": false,
+          "pid": "p47",
+          "reasons": [
+            "requested_construct_direct"
+          ]
+        }
+      ],
+      "display_ids": [],
+      "establishment": [
+        {
+          "anchor": "p47",
+          "assertion_span": null,
+          "ids": [
+            "p47"
+          ],
+          "placement": [
+            "c5",
+            "c5#suff:brain-behavior",
+            "i::a3ab9566580a7fe4::855c307939056b14"
+          ],
+          "source": "own",
+          "support_ref": "legacy-support-ref-v1:sha256:1559ae393981e1c31936589cc8cad82cb60521b0cff2ba420009c4951beae048",
+          "view_id": "support-view-v1:sha256:69d323f98eb6fbc411056943459e1f1fef7580f8b622705290a4edbbb93d636d"
+        },
+        {
+          "anchor": "p47",
+          "assertion_span": null,
+          "ids": [
+            "p47"
+          ],
+          "placement": [
+            "c5",
+            "c5#suff:brain-behavior",
+            "i::ac9b72f14d53f532::e4796948ec530e13"
+          ],
+          "source": "own",
+          "support_ref": "legacy-support-ref-v1:sha256:b9ee92911b8eb875b3deed5e54a0482ff524c7c1254bbb582ef873a8d9a387e5",
+          "view_id": "support-view-v1:sha256:ebcf9c3b1603541b8c4f39df73c15bd7841b446108e612af4467bd3cddaab357"
+        }
+      ],
+      "family": "category_list",
+      "finding": "not_applicable",
+      "label": "participants were faster to share when playing with the good partner compared to the bad",
+      "material": {
+        "kind": "literal_value",
+        "literal": "participants were faster to share when playing with the good partner compared to the bad",
+        "schema": "semantic-value-v1",
+        "scope": {
+          "owner_id": "c5",
+          "requirement_id": "c5#suff:brain-behavior",
+          "role": "behavior_or_behavioral_measure"
+        }
+      },
+      "n": 31,
+      "observations": [],
+      "old_claim_id": "category_list::7ca8d31e2ecc7709",
+      "proofs": [],
+      "role": "behavior_or_behavioral_measure",
+      "scientific": "established",
+      "scope": "c5#suff:brain-behavior",
+      "support_ids": [
+        "p47"
+      ],
+      "value_id": "semantic-value-v1:sha256:565e311eb69e7038959dbae8cbf58c07f808b1c2e310671c8f87732b2d46c0ce",
+      "authorized_display_source_inputs": [
+        "p47"
+      ],
+      "presentation_finalization_expected_display_ids": [],
+      "own_inherited_source": "own"
+    },
+    {
+      "claim_n": 17,
+      "class": "literal_value",
+      "display": "supported",
+      "display_attempts": [
+        {
+          "ok": true,
+          "pid": "p14",
+          "reasons": []
+        },
+        {
+          "ok": true,
+          "pid": "p17",
+          "reasons": []
+        },
+        {
+          "ok": true,
+          "pid": "p3",
+          "reasons": []
+        },
+        {
+          "ok": true,
+          "pid": "p7",
+          "reasons": []
+        },
+        {
+          "ok": true,
+          "pid": "p26",
+          "reasons": []
+        },
+        {
+          "ok": true,
+          "pid": "p14",
+          "reasons": []
+        },
+        {
+          "ok": true,
+          "pid": "p17",
+          "reasons": []
+        },
+        {
+          "ok": true,
+          "pid": "p3",
+          "reasons": []
+        },
+        {
+          "ok": true,
+          "pid": "p7",
+          "reasons": []
+        },
+        {
+          "ok": true,
+          "pid": "p26",
+          "reasons": []
+        }
+      ],
+      "display_ids": [
+        "p14",
+        "p17",
+        "p26",
+        "p3",
+        "p7"
+      ],
+      "establishment": [
+        {
+          "anchor": "p14",
+          "assertion_span": null,
+          "ids": [
+            "p14",
+            "p17",
+            "p3",
+            "p7"
+          ],
+          "placement": [
+            "c6",
+            "c6#suff:brain-attitude",
+            "i::a3ab9566580a7fe4::f0daa6613a3449e9"
+          ],
+          "source": "own",
+          "support_ref": "legacy-support-ref-v1:sha256:03373989525c8e8ed7fdb0411cc6009dffd86f53cd57310aca75a92234203735",
+          "view_id": "support-view-v1:sha256:c418a3ecf3e6b2092ecac3cb5942a44918bc78d1ac3501744912542163c1b99c"
+        },
+        {
+          "anchor": "p26",
+          "assertion_span": null,
+          "ids": [
+            "p26"
+          ],
+          "placement": [
+            "c6",
+            "c6#suff:brain-attitude",
+            "i::a3ab9566580a7fe4::9492e632eeb1c2f9"
+          ],
+          "source": "own",
+          "support_ref": "legacy-support-ref-v1:sha256:cec6e0c55df929a51538735407710069fdb9ce6f42c2fc78d936e4bc78f1a9d3",
+          "view_id": "support-view-v1:sha256:9a7bfe0eda78b9373896b39abe973c9fd8cc013978ff7eceb64a33a093539724"
+        },
+        {
+          "anchor": "p14",
+          "assertion_span": null,
+          "ids": [
+            "p14",
+            "p17",
+            "p3",
+            "p7"
+          ],
+          "placement": [
+            "c6",
+            "c6#suff:brain-attitude",
+            "i::ac9b72f14d53f532::2f2b08aa35e6e926"
+          ],
+          "source": "own",
+          "support_ref": "legacy-support-ref-v1:sha256:3e3a4f1a5298cbba70b9b4dcbcbd0af04f5573681a25712633570ced88bca5d7",
+          "view_id": "support-view-v1:sha256:829f8bec7d3719a40dee27861487358bfd219fb62634523764ae92993f14c40e"
+        },
+        {
+          "anchor": "p26",
+          "assertion_span": null,
+          "ids": [
+            "p26"
+          ],
+          "placement": [
+            "c6",
+            "c6#suff:brain-attitude",
+            "i::ac9b72f14d53f532::9fe92674ba934ce3"
+          ],
+          "source": "own",
+          "support_ref": "legacy-support-ref-v1:sha256:77534ea480e833f0bb84967a04943e0c02741dc53f3d49b19c2a5d8af35a0185",
+          "view_id": "support-view-v1:sha256:984172b15290aab3f5c6b521da2e9ab60a4b78c9de5be31d3bf1659e95f6dae2"
+        }
+      ],
+      "family": "category_list",
+      "finding": "not_applicable",
+      "label": "Explicit Bias Questionnaire",
+      "material": {
+        "kind": "literal_value",
+        "literal": "Explicit Bias Questionnaire",
+        "schema": "semantic-value-v1",
+        "scope": {
+          "owner_id": "c6",
+          "requirement_id": "c6#suff:brain-attitude",
+          "role": "attitude_type_or_measure"
+        }
+      },
+      "n": 32,
+      "observations": [],
+      "old_claim_id": "category_list::8ed22a387cb23c02",
+      "proofs": [],
+      "role": "attitude_type_or_measure",
+      "scientific": "established",
+      "scope": "c6#suff:brain-attitude",
+      "support_ids": [
+        "p14",
+        "p17",
+        "p26",
+        "p3",
+        "p7"
+      ],
+      "value_id": "semantic-value-v1:sha256:4d66f019291fc331bfcbd04fd731c2117a9840421ea7db303023dbe9a657e72e",
+      "authorized_display_source_inputs": [
+        "p14",
+        "p17",
+        "p26",
+        "p3",
+        "p7"
+      ],
+      "presentation_finalization_expected_display_ids": [
+        "p14",
+        "p17",
+        "p26",
+        "p3",
+        "p7"
+      ],
+      "own_inherited_source": "own"
+    }
+  ],
+  "claims": [
+    {
+      "family": "relational",
+      "members": [
+        1,
+        2
+      ],
+      "n": 1,
+      "old_id": "relational::203c254207f97488",
+      "placements": [
+        [
+          "c1",
+          "c1#suff:neural-manifestation",
+          null
+        ]
+      ],
+      "semantic_identity_material": {
+        "schema": "parent-claim-v2",
+        "family": "relational",
+        "scope": {
+          "owner_ids": [
+            "c1"
+          ],
+          "requirement_ids": [
+            "c1#suff:neural-manifestation"
+          ]
+        },
+        "content": {
+          "relation_kind": "joint_own_completion",
+          "operands": {
+            "brain_region_or_network": "semantic-value-v1:sha256:71e539b97612a8e6b7c55805d777aa625355908b317a8657322a26f331a2dd08",
+            "neural_manifestation_evidence": "semantic-value-v1:sha256:dfb887dc4970e0245a4f3f7b0c85ae39d7c3a6e7a8607c0da71b5a86f7052d00"
+          },
+          "relation_contract": {
+            "required_roles": [
+              "neural_manifestation_evidence"
+            ],
+            "alternative_role_groups": [
+              [
+                "brain_region_or_network",
+                "neural_measure_or_modality"
+              ]
+            ],
+            "relationship_verifiers": [
+              "same_proposition"
+            ]
+          }
+        }
+      },
+      "prospective_semantic_id": "parent-claim-v2:sha256:f2a6fbb93d46d7666a535b24b748ff829460557b70cb6801063733a86d24fc41"
+    },
+    {
+      "family": "relational",
+      "members": [
+        3,
+        4
+      ],
+      "n": 2,
+      "old_id": "relational::51f7d49ce0af93a4",
+      "placements": [
+        [
+          "c2",
+          "c2#suff:behavioral-manifestation",
+          "i::76d9e54baf790d84"
+        ]
+      ],
+      "semantic_identity_material": {
+        "schema": "parent-claim-v2",
+        "family": "relational",
+        "scope": {
+          "owner_ids": [
+            "c2"
+          ],
+          "requirement_ids": [
+            "c2#suff:behavioral-manifestation"
+          ]
+        },
+        "content": {
+          "relation_kind": "joint_own_completion",
+          "operands": {
+            "behavior_or_behavioral_measure": "semantic-value-v1:sha256:3fcebcec37ff6f5b014a578c90da202ed158c969a2ab9b8fd6363c18ddebe25c",
+            "behavioral_manifestation_evidence": "semantic-value-v1:sha256:751e23ed92b57b22709dd30b7adb5b6e928f5cb5f87aca818d592ed254d878da"
+          },
+          "relation_contract": {
+            "required_roles": [
+              "behavior_or_behavioral_measure",
+              "behavioral_manifestation_evidence"
+            ],
+            "alternative_role_groups": [],
+            "relationship_verifiers": [
+              "same_proposition"
+            ]
+          }
+        }
+      },
+      "prospective_semantic_id": "parent-claim-v2:sha256:9153f4149522f82597ca9efb9f27c0dac3f49595be951e05a5e02d6ac8991a0a"
+    },
+    {
+      "family": "relational",
+      "members": [
+        5,
+        6
+      ],
+      "n": 3,
+      "old_id": "relational::493c9ae66cd9558c",
+      "placements": [
+        [
+          "c4",
+          "c4#suff:specific-region",
+          "i::ac9b72f14d53f532"
+        ]
+      ],
+      "semantic_identity_material": {
+        "schema": "parent-claim-v2",
+        "family": "relational",
+        "scope": {
+          "owner_ids": [
+            "c4"
+          ],
+          "requirement_ids": [
+            "c4#suff:specific-region"
+          ]
+        },
+        "content": {
+          "relation_kind": "joint_own_completion",
+          "operands": {
+            "region_bears_on_bias_evidence": "semantic-value-v1:sha256:02e3471955ebe76fd628662fd3be9bb03341d58f7678b0bd24222fe1783e4689",
+            "named_brain_region_or_network": "semantic-value-v1:sha256:c71d74c74520515a44822188e345418c1546cb83e49d8f910e2a448c3be81067"
+          },
+          "relation_contract": {
+            "required_roles": [
+              "named_brain_region_or_network",
+              "region_bears_on_bias_evidence"
+            ],
+            "alternative_role_groups": [],
+            "relationship_verifiers": [
+              "same_proposition"
+            ]
+          }
+        }
+      },
+      "prospective_semantic_id": "parent-claim-v2:sha256:553bfea852b8f012c1b6a3514bf75a61f8d1729af9eccabf5e99f478543faf12"
+    },
+    {
+      "family": "relational",
+      "members": [
+        7,
+        8
+      ],
+      "n": 4,
+      "old_id": "relational::f2151b28ac6f7906",
+      "placements": [
+        [
+          "c4",
+          "c4#suff:specific-region",
+          "i::a3ab9566580a7fe4"
+        ]
+      ],
+      "semantic_identity_material": {
+        "schema": "parent-claim-v2",
+        "family": "relational",
+        "scope": {
+          "owner_ids": [
+            "c4"
+          ],
+          "requirement_ids": [
+            "c4#suff:specific-region"
+          ]
+        },
+        "content": {
+          "relation_kind": "joint_own_completion",
+          "operands": {
+            "named_brain_region_or_network": "semantic-value-v1:sha256:e29229098dae6fa5dc269d953ad2b2c3a070e02fa88dd39647956dde5972de93",
+            "region_bears_on_bias_evidence": "semantic-value-v1:sha256:0010d9051d1776feefd833e762303a1b5e1fc5b031202b6af75add7496d1a82f"
+          },
+          "relation_contract": {
+            "required_roles": [
+              "named_brain_region_or_network",
+              "region_bears_on_bias_evidence"
+            ],
+            "alternative_role_groups": [],
+            "relationship_verifiers": [
+              "same_proposition"
+            ]
+          }
+        }
+      },
+      "prospective_semantic_id": "parent-claim-v2:sha256:1395b307418fab34026e35a852df86111b9a8fa834f353aacdf800eaec9c6a6a"
+    },
+    {
+      "family": "relational",
+      "members": [
+        9,
+        10
+      ],
+      "n": 5,
+      "old_id": "relational::b98797f466e662e8",
+      "placements": [
+        [
+          "c8",
+          "c8#suff:trait-construct",
+          "U23::24d132203292cebb"
+        ]
+      ],
+      "semantic_identity_material": {
+        "schema": "parent-claim-v2",
+        "family": "relational",
+        "scope": {
+          "owner_ids": [
+            "c8"
+          ],
+          "requirement_ids": [
+            "c8#suff:trait-construct"
+          ]
+        },
+        "content": {
+          "relation_kind": "joint_own_completion",
+          "operands": {
+            "relationship_to_bias_manifestation": "semantic-value-v1:sha256:9871c85eb64726c5b1394e3051e8e6f7e5e6013311fc846e8ec4f11d885d7587",
+            "individual_difference_trait_or_construct": "semantic-value-v1:sha256:637bdfd2f6c67012d4617655bd7c09e1a13d615b207f3185916e625f4eabe595"
+          },
+          "relation_contract": {
+            "required_roles": [
+              "individual_difference_trait_or_construct",
+              "relationship_to_bias_manifestation"
+            ],
+            "alternative_role_groups": [],
+            "relationship_verifiers": [
+              "same_proposition"
+            ]
+          }
+        }
+      },
+      "prospective_semantic_id": "parent-claim-v2:sha256:c02f02d65042387427895a977ab8fae9f36498cf07d474d608c7ddbee320bf71"
+    },
+    {
+      "family": "relational",
+      "members": [
+        11,
+        12
+      ],
+      "n": 6,
+      "old_id": "relational::ffd4e0ac38b79c90",
+      "placements": [
+        [
+          "c8",
+          "c8#suff:trait-construct",
+          "U23::8d7156b76bf6a6f7"
+        ]
+      ],
+      "semantic_identity_material": {
+        "schema": "parent-claim-v2",
+        "family": "relational",
+        "scope": {
+          "owner_ids": [
+            "c8"
+          ],
+          "requirement_ids": [
+            "c8#suff:trait-construct"
+          ]
+        },
+        "content": {
+          "relation_kind": "joint_own_completion",
+          "operands": {
+            "relationship_to_bias_manifestation": "semantic-value-v1:sha256:1d84fca93f15e3cbf8dfce00c41e153e7e957ded16c6477f9babc664b119a162",
+            "individual_difference_trait_or_construct": "semantic-value-v1:sha256:8c3e973976d23a8472f3f094b9b1ed52cd7f012e33e84a0eedd306add0422f20"
+          },
+          "relation_contract": {
+            "required_roles": [
+              "individual_difference_trait_or_construct",
+              "relationship_to_bias_manifestation"
+            ],
+            "alternative_role_groups": [],
+            "relationship_verifiers": [
+              "same_proposition"
+            ]
+          }
+        }
+      },
+      "prospective_semantic_id": "parent-claim-v2:sha256:f5b58cd041959f22650c7ebfbb05fa8192b5b40048c2b12d6757af5bb4ae30da"
+    },
+    {
+      "family": "relational",
+      "members": [
+        13,
+        14
+      ],
+      "n": 7,
+      "old_id": "relational::cf491ce7743dc485",
+      "placements": [
+        [
+          "c8",
+          "c8#suff:trait-construct",
+          "U23::50b0d4004f2f502f"
+        ]
+      ],
+      "semantic_identity_material": {
+        "schema": "parent-claim-v2",
+        "family": "relational",
+        "scope": {
+          "owner_ids": [
+            "c8"
+          ],
+          "requirement_ids": [
+            "c8#suff:trait-construct"
+          ]
+        },
+        "content": {
+          "relation_kind": "joint_own_completion",
+          "operands": {
+            "relationship_to_bias_manifestation": "semantic-value-v1:sha256:15046f1f6a3546697d0c77fde5d61e70e19eded91538b4aaac6bb14d65e8f902",
+            "individual_difference_trait_or_construct": "semantic-value-v1:sha256:c2247677d32bf4a9e3ab39db7d2e1cf63ba398f24258302bdf19afa2a448c46c"
+          },
+          "relation_contract": {
+            "required_roles": [
+              "individual_difference_trait_or_construct",
+              "relationship_to_bias_manifestation"
+            ],
+            "alternative_role_groups": [],
+            "relationship_verifiers": [
+              "same_proposition"
+            ]
+          }
+        }
+      },
+      "prospective_semantic_id": "parent-claim-v2:sha256:418af34a9bca2e476bce33f27b449e23e3ec602842a7083c15d488a6d1fe210b"
+    },
+    {
+      "family": "relational",
+      "members": [
+        15,
+        16
+      ],
+      "n": 8,
+      "old_id": "relational::b87b1fc33715f29b",
+      "placements": [
+        [
+          "c8",
+          "c8#suff:trait-construct",
+          "U23::f6027eb43b85593c"
+        ]
+      ],
+      "semantic_identity_material": {
+        "schema": "parent-claim-v2",
+        "family": "relational",
+        "scope": {
+          "owner_ids": [
+            "c8"
+          ],
+          "requirement_ids": [
+            "c8#suff:trait-construct"
+          ]
+        },
+        "content": {
+          "relation_kind": "joint_own_completion",
+          "operands": {
+            "individual_difference_trait_or_construct": "semantic-value-v1:sha256:52de78a144af120d61898d196d1ffbca88c38e71a7f3de2c7cb735679f2adcdc",
+            "relationship_to_bias_manifestation": "semantic-value-v1:sha256:0a612abee98c488f11ecaef9b20538d3a2050125d5dc06f8acc78a1bef0f0608"
+          },
+          "relation_contract": {
+            "required_roles": [
+              "individual_difference_trait_or_construct",
+              "relationship_to_bias_manifestation"
+            ],
+            "alternative_role_groups": [],
+            "relationship_verifiers": [
+              "same_proposition"
+            ]
+          }
+        }
+      },
+      "prospective_semantic_id": "parent-claim-v2:sha256:c2cba0c8b1f4356302faeb08aeb8b75b80351c408b0d0627d389b766c51ba94f"
+    },
+    {
+      "family": "relational",
+      "members": [
+        17,
+        18
+      ],
+      "n": 9,
+      "old_id": "relational::5a0a02f415cffd79",
+      "placements": [
+        [
+          "c8",
+          "c8#suff:trait-construct",
+          "U23::910466e6604581fa"
+        ]
+      ],
+      "semantic_identity_material": {
+        "schema": "parent-claim-v2",
+        "family": "relational",
+        "scope": {
+          "owner_ids": [
+            "c8"
+          ],
+          "requirement_ids": [
+            "c8#suff:trait-construct"
+          ]
+        },
+        "content": {
+          "relation_kind": "joint_own_completion",
+          "operands": {
+            "relationship_to_bias_manifestation": "semantic-value-v1:sha256:972f2149ad56f9a9d9e28f17eed71fcb2181e5ef6d0e92d5bec12c80eb9228d3",
+            "individual_difference_trait_or_construct": "semantic-value-v1:sha256:a4e6cf453349208936e627f051220b0cf0736d4cb37c658f8e65814f943ca8d5"
+          },
+          "relation_contract": {
+            "required_roles": [
+              "individual_difference_trait_or_construct",
+              "relationship_to_bias_manifestation"
+            ],
+            "alternative_role_groups": [],
+            "relationship_verifiers": [
+              "same_proposition"
+            ]
+          }
+        }
+      },
+      "prospective_semantic_id": "parent-claim-v2:sha256:c43f945b2be16c9d8271176bcc05fefd7a317dd623d24e7b51bb348928631432"
+    },
+    {
+      "family": "role_value",
+      "members": [
+        19
+      ],
+      "n": 10,
+      "old_id": "role_value::c24ac1ab2f5259b2",
+      "placements": [
+        [
+          "c3",
+          "c3#suff:attitude-manifestation",
+          null
+        ]
+      ],
+      "semantic_identity_material": {
+        "schema": "parent-claim-v2",
+        "family": "role_value",
+        "scope": {
+          "owner_ids": [
+            "c3"
+          ],
+          "requirement_ids": [
+            "c3#suff:attitude-manifestation"
+          ]
+        },
+        "content": {
+          "role": "attitude_manifestation_evidence",
+          "value_id": "semantic-value-v1:sha256:20ab47f0575592ac3519357d1ce20dd537f68e8caa32384b0f1bf8dabe4e171f"
+        }
+      },
+      "prospective_semantic_id": "parent-claim-v2:sha256:d4289c0ca9483a2033c0382682f58d003b551f827784f35a57036914a542d033"
+    },
+    {
+      "family": "role_value",
+      "members": [
+        20
+      ],
+      "n": 11,
+      "old_id": "role_value::cb9192d62bbccd00",
+      "placements": [
+        [
+          "c6",
+          "c6#suff:implicit-explicit-coverage",
+          "explicit"
+        ]
+      ],
+      "semantic_identity_material": {
+        "schema": "parent-claim-v2",
+        "family": "role_value",
+        "scope": {
+          "owner_ids": [
+            "c6"
+          ],
+          "requirement_ids": [
+            "c6#suff:implicit-explicit-coverage"
+          ]
+        },
+        "content": {
+          "role": "category_evidence",
+          "value_id": "semantic-value-v1:sha256:0b2d5d6507dbbc6f6d0212b7cc0411c9be3d2663cc7798295605d85659716980"
+        }
+      },
+      "prospective_semantic_id": "parent-claim-v2:sha256:2e9ac8f59b127263bce923cf4a6b18bdfce32ed4eff5aaac58708df69a110e30"
+    },
+    {
+      "family": "category_list",
+      "members": [
+        21
+      ],
+      "n": 12,
+      "old_id": "category_list::775fda7778860372",
+      "placements": [
+        [
+          "c10",
+          "c10#suff:culture-existence",
+          "i::e506b4436247cda9"
+        ],
+        [
+          "c10",
+          "c10#suff:culture-existence",
+          "i::22b9d69edba8b78a"
+        ]
+      ],
+      "semantic_identity_material": {
+        "schema": "parent-claim-v2",
+        "family": "category_list",
+        "scope": {
+          "owner_ids": [
+            "c10"
+          ],
+          "requirement_ids": [
+            "c10#suff:culture-existence"
+          ]
+        },
+        "content": {
+          "role": "named_culture_or_population",
+          "member_value_ids": [
+            "semantic-value-v1:sha256:ec620d2e915553dd9fc9bb83a0dc3330247d83aa357b1ff02ccaedd9e59eba7b"
+          ],
+          "grouping": {
+            "instance_quantifier": "exists",
+            "quantifier_n": null,
+            "requested_category_terms": []
+          }
+        }
+      },
+      "prospective_semantic_id": "parent-claim-v2:sha256:74445011aa05fdf6695761c486409c05ad1321b4969d0a1c24387a61481cffa7"
+    },
+    {
+      "family": "category_list",
+      "members": [
+        22,
+        23
+      ],
+      "n": 13,
+      "old_id": "category_list::ed3e1d5fd3979f2e",
+      "placements": [
+        [
+          "c2",
+          "c2#suff:behavioral-manifestation",
+          "i::4777c74a36ed08b9"
+        ],
+        [
+          "c2",
+          "c2#suff:behavioral-manifestation",
+          "i::9fb27754ba7442ef"
+        ]
+      ],
+      "semantic_identity_material": {
+        "schema": "parent-claim-v2",
+        "family": "category_list",
+        "scope": {
+          "owner_ids": [
+            "c2"
+          ],
+          "requirement_ids": [
+            "c2#suff:behavioral-manifestation"
+          ]
+        },
+        "content": {
+          "role": "behavior_or_behavioral_measure",
+          "member_value_ids": [
+            "semantic-value-v1:sha256:236ced83cf41481eb76b7733518a532c21bc2d2f4b808530c35c01e5c8d6dbc9",
+            "semantic-value-v1:sha256:f6dcd8bfe866cd5c62411674f25e50d2ad99279174bd34a1f3b5b183e8d2edba"
+          ],
+          "grouping": {
+            "instance_quantifier": "exists",
+            "quantifier_n": null,
+            "requested_category_terms": []
+          }
+        }
+      },
+      "prospective_semantic_id": "parent-claim-v2:sha256:cee6dcdbfaf6fef17036224d06b06b0ed929655ead8614764270a13a7467157b"
+    },
+    {
+      "family": "category_list",
+      "members": [
+        24,
+        25
+      ],
+      "n": 14,
+      "old_id": "category_list::351d34bff55b518f",
+      "placements": [
+        [
+          "c3",
+          "c3#suff:implicit-explicit-coverage",
+          "implicit"
+        ],
+        [
+          "c3",
+          "c3#suff:implicit-explicit-coverage",
+          "explicit"
+        ]
+      ],
+      "semantic_identity_material": {
+        "schema": "parent-claim-v2",
+        "family": "category_list",
+        "scope": {
+          "owner_ids": [
+            "c3"
+          ],
+          "requirement_ids": [
+            "c3#suff:implicit-explicit-coverage"
+          ]
+        },
+        "content": {
+          "role": "category_evidence",
+          "member_value_ids": [
+            "semantic-value-v1:sha256:8eb2403f24906e5a891c736b9c91bd3b29610c9a46866a1685e7105c656a6ea0",
+            "semantic-value-v1:sha256:bc62af4f96a9b58b0d2cd5c38de50473a465baf5e23665a718971518907978c5"
+          ],
+          "grouping": {
+            "instance_quantifier": "all_requested_categories",
+            "quantifier_n": null,
+            "requested_category_terms": [
+              "explicit",
+              "implicit"
+            ]
+          }
+        }
+      },
+      "prospective_semantic_id": "parent-claim-v2:sha256:4598c52add356a5ff91f5b5d42d1fc7f1962cb626efd04da919e397581a62bf4"
+    },
+    {
+      "family": "category_list",
+      "members": [
+        26,
+        27,
+        28,
+        29
+      ],
+      "n": 15,
+      "old_id": "category_list::f1f51b4ba55bad3c",
+      "placements": [
+        [
+          "c8",
+          "c8#suff:trait-construct",
+          "U6::b2958c5ad5164563"
+        ],
+        [
+          "c8",
+          "c8#suff:trait-construct",
+          "U6::ce8933c59b53a00f"
+        ],
+        [
+          "c8",
+          "c8#suff:trait-construct",
+          "U6::da37435ef9b489b6"
+        ],
+        [
+          "c8",
+          "c8#suff:trait-construct",
+          "U6::d41542e10edf3ea7"
+        ]
+      ],
+      "semantic_identity_material": {
+        "schema": "parent-claim-v2",
+        "family": "category_list",
+        "scope": {
+          "owner_ids": [
+            "c8"
+          ],
+          "requirement_ids": [
+            "c8#suff:trait-construct"
+          ]
+        },
+        "content": {
+          "role": "individual_difference_trait_or_construct",
+          "member_value_ids": [
+            "semantic-value-v1:sha256:13da9580be9944534392f504551b6bad7cad0d7c54e9eacbbc97d46957d1187e",
+            "semantic-value-v1:sha256:460dfdd5d724ad401ae421c98262ddea836c1e1b51a50946652c9f0331455992",
+            "semantic-value-v1:sha256:67404b8a0b0b338af1eb1440bb7fd438174e8050771d99bfef940924f67c7d29",
+            "semantic-value-v1:sha256:be4fdda9a1c7a097f7098d7333cb28702273ade4921d78726b0289e720ec89d4"
+          ],
+          "grouping": {
+            "instance_quantifier": "open_list",
+            "quantifier_n": null,
+            "requested_category_terms": []
+          }
+        }
+      },
+      "prospective_semantic_id": "parent-claim-v2:sha256:3756f80867862269d192bfb5d5367403155263dfd8e3cf5e6006c08f6e19e88c"
+    },
+    {
+      "family": "category_list",
+      "members": [
+        30,
+        31
+      ],
+      "n": 16,
+      "old_id": "category_list::7ca8d31e2ecc7709",
+      "placements": [
+        [
+          "c5",
+          "c5#suff:brain-behavior",
+          "i::a3ab9566580a7fe4::13b13ddc969b96ae"
+        ],
+        [
+          "c5",
+          "c5#suff:brain-behavior",
+          "i::a3ab9566580a7fe4::855c307939056b14"
+        ],
+        [
+          "c5",
+          "c5#suff:brain-behavior",
+          "i::ac9b72f14d53f532::4a3f8a1c59aaa360"
+        ],
+        [
+          "c5",
+          "c5#suff:brain-behavior",
+          "i::ac9b72f14d53f532::e4796948ec530e13"
+        ]
+      ],
+      "semantic_identity_material": {
+        "schema": "parent-claim-v2",
+        "family": "category_list",
+        "scope": {
+          "owner_ids": [
+            "c5"
+          ],
+          "requirement_ids": [
+            "c5#suff:brain-behavior"
+          ]
+        },
+        "content": {
+          "role": "behavior_or_behavioral_measure",
+          "member_value_ids": [
+            "semantic-value-v1:sha256:565e311eb69e7038959dbae8cbf58c07f808b1c2e310671c8f87732b2d46c0ce",
+            "semantic-value-v1:sha256:c7fe32e9c37b15c9bc91fe0261f24cf922eac5561a5dcff7463bcb916b5ecf4b"
+          ],
+          "grouping": {
+            "instance_quantifier": "exists",
+            "quantifier_n": null,
+            "requested_category_terms": []
+          }
+        }
+      },
+      "prospective_semantic_id": "parent-claim-v2:sha256:c0ac85668328015df03a1d3d4d3e3b366f6506329c7ef4fb5ed6f4f78dc6ed0a"
+    },
+    {
+      "family": "category_list",
+      "members": [
+        32
+      ],
+      "n": 17,
+      "old_id": "category_list::8ed22a387cb23c02",
+      "placements": [
+        [
+          "c6",
+          "c6#suff:brain-attitude",
+          "i::a3ab9566580a7fe4::f0daa6613a3449e9"
+        ],
+        [
+          "c6",
+          "c6#suff:brain-attitude",
+          "i::a3ab9566580a7fe4::9492e632eeb1c2f9"
+        ],
+        [
+          "c6",
+          "c6#suff:brain-attitude",
+          "i::ac9b72f14d53f532::2f2b08aa35e6e926"
+        ],
+        [
+          "c6",
+          "c6#suff:brain-attitude",
+          "i::ac9b72f14d53f532::9fe92674ba934ce3"
+        ]
+      ],
+      "semantic_identity_material": {
+        "schema": "parent-claim-v2",
+        "family": "category_list",
+        "scope": {
+          "owner_ids": [
+            "c6"
+          ],
+          "requirement_ids": [
+            "c6#suff:brain-attitude"
+          ]
+        },
+        "content": {
+          "role": "attitude_type_or_measure",
+          "member_value_ids": [
+            "semantic-value-v1:sha256:4d66f019291fc331bfcbd04fd731c2117a9840421ea7db303023dbe9a657e72e"
+          ],
+          "grouping": {
+            "instance_quantifier": "exists",
+            "quantifier_n": null,
+            "requested_category_terms": []
+          }
+        }
+      },
+      "prospective_semantic_id": "parent-claim-v2:sha256:172e733fd288f49ae73b895e9face8070f0cf9e60eb0d8f9dd7c9aa0d69c3ce3"
+    }
+  ],
+  "inherited": [
+    {
+      "literal": "increased amygdala reactiv- ity",
+      "placement": [
+        "c5",
+        "c5#suff:brain-behavior",
+        "i::a3ab9566580a7fe4::13b13ddc969b96ae",
+        "named_brain_region_or_network"
+      ],
+      "reason": "inherited context only; no child relation proof",
+      "source": "inherited",
+      "support_ids": [
+        "p40"
+      ],
+      "value_id": "semantic-value-v1:sha256:0a7dc994e85291cf0e90432977ee073e5f9013866659ae2cee450560c7ee5cb3",
+      "view_id": "support-view-v1:sha256:df8772d7e46b5b99b96e26779aad3b158a50a40cbfc5ee78d948d7ba79603563"
+    },
+    {
+      "literal": "increased amygdala reactiv- ity",
+      "placement": [
+        "c5",
+        "c5#suff:brain-behavior",
+        "i::a3ab9566580a7fe4::855c307939056b14",
+        "named_brain_region_or_network"
+      ],
+      "reason": "inherited context only; no child relation proof",
+      "source": "inherited",
+      "support_ids": [
+        "p40"
+      ],
+      "value_id": "semantic-value-v1:sha256:0a7dc994e85291cf0e90432977ee073e5f9013866659ae2cee450560c7ee5cb3",
+      "view_id": "support-view-v1:sha256:a2f701de5f4b7f6aff2eb390129b786e8e11fc094839cb422b29400aefb27d08"
+    },
+    {
+      "literal": "the specific amygdala response",
+      "placement": [
+        "c5",
+        "c5#suff:brain-behavior",
+        "i::ac9b72f14d53f532::4a3f8a1c59aaa360",
+        "named_brain_region_or_network"
+      ],
+      "reason": "inherited context only; no child relation proof",
+      "source": "inherited",
+      "support_ids": [
+        "p11"
+      ],
+      "value_id": "semantic-value-v1:sha256:44c9225d5215c082f13c1a1db050e106147bd44de1d5f8d2899f7077de6641c5",
+      "view_id": "support-view-v1:sha256:bea9a7218e5df5a385918efb3ed8f3f63f018b6223b5c9dc1767f0a57b2be8be"
+    },
+    {
+      "literal": "the specific amygdala response",
+      "placement": [
+        "c5",
+        "c5#suff:brain-behavior",
+        "i::ac9b72f14d53f532::e4796948ec530e13",
+        "named_brain_region_or_network"
+      ],
+      "reason": "inherited context only; no child relation proof",
+      "source": "inherited",
+      "support_ids": [
+        "p11"
+      ],
+      "value_id": "semantic-value-v1:sha256:44c9225d5215c082f13c1a1db050e106147bd44de1d5f8d2899f7077de6641c5",
+      "view_id": "support-view-v1:sha256:1e293e9dc9ba5929cb4ef4eb909dce5451fbdb3313f079c9c9180f378bcc1103"
+    },
+    {
+      "literal": "increased amygdala reactiv- ity",
+      "placement": [
+        "c6",
+        "c6#suff:brain-attitude",
+        "i::a3ab9566580a7fe4::f0daa6613a3449e9",
+        "named_brain_region_or_network"
+      ],
+      "reason": "inherited context only; no child relation proof",
+      "source": "inherited",
+      "support_ids": [
+        "p40"
+      ],
+      "value_id": "semantic-value-v1:sha256:52413dc40ec36e20e42178250a94fc2b9093082f117e34e071e294fe6c412881",
+      "view_id": "support-view-v1:sha256:2cb90d01ad4315d5a57c7d7d912d8ef734ac6e9575cf54345be3801673c6598e"
+    },
+    {
+      "literal": "increased amygdala reactiv- ity",
+      "placement": [
+        "c6",
+        "c6#suff:brain-attitude",
+        "i::a3ab9566580a7fe4::9492e632eeb1c2f9",
+        "named_brain_region_or_network"
+      ],
+      "reason": "inherited context only; no child relation proof",
+      "source": "inherited",
+      "support_ids": [
+        "p40"
+      ],
+      "value_id": "semantic-value-v1:sha256:52413dc40ec36e20e42178250a94fc2b9093082f117e34e071e294fe6c412881",
+      "view_id": "support-view-v1:sha256:27401571fe13ec02603e9a478628294785195b16dc79bb6e04c6a0fb0d96ace2"
+    },
+    {
+      "literal": "the specific amygdala response",
+      "placement": [
+        "c6",
+        "c6#suff:brain-attitude",
+        "i::ac9b72f14d53f532::2f2b08aa35e6e926",
+        "named_brain_region_or_network"
+      ],
+      "reason": "inherited context only; no child relation proof",
+      "source": "inherited",
+      "support_ids": [
+        "p11"
+      ],
+      "value_id": "semantic-value-v1:sha256:545fe80f07f215c6e83be36b385f5aed65fef8aff5de50c1e1eb259d5a8c0418",
+      "view_id": "support-view-v1:sha256:4f76233f5136c42768f71947bfd9f4b68fe7da1e91648d79195104af12aece28"
+    },
+    {
+      "literal": "the specific amygdala response",
+      "placement": [
+        "c6",
+        "c6#suff:brain-attitude",
+        "i::ac9b72f14d53f532::9fe92674ba934ce3",
+        "named_brain_region_or_network"
+      ],
+      "reason": "inherited context only; no child relation proof",
+      "source": "inherited",
+      "support_ids": [
+        "p11"
+      ],
+      "value_id": "semantic-value-v1:sha256:545fe80f07f215c6e83be36b385f5aed65fef8aff5de50c1e1eb259d5a8c0418",
+      "view_id": "support-view-v1:sha256:8114164756fef1f8a7a65ea9768d1305aa49745f75840972126c23b17171658a"
+    },
+    {
+      "literal": "attractiveness",
+      "placement": [
+        "c9",
+        "c9#suff:trait-scale-pairing",
+        "U23::24d132203292cebb",
+        "individual_difference_trait_or_construct"
+      ],
+      "reason": "inherited context only; no child relation proof",
+      "source": "inherited",
+      "support_ids": [
+        "p41"
+      ],
+      "value_id": "semantic-value-v1:sha256:968f35cf846701778a656d8aa296e2c8d773292f33dff695982947379aa7182b",
+      "view_id": "support-view-v1:sha256:83f415412aad1a4d2c083ae7958cf9d5ba5bf8af2790f6baa4e19ecca731149f"
+    },
+    {
+      "literal": "anger",
+      "placement": [
+        "c9",
+        "c9#suff:trait-scale-pairing",
+        "U23::50b0d4004f2f502f",
+        "individual_difference_trait_or_construct"
+      ],
+      "reason": "inherited context only; no child relation proof",
+      "source": "inherited",
+      "support_ids": [
+        "p41"
+      ],
+      "value_id": "semantic-value-v1:sha256:e54608a6fd58d79fc55e79902811212915cb12aa784dbb8ca1b1688c6632ec4b",
+      "view_id": "support-view-v1:sha256:9654df45d8f194962278166bd2dfba9ad98dacec951e6eef0867c32072fdeff3"
+    },
+    {
+      "literal": "trustworthiness",
+      "placement": [
+        "c9",
+        "c9#suff:trait-scale-pairing",
+        "U23::8d7156b76bf6a6f7",
+        "individual_difference_trait_or_construct"
+      ],
+      "reason": "inherited context only; no child relation proof",
+      "source": "inherited",
+      "support_ids": [
+        "p41"
+      ],
+      "value_id": "semantic-value-v1:sha256:3c491f52c5823091d276584f18d0ada60d3fcfa697677a772f8fcbebd84ec96c",
+      "view_id": "support-view-v1:sha256:dd721f6e0ff194b83a3d7d7065d722b96687e74da22d0f8173f92b5db922ec32"
+    },
+    {
+      "literal": "threateningness",
+      "placement": [
+        "c9",
+        "c9#suff:trait-scale-pairing",
+        "U23::910466e6604581fa",
+        "individual_difference_trait_or_construct"
+      ],
+      "reason": "inherited context only; no child relation proof",
+      "source": "inherited",
+      "support_ids": [
+        "p41"
+      ],
+      "value_id": "semantic-value-v1:sha256:5e96ceebc803f2dd058ca8648e3cd353c6739a21df033f1cd22ffd7d395c063a",
+      "view_id": "support-view-v1:sha256:08df66e653961b1d9e9a8cca98a9a7d3c37535ac016ef111463932d15f796c5f"
+    },
+    {
+      "literal": "dominance",
+      "placement": [
+        "c9",
+        "c9#suff:trait-scale-pairing",
+        "U23::f6027eb43b85593c",
+        "individual_difference_trait_or_construct"
+      ],
+      "reason": "inherited context only; no child relation proof",
+      "source": "inherited",
+      "support_ids": [
+        "p41"
+      ],
+      "value_id": "semantic-value-v1:sha256:8670f0698d828d77952c194814c7bd7810b19b43606a4ccbe00e8d71d4ecc5f5",
+      "view_id": "support-view-v1:sha256:cadfaf0a0165e219e03dd27d8fcd59b4d094ee17ae1ac30bf39ad6988e1efde7"
+    }
+  ],
+  "future_node_contract": {
+    "states": [
+      "partial",
+      "partial",
+      "answered",
+      "partial",
+      "not_established",
+      "partial",
+      "partial",
+      "not_established",
+      "not_established"
+    ],
+    "facets": {
+      "c1#suff:neural-manifestation": {
+        "state": "partial",
+        "target_established": true,
+        "display_value_ids": []
+      },
+      "c2#suff:behavioral-manifestation": {
+        "state": "partial",
+        "target_established": true,
+        "display_value_ids": []
+      },
+      "c3#suff:attitude-manifestation": {
+        "state": "answered",
+        "target_established": true,
+        "display_value_ids": [
+          "semantic-value-v1:sha256:20ab47f0575592ac3519357d1ce20dd537f68e8caa32384b0f1bf8dabe4e171f"
+        ]
+      },
+      "c3#suff:implicit-explicit-coverage": {
+        "state": "answered",
+        "target_established": true,
+        "display_value_ids": [
+          "semantic-value-v1:sha256:8eb2403f24906e5a891c736b9c91bd3b29610c9a46866a1685e7105c656a6ea0",
+          "semantic-value-v1:sha256:bc62af4f96a9b58b0d2cd5c38de50473a465baf5e23665a718971518907978c5"
+        ]
+      },
+      "c4#suff:specific-region": {
+        "state": "partial",
+        "target_established": true,
+        "display_value_ids": []
+      },
+      "c5#suff:brain-behavior": {
+        "state": "not_established",
+        "target_established": false,
+        "display_value_ids": []
+      },
+      "c6#suff:brain-attitude": {
+        "state": "partial",
+        "target_established": false,
+        "display_value_ids": [
+          "semantic-value-v1:sha256:4d66f019291fc331bfcbd04fd731c2117a9840421ea7db303023dbe9a657e72e"
+        ]
+      },
+      "c6#suff:implicit-explicit-coverage": {
+        "state": "partial",
+        "target_established": true,
+        "display_value_ids": []
+      },
+      "c8#suff:trait-construct": {
+        "state": "partial",
+        "target_established": true,
+        "display_value_ids": []
+      },
+      "c9#suff:trait-scale-pairing": {
+        "state": "not_established",
+        "target_established": false,
+        "display_value_ids": []
+      },
+      "c10#suff:culture-existence": {
+        "state": "not_established",
+        "target_established": false,
+        "display_value_ids": []
+      },
+      "c11#suff:culture-operationalization-pairing": {
+        "state": "not_established",
+        "target_established": false,
+        "display_value_ids": []
+      },
+      "c12#suff:intervention-effectiveness": {
+        "state": "not_established",
+        "target_established": false,
+        "display_value_ids": []
+      }
+    },
+    "input_unchanged": true,
+    "labels": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "4A",
+      "4B",
+      "5",
+      "6",
+      "7"
+    ],
+    "node3_category_axes": {
+      "report_state": "answered",
+      "covered_categories": [
+        "explicit",
+        "implicit"
+      ],
+      "scientific_goal_state": "incomplete",
+      "implicit": {
+        "scientific_goal_state": "unestablished",
+        "reported_finding": "null_finding"
+      },
+      "explicit": {
+        "scientific_goal_state": "established",
+        "reported_finding": "positive_finding"
+      },
+      "category_recovery_persists": true
+    },
+    "nodes": [
+      {
+        "label": "1",
+        "report_state": "partial",
+        "typed_reasons": [
+          "display_rule_failed:referentially_closed"
+        ],
+        "activated": false
+      },
+      {
+        "label": "2",
+        "report_state": "partial",
+        "typed_reasons": [
+          "display_rule_failed:requested_construct_direct"
+        ],
+        "activated": false
+      },
+      {
+        "label": "3",
+        "report_state": "answered",
+        "typed_reasons": [
+          "typed_category_reporting",
+          "goal_unsatisfied_null"
+        ],
+        "activated": false
+      },
+      {
+        "label": "4",
+        "report_state": "partial",
+        "typed_reasons": [
+          "display_rule_failed:referentially_closed",
+          "display_rule_failed:attribution_prior_work"
+        ],
+        "activated": false
+      },
+      {
+        "label": "4A",
+        "report_state": "not_established",
+        "typed_reasons": [
+          "relation_unwitnessed"
+        ],
+        "activated": false
+      },
+      {
+        "label": "4B",
+        "report_state": "partial",
+        "typed_reasons": [
+          "relation_unwitnessed",
+          "display_rule_failed:attribution_unknown",
+          "missing_category:implicit"
+        ],
+        "activated": false
+      },
+      {
+        "label": "5",
+        "report_state": "partial",
+        "typed_reasons": [
+          "display_rule_failed:not_stimulus_rating",
+          "incomplete_scale_pairing"
+        ],
+        "activated": false
+      },
+      {
+        "label": "6",
+        "report_state": "not_established",
+        "typed_reasons": [
+          "incomplete_culture_bias_relation",
+          "incomplete_operationalization"
+        ],
+        "activated": false
+      },
+      {
+        "label": "7",
+        "report_state": "not_established",
+        "typed_reasons": [
+          "incomplete_intervention_relation"
+        ],
+        "activated": false
+      }
+    ]
+  },
+  "hashes": {
+    "v4": "4154ebd4062d22aa25db43e947aba61abe2c5888d6aa10d8ecd14b60afa65e4a",
+    "v5": "109030de83856b4384d596311dd8e3f6d46d19859c895c4b94b9efb3aa92ae77",
+    "v6": "dabef2f553b5e9301f9daa3a344b624ee6afb3e0f41fbce18b096587736822be",
+    "v7": "04eb38b1ef12dc694c075279f7d03228a96ac5938cdb7d1bd9782957fb960c72",
+    "v8": "1b8c89473bf1cf7d562483c29f6d14c1ef503de2788f3d81563842a1cc7659f0"
+  },
+  "synthetic_value_coverage_matrix": [
+    {
+      "id": "A",
+      "case": "selected",
+      "upstream_establishment": true,
+      "authorized_display_input": true,
+      "future_facet_expectation": "answered"
+    },
+    {
+      "id": "B",
+      "case": "display_restricted",
+      "upstream_establishment": true,
+      "authorized_display_input": true,
+      "future_facet_expectation": "partial"
+    },
+    {
+      "id": "C",
+      "case": "category_alternative",
+      "upstream_establishment": true,
+      "authorized_display_input": true,
+      "future_facet_expectation": "answered"
+    },
+    {
+      "id": "D",
+      "case": "foreign_category",
+      "upstream_establishment": true,
+      "authorized_display_input": false,
+      "future_facet_expectation": "partial"
+    },
+    {
+      "id": "E",
+      "case": "text_only",
+      "upstream_establishment": true,
+      "authorized_display_input": false,
+      "future_facet_expectation": "partial"
+    },
+    {
+      "id": "F",
+      "case": "missing_category",
+      "upstream_establishment": false,
+      "authorized_display_input": false,
+      "future_facet_expectation": "reject_inconsistent"
+    },
+    {
+      "id": "G",
+      "case": "two_values_one_covered",
+      "upstream_establishment": true,
+      "authorized_display_input": true,
+      "future_facet_expectation": "partial"
+    },
+    {
+      "id": "H",
+      "case": "two_observations_one_source",
+      "upstream_establishment": true,
+      "authorized_display_input": true,
+      "future_facet_expectation": "answered"
+    },
+    {
+      "id": "I",
+      "case": "one_observation_two_words",
+      "upstream_establishment": true,
+      "authorized_display_input": false,
+      "future_facet_expectation": "partial"
+    },
+    {
+      "id": "J",
+      "case": "two_sources",
+      "upstream_establishment": true,
+      "authorized_display_input": true,
+      "future_facet_expectation": "answered"
+    },
+    {
+      "id": "K",
+      "case": "distinct_scopes",
+      "upstream_establishment": true,
+      "authorized_display_input": true,
+      "future_facet_expectation": "scoped"
+    },
+    {
+      "id": "L",
+      "case": "excluded",
+      "upstream_establishment": false,
+      "authorized_display_input": false,
+      "future_facet_expectation": "not_established"
+    },
+    {
+      "id": "M",
+      "case": "ambiguous",
+      "upstream_establishment": false,
+      "authorized_display_input": false,
+      "future_facet_expectation": "not_established"
+    },
+    {
+      "id": "N",
+      "case": "legacy",
+      "upstream_establishment": true,
+      "authorized_display_input": true,
+      "future_facet_expectation": "answered_or_display_restricted"
+    },
+    {
+      "id": "O",
+      "case": "unlocated",
+      "upstream_establishment": true,
+      "authorized_display_input": false,
+      "future_facet_expectation": "partial"
+    },
+    {
+      "id": "P",
+      "case": "punctuation",
+      "upstream_establishment": true,
+      "authorized_display_input": true,
+      "future_facet_expectation": "unchanged"
+    },
+    {
+      "id": "Q",
+      "case": "second_assertion",
+      "upstream_establishment": true,
+      "authorized_display_input": true,
+      "future_facet_expectation": "no_added_coverage"
+    },
+    {
+      "id": "R",
+      "case": "link_only",
+      "upstream_establishment": true,
+      "authorized_display_input": true,
+      "future_facet_expectation": "narrow_relation_only"
+    }
+  ]
+}
