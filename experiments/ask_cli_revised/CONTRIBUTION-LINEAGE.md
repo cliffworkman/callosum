@@ -3124,3 +3124,48 @@ all-gates-passing condition is unmet. No new profile-B baseline or full integrat
 Existing replay baselines and v7/plan-v4 defaults remain untouched; v8 stays supported_noncurrent.
 No production/scientific behavior, model/NLI/retrieval/live E2E, I4-4E, I2-3, same_local_assertion or
 claim-goal/authority-veto work. NOT READY for the separate I4-4E promotion decision.
+
+## Phase 34 / I4-4D0 — producer authorization trust-anchor design
+
+**Date:** 2026-10-10. **Result:** READY for bounded I4-4D1; planning only, I4-4D remains stopped.
+See [I4-4D0 design](PHASE34_I4_4D0_PRODUCER_AUTHORIZATION_DESIGN.md).
+
+**Checkpoint.** The accepted I4-4D STOP report/lineage were the only dirty files and were
+committed/pushed with normal documentation hooks as de03fe12bf8b0f55b8d89d59de7b6ab472a80f03.
+This audit began from that clean HEAD; production remains the accepted I4-4C implementation.
+
+**Decision.** Option A: fixed repository-owned authorization registry, initially one qualified
+offline producer profile and one separately enrolled accepted reproduction receipt. Profiles
+authorize implementation/configuration; receipts bind event inputs/output. Profile membership
+alone cannot reject a rehashed output under a known producer label, so exact independent receipt
+enrollment is mandatory. No arbitrary new outputs, automatic enrollment, caller registry or
+characterization-baseline-as-authority. Threats A-D are in scope relative to trusted repository/
+verifier code; replacement of that trust root or arbitrary process-code execution is out of scope.
+Digital signatures are not needed now. Existing signed-runtime infrastructure is a different scope.
+
+**Independent inputs.** Reviewed frozen v9 authored requirements match the accepted v8 map
+exactly. The closed reproduction binds sealed bytes/index, hierarchy data/review, overlay,
+resident ownership context and preserved nomination provenance: 32 scope/context slots, 21
+held bindings, 33 replay requests matching stored fingerprints; all 49 stored trace fingerprints
+recompute. No authoring authority is derived from a caller-supplied map. Known hierarchy loader
+code-pin drift is acknowledged; no live pin/review gate is weakened or regenerated.
+
+**Preregistration.** Complete profile, receipt, registry and subordinate manifest bodies/IDs are
+embedded in the report, including a 26-file source fingerprint and exact input byte hashes.
+Profile: qualified-producer-profile-v1:sha256:0c739b235dd983b77f3f9adfca22bebea90255f0f51f57f45cd7e699ef0bd2cd.
+Receipt: producer-output-receipt-v1:sha256:a040ad7757ee792e9c0a7f0414bead5ce22ed5eb5d19e1bdc37931b4f0d4071d.
+These are prospective material, not issued authorization. D1 must reproduce and qualify before
+publishing registry enrollment. The post-hoc event explicitly denies that a receipt existed historically.
+
+**Verification.** 117 targeted checks passed (116 existing I4-3C0 identity tests plus read-only
+inventory/replay); two further planning probes passed for material IDs, preserved fingerprints
+and independent frozen-authoring reproduction with immutable inputs. Exact accepted canonical
+map hash e1c6d1027c96098dce96b7c86ee9259d1c50e379845c1d9bb3adeb62ba00b8cf and combined v8
+characterization hash 1b8c89473bf1cf7d562483c29f6d14c1ef503de2788f3d81563842a1cc7659f0 match.
+The future A-R verifier matrix is preregistered, not claimed as implemented or passing.
+
+**Split and stop.** I4-4D1 implements the registry, narrow issuer, pure verifier and post-hoc
+receipt with tests; no Layer C changes/activation. I4-4D resumes separately with verified producer
+authority. Lifecycle, revocation, exact identity and downstream noncircularity are frozen in the
+design. No production code/trust artifacts/baselines changed, no full suite, no model/retrieval/
+NLI/live E2E, no v8 promotion, PLAN_VERSION bump or I2-3. STOP after I4-4D0.
