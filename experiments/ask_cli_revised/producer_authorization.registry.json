@@ -1,0 +1,18 @@
+{
+  "accepted_receipts": {
+    "producer-output-receipt-v1:sha256:a040ad7757ee792e9c0a7f0414bead5ce22ed5eb5d19e1bdc37931b4f0d4071d": {
+      "input_manifest_ref": "producer-event-input-manifest-v1:sha256:5ce389c0bd2baec24044131ddd464b309308a592c33a34032d8acf3f57d3ea3e",
+      "profile_ref": "qualified-producer-profile-v1:sha256:0c739b235dd983b77f3f9adfca22bebea90255f0f51f57f45cd7e699ef0bd2cd",
+      "purpose": "profile-b-offline-prerequisite"
+    }
+  },
+  "profiles": {
+    "qualified-producer-profile-v1:sha256:0c739b235dd983b77f3f9adfca22bebea90255f0f51f57f45cd7e699ef0bd2cd": {
+      "consume": true,
+      "issue": true,
+      "lifecycle": "active",
+      "producer_id": "callosum.qaib.preserved-v8-reproduction"
+    }
+  },
+  "schema": "producer-authorization-registry-v1"
+}

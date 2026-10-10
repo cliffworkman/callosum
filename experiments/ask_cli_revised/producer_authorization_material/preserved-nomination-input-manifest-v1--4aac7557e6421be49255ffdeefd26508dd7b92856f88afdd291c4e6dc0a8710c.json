@@ -1,0 +1,14 @@
+{
+  "binding_count": 21,
+  "final_map_bytes_sha256": "28478500e485137cd6930b8010d274bb1da3afd48e7f4a6208dd183610d9ca0b",
+  "fresh_calls_permitted": false,
+  "held_bindings_sha256": "94d68272003a6203f27cf05882ed5799cce17c7c7d8f979f611cc6efbe51a977",
+  "initial_map_bytes_sha256": "46a213044bc6211702fa89710268e1bfb6c4fc348259727a46cb238ef5bbc14e",
+  "model_assist_bytes_sha256": "e9802f0878bba672b487ee64b4249bb2c6611c40690924185fefcef2ab17c19e",
+  "provenance_class": "phase28-attempt2-held-final-bindings-no-fresh-model",
+  "qwen_calls_bytes_sha256": "9842b3f074a23b12bb91c4aefc6479676eb590c28a06eef35f1ef2fbd04cafe5",
+  "replay_request_count": 33,
+  "replay_request_manifest_sha256": "9ed740385b0e9f60772248ba6605529c8736e97974924842bdc510bc54ec9d01",
+  "schema": "preserved-nomination-input-manifest-v1",
+  "scope_context_count": 32
+}

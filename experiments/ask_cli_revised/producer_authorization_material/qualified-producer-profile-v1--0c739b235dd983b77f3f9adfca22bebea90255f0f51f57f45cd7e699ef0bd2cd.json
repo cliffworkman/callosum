@@ -1,0 +1,48 @@
+{
+  "authored_inputs_ref": "reviewed-authored-inputs-v1:sha256:2187272f3314817ca687fd1add912c4b178b68063c864d16024cc8db14cd8a83",
+  "fresh_model_retrieval_nli_permitted": false,
+  "implementation_id": "diagnostic-map-plus-aligned-observations/v8",
+  "issuance_mode": "registry-enrolled-reproduction-only",
+  "issuer_contract": "reproduce-pinned-v8-then-issue-v1",
+  "nomination_adapter_contract": "scope-requirement-role-request-context-held-bindings-v1",
+  "permitted_identities": [
+    {
+      "status": "supported_noncurrent",
+      "version": "sufficiency-semantics-v8"
+    }
+  ],
+  "permitted_output_shape": "bare-child-keyed-sufficiency-map-with-v8-identity",
+  "producer_code_manifest_ref": "producer-code-input-manifest-v1:sha256:3ea98ca41a74f6fdb6fc4e4391032ecb7c2b6b361eead954d560a02081670625",
+  "producer_id": "callosum.qaib.preserved-v8-reproduction",
+  "qualification_evidence": {
+    "i4_2b3_context_baseline_file_sha256": "b9e5e4d1b5cd289a5ce9243721b37ae9c0eebdbcfdcc6b929d14d7006d7c2b9f",
+    "i4_3c_baseline_file_sha256": "f1d178cf0cb234b3e8e80918c5cb80b63dbaf54c2599a5b665b47dd5a3eed6f1",
+    "i4_3c_combined_characterization_sha256": "1b8c89473bf1cf7d562483c29f6d14c1ef503de2788f3d81563842a1cc7659f0"
+  },
+  "required_input_provenance": "phase28-attempt2-held-final-bindings-no-fresh-model",
+  "rulesets": {
+    "attribution_classifier": "i4-1-assertion-authority",
+    "attribution_ruleset": "i4-2b3.0",
+    "attribution_schema": "ownership-attribution-v1",
+    "category_classifier": "observation-polarity/i2-1",
+    "containment_semantics": "sufficiency-semantics-v8",
+    "direction_semantics": "sufficiency-semantics-v8",
+    "effectiveness_semantics": "sufficiency-semantics-v8",
+    "grounding_semantics": "sufficiency-semantics-v5",
+    "guard_semantics": "sufficiency-semantics-v7",
+    "observation_basis_schema": "observation-basis-v1",
+    "ownership_context_schema": "ownership-context-v1",
+    "ownership_rule": "owner.local_antecedent.v1",
+    "proof_schema": "relationship-proof-v1",
+    "support_policy_evaluation_schema": "support-policy-evaluation-v1",
+    "support_policy_semantics": "sufficiency-semantics-v7",
+    "support_view_schema": "support-view-v1",
+    "witness_semantics": "sufficiency-semantics-v8"
+  },
+  "runtime_contract": {
+    "implementation": "CPython",
+    "semantic_dependencies": "stdlib-and-pinned-local-callables-only",
+    "version": "3.12.7"
+  },
+  "schema": "qualified-producer-profile-v1"
+}

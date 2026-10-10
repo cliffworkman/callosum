@@ -3169,3 +3169,50 @@ receipt with tests; no Layer C changes/activation. I4-4D resumes separately with
 authority. Lifecycle, revocation, exact identity and downstream noncircularity are frozen in the
 design. No production code/trust artifacts/baselines changed, no full suite, no model/retrieval/
 NLI/live E2E, no v8 promotion, PLAN_VERSION bump or I2-3. STOP after I4-4D0.
+
+## Phase 34 / I4-4D1 — pinned producer authorization and accepted v8 receipt
+
+**Date:** 2026-10-10. **Result:** READY to resume I4-4D separately; producer prerequisite satisfied.
+See [I4-4D1 results](PHASE34_I4_4D1_PRODUCER_AUTHORIZATION_RESULTS.md).
+
+**Checkpoint.** Accepted D0 design/lineage were committed and pushed separately, with normal
+documentation hooks, as 8d2003b7f79665e2858751cea9442228e8b5c853. D1 began from that clean HEAD.
+The bounded implementation is the single commit containing this report/append.
+
+**Authority.** Implemented D0 Option A: fixed repository loader, closed immutable materials,
+loader-origin TrustedProducerRegistry, pure VerifiedProducerAuthorization, and one closed
+reproduce_accepted_v8 issuer. Exactly one profile and one independently enrolled receipt;
+known producer/profile membership cannot bless a changed or new output. No signatures,
+caller-selected registry, wildcard, arbitrary map/provider, auto-enrollment or remote authority.
+Threats A-D are covered relative to the trusted repository/process; threat E remains out of scope.
+
+**Exact qualification.** All seven preregistered material IDs match. CPython 3.12.7 and all 26
+scientific source fingerprints pass. Nineteen input files are snapshotted once, independently
+reviewed frozen v9 authoring and hierarchy data/review/parent map match, exact Phase-30 overlay
+and resident ownership context match. Held nominations preserve 32 slots, 21 bindings, 33 replay
+requests and all 49 stored fingerprints. No scientific source, semantics, nominations, proofs,
+observations, recovery, consumer or default routing changed.
+
+**Reproduction.** The new dedicated .local/i4-4d1/accepted-reproduction output matches canonical
+map e1c6d1027c96098dce96b7c86ee9259d1c50e379845c1d9bb3adeb62ba00b8cf and all 48 recovery
+targets. Receipt producer-output-receipt-v1:sha256:a040ad7757ee792e9c0a7f0414bead5ce22ed5eb5d19e1bdc37931b4f0d4071d
+matches enrolled material under canonical serialization. It records post_hoc_deterministic_reproduction
+and historical_receipt_existed=false. Historical artifacts remain untouched.
+Derived verified-producer-authorization-v1:sha256:aa9ccbfa94f100a4c8cc0cbe85f60f27eebb289528e0f280447f0fcd23bb04b2
+binds resolved identities; it is not another trust root. Issuance checks installed code; consumption
+checks recorded immutable code identity without requiring that old producer to remain installed.
+
+**Checks.** 97 new targeted checks pass, covering A-R, additional negatives, lifecycle, provenance,
+immutable actual snapshots, static/purity boundaries and exact v4-v8 replay hashes. Seven optional
+offline checks pass. All five known environment/baseline failures independently reproduce; no
+hierarchy pins or baseline failures were hidden/fixed. The existing ownership-context test
+allowlist now explicitly includes only the new fixed issuer; its negative guards remain.
+Final targeted qualification including that control: 98 passed. Final full offline suite:
+5,270 passed, five known failures, 12 skipped, nine xfailed, 276 passing subtests in 286.81s.
+Zero unexplained new failures. All hooks pass except the unchanged frontend 615-line cap;
+the user-authorized --no-verify exception is confined to that pre-existing failure for this commit.
+
+**Stop.** VerifiedProducerAuthorization is implemented and qualified; original I4-4D section 4
+prerequisite is satisfied for the enrolled event. I4-4D consumer integration remains stopped.
+No claim-v2, parent-synthesis-v2,
+plan-v5, v8 promotion, I4-4E, I2-3, model/retrieval/NLI or live E2E.

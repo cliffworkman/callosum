@@ -1,0 +1,31 @@
+{
+  "authored_inputs_ref": "reviewed-authored-inputs-v1:sha256:2187272f3314817ca687fd1add912c4b178b68063c864d16024cc8db14cd8a83",
+  "files": {
+    "experiments/ask_cli_revised/answer_plan/overlays/phase30_replay_decomposition_overlay.json": "20540c880b28950d0294358aad56b48067dfd10e4e7fe94d07e7d227cbbe59e2",
+    "experiments/ask_cli_revised/attribution_i4_2b3_replay_baseline.json": "b9e5e4d1b5cd289a5ce9243721b37ae9c0eebdbcfdcc6b929d14d7006d7c2b9f",
+    "experiments/ask_cli_revised/hierarchy_contract.frozen.json": "3e86cb8f0d7816bbc9aeac7d717e9ea4a709981a1e98406c577b8623aab1d0f2",
+    "experiments/ask_cli_revised/hierarchy_contract.review.json": "2446ce15b9727d72fba9d7bc5c4f066a3edb4c5f8847894e620f11b68b791dd1",
+    "experiments/ask_cli_revised/sufficiency_contract.aib_hier_v9.frozen.json": "472cd2ab23a81d68b698038e0dcc0d98c7aafc6efadef933a2f932e9580f2da6",
+    "experiments/ask_cli_revised/sufficiency_contract.aib_hier_v9.review.json": "e9b3fe781ba8819c4ae24d7590f67901a499daf842085a6f5fa70db5473ed8b9",
+    "experiments/ask_cli_revised/witness_i4_3c_replay_baseline.json": "f1d178cf0cb234b3e8e80918c5cb80b63dbaf54c2599a5b665b47dd5a3eed6f1",
+    "hierarchy-input/approvals": "04552bd3ba45dbfa7923dcde3bbdf8522ae247b88f074e345540ddca2a682844",
+    "hierarchy-input/assembled": "bd1a4fa1776bf3844130d09b6b9f7a7023705000a5fb0daf96524fcabc1c6dcc",
+    "hierarchy-input/closure": "ce97bd04b369b9df96a2e82ad4242f5fce86e7a4943869319ca3e3307b2ce8bb",
+    "hierarchy-input/decisions": "0a78accd144002477a9ec0ab35127073a22da563fa41a5a2142a2ae0282df52f",
+    "preserved-run/01_request_contract.json": "65b5873f4d8020bf18aeabdc8a64e080e6a8eefaabe1dee71110f0c833536fe8",
+    "preserved-run/08_evidence_packets.jsonl": "1949dc56e4abcbb58f7ebf512387c3c6041bdf0a2176facd64aaf44bea1e83f6",
+    "preserved-run/11_verified_ledger.json": "a70409e8f5a0937f414c73c4796b293c6c1a9ef3b31c7fc83bbfa61794c6bd5d",
+    "preserved-run/15_run_manifest.json": "4578a94793bd242ee34c29d3c14890f9906fb07a8d718da73a17f810eed5d20c",
+    "preserved-run/17_sufficiency_map.initial.json": "46a213044bc6211702fa89710268e1bfb6c4fc348259727a46cb238ef5bbc14e",
+    "preserved-run/17_sufficiency_map.json": "28478500e485137cd6930b8010d274bb1da3afd48e7f4a6208dd183610d9ca0b",
+    "preserved-run/18_sufficiency_model_assist.json": "e9802f0878bba672b487ee64b4249bb2c6611c40690924185fefcef2ab17c19e",
+    "preserved-run/qwen_calls.jsonl": "9842b3f074a23b12bb91c4aefc6479676eb590c28a06eef35f1ef2fbd04cafe5"
+  },
+  "nomination_inputs_ref": "preserved-nomination-input-manifest-v1:sha256:4aac7557e6421be49255ffdeefd26508dd7b92856f88afdd291c4e6dc0a8710c",
+  "overlay_authority_kind": "phase30-confirmed-offline-decomposition-only",
+  "overlay_canonical_sha256": "3cca99b5ac7078f4ae7633f4e4b53360f0e5cd1ff6e0972e9cce7f71d0979c96",
+  "ownership_context_full_sha256": "45f0326c33294ab424fc1be390962abd528a092a24f6e7f78a1ca6f570234e3d",
+  "ownership_context_manifest_sha256": "3e3a72f4cd9be783e7932024f004b72d8177cae7788398d42ac3413567218d02",
+  "schema": "producer-event-input-manifest-v1",
+  "sealed_proposition_index_sha256": "c33b1aab85ff01a38522827a41bc62cab5e378444291b89ca425c683a783d6f3"
+}

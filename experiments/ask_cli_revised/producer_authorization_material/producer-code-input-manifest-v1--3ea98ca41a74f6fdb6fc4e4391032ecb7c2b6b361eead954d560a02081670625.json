@@ -1,0 +1,32 @@
+{
+  "encoding": "utf8-universal-newlines-lf-no-other-normalization",
+  "files": {
+    "app/backend/pdf_processing/extraction.py": "f7fc735d988d9acdcaa10c71e5e8a41bf2c9049c0ab58317dd9524fa6f82de5c",
+    "experiments/ask_cli_revised/achieved_outcome_span.py": "90f59600e3e3751ccc4cbf5e8932c71e94f6a46ac3411cd307306de772289609",
+    "experiments/ask_cli_revised/assertion_authority.py": "0253914cdb5e4fdebf7ea81d62e6541db33a0506a983a1ddec2fa400c240ccb0",
+    "experiments/ask_cli_revised/category_polarity.py": "2974b0f8a0d8c892f5c1743cd46cae10d814ffb7c3f8662e2fb20c1618bbdccd",
+    "experiments/ask_cli_revised/compatible_witness.py": "15f125396269d34057bfb362f0bd13b938b8f547af155b4103f72b5a541bbb9e",
+    "experiments/ask_cli_revised/contract_directed/attribution.py": "b349b6bb6c791ee3afbfd8c621eac616b14b3df3d9fa92678e5675ada382facf",
+    "experiments/ask_cli_revised/contract_directed/links.py": "691850f0bd0791f31dc07c32ab08161850d9009f6318a92bb7bbd2d285f62d38",
+    "experiments/ask_cli_revised/contract_directed/sections.py": "8df1877150a5c9224261555bb8be5c083f8db282d6a5e2bce65ec70a66210b97",
+    "experiments/ask_cli_revised/contract_directed/units.py": "3d6507eb4228085bd4b1ab9f72a66c2cfa57a81e934398ea930a550bc3f52f8c",
+    "experiments/ask_cli_revised/decompose/execution.py": "5559aa4ba34fadfc944aeda66cebbb77bb31d137f24526bad4d99aad20c03d6b",
+    "experiments/ask_cli_revised/decompose/tree.py": "d15f075c86bfa16aab05daf2cc6ab72e69d7cce8b7d672ead3e6fe866920804c",
+    "experiments/ask_cli_revised/direction_target.py": "32faf360138f08165074a19bb29376129dbd540a13fe845d041e2928dac09180",
+    "experiments/ask_cli_revised/hierarchy_contract.py": "85a8f9e34f7cd50a12ccae56b678d530c30e6aa154e92069b74c7bb24016192e",
+    "experiments/ask_cli_revised/overview_evidence.py": "6201b607ea6342212b814e9d50da936b34f0aa1cbcf239168f22ccb23fe59d61",
+    "experiments/ask_cli_revised/ownership_context.py": "bc201eb91369df75e5b3cd6c5b2303785b204fd4d9f61b72242ce28764d29382",
+    "experiments/ask_cli_revised/relation_witness.py": "704f491f16f417db74f78213ebfb6f3c1224ed63b15888971145834553c3f5fd",
+    "experiments/ask_cli_revised/sufficiency_authoring.py": "f42ba69f47a91d360cef117ae6714348839af3770abd418f1164a2103b78bfb1",
+    "experiments/ask_cli_revised/sufficiency_diagnostic.py": "85af33acb597002bf30563f0c8aa39977e64159bacb88d2d70fb3216b06fa0dd",
+    "experiments/ask_cli_revised/sufficiency_engine.py": "69f8d1970aa5bc56647f81035d77d26eb31ae7f18b4a374c4c20a4accc4b6245",
+    "experiments/ask_cli_revised/sufficiency_freeze.py": "0608afb9458c6551770de5cc5054f3a9dfa8411090be180d803088b600053841",
+    "experiments/ask_cli_revised/sufficiency_identity.py": "8e6c855d538dd4b84eebe8a2e5fca9568f6999e0540591fbf90214499dd6d0cf",
+    "experiments/ask_cli_revised/sufficiency_mapping.py": "9a1d243d71754ec19ce69b0dde1c144e97ce18f4488b42c67f58386622eaf7c8",
+    "experiments/ask_cli_revised/sufficiency_model_scope.py": "bcd122dc35acc4faf959ed49ddf6856d212b1b326b9df9245350984e89d4f906",
+    "experiments/ask_cli_revised/sufficiency_recovery_targets.py": "c0a0b0d45018f8688e2b0f250d70ab20415a51a97a20749517046eecd2e477c9",
+    "experiments/ask_cli_revised/support_policy.py": "cbd0ccc9d80e53bb0ad02cd3bf2292b46f53a4988e67c99da089eb89b3b7d38f",
+    "experiments/ask_cli_revised/target_relevance.py": "3e2fd0f8f836a5f4594d2ac6aefaa994bd6cf28acdfc53418d752367941c1828"
+  },
+  "schema": "producer-code-input-manifest-v1"
+}

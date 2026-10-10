@@ -1,0 +1,18 @@
+{
+  "combined_hash": "9c72dc6a0180e95c55e68a009c366843b671684c19c6ae84ed254f3865305586",
+  "contract_version": "sufficiency-contract-v1",
+  "frozen_file_sha256": "472cd2ab23a81d68b698038e0dcc0d98c7aafc6efadef933a2f932e9580f2da6",
+  "hierarchy_frozen_sha256": "3e86cb8f0d7816bbc9aeac7d717e9ea4a709981a1e98406c577b8623aab1d0f2",
+  "hierarchy_review_sha256": "2446ce15b9727d72fba9d7bc5c4f066a3edb4c5f8847894e620f11b68b791dd1",
+  "hierarchy_source_hashes": {
+    "hierarchy-input/approvals": "04552bd3ba45dbfa7923dcde3bbdf8522ae247b88f074e345540ddca2a682844",
+    "hierarchy-input/assembled": "bd1a4fa1776bf3844130d09b6b9f7a7023705000a5fb0daf96524fcabc1c6dcc",
+    "hierarchy-input/closure": "ce97bd04b369b9df96a2e82ad4242f5fce86e7a4943869319ca3e3307b2ce8bb",
+    "hierarchy-input/decisions": "0a78accd144002477a9ec0ab35127073a22da563fa41a5a2142a2ae0282df52f"
+  },
+  "parent_map_sha256": "acf84dd0c91a996f3ed2ef30e1834a52f1a8eeabe299ec20998a05e210b69c52",
+  "question_key": "aib_hier_v9",
+  "requirements_sha256": "8b219f093c31e7e64215381ac4ef4113d96a1e33320be891fbbae567e541d0dc",
+  "review_file_sha256": "e9b3fe781ba8819c4ae24d7590f67901a499daf842085a6f5fa70db5473ed8b9",
+  "schema": "reviewed-authored-inputs-v1"
+}

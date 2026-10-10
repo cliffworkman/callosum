@@ -556,7 +556,14 @@ def test_exact_consumer_allowlists_and_negative_guards():
     prefix = "experiments/ask_cli_revised/"
     authority_allowed = {prefix + "sufficiency_mapping.py"}
     context_allowed = {
-        prefix + n for n in ("ownership_context.py", "sufficiency_mapping.py", "sufficiency_diagnostic.py", "e2e.py")
+        prefix + n
+        for n in (
+            "ownership_context.py",
+            "sufficiency_mapping.py",
+            "sufficiency_diagnostic.py",
+            "e2e.py",
+            "producer_replay.py",  # D1's fixed, offline issuer builds context from pinned byte snapshots.
+        )
     }
     assert not unauthorized_consumers(sources, "assertion_authority", authority_allowed)
     assert not unauthorized_consumers(sources, "ownership_context", context_allowed)
