@@ -3098,3 +3098,29 @@ The implementation commit containing this entry follows the separate documentati
 No ParentClaims/AnswerPlan/render activation, version bump, map/role/category/recovery/observation
 change, same_local_assertion, claim-goal/authority-veto behavior or I2-3. No external search,
 live retrieval, model/NLI or live E2E. STOP after I4-4C; I4-4D requires separate authorization.
+
+## Phase 34 / I4-4D — producer-authorization prerequisite stop
+
+**Date:** 2026-10-10. **Result:** NOT READY; stopped at the user's explicit section 4 gate.
+See [I4-4D prerequisite results](PHASE34_I4_4D_PROOF_ALIGNED_CLAIM_PLAN_INTEGRATION_RESULTS.md).
+
+**Starting state.** Canonical branch and clean full HEAD
+b75c6f2fd48975a702713e34436ce4b7d81dabe0 verified. No production edits or consumer activation.
+
+**Finding.** Existing replay authorization verifies a recomputable body digest and exact semantics
+identity. I4-4C validates input/profile/producer digest consistency but intentionally delegates
+producer authentication to its caller. No accepted upstream producer/output authorization receipt
+was found that authenticates all required inputs. The fixture producer label is not an issuer.
+An additional explicit authority contract is needed; it was not invented during integration.
+
+**Verification.** Four ignored offline probes passed in 5.29 seconds: an unknown rehashed producer
+label is accepted by the unchanged substrate over the real v8 map; a stale producer digest is
+rejected; the legacy verifier accepts a self-consistent record with unauthenticated content hashes;
+the exact status/version guard still rejects a rehashed incompatible identity. Inputs remain equal.
+These are diagnostic probes of the prerequisite gap, not I4-4D implementation qualification.
+
+**Stop.** Results report and this append only, uncommitted. No integration commit/push because the
+all-gates-passing condition is unmet. No new profile-B baseline or full integration qualification.
+Existing replay baselines and v7/plan-v4 defaults remain untouched; v8 stays supported_noncurrent.
+No production/scientific behavior, model/NLI/retrieval/live E2E, I4-4E, I2-3, same_local_assertion or
+claim-goal/authority-veto work. NOT READY for the separate I4-4E promotion decision.
