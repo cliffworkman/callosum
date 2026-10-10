@@ -2876,3 +2876,38 @@ Layer C limits acknowledged. No v8 baseline is created here.
 **Stop.** No external search, live retrieval, model calls, live E2E or full-suite run occurred.
 Only the report and this lineage append are materialized. STOP after I4-3B; no v8 implementation,
 same_local_assertion registration, claim-goal/veto work, I4-4 or I2-3.
+
+## Phase 34 / I4-3C0 — explicit supported-noncurrent semantics identity (2026-10-09)
+
+**Scope and base.** Bounded prerequisite implementation on canonical branch
+`experiment/ask-060-hier11-recpm3-citefix-20260929T212442Z`, clean starting HEAD
+`5dbd73946b02a8910fa477d6e74f2dccd09c9867`. See the
+[I4-3C0 results](PHASE34_I4_3C0_SUPPORTED_NONCURRENT_IDENTITY_RESULTS.md).
+Only identity handling, explicit offline replay opt-in, tests, that report and this append change.
+
+**Contract.** Add `STATUS_SUPPORTED_NONCURRENT = "supported_noncurrent"` and the independent,
+default-False `accept_supported_noncurrent` reader flag. Current is classified first,
+historical next, then supported versions outside both. Default reads remain current-only;
+historical flags do not authorize noncurrent reads and vice versa. The recorded version is
+applied unchanged. Authorization consistency recognizes all four valid dispositions and preserves
+exact status-plus-version equality.
+
+**Replay and lifecycle.** The offline replay CLI adds `--allow-supported-noncurrent`; no ordinary
+answer/product path is relaxed. The same stamped map bytes can change disposition under test-only
+promotion/historical membership, but the old noncurrent authorization must then fail until regenerated.
+A neutral test-only supported sentinel proves the state and exact transport; it is not a production
+version or semantic implementation. The replay transport test explicitly uses a v7 downstream
+stand-in after asserting receipt of the sentinel arguments.
+
+**Verification.** 116 new identity cases pass; the targeted overlapping battery passes 206 tests.
+Full offline experiments: 5,002 passed, exactly five independently reproduced baseline/environment
+failures, 12 skipped, nine xfailed and 276 subtests passed. Optional dependency-complete module:
+seven passed. Exact v4-v7 frozen replay hashes are unchanged. No unexplained new failures.
+Ruff/content/security/module-boundary checks pass. The only remaining hook failure is the unchanged
+615-line frontend limit, covered by the user's I4-3C0-specific bypass authorization.
+
+**Readiness and stop.** READY identity substrate for separately authorized I4-3C.
+Current/default remains v7; production supported/historical sets are unchanged. No v8 constant,
+membership, routing, baseline, witness/proof/observation implementation or field is added.
+No candidate/policy/guard/attribution/ParentClaim/AnswerPlan semantic changes; no live retrieval,
+model call or live E2E. STOP after I4-3C0. Do not automatically resume I4-3C or begin I4-4/I2-3.

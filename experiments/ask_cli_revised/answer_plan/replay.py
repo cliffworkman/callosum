@@ -143,6 +143,12 @@ def main(argv=None) -> int:
         help="explicit historical compatibility path: accept a map that predates the sufficiency-semantics identity; "
         "the contemporary containment rule is applied and recorded, not attributed to the map",
     )
+    parser.add_argument(
+        "--allow-supported-noncurrent",
+        action="store_true",
+        help="explicit opt-in: accept a supported version that is neither current nor historical; "
+        "apply and bind its recorded version without changing the production default",
+    )
     args = parser.parse_args(argv)
     run, out = args.run_dir, args.out_dir
     out.mkdir(parents=True, exist_ok=True)
@@ -153,6 +159,7 @@ def main(argv=None) -> int:
         smap,
         accept_historical_versioned=args.allow_historical_versioned,
         accept_historical_unversioned=args.allow_historical_unversioned_map,
+        accept_supported_noncurrent=args.allow_supported_noncurrent,
     )
     applied_semantics = si.applied_semantics_version(semantics)
     scoped = _load(run, "13c_scoped_search.json").get("final") or {}
