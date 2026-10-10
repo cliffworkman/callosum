@@ -2957,3 +2957,50 @@ Layer C production files remain unchanged. V8 is not unrestricted answer-qualifi
 promoted. All content/lint/security/module-boundary hooks pass except the unchanged 615-line
 frontend cap; the user's scoped bypass applies. No model calls, live retrieval or live E2E.
 STOP after I4-3C; no I4-4 implementation, claim-goal/veto work or I2-3.
+
+## Phase 34 / I4-4A — proof-aligned ParentClaims and AnswerPlan design (2026-10-10)
+
+**Scope/base.** Planning/read-only from clean canonical HEAD
+`d4cb7ff1cb7898f95557fb09df6d3f00b47cd9d5` on
+`experiment/ask-060-hier11-recpm3-citefix-20260929T212442Z`. See the
+[I4-4A design audit](PHASE34_I4_4A_PROOF_ALIGNED_LAYERC_DESIGN.md).
+Only that report and this append are tracked changes; HEAD and production behavior are unchanged.
+
+**Design.** Inventory all four ParentClaim families, separate gap/empty-search records, every
+AnswerPlan production consumer and parent realization/render/audit callers. Propose a typed
+semantic-value adapter, stable semantic claim IDs with separate claim-evidence-v1 receipts,
+parent-claim-v2, relation-unit-v2 and an explicit nondefault answer-plan-step2-v5 profile.
+Selected proof/view/observation references determine evidence, operands and citations. Layer C
+does not choose candidates, rerun policy/attribution/direction or rebuild assignments. Completion
+and I1 remain distinct; c1 has completion proofs without an I1 result. Inherited/link-only
+evidence and complete-instance direction/effect conflict semantics retain their current meaning.
+No sufficiency v9 is needed for this Layer C projection. Promotion must be separate.
+
+**Verification.** All five accepted v4-v8 combined replay hashes match; 75 unchanged baseline
+and witness-control tests pass, including the non-representative P2 exception/parity/stale-operand
+characterizations. The prospective reference-transport oracle preserves 17 claims, nine node
+states, Layer 1 and 33 invariants while adding 17 receipts/40 evidence paths. It retains 40
+required-role units plus one completion-only c1 unit; value normalization preserves independent
+source paths. These are audit projections, not implementation qualification.
+
+**Load-bearing real finding.** The transport oracle held existing display decisions fixed.
+An independent per-value support probe found one cross-member substitution: the c3 explicit
+category binding selects p8, but the old category-list renderer uses p36 to render/credit explicit
+through the claim-wide support union. A strict in-memory replay leaves map/17 claims/scientific
+statement texts unchanged and passes all 33 existing invariants, yet changes node 3 answered ->
+partial and changes disclosures. The explicit instance also already records a positive p36
+category observation outside its selected legacy view. Choosing whether that observation may
+authorize category display coverage needs an explicit contract; neither silent substitution nor
+counterfactual unchanged-answer claims are acceptable.
+
+**Readiness/next.** NOT READY for one unconditional I4-4 implementation. Recommend
+I4-4B — Layer C value, category-coverage and validation contract closure (planning/read-only),
+then a pure validation/reference prerequisite and atomic claim/plan integration, then separate
+promotion. The current bundle validator rebuilds candidate views and therefore is not the needed
+validation-only Layer C API; full attribution/exclusion metadata also needs exact reference
+resolution. Freeze these interfaces and the display-envelope boundary before implementation.
+
+**Stop.** Current/default remains v7; v8 remains supported_noncurrent. No production code,
+ParentClaims/AnswerPlan/rendering, PLAN_VERSION, map/proof semantics, recovery, candidate collection,
+attribution, policy or guards changed. No same_local_assertion, claim-goal/veto, I2-3, external
+search, live retrieval/model/NLI or live E2E. STOP after I4-4A.
