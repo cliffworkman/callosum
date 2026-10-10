@@ -3004,3 +3004,53 @@ resolution. Freeze these interfaces and the display-envelope boundary before imp
 ParentClaims/AnswerPlan/rendering, PLAN_VERSION, map/proof semantics, recovery, candidate collection,
 attribution, policy or guards changed. No same_local_assertion, claim-goal/veto, I2-3, external
 search, live retrieval/model/NLI or live E2E. STOP after I4-4A.
+
+## Phase 34 / I4-4B — Layer C value, category-coverage and validation closure (2026-10-10)
+
+**Scope/base.** Planning/read-only from clean canonical HEAD
+`f38b85d8d412fff88aa911bd4b678a898f8d243e`. The user explicitly authorized committing
+the accepted I4-4A report and lineage to establish that checkpoint. See the
+[I4-4B contract design](PHASE34_I4_4B_LAYERC_VALUE_COVERAGE_VALIDATION_DESIGN.md).
+This increment changes only that report and this append; no I4-4B implementation or activation.
+
+**Authority decision: OPTION B.** Category observations are existing deterministic inputs to
+category satisfaction, recorded before compatibility representative selection. The explicit p36
+positive observation is independently keyed to c3's exact authored category. It may authorize
+scientific/display coverage while the selected RoleBinding and v8 legacy view remain p8. The
+receipt distinguishes selected binding, any-positive goal basis, category coverage, display and
+citation. No claim-wide union scan, new support view, witness or category inference is authorized.
+
+**Null and display distinction.** Implicit's p36 observation is null_finding; its positive-presence
+goal stays unestablished and recovery stays open. It can report the recorded null through its own
+selected path. Node 3 is preregistered answered for reporting coverage, with the category facet's
+scientific goal explicitly incomplete. Established science and unavailable/restricted display
+have separate states. Under that closed plan-v5 rule, nodes 1, 2, 4 and 5 become partial rather
+than not_established; the other five node labels remain unchanged. These are explicit plan-only
+expectations, not changes to map semantics or a promise of byte-identical Layer 1.
+
+**Closed substrate.** Exact semantic-value-v1 adapters/IDs, member grouping, value-coverage-v1
+receipts and typed claim-evidence edges account for all 32 values in all 17 claim scopes. All 51
+filled placements are inspected: 38 own claim-bearing and 13 inherited context placements, zero
+unexpected unsupported mappings. One Layer A/B-owned validation authority resolves stored refs,
+exact candidate payload hashes (including exclusions), category observations, proof/observation
+alignment and optional link context without reselection or reclassification. Initial display
+envelope adds only source-authentic adjacent terminal punctuation/whitespace, never another
+assertion/owner. Semantic IDs exclude evidence paths; receipt IDs include them.
+
+**Verification.** 32 unchanged targeted replay/category tests passed with the existing offline
+plugin. All five v4-v8 frozen combined replay hashes were rerun independently and matched exactly;
+all 33 existing real replay invariants pass. Read-only inventory and contract oracles confirm
+the p8/p36 split, implicit-null preservation, all values/placements, exact nine-node design
+expectation and input immutability. Observation, envelope and value-coverage matrices preregister
+future tests; they are not claimed as qualification of an implemented plan-v5.
+
+**Readiness.** READY for separately authorized I4-4C pure validation/reference/value-coverage
+substrate, no activation. Then I4-4D atomic claim-v2/construction-v2/plan-v5 integration with full
+offline qualification and a separate explicit profile baseline; I4-4E promotion is a separate
+decision. Preserve the named v8 legacy-Layer-C characterization and historical v4-v7 profiles.
+V8 map semantics suffice; no v9 scientific change is needed.
+
+**Stop.** Current/default remains v7/plan-v4; v8 remains supported_noncurrent. No production,
+ParentClaims/AnswerPlan/rendering, PLAN_VERSION, category/role/recovery, collector/attribution/
+policy/guard, same_local_assertion, claim-goal/veto or I2-3 changes. No external search, model/NLI,
+live retrieval or live E2E. STOP after I4-4B; I4-4C not begun.
