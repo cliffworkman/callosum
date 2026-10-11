@@ -3633,3 +3633,52 @@ run artifacts and disposable tools are under `.local/phase34-live-e2e-20261011`.
 This evaluation implements no external scholarly method: the cited works provide
 scientific test evidence, not a new algorithmic lineage. Models were released and the
 task-owned tunnel closed. Stop after reporting; no remediation or product integration.
+
+## 2026-10-11 — Phase 34 live E2E blocker remediation
+
+**Framing and authorization — user.** Repair only the two observed qualification
+blockers: complete ordinary discovery indexing in a new isolated copy, and route flat
+scientific recovery through authoritative child-to-subquestion ownership. Preserve the
+failed attempt, all six questions, sources and independent criteria. No scientific
+architecture, retrieval tailoring, product integration or live battery in this increment.
+
+**Investigation and implementation — Codex.** Confirmed clean starting HEAD
+`1c18552fdd5481baa449616966237a74137747ce`. Inspected production import, embedding,
+axis-scoring and nomination workflows. Missing paper-level representations explain
+the nomination failure, but preserved history does not prove which historical event
+omitted them or a universal ingestion defect. Processing-tier labels do not certify
+embedding completeness. Used existing all-live-paper and all-document-role indexing
+on a full new copy: 10 paper and 1,153 chunk embeddings added, all 69 live papers
+eligible and all 6,610 chunks current. Non-index source tables and prior embedding
+records are exact; repeated indexing is a no-op. Unchanged Q1/Q2 readiness probes
+nominate the two primary papers without ID injection, query edits or changed limits.
+
+Added a pure obligation-owner lookup and called it only at the structured recovery
+gap boundary. Scientific target `s1-o1::2dc69aed8aff6365` and child `s1-o1` remain exact;
+retrieval resolves to `s1`. Missing or ambiguous ownership fails explicitly before
+dispatch. Generic recovery, hierarchical IDs, target meaning, sealing and existing
+search statuses are preserved. Thirteen deterministic routing checks include real
+recovery orchestration through offline workers for evidence-found, empty-search and
+failed-query outcomes. No external scholarly algorithm was introduced; this is a
+local ownership-join correction and reuse of existing indexing machinery.
+
+**Evidence and limits.** All 89 original evaluation files remain hash-exact and all
+26 installed D1 producer-code inputs retain their pinned hashes. The new read-only
+checkpoint is `.local/phase34-live-e2e-remediation-20261011/library.indexed.sqlite`,
+SHA-256 `0ba4b18364a532ab132dded173a93442ca75cc58d94f549eae3f9ac2b1809360`.
+The original failed scientific attempt remains failed. Readiness probes establish
+index eligibility and observed ranking only; scientific success remains untested.
+Focused routing/indexing qualification passes 106 tests and the optional mocked
+gate module passes 7. Broad offline qualification: 5,509 passed, exactly the five
+independently reproduced known failures, 12 skipped, 9 xfailed and 276 passing
+subtests. No unexplained new failures. Full regression and final disposition are recorded in
+`PHASE34_LIVE_E2E_BLOCKER_REMEDIATION_RESULTS.md`. No historical baseline, source pin,
+semantic version, scientific mapper, guard, policy, ParentClaim, AnswerPlan, endpoint
+or frontend changes. Do not automatically begin the next live qualification.
+
+**LIVE E2E PREREQUISITES RESTORED - READY FOR REQUALIFICATION.** Commit/push only
+the bounded remediation and its evidence report; stop before live requalification.
+All substantive commit hooks pass using the project environment. The sole failing
+hook is the unchanged 615-line frontend budget; worktree and HEAD blob both equal
+`03f9d3dfee3763533a78d5da601a99cb81bb37f1`. Apply only the user's narrow line-budget
+exception, preserving all other commit gates.

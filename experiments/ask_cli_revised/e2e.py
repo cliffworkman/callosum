@@ -42,6 +42,7 @@ from experiments.ask_cli_revised import (
     parent_synthesis_ledger,
     parent_synthesis_render,
     provenance,
+    recovery_routing,
     retrieval,
     stages,
     sufficiency_diagnostic,
@@ -613,9 +614,9 @@ def execute(
         # at_least_n deficit, or a provisional-fill corroboration (possibly redirected to its true
         # upstream origin) -- becomes its own synthetic obligation row, with a role-aware hint in
         # `display`/`note` instead of the generic coverage note. A structured target's own
-        # `field_id`/`subquestion_id` is its SEARCH OWNER's real child id (never a fresh per-target
-        # id) -- `cli._recover`'s own obligation-filtering needs that to resolve the right
-        # subquestion text (verified end to end: `gaps` carries no internal dedup by field_id, so
+        # `field_id` remains its SEARCH OWNER's child/obligation id. Resolve `subquestion_id`
+        # through the request's declared obligations: flat and hierarchical IDs need not agree.
+        # `cli._recover` uses both identities (`gaps` carries no internal dedup by field_id, so
         # several structured rows sharing one child's id execute as independent searches, each
         # correctly accounted). Per-target identity instead rides the inert `_recovery_target_id`
         # key, read back afterward for reporting, never consulted by `_recover` itself. A
@@ -641,7 +642,9 @@ def execute(
                 gaps.append(
                     {
                         "field_id": target["search_child_id"],
-                        "subquestion_id": target["search_child_id"],
+                        "subquestion_id": recovery_routing.subquestion_id_for_obligation(
+                            subquestions, target["search_child_id"]
+                        ),
                         "display": hint,
                         "note": hint,
                         "_recovery_target_id": target["target_id"],
