@@ -3585,3 +3585,51 @@ All substantive hooks pass. The sole remaining hook failure is the unchanged fro
 615-line cap, with identical worktree/HEAD blob; the user's narrow commit exception applies.
 **I2-3 COMPLETE - READY FOR LIVE E2E QUALIFICATION.** Commit/push the bounded increment
 and stop. No live E2E or product integration is authorized by this completion.
+
+## 2026-10-11 — Phase 34 live scientific E2E qualification attempt
+
+**Framing and authorization — user.** Change from implementation to real scientific
+qualification: actual retrieval, models, verification, scientific mapping, recovery and
+selected current v8 / Layer C v2 / plan-v5 answer. Require independently inspected real
+sources, new non-q_aib material, predeclared questions, preserved failures and no automatic
+remediation. Permit disposable evaluation tools and documentation-only commit/push under
+normal hooks. Do not equate structural/offline success with scientific fidelity.
+
+**Experimental authorship and execution — Codex.** Confirmed clean canonical HEAD
+`d5e10c3fd15f43bef3328b130b15fc980ba25fe7` and successful remote CI. Inspected preserved
+Ogino and Wagenmaker neural system-identification papers in a separate QA library,
+absent from the q_aib corpus. Copied that whole library without modification; froze six
+questions, independent source-based expectations and explicit reviewed inputs before
+answers. Review attribution states Codex experimental authorship, not independent human
+scientific approval. Used the unchanged public reviewed runner, real local embeddings,
+an actual NLI preflight, and live Qwen/Gemma through existing JUNO Ollama. No fake worker,
+seeded ledger, hidden expected claim, benchmark loader or cloud substitute.
+
+**Observed result and failure attribution — Codex.** One ordinary smoke completed in
+213.422 seconds and reached the exact selected fresh v2 answer. Thirteen generation
+calls were usable, but zero propositions survived; actual scientific claim NLI and
+Phi4 coverage were therefore not exercised. The selected answer abstained and correctly
+disclosed incomplete scoped search. Both primary papers have chunk text but neither
+paper-level embeddings nor axis membership, making them unreachable by both discovery
+and recovery nomination. The evaluation preflight missed that paper-level prerequisite.
+Read-only diagnosis also exposed a distinct fresh flat-request integration defect:
+structured recovery uses child `s1-o1` where the retrieval lookup requires subquestion
+`s1`, silently dropping the scoped target while generic recovery runs. No repair made.
+
+**Integrity and limits.** Frozen library remained exact. All 31 sealed candidate source
+spans match their physical source chunks, including one established two-chunk continuation.
+No scientific citations or relationship claims were emitted; their fidelity cannot be
+claimed as tested. Stopped the other five predeclared cases because their shared primary
+papers are inaccessible; no corpus/expectation changes after output. No production code,
+versions, pins, guards, classifier, ParentClaims, AnswerPlan, endpoint or UI changes.
+
+**Disposition: LIVE E2E NOT QUALIFIED.** The ordinary question was not answered; safe
+abstention and valid empty output do not qualify the scientific pipeline. Broader live
+qualification remains blocked by library readiness, with flat scoped recovery separately
+requiring a bounded correction. Smallest next actions are separately authorized indexing
+readiness and the demonstrated identity-join fix, followed by preserved-question reruns;
+no redesign is justified here. See `PHASE34_LIVE_E2E_QUALIFICATION_RESULTS.md`; immutable
+run artifacts and disposable tools are under `.local/phase34-live-e2e-20261011`.
+This evaluation implements no external scholarly method: the cited works provide
+scientific test evidence, not a new algorithmic lineage. Models were released and the
+task-owned tunnel closed. Stop after reporting; no remediation or product integration.
