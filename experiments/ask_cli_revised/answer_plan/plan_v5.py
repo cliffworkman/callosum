@@ -1,6 +1,7 @@
 """Proof-aligned plan for current reviewed Ask and explicit persisted qualification."""
 
 from experiments.ask_cli_revised._layerc_common import PROFILE, digest, plain
+from experiments.ask_cli_revised.answer_plan import disclosure_v5
 from experiments.ask_cli_revised.claim_v2 import place_key, requirements
 
 
@@ -37,7 +38,18 @@ PLAN_VERSION = "answer-plan-step2-v5"
 
 
 def build_plan(
-    projection, authored, claims, receipts, units, finalized, synthesis, producer_authorization, *, fresh_authority=None
+    projection,
+    authored,
+    claims,
+    receipts,
+    units,
+    finalized,
+    synthesis,
+    producer_authorization,
+    *,
+    fresh_authority=None,
+    recovery=None,
+    search=None,
 ):
     r, facets = projection.records, {}
     for (child, rid), req in requirements(authored).items():
@@ -151,6 +163,23 @@ def build_plan(
             "distinct fresh authority required",
         )
         fresh_authority.validate()
+        require(
+            recovery is not None
+            and search is not None
+            and digest(recovery) == fresh_authority.body["recovery_sha256"]
+            and digest(search) == fresh_authority.body["search_sha256"],
+            "bound disclosure context required",
+        )
+        for facet in facets.values():
+            facet["disclosures"] = disclosure_v5.facet_disclosures(
+                facet,
+                requirements(authored)[(facet["child_id"], facet["facet_id"])],
+                r,
+                finalized,
+                recovery,
+                search,
+                units,
+            )
         authority_fields = {
             "layerc_profile": FRESH_PROFILE,
             "upstream_authority": {"kind": "trusted_fresh_invocation", "ref": fresh_authority.provenance_ref},
@@ -178,5 +207,8 @@ def build_plan(
         "nodes": nodes,
         "evidence_diagnostics": plain(r["diagnostics"]),
     }
+    if fresh_authority is not None:
+        plan["disclosure_context"] = {"recovery": plain(recovery), "search": plain(search)}
+        plan["source_qualifications"] = disclosure_v5.source_qualifications(r)
     plan["plan_sha256"] = digest(plan)
     return plan

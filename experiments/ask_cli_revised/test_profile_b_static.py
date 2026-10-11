@@ -48,7 +48,8 @@ IMPORTS = {
         "producer_authorization",
         "_producer_schema",
     },
-    "answer_plan/plan_v5": {"_layerc_common", "claim_v2", "fresh_invocation"},
+    "answer_plan/plan_v5": {"_layerc_common", "claim_v2", "fresh_invocation", "answer_plan"},
+    "answer_plan/disclosure_v5": {"_layerc_common"},
     "answer_plan/render_v5": {"_layerc_common"},
 }
 

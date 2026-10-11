@@ -20,7 +20,7 @@ def consume(invocation, smap, sealed_bytes, authored, *, recovery, search):
     import json
 
     result = layerc_pipeline.build_components(
-        projection, authored, json.loads(sealed_bytes), fresh_authority=invocation
+        projection, authored, json.loads(sealed_bytes), fresh_authority=invocation, recovery=recovery, search=search
     )
     manifest = {
         "schema": "fresh-layerc-output-manifest-v1",

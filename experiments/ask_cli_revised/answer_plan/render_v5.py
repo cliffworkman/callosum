@@ -20,7 +20,12 @@ def render(plan, claims, receipts, synthesis):
                     "render value coverage",
                 )
                 # Text deduplication follows authorized member associations; it creates none.
-                entry = statements.setdefault(item["text"], {"text": item["text"], "members": []})
+                qualification = plan.get("source_qualifications", {}).get(receipt["coverage_ref"])
+                prefix = qualification["prefix"] if qualification else ""
+                key = (prefix, item["text"])
+                entry = statements.setdefault(key, {"text": item["text"], "members": []})
+                if qualification:
+                    entry["qualification"] = qualification
                 if item not in entry["members"]:
                     entry["members"].append(item)
                 citation_records[item["source_ref"]] = {
@@ -31,7 +36,9 @@ def render(plan, claims, receipts, synthesis):
                 }
         limitations = []
         for facet in node["facets"]:
-            if facet["state"] == "partial" and facet["scientific_goal_state"] in ("established", "complete"):
+            if "disclosures" in facet:
+                limitations.extend(facet["disclosures"])
+            elif facet["state"] == "partial" and facet["scientific_goal_state"] in ("established", "complete"):
                 limitations.append(
                     {
                         "kind": "presentation_limitation",
@@ -58,8 +65,10 @@ def render(plan, claims, receipts, synthesis):
         text.append(f"{node['label']}. {node['literal_text']}")
         for statement in rendered["statements"]:
             cites = sorted({numbers[m["source_ref"]] for m in statement["members"]})
-            text.append(statement["text"] + " " + "".join(f"[{n}]" for n in cites))
-        text.extend(x["text"] for x in rendered["limitations"])
+            prefix = statement.get("qualification", {}).get("prefix", "")
+            text.append(prefix + statement["text"] + " " + "".join(f"[{n}]" for n in cites))
+        messages = [x["text"] for x in rendered["limitations"]]
+        text.extend(dict.fromkeys(messages) if "disclosure_context" in plan else messages)
         text.append("")
     return {
         "schema": "profile-b-render-v1",

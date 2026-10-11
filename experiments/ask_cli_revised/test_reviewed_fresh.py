@@ -45,11 +45,21 @@ def bind(values=None):
     return reviewed_ask_inputs.bind_reviewed_inputs(*(values or inputs()))
 
 
-def run_public(monkeypatch, *, relational=False, recovery=False):
-    values = inputs(relational)
+def run_public(
+    monkeypatch,
+    *,
+    relational=False,
+    recovery=False,
+    values=None,
+    quote=None,
+    no_evidence=False,
+    sufficiency_recovery=False,
+    recovery_reason=None,
+):
+    values = values or inputs(relational)
     bound_inputs = bind(values)
     cid = next(iter(values[1]))
-    quote = (
+    quote = quote or (
         "We found that the Amber Scale measures alpha and was positively associated with beta."
         if relational
         else "We found alpha increased."
@@ -59,13 +69,20 @@ def run_public(monkeypatch, *, relational=False, recovery=False):
     client = harness.ScriptedClient(r=harness.r_maps(cid))
     h = harness.Harness(
         topo.WAVE1["T0"],
-        initial=[] if recovery else [row],
-        recovery=[row] if recovery else [],
+        initial=[] if recovery or no_evidence else [row],
+        recovery=[row] if recovery and not no_evidence else [],
         clients={"shared": client},
     )
     bound = e2e.bind(h.profile, rt=h.rt, clients=h.clients, trace=h.trace, managed_chat=lambda config: client)
     maps = []
     real_consume = fresh_layerc.consume
+
+    def recover_round(*args, **kwargs):
+        rows = h._recover_round(*args, **kwargs)
+        if recovery_reason is not None:
+            for record in rows:
+                record["reason_code"] = recovery_reason
+        return rows
 
     def consume(authority, smap, raw, authored, **kwargs):
         before = canonical([smap, authored, kwargs])
@@ -77,11 +94,17 @@ def run_public(monkeypatch, *, relational=False, recovery=False):
     try:
         with monkeypatch.context() as m:
             m.setattr(e2e, "_initial_pass", h._initial_pass)
-            m.setattr(e2e, "_recover_round", h._recover_round)
+            m.setattr(e2e, "_recover_round", recover_round)
             m.setattr(fresh_layerc, "consume", consume)
             m.setattr(e2e.sufficiency_freeze, "load_verified", lambda **kw: pytest.fail("fixture fallback"))
             result = reviewed_ask.run_reviewed_request(
-                bound_inputs, rt=h.rt, profile=h.profile, trace=h.trace, guard=h.guard, bound=bound
+                bound_inputs,
+                rt=h.rt,
+                profile=h.profile,
+                trace=h.trace,
+                guard=h.guard,
+                bound=bound,
+                sufficiency_recovery=sufficiency_recovery,
             )
         assert result["sufficiency_map_final"] == maps[0]
         assert (h.trace.dir / "14_final_answer.md").read_text(encoding="utf-8") == result["selected_answer"]

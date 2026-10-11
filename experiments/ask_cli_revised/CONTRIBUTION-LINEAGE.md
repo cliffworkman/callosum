@@ -3537,3 +3537,51 @@ commit hash is reported in delivery and resolves from the commit containing this
 completed product integration or unattended natural-language scientific authoring. Application,
 frontend, baseline, registry and scientific semantics remain unchanged. No live E2E, I2-3,
 v9 or follow-on architecture begins. Stop after E2.
+
+## 2026-10-11 — Phase 34 / I2-3 scientific answer presentation and disclosure
+
+**Framing and bounded authorization — user.** Close the remaining scientific answer
+presentation work on accepted current v8/v2/plan-v5. Preserve positive/null, reporting/
+goal, display/scientific, attribution, recovery/search, exclusion/ambiguity and witnessed
+relationship distinctions without creating new scientific authority. Require concise
+ordinary answers, actual selected-output checks, exact historical protection, broad
+offline qualification and a stop before separately authorized live adversarial E2E.
+
+**Investigation and implementation — Codex.** Traced the actual Layer C projection,
+presentation, parent synthesis, plan, render and reviewed fresh handoff. Existing records
+were adequate; the gaps were downstream disclosure. A pure plan-v5 helper now describes
+stored facts with their references. Fresh invocation recovery/search snapshots are
+transported through the existing pipeline and checked against their existing bound hashes.
+Rendering exposes material qualifications beside authorized statements or under the
+authored node. It leaves scientific claims, selected proofs, observations, coverage,
+quotation authorization and citation associations unchanged. Attribution follows the
+individual value/support path; no representative or new text classifier supplies it.
+
+**Historical boundary.** Current fresh invocation authority activates the added plan
+metadata. The persisted D2 branch retains exact historical rendering. No new semantic,
+plan or authorization version; no producer source pin or recorded identity modification.
+Indirect evidence remains legitimate, null reporting cannot close positive-goal recovery,
+and an incomplete or unrecorded search never becomes scientific absence.
+
+**Evidence — Codex.** The 27-case disclosure module covers the required 13-case matrix,
+orthogonal candidate diagnostics, source ownership/synthesis combinations, the real
+public selected answer and a detached preserved p8/p36 probe. It compares unchanged
+scientific components and citation authorization. Ordinary atomic and relational public
+answers remain concise and exact. Broad qualification, historical identity comparisons
+and final disposition are recorded in
+`PHASE34_I2_3_PRESENTATION_DISCLOSURE_RESULTS.md`; local logs are under `.local/i2-3`.
+
+**Scope.** This increment is faithful presentation of accepted scientific results, not
+new scientific inference, retrieval, unattended authoring or application integration.
+No external search, live retrieval, model calls, frontend changes or live E2E occurred.
+No additional scholarly lineage is claimed. Stop after I2-3 qualification and delivery.
+
+**Final qualification and disposition.** Targeted: 471 passed. Final schema/consumer
+boundary checks: 74 passed. Full offline: 5,496 passed, exactly the 5 independently
+reconfirmed E2 failures, 12 skipped, 9 xfailed and 276 passing subtests. Optional psutil:
+7 passed. Zero unexplained new failures. Historical v4-v8/D2 hashes and D1 identities/
+source pins remain exact; current public scientific components and provenance equal E2.
+All substantive hooks pass. The sole remaining hook failure is the unchanged frontend
+615-line cap, with identical worktree/HEAD blob; the user's narrow commit exception applies.
+**I2-3 COMPLETE - READY FOR LIVE E2E QUALIFICATION.** Commit/push the bounded increment
+and stop. No live E2E or product integration is authorized by this completion.

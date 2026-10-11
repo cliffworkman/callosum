@@ -118,6 +118,7 @@ def test_only_explicit_profile_b_consumers():
         "profile_b_replay.py": {"_layerc_common"},
         "answer_plan/plan_v5.py": {"_layerc_common"},
         "answer_plan/render_v5.py": {"_layerc_common"},
+        "answer_plan/disclosure_v5.py": {"_layerc_common"},
     }
     for path in BASE.rglob("*.py"):
         if path.name in MODULES or path.name.startswith("test"):

@@ -4,7 +4,7 @@ from experiments.ask_cli_revised import claim_v2, layerc_presentation, parent_sy
 from experiments.ask_cli_revised.answer_plan import plan_v5, render_v5
 
 
-def build_components(projection, authored, sealed, verified=None, *, fresh_authority=None):
+def build_components(projection, authored, sealed, verified=None, *, fresh_authority=None, recovery=None, search=None):
     finalized = layerc_presentation.finalize_display(projection, sealed, authored)
     claims = claim_v2.build_claims(projection, authored)
     receipts = claim_v2.evidence_receipts(projection, claims, finalized)
@@ -12,7 +12,17 @@ def build_components(projection, authored, sealed, verified=None, *, fresh_autho
     synthesis = parent_synthesis_v2.realize(claims, projection, receipts, finalized, units)
     parent_synthesis_v2.audit(synthesis, claims, projection, receipts, finalized, units)
     plan = plan_v5.build_plan(
-        projection, authored, claims, receipts, units, finalized, synthesis, verified, fresh_authority=fresh_authority
+        projection,
+        authored,
+        claims,
+        receipts,
+        units,
+        finalized,
+        synthesis,
+        verified,
+        fresh_authority=fresh_authority,
+        recovery=recovery,
+        search=search,
     )
     rendered = render_v5.render(plan, claims, receipts, synthesis)
     return {
