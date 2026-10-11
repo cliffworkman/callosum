@@ -3268,3 +3268,54 @@ after removing only the explicit added dispatch. No model, NLI, retrieval, ranki
 
 **Stop.** **READY for a separate I4-4E promotion decision.** The bounded explicit D2 consumer is implemented and qualified; promotion is neither implied nor performed. No automatic I4-4E, I2-3, default promotion,
 same_local_assertion or claim-goal/authority-veto changes.
+
+## Phase 34 / I4-4E — default promotion and generality gate
+
+**Date:** 2026-10-11. **Decision: OPTION B — stop before promotion.**
+See [I4-4E decision](PHASE34_I4_4E_PROMOTION_GENERALITY_DECISION.md).
+Started clean on the canonical branch at dff6d3dc1544a8178babe75002860df3eae05987.
+This increment changes only that decision report and this lineage append.
+
+**Concrete blocker.** No accepted general fresh-run boundary feeds the current run's
+reviewed authored/reporting contract and scientific output into v2 Layer C. The only public
+integrated entry is the preserved-event qualification path. Generic component tests are
+not a production trust handoff. The smallest proposed next increment is a narrow same-run
+adapter with runtime/recorded-qualification identity separation, not generalized producer
+enrollment. It is specified, not implemented.
+
+**Topology.** The experimental post-U2 map and legacy parent consumer execute in one
+process, before final map/ledger trace writes; no persisted-map authentication boundary
+exists there. The existing caller is hierarchy/aib-gated, loads fixed frozen sufficiency
+authoring, and emits additive legacy parent artifacts. It does not supply generic request-owned
+plan-v5 nodes or route new arbitrary questions to v2. The actual application Ask endpoint
+uses /summarize -> summarize_scope/summarize_faceted and a persisted response trust spine;
+it imports neither this experimental caller nor profile B. Do not conflate the two routes
+or bypass the application's persisted boundary.
+
+**Generality evidence.** All ten bounded generic A-J controls pass. Fourteen new-consumer/
+projection modules have no q_aib semantic identity/count literals. Their core values,
+claims, proofs, inherited operands, categories, member coverage and conflicts are generic.
+However layerc_consumer/profile_b/profile_b_replay transitively require D1's exact one-event
+registry and bound q_aib authoring/nominations/overlay. This is proper qualification scope,
+and a concrete barrier to ordinary fresh inputs. It is not a fundamental claim-v2/plan-v5
+semantic generality failure.
+
+**Identity evidence.** A restored in-memory current-version flip makes old v8 maps read
+current rather than supported_noncurrent. The unchanged enrolled receipt then fails
+authorization equality before projection. Explicit v8 science with legacy plan-v4 still
+reproduces the exact original characterization; changing legacy PLAN_VERSION to v5 changes
+its combined hash while map/recovery remain equal. Preserve historical recorded disposition,
+not a newly issued current receipt or relabeled qualification. No scientific delta justifies v9.
+
+**Checks.** 60 offline checks passed in 62.81s: A-J and three boundary/static probes,
+30 D2 profile tests, 17 D1 static/replay tests. All original v4-v8 combined hashes and D2
+profile-B e697596b8fb3dd3ce426cdc1b82909ca93f4bbc3346e46b74bf2f96f980eafde remain exact.
+Additional restored process-local replay probes establish the constant-flip consequences.
+No tracked code/test/version/registry/baseline changes, no live retrieval/model/NLI/E2E.
+Full-suite promotion qualification was not applicable because no promotion occurred.
+Normal documentation hooks passed; code-only hooks skipped this Markdown-only change.
+No bypass for this Option B decision.
+
+**Stop.** Defaults remain v7/plan-v4. **NOT READY for bounded I2-3.** E1 is a separately
+authorized next increment; no adapter implementation, promotion, I2-3, live E2E,
+same_local_assertion, generalized enrollment/signatures, or claim-goal/veto work begins here.
