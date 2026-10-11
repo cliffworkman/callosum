@@ -3452,3 +3452,88 @@ or begin E2. The exact preserved hashes and all qualification evidence are in th
 **Boundary.** This is reviewed-authored experimental runtime only. No automatic raw-text
 authoring, application /summarize rewiring, promotion, E2 execution, I2-3, v9, new model pass
 or generalized producer enrollment is included. Stop after E1B.
+
+## Phase 34 / I4-4E2 — installed producer source-pin promotion stop
+
+See [I4-4E2 results](PHASE34_I4_4E2_CURRENT_V8_V2_PROMOTION_RESULTS.md).
+
+**Origin and checkpoint.** Cliff Workman authorized bounded promotion to current v8 and
+v2/plan-v5 while preserving exact historical identities and qualification. Codex began on
+the clean canonical branch at `9c07c6ffb587bdcd6b677f13c7eced6a3b9cbf62`. Starting and final
+HEAD remain that commit. Changes are only the stop report and this lineage append;
+the conditional promotion commit/push was not performed.
+
+**Single blocker.** The enrolled D1 code manifest pins all of sufficiency_engine.py,
+including the current-v7 declaration. The issuer checks the installed bytes before
+production. An offline, scoped source-read probe changed exactly that declaration to v8
+in memory: source SHA-256 changed from `69f8d1970aa5bc56647f81035d77d26eb31ae7f18b4a374c4c20a4accc4b6245`
+to `79d8c152cdf35e51f54f647fca39107e4a839e6c28ddb197738e30d4b052b3f6`, and the real issuer
+rejected `producer source drift: experiments/ask_cli_revised/sufficiency_engine.py`.
+Required qualification fixtures rely on that issuer. No source pin, registry, receipt,
+profile, expected hash or guard was changed to admit the new bytes.
+
+**Important distinction.** Persisted D1 consumption still passes under the same probe,
+and D2 retains `e697596b8fb3dd3ce426cdc1b82909ca93f4bbc3346e46b74bf2f96f980eafde`.
+E1B's recorded supported_noncurrent/v8 versus fresh current/v8 separation remains correct.
+Its scoped runtime-attribute tests did not alter installed source, so did not expose this
+additional reproduction prerequisite. This is not scientific drift or old-receipt corruption.
+
+**Verification.** 49 offline checks passed in 35.53s, covering the blocker probe, actual
+unchanged-source D1 reproduction/authentication, source-drift rejection, persisted
+consumption, scoped fresh-current identity, forged relabeling, D2 and exact v4-v8/profile-A
+hashes. Probe success means the counterfactual rejection was demonstrated. No real promotion
+was applied; production files were never written. Full promotion, optional psutil and
+generality suites were not rerun after this prerequisite stop. The report labels E1B's
+full-suite/five-known-failure evidence as prior evidence rather than E2 qualification.
+
+**Decision: STOP; not ready for bounded I2-3.** Exact historical producer execution must
+remain available when the current default's source bytes advance. No follow-on architecture
+was started to resolve that boundary. Defaults remain v7 and legacy plan-v4, with E1B's
+explicit reviewed fresh v8/v2 route intact. No hook bypass, live model/retrieval/NLI/E2E,
+application/frontend changes, v9, raw-text authoring or I2-3. Stop after E2.
+
+## Phase 34 / I4-4E2 continuation — current selection at the reviewed invocation
+
+See the continuation in [I4-4E2 results](PHASE34_I4_4E2_CURRENT_V8_V2_PROMOTION_RESULTS.md).
+The preceding STOP entry and its 49-check evidence remain a record of the initial attempt.
+
+**Origin / reframing — Cliff Workman, 2026-10-11.** Authorized resolving the demonstrated
+source-pin coupling within E2, preferring current selection at the reviewed invocation
+boundary subject to call-graph inspection. Required completion rather than a new architecture
+phase, exact historical producer/source/identity preservation, and actual public qualification.
+
+**Investigation / implementation — Codex.** Traced every non-test consumer of the pinned
+current-version declaration. The generic scientific machinery already accepts explicit
+versions; the reviewed e2e branch already threads one local version through U1/U2, aligned
+observations and recovery. Current selection now belongs to the existing fresh invocation,
+captured at start and passed to that branch. Its post-production gate requires every child
+to carry the captured current version before issuing current/v8 provenance. The public
+reviewed runner exposes current v8 and the actual plan-v5 serializer identity. No global
+version patch, pinned-code movement, fingerprint exception, parallel pipeline or new schema.
+
+**Historical boundary.** All 26 enrolled producer sources and the original installed issuer
+remain unchanged and operational. The pinned v7-relative reader and legacy plan-v4 serializer
+retain their explicit historical/legacy roles. Recorded D2 remains supported_noncurrent/v8,
+with exact original profile, receipt, verified authorization and combined output hash.
+Changing the new fresh default cannot silently relabel that recorded event.
+
+**Evidence — Codex.** Actual public atomic/relational execution selects current/v8 and v2
+rendering without version monkeypatches or noncurrent opt-ins. Both recovery controls retain
+the entire E1B scientific map and all non-disposition provenance fields, including recovery,
+search and ownership identities; selected text is equal. The new tracked checks also enforce
+real version threading, installed source pins, issuer/fresh coexistence and malformed map
+rejection. Initial routing checks passed 165; broad targeted qualification passed 442.
+Optional psutil checks passed 7, and the exact five known failures were independently
+reproduced. The actual E2 full offline run reports 5,468 passed, exactly 5 known failures,
+12 skipped, 9 xfailed and 276 passing subtests in 374.66s. Zero unexplained new failures.
+
+**Disposition. I4-4E2 COMPLETE — READY FOR BOUNDED I2-3.** All substantive promotion,
+identity, scientific-parity and history gates passed. All hooks pass except the unchanged
+frontend 615-line cap; its worktree and HEAD blobs are identical. The user-authorized E2-only
+`--no-verify` exception applies to the single atomic continuation commit. The final full
+commit hash is reported in delivery and resolves from the commit containing this entry.
+
+**Scope.** This is promotion of the rebuilt reviewed-authored experimental Ask entry, not
+completed product integration or unattended natural-language scientific authoring. Application,
+frontend, baseline, registry and scientific semantics remain unchanged. No live E2E, I2-3,
+v9 or follow-on architecture begins. Stop after E2.

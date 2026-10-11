@@ -106,7 +106,7 @@ def test_public_fresh_mapper_and_selected_output(monkeypatch, relational, recove
     assert output["plan"]["upstream_authority"]["kind"] == "trusted_fresh_invocation"
     assert "verified_producer_authorization_ref" not in output["plan"]
     assert output["invocation_provenance"]["sufficiency_identity"] == {
-        "status": "supported_noncurrent",
+        "status": "current",
         "version": se.SUFFICIENCY_SEMANTICS_V8,
     }
     assert "U1" in harness.stage_names(result)
@@ -120,13 +120,14 @@ def test_public_fresh_mapper_and_selected_output(monkeypatch, relational, recove
 
 
 def test_fresh_current_v8(monkeypatch):
-    with monkeypatch.context() as current:
-        current.setattr(se, "SUFFICIENCY_SEMANTICS_VERSION", se.SUFFICIENCY_SEMANTICS_V8)
-        result = run_public(current)
-        assert result["layerc_v2"]["plan"]["sufficiency_identity"] == {
-            "status": "current",
-            "version": se.SUFFICIENCY_SEMANTICS_V8,
-        }
+    result = run_public(monkeypatch)
+    assert result["layerc_v2"]["plan"]["sufficiency_identity"] == {
+        "status": "current",
+        "version": se.SUFFICIENCY_SEMANTICS_V8,
+    }
+    assert reviewed_ask.CURRENT_SEMANTICS_VERSION == se.SUFFICIENCY_SEMANTICS_V8
+    assert result["layerc_v2"]["plan"]["plan_version"] == reviewed_ask.CURRENT_PLAN_VERSION == "answer-plan-step2-v5"
+    # The historical producer's declaration is not the reviewed invocation's selector.
     assert se.SUFFICIENCY_SEMANTICS_VERSION == se.SUFFICIENCY_SEMANTICS_V7
 
 

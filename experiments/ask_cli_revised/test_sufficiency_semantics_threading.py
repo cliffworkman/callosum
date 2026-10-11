@@ -238,8 +238,7 @@ def test_production_drivers_pass_the_current_constant_explicitly(filename):
     tree = ast.parse((HERE / filename).read_text(encoding="utf-8"))
     explicit_fresh_calls = set()
     if filename == "e2e.py":
-        # E1B captures the current default once, overriding it only for reviewed fresh v8.
-        # Every other driver and the legacy helper still passes the current constant.
+        # E2: the reviewed invocation owns current selection; legacy drivers keep their default.
         execute = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "execute")
         assignments = [
             n
@@ -253,7 +252,7 @@ def test_production_drivers_pass_the_current_constant_explicitly(filename):
             n for n in execute.body if isinstance(n, ast.If) and ast.unparse(n.test) == "_reviewed_inputs is not None"
         )
         assert assignments[1] in branch.body
-        assert ast.unparse(assignments[1]) == "semantics_version = se.SUFFICIENCY_SEMANTICS_V8"
+        assert ast.unparse(assignments[1]) == "semantics_version = fresh_execution.semantics_version"
         assert "fresh_invocation._begin_execution(_reviewed_inputs)" in ast.unparse(branch)
         explicit_fresh_calls = {id(n) for _, n in _threaded_calls(execute)}
     checked = 0

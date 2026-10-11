@@ -8,10 +8,14 @@ from dataclasses import dataclass
 
 from experiments.ask_cli_revised import reporting_contract as rc
 from experiments.ask_cli_revised import reviewed_ask_inputs as reviewed
-from experiments.ask_cli_revised import sufficiency_identity as si
+from experiments.ask_cli_revised import sufficiency_engine as se
 from experiments.ask_cli_revised._layerc_common import V8, body_reference, digest, freeze, plain, require, text_hash
+from experiments.ask_cli_revised.answer_plan import plan_v5
 
 PROFILE = "fresh-v8-layerc-v2-plan-v5"
+# Current selection belongs to the reviewed invocation, not the pinned historical producer.
+CURRENT_SEMANTICS_VERSION = V8
+CURRENT_PLAN_VERSION = plan_v5.PLAN_VERSION
 _ORIGIN = object()
 
 
@@ -70,6 +74,7 @@ class _Execution:
     def __init__(self, inputs):
         reviewed.validate_bound(inputs)
         self.inputs = inputs
+        self.semantics_version = CURRENT_SEMANTICS_VERSION
         self.active = True
 
     def finish(self, *, request, scientific, parent_of, smap, sealed, ownership_context, recovery, search):
@@ -83,11 +88,17 @@ class _Execution:
             and plain(inputs.parent_of) == parent_of,
             "execution authoring mutated",
         )
-        identity = si.read_map_identity(smap, accept_supported_noncurrent=True)
         require(
-            identity["version"] == V8 and identity["status"] in {"current", "supported_noncurrent"},
-            "explicit fresh v8 required",
+            isinstance(smap, dict)
+            and bool(smap)
+            and all(
+                isinstance(c, dict) and c.get(se.SEMANTICS_VERSION_KEY) == self.semantics_version for c in smap.values()
+            ),
+            "fresh map must carry the invocation's current semantic version on every child",
         )
+        # This is active-execution classification after actual production, not a replay reader
+        # or authority for caller-supplied maps. Historical dispositions stay on their own path.
+        identity = {"status": "current", "version": self.semantics_version}
         props = {p["proposition_id"]: p for p in sealed["verified_propositions"]}
         from experiments.ask_cli_revised._layerc_common import canonical
 

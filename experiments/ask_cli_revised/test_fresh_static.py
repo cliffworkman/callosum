@@ -58,7 +58,7 @@ def test_only_actual_execution_issues_fresh_provenance():
         < text.index("fresh_execution.finish")
     )
     assert "result_out['selected_answer'] = text" in text
-    assert "se.SUFFICIENCY_SEMANTICS_V8" in text
+    assert "semantics_version = fresh_execution.semantics_version" in text
 
 
 def test_fresh_scientific_consumers_do_not_select_or_repair_science():
@@ -77,3 +77,20 @@ def test_fresh_scientific_consumers_do_not_select_or_repair_science():
             if isinstance(n, ast.Call):
                 call = n.func.id if isinstance(n.func, ast.Name) else getattr(n.func, "attr", "")
                 assert call not in forbidden
+
+
+def test_current_route_never_patches_historical_version_globals():
+    for name in (*FRESH, "e2e"):
+        root = ast.parse((BASE / (name + ".py")).read_text())
+        for node in ast.walk(root):
+            if isinstance(node, ast.Attribute) and isinstance(node.ctx, ast.Store):
+                assert node.attr != "SUFFICIENCY_SEMANTICS_VERSION", name
+            if isinstance(node, ast.Call):
+                call = node.func.id if isinstance(node.func, ast.Name) else getattr(node.func, "attr", "")
+                if call in {"setattr", "setitem"}:
+                    assert not any(
+                        isinstance(a, ast.Constant) and a.value == "SUFFICIENCY_SEMANTICS_VERSION" for a in node.args
+                    ), name
+        if name == "fresh_invocation":
+            assert "read_map_identity" not in ast.unparse(root)
+            assert "accept_supported_noncurrent" not in ast.unparse(root)

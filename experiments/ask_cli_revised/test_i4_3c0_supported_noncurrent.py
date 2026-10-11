@@ -256,11 +256,9 @@ def test_opt_in_call_sites_are_closed_and_explicit():
     assert found == {
         "experiments/ask_cli_revised/sufficiency_identity.py": ["True"],
         "experiments/ask_cli_revised/answer_plan/replay.py": ["args.allow_supported_noncurrent"],
-        # E1B: the active reviewed fresh invocation explicitly produces v8 without promotion.
-        "experiments/ask_cli_revised/fresh_invocation.py": ["True"],
     }
     fresh = ast.parse((root / "experiments/ask_cli_revised/fresh_invocation.py").read_text())
-    assert "identity['version'] == V8" in ast.unparse(fresh)
+    assert "accept_supported_noncurrent" not in ast.unparse(fresh)
     signature = __import__("inspect").signature(si.read_map_identity)
     assert all(signature.parameters[flag].default is False for flag in FLAGS)
 

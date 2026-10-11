@@ -1,4 +1,4 @@
-"""Explicit proof-aligned reporting plan; v4 remains the default."""
+"""Proof-aligned plan for current reviewed Ask and explicit persisted qualification."""
 
 from experiments.ask_cli_revised._layerc_common import PROFILE, digest, plain
 from experiments.ask_cli_revised.claim_v2 import place_key, requirements

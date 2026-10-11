@@ -78,7 +78,7 @@ def validate_output(result):
     require(all(digest(result[k]) == h for k, h in manifest["components"].items()), "fresh component binding")
     require(plan["plan_sha256"] == digest({k: v for k, v in plan.items() if k != "plan_sha256"}), "fresh plan hash")
     require(
-        plan["plan_version"] == "answer-plan-step2-v5" and plan["layerc_profile"] == fi.PROFILE, "fresh plan profile"
+        plan["plan_version"] == fi.CURRENT_PLAN_VERSION and plan["layerc_profile"] == fi.PROFILE, "fresh plan profile"
     )
     for key in ("projection_ref", "projection_sha256", "sufficiency_identity"):
         require(manifest[key] == plan[key], "fresh plan/manifest binding: " + key)

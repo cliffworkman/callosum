@@ -430,7 +430,7 @@ def execute(
             seed_pass is None and not smoke_limits and not sufficiency_model_assist_enabled,
             "fresh reviewed execution options",
         )
-        semantics_version = se.SUFFICIENCY_SEMANTICS_V8
+        semantics_version = fresh_execution.semantics_version
     scientific_enabled = sufficiency_contract is not None and (
         contract.get("version") == hierarchy_contract.HIER_VERSION or fresh_execution is not None
     )
