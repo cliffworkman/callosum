@@ -164,6 +164,8 @@ def _terminal_flags_justified(sufficiency_map_final: dict, scoped_search_status:
 def audit_parent_synthesis(
     sufficiency_map_final: dict, sealed: dict, sufficiency_recovery_targets: dict, record: dict
 ) -> dict:
+    if record.get("version") == "parent-synthesis-v2":
+        raise ValueError("parent-synthesis-v2 requires its typed projection/receipt audit")
     checks: dict[str, bool] = {}
     problems: list[str] = []
 

@@ -98,18 +98,30 @@ def test_closed_import_call_allowlist_and_no_input_assignment():
                         }, (name, ast.dump(target))
 
 
-def test_no_production_consumers():
+def test_only_explicit_profile_b_consumers():
     names = {p[:-3] for p in MODULES}
+    allowed = {
+        "layerc_consumer.py": {"layerc_projection", "_layerc_common"},
+        "claim_v2.py": {"_layerc_common"},
+        "layerc_presentation.py": {"_layerc_common"},
+        "relation_unit_v2.py": {"_layerc_common"},
+        "parent_synthesis_v2.py": {"_layerc_common"},
+        "profile_b.py": {"_layerc_common"},
+        "profile_b_replay.py": {"_layerc_common"},
+        "answer_plan/plan_v5.py": {"_layerc_common"},
+        "answer_plan/render_v5.py": {"_layerc_common"},
+    }
     for path in BASE.rglob("*.py"):
         if path.name in MODULES or path.name.startswith("test"):
             continue
         tree = ast.parse(path.read_text(encoding="utf-8-sig"))
+        forbidden = names - allowed.get(path.relative_to(BASE).as_posix(), set())
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
-                assert all(a.name.split(".")[-1] not in names for a in node.names), path
+                assert all(a.name.split(".")[-1] not in forbidden for a in node.names), path
             if isinstance(node, ast.ImportFrom):
-                assert (node.module or "").split(".")[-1] not in names, path
-                assert all(a.name not in names for a in node.names), path
+                assert (node.module or "").split(".")[-1] not in forbidden, path
+                assert all(a.name not in forbidden for a in node.names), path
 
 
 def test_runtime_no_io_or_scientific_calls(monkeypatch):

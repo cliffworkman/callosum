@@ -3216,3 +3216,55 @@ the user-authorized --no-verify exception is confined to that pre-existing failu
 prerequisite is satisfied for the enrolled event. I4-4D consumer integration remains stopped.
 No claim-v2, parent-synthesis-v2,
 plan-v5, v8 promotion, I4-4E, I2-3, model/retrieval/NLI or live E2E.
+
+## Phase 34 / I4-4D2 — explicit proof-aligned claim-v2 / plan-v5 consumer integration
+
+**Date:** 2026-10-11. **Result:** READY for a separate I4-4E promotion decision; no promotion performed.
+See [D2 results](PHASE34_I4_4D2_PROOF_ALIGNED_CLAIM_PLAN_INTEGRATION_RESULTS.md).
+
+**Checkpoint and scope.** Began clean on the canonical branch at
+8b2e1184c9cc9c9f313ebae30775f0cc05ec90aa. The single atomic commit containing this
+entry/report completes explicit profile v8-layerc-v2-plan-v5. Default v7/plan-v4 and
+the explicit v8 legacy profile A remain unchanged. No v8 or plan-v5 promotion.
+
+**Authority.** Normal consumption verifies the already enrolled D1 receipt against the
+fixed installation registry and actual snapshots. The narrow bridge re-verifies a real
+VerifiedProducerAuthorization before invoking the unchanged Layer C projection.
+No consumer issues a receipt or activates the producer. Verified authorization remains
+aa9ccbfa94f100a4c8cc0cbe85f60f27eebb289528e0f280447f0fcd23bb04b2 and projection remains
+13f2174081d418d3ec7ef1fd72fc118d0c485f6f8f9503c150147a61eb4472fa, with their existing schema prefixes.
+Raw/lookalike authority and downstream-manifest substitution fail before projection.
+
+**Typed consumers.** Exact C01-C17 material produces 17 parent-claim-v2 claims, 32 own
+semantic values, 13 inherited placements, 38 member-specific claim-evidence receipts,
+and 41 relationship units (40 required-role plus completion-only c1). Completion and I1
+purposes remain distinct. P2-compatible selected proofs replace stale representatives
+only at consumer interpretation; stored bindings remain unchanged. Inherited, link-only,
+direction/effectiveness conflict and exclusion diagnostics retain their upstream meanings.
+No candidate/policy/classifier/witness rerun occurs. Legacy flat consumers reject v2.
+
+**Presentation and plans.** Authorized value-local paths alone undergo existing presentation
+checks. The c3 explicit binding/view remains p8 and its authorized display is p36; implicit
+p36 stays null/unestablished with recovery open. Candidate envelopes cannot acquire a
+second assertion or ownership/discourse wrapper. Per-placement reporting obligations and
+open-list nonexhaustiveness remain explicit. Node states are partial, partial, answered,
+partial, not_established, partial, partial, not_established, not_established. Established but
+restricted science receives a presentation limitation rather than a false absence statement.
+
+**Output identity.** A noncircular downstream manifest is created only after verified
+projection, claims, units, deterministic synthesis, plan and rendering. Final combined
+profile-B SHA-256 is e697596b8fb3dd3ce426cdc1b82909ca93f4bbc3346e46b74bf2f96f980eafde.
+The separate committed baseline binds every downstream artifact. All original v4-v8
+characterization hashes remain exact; scientific map e1c6d1027c96098dce96b7c86ee9259d1c50e379845c1d9bb3adeb62ba00b8cf,
+13 requirements, 46 instances, 94 bindings, 20 proofs, all observations and 48 recovery
+targets are unchanged. Nominations/fingerprints/query text and all 26 producer code pins
+remain exact.
+
+**Checks.** All 116 new consumer checks pass. The final targeted run including historical/static boundary controls has 136 passes; the four I4-3C isolation controls also pass. Final full offline suite: **5,386 passed, five known failures, 12 skipped, nine xfailed, 276 passing subtests in 296.18s**. Zero unexplained regressions. All applicable hooks pass except the unchanged 615-line app/frontend/js/20_synthesis.jsx cap. Frontend HEAD/worktree blob is identically 03f9d3dfee3763533a78d5da601a99cb81bb37f1. Ruff, Bandit, Tach and hygiene checks pass. The user's explicit --no-verify exception applies only to this atomic D2 commit and this sole remaining hook failure.
+Seven optional offline checks pass. The five known environmental/baseline failures reproduce
+independently; no hidden or reclassified failures. Static import exceptions are limited to the
+named consumer bridge/modules. The legacy replay file still recovers its original frozen hash
+after removing only the explicit added dispatch. No model, NLI, retrieval, ranking or live E2E.
+
+**Stop.** **READY for a separate I4-4E promotion decision.** The bounded explicit D2 consumer is implemented and qualified; promotion is neither implied nor performed. No automatic I4-4E, I2-3, default promotion,
+same_local_assertion or claim-goal/authority-veto changes.

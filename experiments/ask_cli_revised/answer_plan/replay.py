@@ -132,6 +132,12 @@ def main(argv=None) -> int:
     parser.add_argument("--out-dir", type=Path, default=DEFAULT_OUT)
     parser.add_argument("--source-extract", type=Path, default=DEFAULT_SOURCE_EXTRACT)
     parser.add_argument(
+        "--layerc-profile", choices=("v8-legacy-layerc-plan-v4-characterization", "v8-layerc-v2-plan-v5")
+    )
+    parser.add_argument(
+        "--profile-b-input", type=Path, help="D1-bound immutable input snapshot; never an issuer request"
+    )
+    parser.add_argument(
         "--allow-historical-versioned",
         action="store_true",
         help="explicit historical path: accept a map stamped with a historical sufficiency-semantics version (v1); "
@@ -150,6 +156,15 @@ def main(argv=None) -> int:
         "apply and bind its recorded version without changing the production default",
     )
     args = parser.parse_args(argv)
+    if args.layerc_profile == "v8-layerc-v2-plan-v5":
+        if args.profile_b_input is None:
+            raise ValueError("profile B requires an enrolled producer receipt and actual input snapshot")
+        from experiments.ask_cli_revised.profile_b_replay import replay as replay_b
+
+        replay_b(args.profile_b_input, args.out_dir)
+        return 0
+    if args.profile_b_input is not None:
+        raise ValueError("profile-B input requires explicit v8-layerc-v2-plan-v5")
     run, out = args.run_dir, args.out_dir
     out.mkdir(parents=True, exist_ok=True)
 
@@ -162,6 +177,11 @@ def main(argv=None) -> int:
         accept_supported_noncurrent=args.allow_supported_noncurrent,
     )
     applied_semantics = si.applied_semantics_version(semantics)
+    if (
+        args.layerc_profile == "v8-legacy-layerc-plan-v4-characterization"
+        and applied_semantics != "sufficiency-semantics-v8"
+    ):
+        raise ValueError("profile A requires explicit v8 semantics")
     scoped = _load(run, "13c_scoped_search.json").get("final") or {}
     preserved_ledger = _load(run, "15a_parent_synthesis.json")
     frozen = json.loads(FROZEN_CONTRACT.read_text(encoding="utf-8"))

@@ -1,0 +1,55 @@
+{
+  "combined_sha256": "e697596b8fb3dd3ce426cdc1b82909ca93f4bbc3346e46b74bf2f96f980eafde",
+  "counts": {
+    "claim_evidence": 38,
+    "claims": 17,
+    "inherited_placements": 13,
+    "own_values": 32,
+    "recovery_targets": 48,
+    "relation_units": 41
+  },
+  "nodes": {
+    "1": "partial",
+    "2": "partial",
+    "3": "answered",
+    "4": "partial",
+    "4A": "not_established",
+    "4B": "partial",
+    "5": "partial",
+    "6": "not_established",
+    "7": "not_established"
+  },
+  "output_manifest": {
+    "claim_evidence_sha256": "3111b6d7c3c7cb78915cc37079a169383a5f528c8d1e897618251eeb7ecc6a2a",
+    "claim_ledger_sha256": "ca50181ba521921463affa49f8aac2292e9970b8f434d512221c82cb55ac579c",
+    "parent_synthesis_sha256": "895e3bb956c01cb10d5cde828a631f255cf817332ccd1badff1b202e87855f7f",
+    "plan_sha256": "c6b4554810059c3cff74e88579fa9ab87f05506ededba4ca8c8383195bdcfbec",
+    "profile": "v8-layerc-v2-plan-v5",
+    "profile_version": "1",
+    "projection_ref": "layerc-validated-projection-v1:sha256:13f2174081d418d3ec7ef1fd72fc118d0c485f6f8f9503c150147a61eb4472fa",
+    "projection_sha256": "e065d9ef55c3a15f0d7c823158271185353d49a6fe8403466e01ffca1216ef09",
+    "relation_units_sha256": "8243b5184886100d78a806328c1104d3ba36d0e2548e92c745bb31ad01876554",
+    "render_sha256": "0ba1565a74b9706cb3368c670d4c7ecff3daf5f41891f834fd15ecbcf1c2c96f",
+    "schema": "profile-b-output-manifest-v1",
+    "schemas": {
+      "claim_evidence": "claim-evidence-v1",
+      "parent_claim": "parent-claim-v2",
+      "parent_synthesis": "parent-synthesis-v2",
+      "projection": "layerc-validated-projection-v1",
+      "relation_unit": "relation-unit-v2",
+      "semantic_value": "semantic-value-v1",
+      "value_coverage": "value-coverage-v1"
+    },
+    "sufficiency_identity": {
+      "status": "supported_noncurrent",
+      "version": "sufficiency-semantics-v8"
+    },
+    "value_coverage_sha256": "4b577dadf8cd7c88c10b00b10c6160db277ec123c4ddcc8880f501982e33f4d7",
+    "verified_producer_authorization_ref": "verified-producer-authorization-v1:sha256:aa9ccbfa94f100a4c8cc0cbe85f60f27eebb289528e0f280447f0fcd23bb04b2"
+  },
+  "output_manifest_ref": "profile-b-output-manifest-v1:sha256:0e1e1a8e6ee27dbd18498d06a19d14aeaae7a162ca21c00058032342fb1a9ce6",
+  "profile": "v8-layerc-v2-plan-v5",
+  "projection_ref": "layerc-validated-projection-v1:sha256:13f2174081d418d3ec7ef1fd72fc118d0c485f6f8f9503c150147a61eb4472fa",
+  "schema": "profile-b-qualification-baseline-v1",
+  "verified_producer_authorization_ref": "verified-producer-authorization-v1:sha256:aa9ccbfa94f100a4c8cc0cbe85f60f27eebb289528e0f280447f0fcd23bb04b2"
+}

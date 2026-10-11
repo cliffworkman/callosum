@@ -97,6 +97,8 @@ def authorized_claim_text(claim: dict) -> str:
     """The only content the model is shown for a claim, and the premise of its claim-value screen. Built from
     ParentClaim fields alone: no proposition ids, no passage text beyond the claim's own values, no internal
     instance keys. Pure serialization, never a new inference."""
+    if claim.get("schema") == "parent-claim-v2":
+        raise ValueError("parent-claim-v2 requires the explicit parent-synthesis-v2 consumer")
     kind = claim["claim_kind"]
     if kind == "role_value":
         value = claim["values"][0]
@@ -140,6 +142,8 @@ _RETURN_SHAPE = '\n\nReturn JSON only, in this shape: {"items": [{"claim_id": "<
 
 
 def build_prompt(claim_ledger: list[dict], question: str) -> str:
+    if any(c.get("schema") == "parent-claim-v2" for c in claim_ledger):
+        raise ValueError("parent-claim-v2 requires the typed parent-synthesis-v2 prompt")
     blocks = "\n\n".join(f"[{c['claim_id']}]\n{authorized_claim_text(c)}" for c in claim_ledger)
     return f"Original request (verbatim):\n{question}\n\n{_PROMPT_HEAD}Claims:\n\n{blocks}{_RETURN_SHAPE}"
 
@@ -259,6 +263,8 @@ def _content_stems(text: str) -> set[str]:
 
 def claim_value_reasons(claim: dict, statement: str, claim_ledger: list[dict]) -> list[str]:
     """Reasons a statement is not faithful to the claim's own authorized content. Empty means it passed."""
+    if claim.get("schema") == "parent-claim-v2":
+        raise ValueError("parent-claim-v2 requires typed member value receipts")
     envelope = authorized_claim_text(claim)
     cid = claim["claim_id"]
     unit = {"unit_id": cid, "passage": envelope, "paper_id": 0, "flags": oe.passage_flags(envelope)}
@@ -318,6 +324,8 @@ def _passage_units(claim: dict, sealed: dict) -> tuple[list[str], dict | None]:
 def source_passage_reasons(claim: dict, statement: str, sealed: dict) -> list[str]:
     """Is this phrasing supported by the evidence the semantic engine already authorized for this claim? Answers
     nothing about whether the claim itself is scientifically right."""
+    if claim.get("schema") == "parent-claim-v2":
+        raise ValueError("parent-claim-v2 requires typed member source receipts")
     ids, units = _passage_units(claim, sealed)
     if not ids:
         return ["no_admissible_passage"]
@@ -489,6 +497,8 @@ def realize(
 
     ``call_context``, when supplied, is a zero-argument callable returning a context manager entered only around the
     single supervisor call (the e2e caller passes its stage logger, so a skipped run leaves no S2 entry)."""
+    if any(c.get("schema") == "parent-claim-v2" for c in claim_ledger):
+        raise ValueError("parent-claim-v2 cannot enter the legacy model realization path")
     if not claim_ledger:
         return _result(
             "no_claims", claim_ledger=claim_ledger, segments=[], call_attempted=False, skip_reason="no_claims"

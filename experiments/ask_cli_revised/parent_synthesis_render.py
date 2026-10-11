@@ -99,6 +99,8 @@ _RENDERERS = {
 
 
 def _render_claim(claim: dict) -> str:
+    if claim.get("schema") == "parent-claim-v2":
+        raise ValueError("parent-claim-v2 requires the explicit parent-synthesis-v2 renderer")
     return _RENDERERS[claim["claim_kind"]](claim)
 
 
@@ -223,6 +225,8 @@ def construction_record(
     ``claim_ledger`` or ``gap_report``: ``resolved_empty_outcomes`` (the deterministic searched-no-support projection)
     and ``scoped_search_status`` (the canonical per-requirement search status it was derived from). Both are always
     present, so a record's shape never depends on whether recovery ran. ``parent_synthesis_hash`` is computed last."""
+    if any(c.get("schema") == "parent-claim-v2" for c in claim_ledger):
+        raise ValueError("parent-claim-v2 requires the typed parent-synthesis-v2 construction record")
     record = {
         "version": CONSTRUCTION_RECORD_VERSION,
         "sealed_ledger_hash": sealed_hash,

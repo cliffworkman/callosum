@@ -15,9 +15,48 @@ BASE = ROOT / "experiments/ask_cli_revised"
 FROZEN = json.loads((BASE / "witness_i4_3c_isolation.json").read_text(encoding="utf-8"))
 
 
+def _legacy_replay_text(text):
+    """D2 permits only these explicit routing additions; retain the original file hash.
+
+    Removing exactly the reviewed dispatch blocks must recover byte-for-byte legacy code.
+    Runtime routing and all five exact replay hashes are checked independently.
+    """
+    additions = [
+        """    parser.add_argument(
+        "--layerc-profile", choices=("v8-legacy-layerc-plan-v4-characterization", "v8-layerc-v2-plan-v5")
+    )
+    parser.add_argument(
+        "--profile-b-input", type=Path, help="D1-bound immutable input snapshot; never an issuer request"
+    )
+""",
+        """    if args.layerc_profile == "v8-layerc-v2-plan-v5":
+        if args.profile_b_input is None:
+            raise ValueError("profile B requires an enrolled producer receipt and actual input snapshot")
+        from experiments.ask_cli_revised.profile_b_replay import replay as replay_b
+
+        replay_b(args.profile_b_input, args.out_dir)
+        return 0
+    if args.profile_b_input is not None:
+        raise ValueError("profile-B input requires explicit v8-layerc-v2-plan-v5")
+""",
+        """    if (
+        args.layerc_profile == "v8-legacy-layerc-plan-v4-characterization"
+        and applied_semantics != "sufficiency-semantics-v8"
+    ):
+        raise ValueError("profile A requires explicit v8 semantics")
+""",
+    ]
+    for addition in additions:
+        assert text.count(addition) == 1
+        text = text.replace(addition, "")
+    return text
+
+
 def test_frozen_layer_c_identity_policy_grounding_and_classifier_code():
     for name, expected in FROZEN["files"].items():
         text = (ROOT / name).read_text(encoding="utf-8")
+        if name == "experiments/ask_cli_revised/answer_plan/replay.py":
+            text = _legacy_replay_text(text)
         assert hashlib.sha256(text.encode()).hexdigest() == expected, name
     for key, expected in FROZEN["functions"].items():
         name, function = key.split("::")
