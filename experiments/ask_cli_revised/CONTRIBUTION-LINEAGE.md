@@ -3682,3 +3682,53 @@ All substantive commit hooks pass using the project environment. The sole failin
 hook is the unchanged 615-line frontend budget; worktree and HEAD blob both equal
 `03f9d3dfee3763533a78d5da601a99cb81bb37f1`. Apply only the user's narrow line-budget
 exception, preserving all other commit gates.
+
+## 2026-10-11 — Phase 34 live E2E requalification, Attempt 2
+
+**Framing and authorization — user.** Repeat the frozen six-question scientific
+battery after F1/F2 remediation, with the indexed checkpoint and real runtime. Preserve
+the original failure, questions, authored inputs and independent expectations. Continue
+independent cases after scientific failure; stop for shared invalidating prerequisites.
+Empirical qualification only: no production, semantics, retrieval or contract repair.
+
+**Execution and assessment — Codex.** Confirmed clean canonical HEAD
+`8645a818d18e8bdbb2ef1ed7bc2d7eb306443fcd` and successful remote CI. Verified all 69
+active papers and 6,610 indexed chunks, physical source identity and the repaired
+obligation-owner join. Used a new working copy with indexed-checkpoint SHA-256
+`0ba4b18364a532ab132dded173a93442ca75cc58d94f549eae3f9ac2b1809360`.
+The original input files and model digests were reused exactly. Six actual attempts,
+122 usable generation calls (115 Qwen, 4 Phi4, 3 Gemma), real local embeddings/NLI,
+and real reviewed Ask mapping/recovery/consumer machinery where execution reached it.
+No mocks, expected-evidence injection, source filtering or query tuning.
+
+**Observed results.** Q1/Q3/Q6 completed but failed scientifically with empty selected
+answers. Q1/Q3 produced real verified propositions, yet relevant result claims were
+lost at verification; high-NLI, exact-quote findings can fail the existing 0.7 chunk-
+similarity gate. Other relevant quote/claim pairs received low NLI support; the
+underlying reason is not established. Q6 missed the known prior-evidence passage and
+its NOMINATE recovery did not return to the already-nominated source. F2 is confirmed
+repaired: scoped targets resolve to `s1`, run and record completed search/evidence gains.
+
+Q2/Q4/Q5 were blocked during U1 mapping by the existing rejection of non-cardinality
+`explicit_category_terms` roles. The original Codex-authored contracts use `exists`;
+their review and the input loader failed to catch this executable incompatibility.
+The exact exception reproduces without candidate evidence or models. No contract was
+rewritten, and no failed run was replaced. This input/runtime boundary limits scientific
+interpretation of those cases; it is not a user authoring error or shared library outage.
+
+**Integrity and disposition.** All 89 original artifacts and 30 reviewed bodies remain
+hash-exact. Original, indexed and working databases are unchanged, with no operational
+database mutations. All 331 sealed candidate spans and 141 packet chunk occurrences
+from completed runs match physical sources, including established continuations.
+There are no final scientific claims or citations; their fidelity on useful answers
+remains unqualified. All generation calls were usable, but that did not ensure scientific
+success. Actual partial traces and exception-related artifact gaps are disclosed.
+Models were released and the task-owned tunnel closed. No external scholarly method
+was implemented: the papers remain scientific assessment evidence.
+
+**LIVE E2E NOT QUALIFIED.** See `PHASE34_LIVE_E2E_REQUALIFICATION_RESULTS.md` and the
+separate `.local/phase34-live-e2e-attempt2-20261011/` artifacts. Recommend only separately
+authorized verification-loss diagnosis, authored-input compatibility closure, and
+targeted passage/recovery inspection. No threshold change, corpus tailoring, scientific
+architecture change, version bump, historical rewrite, endpoint/UI work or remediation
+was performed. Documentation-only checkpoint; stop before any implementation.
