@@ -3319,3 +3319,38 @@ No bypass for this Option B decision.
 **Stop.** Defaults remain v7/plan-v4. **NOT READY for bounded I2-3.** E1 is a separately
 authorized next increment; no adapter implementation, promotion, I2-3, live E2E,
 same_local_assertion, generalized enrollment/signatures, or claim-goal/veto work begins here.
+
+## Phase 34 / I4-4E1 — fresh runtime handoff prerequisite stop
+
+See [I4-4E1 results](PHASE34_I4_4E1_FRESH_RUNTIME_HANDOFF_RESULTS.md).
+
+**Origin and scope.** Cliff Workman authorized a bounded fresh same-process Layer C
+handoff and stable recorded qualification identity, with explicit stop conditions if the
+actual caller lacked a reviewed reporting/node contract. Codex inspected the existing
+caller and materialized the stop finding; no implementation or semantic redesign occurred.
+
+**Checkpoint.** Canonical branch started clean at
+`35b800473bc5c756d6950eb680c2ff27dd2ef7fa`; final HEAD remains that commit. Changes are
+exactly the E1 results report and this lineage append. No commit/push was made because
+the requested implementation gates did not pass.
+
+**Concrete finding.** `e2e.execute` holds the reviewed scientific contract, sealed evidence,
+final map and recovery/search state, but no authored visible reporting-node contract.
+Its request inputs carry literal spans or approved execution children/parent links.
+Plan-v5 instead requires authored node labels, literal wording, parent structure and
+`owning_child_ids`. The existing Phase-30 mapping is explicitly replay-only and postdates
+the preserved live run; the fresh caller neither supplies nor binds it as invocation input.
+No reporting ownership was inferred from child IDs, output states or fixture material.
+
+**Decision. STOP under E1 sections 12–13.** The missing request-owned reporting/node
+contract is the concrete caller blocker. No fresh provenance type, public v2 handoff,
+authority-field generalization or recorded-identity repair was implemented. The existing
+identity limitation remains unresolved; no claim of readiness for E2 is made.
+
+**Verification limits.** Source/call-site inspection and documentation diff checks only.
+Historical v4-v8/profile-B hashes and the five known failures in the report are explicitly
+identified as prior evidence, not E1 reruns. No public non-q_aib run, new A–J handoff tests,
+full suite or optional psutil qualification was performed after the prerequisite stop.
+Production code, science, receipts, registry, baselines and defaults remain unchanged.
+No external search, live retrieval/model/NLI/E2E, hook bypass, application rewiring,
+promotion, I2-3 or automatic follow-on planning work occurred.
