@@ -3354,3 +3354,47 @@ full suite or optional psutil qualification was performed after the prerequisite
 Production code, science, receipts, registry, baselines and defaults remain unchanged.
 No external search, live retrieval/model/NLI/E2E, hook bypass, application rewiring,
 promotion, I2-3 or automatic follow-on planning work occurred.
+
+## Phase 34 / I4-4E1A — fresh reporting-contract authoring design
+
+See [I4-4E1A design](PHASE34_I4_4E1A_REPORTING_CONTRACT_AUTHORING_DESIGN.md).
+
+**Origin and checkpoint.** Cliff Workman accepted the E1 STOP and requested the smallest
+general pre-retrieval reporting-authoring mechanism. Codex audited current consumers,
+request/hierarchy/scientific authoring, product query planning and calibration decomposition.
+The sole prior E1 report/lineage changes were committed and pushed as authorized in
+`13680c71954c7f75964e096ceb48339eb1faf618`, with normal documentation hooks passing.
+E1A began from that clean checkpoint and changes only its design report and this append.
+
+**Decisions.** A closed reporting-contract-v1 carries the full request reference, ordered
+nodes (ID, literal, parent, explicit scientific-child ownership), explicit scientific-only
+children and authored request-wide construct terms. Node IDs serve the current label
+function; no second ordering field or root metadata is needed. Construct terms are retained
+because current display checks actively consume them; replay-only phrase/history fields
+do not become the fresh schema. Scientific and reporting authoring remain distinct and
+are reviewed/bound together before retrieval. Reporting ownership is an explicit partition;
+no execution-tree-to-reporting-tree inference, evidence-driven omission, duplicate ownership,
+parent-state roll-up or new scientific semantics.
+
+**Simple Ask and authority.** An explicitly authored single node can use original request
+wording and scientific requirements keyed to actual flat obligation IDs, without hierarchy
+or another model pass. General multi-node ownership is a new structured authoring decision,
+not something the retrieval planner already authorizes. The proposed field is supplied in
+the current authoring/review lifecycle; it is not a new model authoring pass, fake approval
+or D1 credential. Arbitrary raw-text-to-reviewed-scientific-contract generation is absent
+today and is not claimed implemented or qualified by this design.
+
+**Replay and implementation recommendation.** A qualification-only adapter may expose
+the confirmed Phase-30 overlay as a derived reporting view while preserving source bytes,
+historical provenance and exact D2 serialization/hashes. Fresh inputs are native and
+fixture-independent. Recommend one E1B increment joining this authored input/binding,
+public fresh routing through existing U1/U2, same-process Layer C handoff, and the already
+required recorded-disposition separation. No default promotion, v9, enrollment expansion
+or product endpoint integration. READY for that bounded reviewed-authored implementation;
+not ready for promotion or unattended general scientific authoring.
+
+**Evidence and stop.** Ten targeted AST/source assertions passed without importing or
+executing production modules. Domain-neutral A–J were conceptually checked, explicitly
+not implementation tests. No full suite, model/retrieval/NLI/live E2E or production changes.
+New E1A docs remain uncommitted; the authorized prior E1 checkpoint was the only commit/push.
+Stop after E1A: no reporting implementation, E1 resumption, promotion or I2-3.
