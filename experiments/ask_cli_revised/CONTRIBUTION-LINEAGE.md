@@ -3398,3 +3398,57 @@ executing production modules. Domain-neutral A–J were conceptually checked, ex
 not implementation tests. No full suite, model/retrieval/NLI/live E2E or production changes.
 New E1A docs remain uncommitted; the authorized prior E1 checkpoint was the only commit/push.
 Stop after E1A: no reporting implementation, E1 resumption, promotion or I2-3.
+
+## Phase 34 / I4-4E1B — reviewed reporting and fresh v2 runtime handoff
+
+See [I4-4E1B results](PHASE34_I4_4E1B_REVIEWED_FRESH_RUNTIME_RESULTS.md).
+
+**Origin and checkpoint.** Cliff Workman authorized one bounded reviewed-authored fresh
+experimental route and offline qualification, accepting the E1A design. Codex committed
+and pushed the sole accepted E1A report/lineage changes with normal documentation hooks
+as `f1ef2f326732a34cdc6ca4875de9926e05237d7e`, then began E1B from that clean HEAD.
+The E1B implementation is the single atomic commit containing this entry and results report;
+its full hash is reported in the final delivery rather than embedded self-referentially.
+
+**Authoring and execution.** The closed reporting-contract-v1 validates exact scientific
+ownership partition, explicit helpers, unique identifiers, contiguous depth-first forest
+order and required construct terms. Actual joint review binds immutable request, scientific,
+reporting and scientific-parent snapshots before retrieval. A public Python runner accepts
+these reviewed inputs and ordinary execution objects; flat requests use their actual
+obligation IDs. It reuses e2e.execute, U1/U2, ownership context, recovery and explicit v8.
+No fixed qualification authoring or automatic raw-text scientific authoring is supplied.
+
+**Authority and consumers.** A private active-execution capability issues immutable
+trusted-fresh-invocation-v1 provenance after scientific production, binding exact inputs,
+semantic identity, sealed evidence, ownership context, map, recovery and search state.
+Persisted maps cannot enter the fresh route as credentials. Fresh and authenticated replay
+converge on the same scientific/reference Layer C validator and shared v2 orchestration.
+The fresh plan and output manifest bind typed invocation authority and native reporting;
+the selected answer and 14_final_answer.md use the v2 render. The old D1-backed path remains
+authenticated and serializes exactly as before. Native reporting has a minimal consumer
+view; the confirmed Phase-30 adapter is separately authenticated and inspection-only.
+
+**Identity and compatibility.** The recorded-disposition checker validates against the
+already authenticated event rather than today's current classification. Scoped current-v8
+tests demonstrate fresh current/v8 alongside unchanged recorded supported_noncurrent/v8.
+Forged relabeling still fails. v4-v8/profile-A hashes and D2 profile-B combined
+`e697596b8fb3dd3ce426cdc1b82909ca93f4bbc3346e46b74bf2f96f980eafde`
+remain exact, as do receipt/profile/authorization identities. No registry, producer pins,
+baseline or scientific semantics changed. Legacy defaults remain v7/plan-v4.
+
+**Qualification.** Targeted qualification passed 276 tests; the final public artifact
+inspection passed 14, routing constraints passed 147 and optional offline psutil checks
+passed 7. Public atomic and relational controls execute actual U1/U2 and select v2 output,
+including recovery variants. Generic A-J, review/mutation negatives, trust separation,
+scientific immutability and zero fresh fixture dependency pass. The final full offline suite
+reported 5,457 passed, exactly 5 independently reproduced known failures, 12 skipped,
+9 xfailed and 276 passing subtests in 294.77s: zero unexplained new failures. All hooks pass
+except the unchanged frontend 615-line cap; the user's E1B-only `--no-verify` exception
+applies to this atomic commit. No live model/retrieval/NLI/E2E occurred.
+
+**Decision: READY FOR I4-4E2 PROMOTION.** This readiness decision does not promote defaults
+or begin E2. The exact preserved hashes and all qualification evidence are in the report.
+
+**Boundary.** This is reviewed-authored experimental runtime only. No automatic raw-text
+authoring, application /summarize rewiring, promotion, E2 execution, I2-3, v9, new model pass
+or generalized producer enrollment is included. Stop after E1B.

@@ -24,6 +24,7 @@ ALLOWED_IMPORTS = {
     "dataclasses",
     "app.backend.pdf_processing.extraction",
     "experiments.ask_cli_revised._layerc_common",
+    "experiments.ask_cli_revised.fresh_invocation",
     "experiments.ask_cli_revised._layerc_validation",
     "experiments.ask_cli_revised._layerc_observations",
     "experiments.ask_cli_revised._layerc_values",
@@ -101,6 +102,13 @@ def test_closed_import_call_allowlist_and_no_input_assignment():
 def test_only_explicit_profile_b_consumers():
     names = {p[:-3] for p in MODULES}
     allowed = {
+        "reporting_contract.py": {"_layerc_common"},
+        "reviewed_ask_inputs.py": {"_layerc_common"},
+        "reviewed_ask.py": {"_layerc_common"},
+        "fresh_invocation.py": {"_layerc_common"},
+        "fresh_layerc.py": {"_layerc_common", "layerc_projection"},
+        "reporting_qualification.py": {"_layerc_common"},
+        "e2e.py": {"_layerc_common"},
         "layerc_consumer.py": {"layerc_projection", "_layerc_common"},
         "claim_v2.py": {"_layerc_common"},
         "layerc_presentation.py": {"_layerc_common"},

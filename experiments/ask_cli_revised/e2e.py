@@ -414,8 +414,27 @@ def execute(
     sufficiency_recovery_gate_enabled: bool = False,
     parent_synthesis_enabled: bool = False,
     sufficiency_model_assist_enabled: bool = False,
+    _reviewed_inputs=None,
 ) -> dict:
-    if "S" in bound.supervisors and entail is None:
+    fresh_execution = None
+    semantics_version = se.SUFFICIENCY_SEMANTICS_VERSION
+    if _reviewed_inputs is not None:
+        from experiments.ask_cli_revised import fresh_invocation
+        from experiments.ask_cli_revised._layerc_common import plain, require
+
+        fresh_execution = fresh_invocation._begin_execution(_reviewed_inputs)
+        require(contract == plain(_reviewed_inputs.request), "fresh request substitution")
+        require(sufficiency_contract == plain(_reviewed_inputs.scientific), "fresh science substitution")
+        require((sufficiency_parent_of or {}) == plain(_reviewed_inputs.parent_of), "fresh parent substitution")
+        require(
+            seed_pass is None and not smoke_limits and not sufficiency_model_assist_enabled,
+            "fresh reviewed execution options",
+        )
+        semantics_version = se.SUFFICIENCY_SEMANTICS_V8
+    scientific_enabled = sufficiency_contract is not None and (
+        contract.get("version") == hierarchy_contract.HIER_VERSION or fresh_execution is not None
+    )
+    if fresh_execution is None and "S" in bound.supervisors and entail is None:
         # Fail closed before any stage, trace file or model call: an overview is never shown unscreened.
         raise ValueError("the overview stage (S) needs a local entailment scorer (entail=) to screen its statements")
     if contract.get("version") == hierarchy_contract.HIER_VERSION:
@@ -521,11 +540,11 @@ def execute(
         ownership_context_index = None
         sufficiency_map_initial = None
         sufficiency_u1_receipts_snapshot = None
-        if sufficiency_contract is not None and contract.get("version") == hierarchy_contract.HIER_VERSION:
+        if scientific_enabled:
             early_sealed = stages.seal(
                 contract, subquestions, sink.all_records, sink.evidence_packets, coverage_initial
             )
-            if se.SUFFICIENCY_SEMANTICS_VERSION in (
+            if semantics_version in (
                 se.SUFFICIENCY_SEMANTICS_V6,
                 se.SUFFICIENCY_SEMANTICS_V7,
                 se.SUFFICIENCY_SEMANTICS_V8,
@@ -547,11 +566,11 @@ def execute(
                         sufficiency_parent_of or {},
                         model_client=sufficiency_u1_model_client,
                         nomination_context=sufficiency_u1_context,
-                        semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION,
+                        semantics_version=semantics_version,
                         ownership_context_index=ownership_context_index,
                     )
                     sufficiency_diagnostic.compute_direction_and_effectiveness(
-                        early_sealed, sufficiency_map_initial, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+                        early_sealed, sufficiency_map_initial, semantics_version=semantics_version
                     )
                     entry["detail"] = _nomination_pass_summary(sufficiency_u1_context)
             else:
@@ -560,11 +579,11 @@ def execute(
                     early_sealed,
                     sufficiency_contract,
                     sufficiency_parent_of or {},
-                    semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION,
+                    semantics_version=semantics_version,
                     ownership_context_index=ownership_context_index,
                 )
                 sufficiency_diagnostic.compute_direction_and_effectiveness(
-                    early_sealed, sufficiency_map_initial, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+                    early_sealed, sufficiency_map_initial, semantics_version=semantics_version
                 )
                 stage_log.append(
                     {
@@ -615,7 +634,7 @@ def execute(
         recovery_targets_initial = None
         if sufficiency_recovery_gate_enabled and sufficiency_map_initial is not None:
             recovery_targets_initial = sufficiency_recovery_targets.compute_recovery_targets(
-                sufficiency_map_initial, sufficiency_parent_of or {}, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+                sufficiency_map_initial, sufficiency_parent_of or {}, semantics_version=semantics_version
             )
             for target in recovery_targets_initial.values():
                 hint = sufficiency_recovery_targets.recovery_query_hint(target, sufficiency_map_initial)
@@ -705,7 +724,7 @@ def execute(
     )
     sealed_hash = hashlib.sha256(json.dumps(sealed, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
 
-    if sufficiency_contract is not None and se.SUFFICIENCY_SEMANTICS_VERSION in (
+    if sufficiency_contract is not None and semantics_version in (
         se.SUFFICIENCY_SEMANTICS_V6,
         se.SUFFICIENCY_SEMANTICS_V7,
         se.SUFFICIENCY_SEMANTICS_V8,
@@ -719,11 +738,7 @@ def execute(
     # all (byte-identical absence to sufficiency_u2_context above), never a reimplementation of F
     # itself (the real frozenset lives only in sufficiency_u2_fresh_request_keys below).
     sufficiency_u2_fresh_request_key_count = None
-    if (
-        sufficiency_contract is not None
-        and contract.get("version") == hierarchy_contract.HIER_VERSION
-        and planned_search
-    ):
+    if scientific_enabled and planned_search:
         # Only re-run when the recovery round actually added anything (mirrors the existing
         # R2/C2 gate exactly, e2e.py's own `if len(...) > before:` check above) -- otherwise the
         # initial map is already the final one and re-running would be wasted, identical work.
@@ -774,11 +789,11 @@ def execute(
             sufficiency_parent_of or {},
             model_client=sufficiency_u1_model_client,
             nomination_context=sufficiency_u2_context,
-            semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION,
+            semantics_version=semantics_version,
             ownership_context_index=ownership_context_index,
         )
         sufficiency_diagnostic.compute_direction_and_effectiveness(
-            sealed, sufficiency_map_final, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+            sealed, sufficiency_map_final, semantics_version=semantics_version
         )
         if sufficiency_u2_context is not None:
             # Hard call-budget assertion (audit §19/§20): no physical fresh attempt may ever occur
@@ -841,10 +856,10 @@ def execute(
     # not_attempted and remains recoverable.
     raw_final_targets = (
         sufficiency_recovery_targets.compute_recovery_targets(
-            sufficiency_map_final, sufficiency_parent_of or {}, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+            sufficiency_map_final, sufficiency_parent_of or {}, semantics_version=semantics_version
         )
         if sufficiency_map_final is not None
-        and se.SUFFICIENCY_SEMANTICS_VERSION
+        and semantics_version
         in (
             se.SUFFICIENCY_SEMANTICS_V4,
             se.SUFFICIENCY_SEMANTICS_V5,
@@ -855,7 +870,7 @@ def execute(
         else None
     )
     obligations = sufficiency_recovery_targets.search_obligations(
-        recovery_targets_initial, raw_final_targets, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+        recovery_targets_initial, raw_final_targets, semantics_version=semantics_version
     )
     # Phase 27b: how each recovery obligation's own search fared, read from the round's log. Structured rows only.
     structured_search = sufficiency_recovery_targets.structured_search_outcomes(obligations, recovery_log)
@@ -867,7 +882,7 @@ def execute(
     )
     terminal_search = (
         sufficiency_recovery_targets.terminal_search_status(
-            sufficiency_map_final, structured_search, semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION
+            sufficiency_map_final, structured_search, semantics_version=semantics_version
         )
         if sufficiency_map_final is not None
         else {}
@@ -877,7 +892,7 @@ def execute(
             sufficiency_map_final,
             sufficiency_parent_of or {},
             sufficiency_recovery_targets.engine_search_status(terminal_search),
-            semantics_version=se.SUFFICIENCY_SEMANTICS_VERSION,
+            semantics_version=semantics_version,
             completed_target_ids=completed_target_ids,
         )
         if sufficiency_map_final is not None
@@ -885,7 +900,7 @@ def execute(
     )
     overview_record, reasoning = None, ""
     child_overview_manifest: dict[str, dict] | None = None
-    if "S" in bound.supervisors:
+    if fresh_execution is None and "S" in bound.supervisors:
         if contract.get("version") == hierarchy_contract.HIER_VERSION:
             # Stage B (2026-09-29 authorization): one screened Overview per approved child, from a
             # strictly-filtered (per hierarchy_contract.build_child_sealed_ledger) child-scoped sealed
@@ -950,7 +965,11 @@ def execute(
                 )
                 entry["detail"] = overview.stage_detail(overview_record)
     parent_synthesis_result = None
-    if parent_synthesis_enabled and contract.get("version") == hierarchy_contract.HIER_VERSION:
+    if (
+        fresh_execution is None
+        and parent_synthesis_enabled
+        and contract.get("version") == hierarchy_contract.HIER_VERSION
+    ):
         parent_synthesis_result = _parent_synthesis_outputs(
             trace=trace,
             stage=stage,
@@ -963,7 +982,36 @@ def execute(
             question=question,
             entail=entail,
         )
+    fresh_result = None
+    if fresh_execution is not None:
+        from experiments.ask_cli_revised import fresh_layerc
+
+        invocation, raw, authored = fresh_execution.finish(
+            request=contract,
+            scientific=sufficiency_contract,
+            parent_of=sufficiency_parent_of or {},
+            smap=sufficiency_map_final,
+            sealed=sealed,
+            ownership_context=ownership_context_index,
+            recovery=recovery_targets_final,
+            search=terminal_search,
+        )
+        fresh_result = fresh_layerc.consume(
+            invocation,
+            sufficiency_map_final,
+            raw,
+            authored,
+            recovery=recovery_targets_final,
+            search=terminal_search,
+        )
+        trace.write_json("15_v2_output.json", fresh_result)
     text, render_manifest = render_answer(sealed)
+    if fresh_result is not None:
+        text = fresh_result["render"]["layer1"]
+        render_manifest = {
+            "selected_layerc_profile": fresh_result["plan"]["layerc_profile"],
+            "output_manifest_ref": fresh_result["output_manifest_ref"],
+        }
 
     trace.write_json("02_direct_papers.json", sink.direct_papers)
     trace.write_json("03_axis_nominations.json", sink.axis_noms)
@@ -1009,7 +1057,15 @@ def execute(
     if overview_record is None:
         final_path = trace.write_report("14_final_answer.md", [text.rstrip("\n")])
         trace.write_json("14_render_manifest.json", render_manifest)
-        final_audit = audit_final(sealed, final_path.read_text(encoding="utf-8"))
+        if fresh_result is None:
+            final_audit = audit_final(sealed, final_path.read_text(encoding="utf-8"))
+        else:
+            final_audit = {
+                "profile": fresh_result["plan"]["layerc_profile"],
+                "output_valid": fresh_layerc.validate_output(fresh_result),
+                "selected_render_exact": final_path.read_text(encoding="utf-8") == text,
+            }
+
     else:
         # Two files: the researcher-facing answer, and the detailed inspection (the ledger rendering, unchanged, plus the
         # construction record). Nothing is dropped; the second file is where every exclusion and receipt lives.
@@ -1090,6 +1146,9 @@ def execute(
     }
     if parent_synthesis_result is not None:
         result_out["parent_synthesis"] = parent_synthesis_result
+    if fresh_result is not None:
+        result_out["layerc_v2"] = fresh_result
+        result_out["selected_answer"] = text
     return result_out
 
 

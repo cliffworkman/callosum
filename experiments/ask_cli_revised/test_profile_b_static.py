@@ -31,6 +31,7 @@ IMPORTS = {
     "relation_unit_v2": {"_layerc_common", "claim_v2", "text"},
     "parent_synthesis_v2": {"_layerc_common"},
     "profile_b": {
+        "layerc_pipeline",
         "claim_v2",
         "layerc_presentation",
         "parent_synthesis_v2",
@@ -47,7 +48,7 @@ IMPORTS = {
         "producer_authorization",
         "_producer_schema",
     },
-    "answer_plan/plan_v5": {"_layerc_common", "claim_v2"},
+    "answer_plan/plan_v5": {"_layerc_common", "claim_v2", "fresh_invocation"},
     "answer_plan/render_v5": {"_layerc_common"},
 }
 

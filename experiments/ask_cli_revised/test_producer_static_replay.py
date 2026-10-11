@@ -27,7 +27,7 @@ PURE = {"_producer_schema", "_producer_inputs", "producer_authorization"}
 IMPORTS = {
     "_producer_schema": {"hashlib", "json", "math", "re", "collections.abc", "dataclasses", "types"},
     "_producer_inputs": {"json", "sufficiency_engine", "sufficiency_model_scope", "_producer_schema"},
-    "producer_authorization": {"sufficiency_identity", "_producer_inputs", "_producer_schema"},
+    "producer_authorization": {"recorded_sufficiency_identity", "_producer_inputs", "_producer_schema"},
     "producer_authorization_store": {"pathlib", "_producer_schema"},
     "producer_replay": {
         "copy",
@@ -135,6 +135,7 @@ def test_only_store_reads_trust_configuration_and_no_runtime_enrollment():
 
 def test_no_existing_consumer_imports_or_calls_new_authority():
     allowed = {
+        "reporting_qualification.py": {"producer_authorization", "producer_authorization_store"},
         "layerc_consumer.py": {"producer_authorization", "producer_authorization_store"},
         "profile_b_replay.py": {"producer_authorization", "_producer_schema"},
     }

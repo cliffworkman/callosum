@@ -217,9 +217,16 @@ def test_provenance_seal_cannot_be_constructed_with_public_arguments():
         auth.TrustedProducerRegistry(body={}, materials={})
 
 
-def test_future_current_v8_does_not_retroactively_authorize_noncurrent_receipt(real, monkeypatch):
+def test_future_current_v8_preserves_recorded_event_without_relabeling(real, monkeypatch):
+    # E1B explicitly supersedes D1's current-relative rejection expectation. The enrolled
+    # event remains noncurrent; a forged replacement current receipt still fails enrollment.
     from experiments.ask_cli_revised import sufficiency_engine as se
 
+    original = verify(real)
     monkeypatch.setattr(se, "SUFFICIENCY_SEMANTICS_VERSION", se.SUFFICIENCY_SEMANTICS_V8)
+    assert verify(real) == original
+    assert original.identities["sufficiency_identity"]["status"] == "supported_noncurrent"
+    forged = copy.deepcopy(real.receipt)
+    forged["sufficiency_identity"]["status"] = "current"
     with pytest.raises(auth.ProducerAuthorizationError):
-        verify(real)
+        verify(real, producer_receipt=forged)

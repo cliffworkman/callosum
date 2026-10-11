@@ -236,11 +236,35 @@ def _threaded_calls(tree):
 @pytest.mark.parametrize("filename", PRODUCTION_DRIVERS)
 def test_production_drivers_pass_the_current_constant_explicitly(filename):
     tree = ast.parse((HERE / filename).read_text(encoding="utf-8"))
+    explicit_fresh_calls = set()
+    if filename == "e2e.py":
+        # E1B captures the current default once, overriding it only for reviewed fresh v8.
+        # Every other driver and the legacy helper still passes the current constant.
+        execute = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "execute")
+        assignments = [
+            n
+            for n in ast.walk(execute)
+            if isinstance(n, ast.Assign)
+            and any(isinstance(t, ast.Name) and t.id == "semantics_version" for t in n.targets)
+        ]
+        assert len(assignments) == 2
+        assert ast.unparse(assignments[0]) == "semantics_version = se.SUFFICIENCY_SEMANTICS_VERSION"
+        branch = next(
+            n for n in execute.body if isinstance(n, ast.If) and ast.unparse(n.test) == "_reviewed_inputs is not None"
+        )
+        assert assignments[1] in branch.body
+        assert ast.unparse(assignments[1]) == "semantics_version = se.SUFFICIENCY_SEMANTICS_V8"
+        assert "fresh_invocation._begin_execution(_reviewed_inputs)" in ast.unparse(branch)
+        explicit_fresh_calls = {id(n) for _, n in _threaded_calls(execute)}
     checked = 0
     for name, node in _threaded_calls(tree):
         keywords = {kw.arg: kw.value for kw in node.keywords}
         assert "semantics_version" in keywords, f"{filename}:{node.lineno} {name}() omits semantics_version"
         value = keywords["semantics_version"]
+        if id(node) in explicit_fresh_calls:
+            assert isinstance(value, ast.Name) and value.id == "semantics_version"
+            checked += 1
+            continue
         assert isinstance(value, ast.Attribute) and value.attr == "SUFFICIENCY_SEMANTICS_VERSION", (
             f"{filename}:{node.lineno} {name}() must pass the current constant, not {ast.dump(value)[:80]}"
         )

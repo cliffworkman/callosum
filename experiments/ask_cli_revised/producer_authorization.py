@@ -4,7 +4,6 @@ Threat E (replacement of repository/verifier/process code) is outside this model
 No signatures, producer execution, filesystem access or downstream activation.
 """
 
-from experiments.ask_cli_revised import sufficiency_identity as si
 from experiments.ask_cli_revised._producer_inputs import validate_input_bundle
 from experiments.ask_cli_revised._producer_schema import (
     IDENTITY,
@@ -27,6 +26,7 @@ from experiments.ask_cli_revised._producer_schema import (
     require_trusted,
     validate_material,
 )
+from experiments.ask_cli_revised.recorded_sufficiency_identity import check_recorded_binding
 
 __all__ = [
     "verify_producer_authorization",
@@ -105,7 +105,7 @@ def _verify(smap, sealed_bytes, authored_contract, receipt, bundle, registry):
     validate_input_bundle(bundle, sealed_bytes, authored_contract, event, authored, nominations)
     require(plain(receipt["sufficiency_identity"]) == IDENTITY, "exact noncurrent/v8 disposition required")
     require(plain(profile["permitted_identities"]) == [IDENTITY], "incompatible profile disposition")
-    si.check_authorization_binding(plain(receipt["sufficiency_identity"]), smap)
+    check_recorded_binding(plain(receipt["sufficiency_identity"]), smap, authorized_identity=IDENTITY)
     require(receipt["map_canonical_sha256"] == digest(smap), "output map binding")
     require(receipt["sealed_artifact_bytes_sha256"] == byte_hash(sealed_bytes), "sealed bytes binding")
     for key in ("sealed_proposition_index_sha256", "overlay_canonical_sha256", "ownership_context_manifest_sha256"):

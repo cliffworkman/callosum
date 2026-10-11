@@ -36,7 +36,9 @@ def reporting_complete(req, placements, display, units):
 PLAN_VERSION = "answer-plan-step2-v5"
 
 
-def build_plan(projection, authored, claims, receipts, units, finalized, synthesis, producer_authorization):
+def build_plan(
+    projection, authored, claims, receipts, units, finalized, synthesis, producer_authorization, *, fresh_authority=None
+):
     r, facets = projection.records, {}
     for (child, rid), req in requirements(authored).items():
         placements = [
@@ -132,10 +134,32 @@ def build_plan(projection, authored, claims, receipts, units, finalized, synthes
                 "facets": owned,
             }
         )
+    if fresh_authority is None:
+        authority_fields = {
+            "layerc_profile": PROFILE,
+            "verified_producer_authorization_ref": producer_authorization.authorization_ref,
+            "sufficiency_identity": plain(producer_authorization.identities["sufficiency_identity"]),
+            "producer_profile_ref": producer_authorization.identities["profile_ref"],
+        }
+    else:
+        from experiments.ask_cli_revised._layerc_common import require
+        from experiments.ask_cli_revised.fresh_invocation import PROFILE as FRESH_PROFILE
+        from experiments.ask_cli_revised.fresh_invocation import TrustedFreshInvocation
+
+        require(
+            producer_authorization is None and type(fresh_authority) is TrustedFreshInvocation,
+            "distinct fresh authority required",
+        )
+        fresh_authority.validate()
+        authority_fields = {
+            "layerc_profile": FRESH_PROFILE,
+            "upstream_authority": {"kind": "trusted_fresh_invocation", "ref": fresh_authority.provenance_ref},
+            "reporting_contract_ref": fresh_authority.body["reporting_ref"],
+            "sufficiency_identity": plain(fresh_authority.body["sufficiency_identity"]),
+        }
     plan = {
         "plan_version": PLAN_VERSION,
-        "layerc_profile": PROFILE,
-        "verified_producer_authorization_ref": producer_authorization.authorization_ref,
+        **authority_fields,
         "projection_ref": projection.projection_id,
         "projection_sha256": digest({"schema_version": projection.schema_version, "records": plain(r)}),
         "schemas": {
@@ -147,8 +171,6 @@ def build_plan(projection, authored, claims, receipts, units, finalized, synthes
             "relation_unit": "relation-unit-v2",
             "parent_synthesis": "parent-synthesis-v2",
         },
-        "sufficiency_identity": plain(producer_authorization.identities["sufficiency_identity"]),
-        "producer_profile_ref": producer_authorization.identities["profile_ref"],
         "claim_ledger_sha256": digest(claims),
         "claim_evidence_sha256": digest(receipts),
         "relation_units_sha256": digest(units),

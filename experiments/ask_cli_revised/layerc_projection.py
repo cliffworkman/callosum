@@ -71,8 +71,17 @@ class LayerCProjectionV1:
     records: Mapping
 
 
-def _profile(smap, sealed_bytes, ledger, authored, profile, contexts):
+def _profile(smap, sealed_bytes, ledger, authored, profile, contexts, fresh_authority=None):
     require(type(sealed_bytes) is bytes, "sealed must be original UTF-8 artifact bytes")
+    if fresh_authority is not None:
+        from experiments.ask_cli_revised.fresh_invocation import TrustedFreshInvocation
+
+        require(type(fresh_authority) is TrustedFreshInvocation, "trusted fresh authority required")
+        fresh_authority.validate_projection(smap, sealed_bytes, authored, profile, contexts)
+        props = {p["proposition_id"]: p for p in ledger["verified_propositions"]}
+        require(len(props) == len(ledger["verified_propositions"]), "duplicate sealed proposition")
+        require(digest(props) == profile["sealed_proposition_index_sha256"], "fresh sealed index mismatch")
+        return props
     require(
         set(profile)
         == {
@@ -229,13 +238,15 @@ def _validate(smap, ledger, authored, profile, contexts, props):
     return output
 
 
-def validate_layerc_inputs(smap, sealed, authored_contract, *, profile, optional_context_receipts=()):
+def validate_layerc_inputs(
+    smap, sealed, authored_contract, *, profile, optional_context_receipts=(), fresh_authority=None
+):
     """Single validation/projection authority. No scientific selection or presentation execution."""
     before = canonical([smap, authored_contract, profile, optional_context_receipts])
     try:
         require(type(sealed) is bytes, "sealed must be original UTF-8 artifact bytes")
         ledger = json.loads(sealed.decode("utf-8"))
-        props = _profile(smap, sealed, ledger, authored_contract, profile, optional_context_receipts)
+        props = _profile(smap, sealed, ledger, authored_contract, profile, optional_context_receipts, fresh_authority)
         output = _validate(smap, ledger, authored_contract, profile, optional_context_receipts, props)
         require(before == canonical([smap, authored_contract, profile, optional_context_receipts]), "input mutation")
         body = {"schema_version": "layerc-validated-projection-v1", "records": output}
