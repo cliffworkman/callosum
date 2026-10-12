@@ -4028,3 +4028,30 @@ Increment 2 of `PHASE34_JUNO_NLI_HARDWARE_BAKEOFF_RESULTS.md`.
 scientific bakeoff entry, unmodified. No production or experimental runtime code, threshold,
 semantic version, contract, frozen hash, library or historical output changed. Documentation-only
 checkpoint.
+
+## Phase 34 -- JUNO GPU NLI bakeoff (appended 2026-10-12; preserves all prior entries unchanged)
+
+**Framing and authorization -- Cliff Workman, with project collaborators.** Stated GPU-first,
+CPU-second as a design principle to evaluate; authorised a bounded standalone GPU bakeoff on JUNO's
+RTX 3050 with fixed, never-loosened abort limits, an independent temperature monitor, staged smoke
+tests, an optional FP16 comparison and an observation-only coexistence assessment; kept production
+services, the shared Ollama and all deployment changes out of scope.
+
+**Design, execution and assessment -- Claude.** Read-only preflight; predeclared guards and stages
+before any CUDA initialisation; a benchmark with synchronised timing boundaries, an in-process guard
+started before the PyTorch import and a separate shell watchdog; staged runs (CUDA initialisation,
+one-pair smoke tests, FP32 at four batch sizes, FP16 at two, disk-cold load); parity analysis against
+the frozen CPU scores; coexistence arithmetic from preserved generator sizes; the device-policy
+recommendation.
+
+**Result.** GPU FAVORS DEBERTA, as a hardware conclusion only. At FP32 both models reproduce the frozen
+scores (largest difference 8e-06) and every admission decision. End to end: MiniLM 2.5 ms and DeBERTa
+7.1 ms per pair, 14-16 times faster than JUNO's CPU at two threads; about 0.6 GB and 1.3 GB of GPU
+memory; GPU peak 58 C, CPU peak 65 C; no guard fired, no reset. FP16 is faster and smaller but exceeds
+the 1e-3 score tolerance on one to three pairs, with no decision change. Coexistence with a resident
+generator was not measured. See `PHASE34_JUNO_GPU_NLI_BAKEOFF_RESULTS.md`.
+
+**Lineage of methods used.** No scholarly method was newly implemented; models as credited in the
+scientific bakeoff entry, unmodified. No production or experimental runtime code, threshold,
+semantic version, contract, frozen hash, library or historical output changed. Documentation-only
+checkpoint.
