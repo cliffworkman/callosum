@@ -3874,3 +3874,33 @@ renaming the quote's subject. See `PHASE34_MAPPING_VOCABULARY_AND_NLI_DIAGNOSIS_
 **Lineage of methods used.** No external scholarly method was newly implemented. Only the pinned
 local NLI cross-encoder was called. No runtime code, semantic version, contract, frozen hash,
 library or historical output changed; the tracked additions are one test module and documentation.
+
+## Phase 34 -- referential-context NLI experiment (appended 2026-10-12; preserves all prior entries unchanged)
+
+**Framing and authorization -- Cliff Workman, with project collaborators.** Declined the vocabulary
+variant for runtime use; accepted the Q1 NLI diagnosis; authorized one bounded experiment comparing
+context restoration and source-faithful claim reformulation against the existing blinded labels;
+specified the negative-control types, the three representations, the comparison with the current
+verifier and B2, and the five questions on selective use; required that a passing rewrite never
+authorize the original claim by itself and that no representation be built from labels or scores;
+fixed the three conclusions.
+
+**Earlier work this experiment reads -- Claude and ChatGPT (carried over).** The bakeoff's frozen
+pairs, synthetic controls, signals, sentence splitter and frame stripper (Claude); the blinded
+reference labels (ChatGPT, one adjudication pass, not independent human validation). No new labels
+were collected.
+
+**Design, execution and assessment -- Claude.** Wrote the model-free referential detector and froze
+the 40-pair cohort before scoring; fixed the preceding-sentence context rule; wrote the 17 manual
+subject rewrites under a role-matched protocol and froze them before scoring; ran the pinned local
+NLI model over the three representations; evaluated rescue and replace forms under both policies;
+inventoried every newly admitted negative.
+
+**Result.** TRADEOFF UNRESOLVED. Context restoration recovers seven supported pairs under B2,
+including both Q1 false negatives, and admits two contradicted claims. Reformulation recovers three
+with no new false admission, by hand, for one paper, protected only by the existing contradiction
+veto. No automatic policy is proposed. See `PHASE34_REFERENTIAL_CONTEXT_NLI_EXPERIMENT_RESULTS.md`.
+
+**Lineage of methods used.** No external scholarly method was newly implemented. Only the pinned
+local NLI cross-encoder was called. No production code, semantic version, contract, frozen hash,
+library or historical output changed. Documentation-only checkpoint.
