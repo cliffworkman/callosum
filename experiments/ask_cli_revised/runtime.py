@@ -50,7 +50,12 @@ class ExperimentRuntime:
 
 
 def build_runtime(
-    db_path: str | Path, *, want_gemini: bool = False, want_verifier: bool = True, want_qwen: bool = True
+    db_path: str | Path,
+    *,
+    want_gemini: bool = False,
+    want_verifier: bool = True,
+    want_qwen: bool = True,
+    verification_config: VerificationConfig | None = None,
 ) -> ExperimentRuntime:
     """Construct the isolated runtime over ``db_path`` (a COPY). Raises QwenUnavailableError if Qwen is not
     provisioned (``CALLOSUM_APP_DATA_DIR`` + a live descriptor, e.g. via ``python tools/run_local_ai.py``).
@@ -58,7 +63,9 @@ def build_runtime(
     ``want_verifier=False`` skips the NLI CrossEncoder load (Run 0.5 calibration only needs the embedding
     model + Qwen config; loading the verifier is wasted memory and can OOM a constrained machine).
     ``want_qwen=False`` is for a topology that binds no role to managed-local Qwen (every worker is Ollama-native),
-    so such an arm does not depend on a descriptor it never uses."""
+    so such an arm does not depend on a descriptor it never uses.
+    ``verification_config`` is an explicit opt-in for an experimental admission policy; omitted, the verifier
+    keeps the shared ``VerificationConfig`` defaults exactly as before."""
     db_url = f"sqlite:///{Path(db_path).resolve().as_posix()}"
     engine = make_engine(db_url)
     registry = ModelRuntimeRegistry()
@@ -73,7 +80,10 @@ def build_runtime(
     if want_verifier:
         support_scorer = default_support_scorer(model)
         verifier = LocalCitationVerifier(
-            model=model, vector_store=vector_store, config=VerificationConfig(), support_scorer=support_scorer
+            model=model,
+            vector_store=vector_store,
+            config=verification_config or VerificationConfig(),
+            support_scorer=support_scorer,
         )
 
     qwen_config = _resolve_qwen(provider_runtime) if want_qwen else None
