@@ -4002,3 +4002,29 @@ scientific evidence, not speed. See `PHASE34_JUNO_NLI_HARDWARE_BAKEOFF_RESULTS.m
 preceding entry (MiniLMv2 cross-encoder; DeBERTa-v3 NLI checkpoint by Laurer et al.), unmodified.
 No production or experimental runtime code, threshold, semantic version, contract, frozen hash,
 library or historical output changed. Documentation-only checkpoint.
+
+## Phase 34 -- JUNO NLI hardware bakeoff, controlled retry (appended 2026-10-12; preserves all prior entries unchanged)
+
+**Framing and authorization -- Cliff Workman, with project collaborators.** Superseded the
+prohibition on JUNO activity; authorised a diagnosis of the reset followed by a controlled,
+incremental CPU-only retry (smoke test, then one, two and four threads, MiniLM then DeBERTa, with an
+optional coexistence stage); set the stop conditions and the rule that a second reset ends the
+increment; kept the web-stack recovery, owned by Cody, out of scope.
+
+**Design, execution and assessment -- Claude.** Read-only diagnosis from preserved logs and JUNO's
+system records; removed the experiment's leftover polling loop; built a CPU-only environment and a
+bounded launcher (GPU hidden, pinned cores, memory cap, timeout, temperature and swap guard, no
+polling); ran the staged retry; amended the temperature rule twice and recorded both changes before
+acting on them; stopped when the guard ended a third run; verified score parity and projected the
+cost to Ask.
+
+**Result.** HARDWARE TRADEOFF UNRESOLVED. No reset recurred. Both models reproduce the frozen scores
+on JUNO; JUNO at two threads is 2.2-2.5 times faster than the laptop at four and memory is ample.
+JUNO's CPU reaches 81-88 C under one to four threads, which ended DeBERTa at two threads and left
+four threads and Ollama coexistence unmeasured. The reset's cause remains undetermined. See
+Increment 2 of `PHASE34_JUNO_NLI_HARDWARE_BAKEOFF_RESULTS.md`.
+
+**Lineage of methods used.** No scholarly method was newly implemented; models as credited in the
+scientific bakeoff entry, unmodified. No production or experimental runtime code, threshold,
+semantic version, contract, frozen hash, library or historical output changed. Documentation-only
+checkpoint.
