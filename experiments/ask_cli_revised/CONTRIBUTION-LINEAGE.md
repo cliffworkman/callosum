@@ -3841,3 +3841,36 @@ testing. See `PHASE34_B2_MAPPING_BOUNDARY_AUDIT_RESULTS.md`.
 **Lineage of methods used.** No external scholarly method was newly implemented and no model was
 called. No production code, semantic version, contract, frozen hash, library or historical output
 changed. Documentation-only checkpoint.
+
+## Phase 34 -- mapping vocabulary experiment and Q1 NLI diagnosis (appended 2026-10-12; preserves all prior entries unchanged)
+
+**Framing and authorization -- Cliff Workman, with project collaborators.** Accepted the mapping
+audit; authorized the single-vocabulary experiment as a non-current variant and withheld the live
+rerun; required positive and negative controls before implementation and named their ten
+categories; required that a recognised verb never confer ownership; asked for a focused diagnosis
+of the two near-verbatim Q1 NLI false negatives, with the seven things to inspect and a genuine
+negative control; ruled out prompt tuning, threshold changes and any NLI repair; fixed the two exit
+conclusions.
+
+**Earlier work this increment reads -- Codex and Claude (carried over).** The assertion-authority
+classifier and its verb sets, the achieved-outcome span matcher, the v7/v8 binder, support policy
+and producer pinning as already implemented on this branch; the B2 pilot artifacts and the mapping
+audit (Claude); the frozen Q1/Q3 contracts (Codex).
+
+**Reference adjudication -- ChatGPT (carried over).** Unchanged; no new labels were collected.
+
+**Design, execution and assessment -- Claude.** Found that a registered version would require
+editing byte-pinned producer files and kept the variant as an unwired test module instead; wrote
+the tense-twin controls; ran the variant through the unmodified v8 mapper over the 17 sealed
+quotes, the 56 preserved q_aib quotes and every sentence of the two pilot papers; read and
+classified the newly admitted sentences (one reader's judgment, not an adjudication); ran the
+deterministic NLI probes on the two preserved Q1 pairs with constructed negative controls.
+
+**Result.** CORRECTION UNSAFE OR INCOMPLETE; NLI mechanism identified. The variant handles
+present-tense findings as intended and weakens no safeguard, but admits method and roadmap
+sentences once the old verb gate is gone. The two Q1 false negatives are caused by the claim
+renaming the quote's subject. See `PHASE34_MAPPING_VOCABULARY_AND_NLI_DIAGNOSIS_RESULTS.md`.
+
+**Lineage of methods used.** No external scholarly method was newly implemented. Only the pinned
+local NLI cross-encoder was called. No runtime code, semantic version, contract, frozen hash,
+library or historical output changed; the tracked additions are one test module and documentation.
