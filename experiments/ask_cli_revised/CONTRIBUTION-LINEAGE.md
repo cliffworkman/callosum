@@ -4089,3 +4089,26 @@ scholarly method was newly implemented. The credit also sits in the `nli_verifie
 this route has no user interface, so there is no in-tool surface or library-add affordance yet, and one
 is owed if the verifier reaches the application. No contract, frozen hash, library or historical output
 changed.
+
+## Phase 34 -- Fresh DeBERTa q_aib run, stopped by the host safety monitor (appended 2026-10-12; preserves all prior entries unchanged)
+
+**Framing and authorization -- Cliff Workman, with project collaborators.** Approved the commit with only
+the unrelated line-budget hook skipped; required the two pin-test failures to be checked against the
+unchanged baseline; authorized exactly one fresh hierarchical q_aib run with DeBERTa and the parent
+narrative option; authorized JUNO conditional on a healthy preflight with independent host-side monitoring
+at fixed temperature limits; ruled out any automatic retry.
+
+**Execution and assessment -- Claude.** Reproduced both pin failures on the unmodified baseline; committed
+and pushed the integration; ran a read-only preflight; installed a monitor on JUNO that runs independently
+of the laptop and stops the isolated Ollama at a fixed limit; started the isolated Ollama and the run;
+preserved the partial record when the monitor stopped it; confirmed the host state and both library
+copies afterwards.
+
+**Result.** FRESH E2E NOT COMPLETED. The first pass's generation finished (213 usable Qwen calls). During
+the first coverage audit, phi4:14b's CPU-resident layers took JUNO's CPU to the 88 C abort limit and the
+monitor stopped the run after 483 seconds. No evidence was sealed and no synthesis or answer was
+produced, so there is no scientific finding. No reset, no kernel error, no retry. See
+`PHASE34_DEBERTA_FRESH_E2E_RESULTS.md`.
+
+**Lineage of methods used.** As credited in the integration entry above; nothing further was implemented.
+No production or experimental code, threshold, contract, frozen hash or library changed in this entry.
