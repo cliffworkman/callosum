@@ -3769,3 +3769,39 @@ not run because JUNO access was refused. See `PHASE34_EVIDENCE_ADMISSION_BAKEOFF
 (`all-MiniLM-L6-v2`; `cross-encoder/nli-MiniLM2-L6-H768`). No external scholarly method was newly
 implemented. No production code, threshold, version, contract, frozen hash or historical output
 changed. Documentation-only checkpoint; no policy implemented.
+
+## Phase 34 -- B2 live pilot and downstream safety check (appended 2026-10-12; preserves all prior entries unchanged)
+
+**Framing and authorization -- Cliff Workman, with project collaborators.** Chose B2 from the
+bakeoff as the candidate to pilot; set the two questions to answer (does newly admitted evidence
+produce correctly cited answers; does B2 introduce a consequential false admission the downstream
+safeguards miss); identified the fabricated causal control as the specific regression to examine
+and required the six-way distinction between passing verification and reaching a cited answer;
+confined the change to the reviewed experimental route, limited the live work to the original Q1
+and Q3 run once each, and fixed the four exit dispositions.
+
+**Reference adjudication -- ChatGPT (carried over).** The causal control's `unsupported` label and
+the `supported` labels on the nine live pairs B2 newly admits come from the bakeoff's single
+blinded adjudication pass. Not independent human scientific validation.
+
+**Earlier live protocol and reviewed inputs -- Codex (carried over).** The frozen six-question
+protocol, the Q1/Q3 reviewed contracts and the Attempt 2 driver that this pilot reuses unchanged
+apart from the admission policy and attempt label.
+
+**Design, implementation, runs and assessment -- Claude.** Scoped the policy to an opt-in
+`build_runtime` parameter and one named constant; wrote the tests; established that the v8 mapper,
+witness, Layer C and renderer read the sealed quote, not the model-written claim, and built the
+paired fabricated-versus-faithful probe on that basis; ran Q1 and Q3 live; traced the remaining
+empty answers to the achieved-outcome result-verb vocabulary and noted the unavailable ownership
+context; read the newly admitted pairs against their quotes (not an independent adjudication).
+
+**Result.** B2 PILOT PARTIAL. Sealed propositions rose from 2 to 5 (Q1) and from 6 to 12 (Q3),
+including the qualified up-to-2x finding; no unsupported admission was
+found among them; the fabricated causal wording cannot reach a selected answer. Both answers
+remain empty because scientific mapping forms no achieved-outcome candidate from the sealed
+quotes. See `PHASE34_B2_LIVE_PILOT_RESULTS.md`.
+
+**Lineage of methods used.** Local models as already pinned by the project. No external scholarly
+method was newly implemented. Shared verifier defaults, the application summarize path, v8 /
+Layer C v2 / plan-v5 semantics, contracts, producer fingerprints, frozen hashes and historical
+outputs are unchanged. B2 is not promoted beyond the opt-in experimental configuration.
