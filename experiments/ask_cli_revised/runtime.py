@@ -56,6 +56,7 @@ def build_runtime(
     want_verifier: bool = True,
     want_qwen: bool = True,
     verification_config: VerificationConfig | None = None,
+    support_scorer_factory=None,
 ) -> ExperimentRuntime:
     """Construct the isolated runtime over ``db_path`` (a COPY). Raises QwenUnavailableError if Qwen is not
     provisioned (``CALLOSUM_APP_DATA_DIR`` + a live descriptor, e.g. via ``python tools/run_local_ai.py``).
@@ -65,7 +66,9 @@ def build_runtime(
     ``want_qwen=False`` is for a topology that binds no role to managed-local Qwen (every worker is Ollama-native),
     so such an arm does not depend on a descriptor it never uses.
     ``verification_config`` is an explicit opt-in for an experimental admission policy; omitted, the verifier
-    keeps the shared ``VerificationConfig`` defaults exactly as before."""
+    keeps the shared ``VerificationConfig`` defaults exactly as before.
+    ``support_scorer_factory`` is the matching opt-in for the NLI model itself (see ``nli_verifier``); omitted,
+    the verifier keeps the shared default support scorer."""
     db_url = f"sqlite:///{Path(db_path).resolve().as_posix()}"
     engine = make_engine(db_url)
     registry = ModelRuntimeRegistry()
@@ -78,7 +81,7 @@ def build_runtime(
     vector_store = SQLiteVecVectorStore()
     verifier = None
     if want_verifier:
-        support_scorer = default_support_scorer(model)
+        support_scorer = (support_scorer_factory or default_support_scorer)(model)
         verifier = LocalCitationVerifier(
             model=model,
             vector_store=vector_store,

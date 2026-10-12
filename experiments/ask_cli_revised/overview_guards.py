@@ -12,6 +12,7 @@ dropped from the inspection record).
 
 from __future__ import annotations
 
+import contextlib
 import re
 
 from experiments.ask_cli_revised import overview_evidence as oe
@@ -219,12 +220,30 @@ def nli_pair(proposal: dict, units: dict[str, dict], *, hypothesis_text: str | N
     return premise, hypothesis
 
 
+# The thresholds a run's NLI screens apply when a caller passes none. ``None`` means the shared verifier defaults.
+_NLI_SCREEN_CONFIG = None
+
+
+@contextlib.contextmanager
+def nli_screen_config(config):
+    """Apply ``config`` to every ``nli_reasons`` call inside the block (a run-scoped opt-in; ``None`` is a no-op).
+
+    One scorer serves source verification and the synthesis screens, so a run that changes the NLI model sets
+    its screen thresholds here once instead of leaving the screens on another model's defaults."""
+    global _NLI_SCREEN_CONFIG
+    previous, _NLI_SCREEN_CONFIG = _NLI_SCREEN_CONFIG, config
+    try:
+        yield
+    finally:
+        _NLI_SCREEN_CONFIG = previous
+
+
 def nli_reasons(support: float | None, contradiction: float | None, config=None) -> list[str]:
     """Reason codes from the local NLI scores. ``contradiction is None`` means the embedding fallback ran, which cannot
     tell entailment from mere topical overlap, so it fails closed."""
     from app.backend.summarization.verification import VerificationConfig
 
-    config = config or VerificationConfig()
+    config = config or _NLI_SCREEN_CONFIG or VerificationConfig()
     if support is None or contradiction is None:
         return ["nli_unavailable"]
     if contradiction >= config.contradiction_threshold and contradiction > support:

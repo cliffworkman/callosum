@@ -4055,3 +4055,37 @@ generator was not measured. See `PHASE34_JUNO_GPU_NLI_BAKEOFF_RESULTS.md`.
 scientific bakeoff entry, unmodified. No production or experimental runtime code, threshold,
 semantic version, contract, frozen hash, library or historical output changed. Documentation-only
 checkpoint.
+
+## Phase 34 -- DeBERTa verifier integration and hierarchical narrative answer (appended 2026-10-12; preserves all prior entries unchanged)
+
+**Framing and authorization -- Cliff Workman, with project collaborators.** Decided that the synthetic NLI
+controls had served their purpose and that DeBERTa should be tried in the integrated system; specified the
+checkpoint, the 0.50 entailment threshold, FP32, device selection with CPU fallback, and a narrow,
+reversible integration that leaves mapping, retrieval and the evidence contract alone. Specified the
+reader-facing presentation contract: a narrative parent overview, then every approved subquestion in order
+under its approved wording with its own cited child synthesis, uncertainty preserved and detail
+inspectable. Required one completely fresh full q_aib run, evaluated on its actual scientific outputs.
+
+**Design and implementation -- Claude.** Found that every Ask NLI call (source verification, child
+synthesis screening, parent synthesis screening) shares one scorer, and added a selectable verifier
+(`nli_verifier.py`) that replaces that one scorer and threads the 0.50 threshold to the synthesis screens,
+which otherwise kept the MiniLM default. The default verifier and thresholds are unchanged. Added a
+usage receipt (model, revision, label order, dtype, device, pair and fallback counts) to the run manifest.
+Found that the presentation contract was not implemented: the parent answer was a per-claim list and no
+combined document existed. Added a parent narrative stage that reuses the existing screened overview
+stage unmodified over the passages cited by displayed child statements, and a deterministic renderer for
+the hierarchical document (`hierarchical_answer.py`). Both are off unless requested.
+
+**Status at this checkpoint.** Integration verified offline: through the integrated runtime the scorer
+reproduces the frozen bakeoff scores on all 99 pairs (largest difference 1.2e-06) and its admission
+counts. The fresh live run has not been executed; it waits on Cliff's explicit authorization. Nothing here
+is a scientific result about Ask's answers.
+
+**Lineage of methods used.** NLI checkpoint `MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli` (Laurer, van
+Atteveldt, Casas & Welbers, 2024, *Political Analysis* 32(1)); architecture DeBERTaV3 (He, Gao & Chen,
+2023, ICLR); training data MultiNLI (Williams, Nangia & Bowman, 2018), FEVER-NLI and ANLI (Nie et al.,
+2019, 2020). Used unmodified through `sentence-transformers` CrossEncoder (Reimers & Gurevych, 2019). No
+scholarly method was newly implemented. The credit also sits in the `nli_verifier.py` module docstring;
+this route has no user interface, so there is no in-tool surface or library-add affordance yet, and one
+is owed if the verifier reaches the application. No contract, frozen hash, library or historical output
+changed.

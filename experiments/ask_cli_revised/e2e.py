@@ -31,10 +31,12 @@ from experiments.ask_cli_revised import (
     discovery,
     e2e_checks,
     e2e_contracts,
+    hierarchical_answer,
     hierarchy_contract,
     library_copy,
     overview,
     overview_audit,
+    overview_guards,
     overview_render,
     ownership_context,
     parent_synthesis,
@@ -49,6 +51,7 @@ from experiments.ask_cli_revised import (
     sufficiency_freeze,
     sufficiency_recovery_targets,
 )
+from experiments.ask_cli_revised import nli_verifier as nli
 from experiments.ask_cli_revised import sufficiency_engine as se
 from experiments.ask_cli_revised import sufficiency_model_scope as mscope
 from experiments.ask_cli_revised import topology as topo
@@ -415,6 +418,7 @@ def execute(
     sufficiency_recovery_gate_enabled: bool = False,
     parent_synthesis_enabled: bool = False,
     sufficiency_model_assist_enabled: bool = False,
+    parent_narrative_enabled: bool = False,
     _reviewed_inputs=None,
 ) -> dict:
     fresh_execution = None
@@ -903,6 +907,7 @@ def execute(
     )
     overview_record, reasoning = None, ""
     child_overview_manifest: dict[str, dict] | None = None
+    child_records: dict[str, dict] = {}
     if fresh_execution is None and "S" in bound.supervisors:
         if contract.get("version") == hierarchy_contract.HIER_VERSION:
             # Stage B (2026-09-29 authorization): one screened Overview per approved child, from a
@@ -935,6 +940,7 @@ def execute(
                     child_sealed, child_record, detail_file=detail_file, record_file=record_file
                 )
                 trace.write_json(record_file, child_record)
+                child_records[child_id] = child_record
                 if child_reasoning:
                     trace.write_report(f"14c_overview_reasoning.{child_id}.txt", [child_reasoning])
                 answer_path = trace.write_report(answer_file, [answer_text.rstrip("\n")])
@@ -983,6 +989,22 @@ def execute(
             recovery_targets_final=recovery_targets_final,
             scoped_search=terminal_search,
             question=question,
+            entail=entail,
+        )
+    hierarchical_answer_result = None
+    if fresh_execution is None and parent_narrative_enabled and child_overview_manifest is not None:
+        # After every child synthesis and the parent claim ledger: one screened narrative overview across the
+        # passages the displayed child statements cite, then the deterministic reader-facing document.
+        hierarchical_answer_result = _hierarchical_answer_outputs(
+            rt=rt,
+            trace=trace,
+            stage=stage,
+            bound=bound,
+            sealed=sealed,
+            subquestions=subquestions,
+            child_records=child_records,
+            child_files=child_overview_manifest,
+            gap_report=((parent_synthesis_result or {}).get("record") or {}).get("gap_report"),
             entail=entail,
         )
     fresh_result = None
@@ -1149,10 +1171,75 @@ def execute(
     }
     if parent_synthesis_result is not None:
         result_out["parent_synthesis"] = parent_synthesis_result
+    if hierarchical_answer_result is not None:
+        result_out["hierarchical_answer"] = hierarchical_answer_result
     if fresh_result is not None:
         result_out["layerc_v2"] = fresh_result
         result_out["selected_answer"] = text
     return result_out
+
+
+def _paper_labels(rt, paper_ids) -> dict[int, str]:
+    """Title and year for the cited papers, read-only, so a reader sees a work and not only an id."""
+    from sqlalchemy import select
+
+    from app.backend.persistence.schema import papers
+
+    ids = sorted(set(paper_ids))
+    if not ids:
+        return {}
+    with rt.engine.connect() as conn:
+        rows = conn.execute(select(papers.c.id, papers.c.title, papers.c.year).where(papers.c.id.in_(ids))).all()
+    return {int(r.id): f"{r.title} ({r.year})" if r.year else str(r.title) for r in rows}
+
+
+def _hierarchical_answer_outputs(
+    *, rt, trace, stage, bound, sealed, subquestions, child_records, child_files, gap_report, entail
+) -> dict:
+    """The narrative parent overview (one screened S call, the unchanged overview stage over the passages the
+    displayed child statements cite) and the reader-facing hierarchical document. Writes only the additive 19*
+    artifacts and feeds nothing back into search, recovery, sufficiency, the child syntheses or the claim ledger."""
+    view = hierarchical_answer.parent_view(sealed, child_records)
+    view_hash = hashlib.sha256(json.dumps(view, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
+    with stage(hierarchical_answer.STAGE_LABEL, "S") as entry:
+        record, reasoning = overview.build_overview(view, view_hash, supervisor=bound.supervisors["S"], entail=entail)
+        entry["detail"] = overview.stage_detail(record)
+    detail_file, record_file = hierarchical_answer.PARENT_DETAIL_FILE, hierarchical_answer.RECORD_FILE
+    standalone, _ = overview_render.researcher_answer(view, record, detail_file=detail_file, record_file=record_file)
+    trace.write_json(record_file, record)
+    if reasoning:
+        trace.write_report("19f_parent_overview_reasoning.txt", [reasoning])
+    standalone_path = trace.write_report("19e_parent_overview_standalone.md", [standalone.rstrip("\n")])
+    detail_path = trace.write_report(detail_file, [overview_render.detailed_inspection(view, record).rstrip("\n")])
+    overview_audit_result = overview_audit.audit_overview(
+        view,
+        view_hash,
+        record,
+        standalone_path.read_text(encoding="utf-8"),
+        detail_path.read_text(encoding="utf-8"),
+        detail_file=detail_file,
+        record_file=record_file,
+    )
+    cited_papers = [u["paper_id"] for r in [record, *child_records.values()] for u in r["units"]]
+    # The approved child wording, exactly as the contract carries it (not the model-facing prompt text).
+    wordings = {state["field_id"]: state["note"] for state in sealed["obligation_states"]}
+    answer, evidence, manifest = hierarchical_answer.render(
+        question=sealed["request_contract"]["original_question"],
+        subquestions=subquestions,
+        child_records=child_records,
+        child_files=child_files,
+        wordings=wordings,
+        parent_record=record,
+        gap_report=gap_report,
+        paper_labels=_paper_labels(rt, cited_papers),
+        parent_claims_file=parent_synthesis_render.ANSWER_FILE if gap_report is not None else None,
+    )
+    trace.write_report(hierarchical_answer.ANSWER_FILE, [answer.rstrip("\n")])
+    trace.write_report(hierarchical_answer.EVIDENCE_FILE, [evidence.rstrip("\n")])
+    manifest["problems"] = hierarchical_answer.audit(answer, subquestions, wordings, child_records, record)
+    manifest["parent_overview_audit"] = overview_audit_result
+    trace.write_json(hierarchical_answer.MANIFEST_FILE, manifest)
+    return {"record": record, "manifest": manifest}
 
 
 def _parent_synthesis_outputs(
@@ -1297,6 +1384,8 @@ def run_topology(
     sufficiency_model_assist: bool = False,
     sufficiency_recovery_gate: bool = False,
     parent_synthesis: bool = False,
+    parent_narrative: bool = False,
+    nli_verifier: str = "minilm",
     git_state_fn=provenance.git_state,
     verify_library=library_copy.verify,
     verify_contracts=e2e_contracts.verify_frozen,
@@ -1325,6 +1414,11 @@ def run_topology(
     if parent_synthesis and not hierarchy:
         # Phase 27: the same independent-of-the-CLI-parser precondition as the flags above.
         raise ValueError("--parent-synthesis requires --hierarchy")
+    if parent_narrative and not hierarchy:
+        raise ValueError("--parent-narrative requires --hierarchy")
+    # The default adds no runtime argument and no screen config, so a "minilm" run is exactly the run it was before.
+    nli_runtime_kwargs = nli.runtime_kwargs(nli_verifier)
+    nli_screen_config = nli.screen_config(nli_verifier)
     hier_contract = None
     if hierarchy:
         if question_key != "aib":
@@ -1375,7 +1469,7 @@ def run_topology(
         raise
     needs_qwen = any(getattr(profile, role).kind == "managed_local" for role in _roles(profile))
     try:
-        rt = runtime_factory(db_path, want_verifier=True, want_qwen=needs_qwen)
+        rt = runtime_factory(db_path, want_verifier=True, want_qwen=needs_qwen, **nli_runtime_kwargs)
     except QwenUnavailableError as exc:
         close_clients()
         trace.write_json("BLOCKED.json", {"blocked": True, "reason": str(exc)})
@@ -1391,7 +1485,7 @@ def run_topology(
         if sampler is not None:
             sampler.start(f"{profile_name}-{question_key}")
         try:
-            with smoke_caps(smoke_limits):
+            with smoke_caps(smoke_limits), overview_guards.nli_screen_config(nli_screen_config):
                 caps = _caps()
                 result = execute(
                     rt=rt, profile=profile, contract=contract, trace=trace, guard=guard, bound=bound,
@@ -1402,6 +1496,7 @@ def run_topology(
                     sufficiency_model_assist_enabled=sufficiency_model_assist,
                     sufficiency_recovery_gate_enabled=sufficiency_recovery_gate,
                     parent_synthesis_enabled=parent_synthesis,
+                    parent_narrative_enabled=parent_narrative,
                 )  # fmt: skip
         except Exception as exc:
             trace.write_json("RUN_FAILED.json", {"error_type": type(exc).__name__, "message": str(exc)[:500]})
@@ -1409,6 +1504,7 @@ def run_topology(
         finally:
             if sampler is not None:
                 sampler_summary = sampler.stop()
+        nli_receipt = rt.verifier.support_scorer.receipt() if nli_verifier != "minilm" else None
     finally:
         with contextlib.suppress(Exception):
             guard.release_all()
@@ -1421,7 +1517,9 @@ def run_topology(
         library_after = None
         issues.append(f"library_copy_drift_after_run: {exc}")
 
-    report = e2e_checks.mechanical_report(trace.dir, profile=profile, question_key=effective_key)
+    # The mechanical checks re-derive each screen decision, so they must apply the thresholds the run applied.
+    with overview_guards.nli_screen_config(nli_screen_config):
+        report = e2e_checks.mechanical_report(trace.dir, profile=profile, question_key=effective_key)
     trace.write_json("16_mechanical_checks.json", report)
     issues += report["technical_validity"]["issues"]
 
@@ -1494,6 +1592,20 @@ def run_topology(
         }
     if result.get("overview") is not None:
         manifest["overview"] = overview.manifest_record(result["overview"])
+    if parent_narrative:
+        # Additive: present only when the narrative parent overview was requested. Detail is in the 19* artifacts.
+        ha = (result.get("hierarchical_answer") or {}).get("manifest") or {}
+        manifest["hierarchical_answer"] = {
+            "requested": True,
+            "produced": bool(ha),
+            "parent_overview_state": (ha.get("parent_overview") or {}).get("state"),
+            "parent_statements": len((ha.get("parent_overview") or {}).get("statements", [])),
+            "children": len(ha.get("children", [])),
+            "problems": ha.get("problems"),
+        }
+    if nli_receipt is not None:
+        # Present only for a non-default verifier: which model actually scored, on what device, at which thresholds.
+        manifest["nli_verifier"] = nli_receipt
     if parent_synthesis:
         # Phase 27: minimal additive diagnostics. The full construction record stays in 15a_parent_synthesis.json.
         ps_record = (result.get("parent_synthesis") or {}).get("record") or {}
@@ -1581,6 +1693,21 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--parent-narrative",
+        action="store_true",
+        help=(
+            "with --hierarchy: one screened narrative parent overview across the passages the displayed child "
+            "syntheses cite, and the reader-facing hierarchical answer (overview, then every subquestion with "
+            "its child synthesis). Default off."
+        ),
+    )
+    parser.add_argument(
+        "--nli-verifier",
+        choices=nli.VERIFIERS,
+        default="minilm",
+        help="the local NLI model behind source verification and both synthesis screens (default: minilm)",
+    )
+    parser.add_argument(
         "--sufficiency-recovery",
         action="store_true",
         help=(
@@ -1607,6 +1734,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error("--sufficiency-recovery requires --hierarchy")
     if args.parent_synthesis and not args.hierarchy:
         parser.error("--parent-synthesis requires --hierarchy")
+    if args.parent_narrative and not args.hierarchy:
+        parser.error("--parent-narrative requires --hierarchy")
     if not args.preflight_only:
         missing = [f"--{name}" for name in ("profile", "question", "db", "out") if getattr(args, name) is None]
         if missing:
@@ -1661,6 +1790,8 @@ def main(argv: list[str] | None = None) -> int:
         sufficiency_model_assist=args.sufficiency_model_assist,
         sufficiency_recovery_gate=args.sufficiency_recovery,
         parent_synthesis=args.parent_synthesis,
+        parent_narrative=args.parent_narrative,
+        nli_verifier=args.nli_verifier,
         sampler=sampler,
     )
     if manifest.get("blocked"):
