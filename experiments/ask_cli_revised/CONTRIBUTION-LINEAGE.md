@@ -3904,3 +3904,36 @@ veto. No automatic policy is proposed. See `PHASE34_REFERENTIAL_CONTEXT_NLI_EXPE
 **Lineage of methods used.** No external scholarly method was newly implemented. Only the pinned
 local NLI cross-encoder was called. No production code, semantic version, contract, frozen hash,
 library or historical output changed. Documentation-only checkpoint.
+
+## Phase 34 -- source-first evidence authority audit (appended 2026-10-12; preserves all prior entries unchanged)
+
+**Framing and authorization -- Cliff Workman, with project collaborators.** Posed the hypothesis
+that evidentiary authority is assigned at the wrong stage: an authentic, anchored quotation can be
+excluded because its model-written paraphrase fails an NLI check, while downstream science reads
+the quotation. Distinguished five decisions (authenticity, eligibility, scientific support,
+relevance, authorization to cite); specified the three candidate models, the six safety questions,
+the six criteria for a favourable recommendation, the hard boundaries and the three dispositions;
+required that source-first not be assumed better.
+
+**Earlier work this audit reads -- Claude and ChatGPT (carried over).** The B2 pilot runs and
+causal-control probe, the mapping-boundary audit and its route probe, the unwired vocabulary
+variant, the bakeoff's frozen table and controls (Claude); the blinded reference labels (ChatGPT,
+one adjudication pass, not independent human validation). No new labels were collected.
+
+**Design, execution and assessment -- Claude.** Traced claim and quotation consumers through the
+reviewed route by file and line; built the offline counterfactual at the mapper boundary without
+rewriting any verification status; tested that the v8 map is unchanged when claims are replaced by
+their quotes; measured what the unmodified mapper does with every excluded exact quote from Q1, Q3
+and the q_aib history; identified the status checks and the byte-pinned gate that prevent an
+"eligible" class from being expressed; found that the claim check incidentally excludes truncated
+quotes.
+
+**Result.** SOURCE-FIRST INCONCLUSIVE; no-go on implementation now. The misallocation is confirmed
+structurally, but source-first alone changes no answer to Q1 or Q3 under current semantics, the
+safety case lacks a truncation guard and scope-preserving display, and the existing ledger cannot
+carry an unverified row past Layer C. See `PHASE34_SOURCE_FIRST_EVIDENCE_AUTHORITY_AUDIT_RESULTS.md`.
+
+**Lineage of methods used.** No external scholarly method was newly implemented. Only the pinned
+local NLI cross-encoder was called, once, offline. No production or experimental runtime code,
+semantic version, contract, frozen hash, library or historical output changed. Documentation-only
+checkpoint.
