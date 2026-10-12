@@ -3805,3 +3805,39 @@ quotes. See `PHASE34_B2_LIVE_PILOT_RESULTS.md`.
 method was newly implemented. Shared verifier defaults, the application summarize path, v8 /
 Layer C v2 / plan-v5 semantics, contracts, producer fingerprints, frozen hashes and historical
 outputs are unchanged. B2 is not promoted beyond the opt-in experimental configuration.
+
+## Phase 34 -- B2 scientific mapping boundary audit (appended 2026-10-12; preserves all prior entries unchanged)
+
+**Framing and authorization -- Cliff Workman, with project collaborators.** Redirected the work
+from verification to scientific mapping after the B2 pilot; required a read-only diagnosis of all
+17 sealed propositions before any fix; named the two suspected blockers (the fixed achieved-outcome
+vocabulary and missing ownership context) and asked that each be isolated; specified the four
+offline conditions; posed the design question of whether a result verb should hold veto authority
+over an otherwise supported finding; ruled out both a regex patch and a new model adjudicator
+unless the evidence required one; fixed the three exit conclusions.
+
+**Earlier work this audit reads -- Codex and Claude (carried over).** The frozen Q1/Q3 reviewed
+contracts and protocol (Codex); the achieved-outcome span matcher, assertion-authority classifier,
+ownership-context resolver and support policy as already implemented on this branch; the B2 pilot
+runs and their preserved artifacts (Claude).
+
+**Reference adjudication -- ChatGPT (carried over).** The supported labels behind the B2-admitted
+pairs remain one blinded adjudication pass. Not independent human scientific validation.
+
+**Audit design, execution and assessment -- Claude.** Traced the three sequential gates in the v8
+achieved-outcome path; reproduced both live sufficiency maps exactly as a wiring check; ran the
+four conditions through the unmodified mapper with recognition varied in-process and ownership
+context derived by the project's own backfill tool on a scratch library copy; added the downstream
+route probe, the authored-policy and owner-signal probes, and the historical recognition counts;
+read each quote in its source chunk to judge whether it reports a finding (one reader's judgment,
+not an adjudication).
+
+**Result.** MULTIPLE BLOCKERS ESTABLISHED. The vocabulary blocks all 17 first; an assertion-join
+condition and an owner rule each block further findings once recognition is supplied; missing
+ownership metadata was shown not to be a cause. One bounded correction (a single result vocabulary
+shared with the classifier) is identified and recommended for separately authorized, versioned
+testing. See `PHASE34_B2_MAPPING_BOUNDARY_AUDIT_RESULTS.md`.
+
+**Lineage of methods used.** No external scholarly method was newly implemented and no model was
+called. No production code, semantic version, contract, frozen hash, library or historical output
+changed. Documentation-only checkpoint.
