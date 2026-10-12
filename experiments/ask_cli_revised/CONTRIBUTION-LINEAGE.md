@@ -3937,3 +3937,41 @@ carry an unverified row past Layer C. See `PHASE34_SOURCE_FIRST_EVIDENCE_AUTHORI
 local NLI cross-encoder was called, once, offline. No production or experimental runtime code,
 semantic version, contract, frozen hash, library or historical output changed. Documentation-only
 checkpoint.
+
+## Phase 34 -- scientific NLI model bakeoff (appended 2026-10-12; preserves all prior entries unchanged)
+
+**Framing and authorization -- Cliff Workman, with project collaborators.** Asked whether the
+MiniLM cross-encoder is the right NLI model for scientific evidence verification; named the three
+candidates and excluded un-fine-tuned SciBERT; required a checkpoint-compatibility check before any
+download, per-model label resolution, no carried-over threshold, separate load and warm timing, the
+six questions, the hard boundaries and the three dispositions; stated the aim as the smallest,
+fastest model that reliably separates supported from unsupported scientific claims.
+
+**Earlier work this comparison reads -- Claude and ChatGPT (carried over).** The bakeoff's 99-pair
+frozen table, synthetic controls and split (Claude); the blinded reference labels (ChatGPT, one
+adjudication pass, not independent human validation). No new labels were collected.
+
+**Design, execution and assessment -- Claude.** Qualified the three checkpoints from metadata and
+source before downloading; predeclared scoring, grid, split and reading rule; scored all three
+through one code path in isolated processes; verified the SciFact checkpoint on its own development
+set after its output looked degenerate; added a post hoc comparison on SciFact's human-labelled
+development pairs; measured load, memory and latency.
+
+**Result.** CHALLENGER PROMISING for the DeBERTa-v3 model only: 45/59 supported and 2/27 negatives
+against MiniLM's 38/59 and 5/27, at about three times the verification time. It does not recover
+either Q1 finding, and replacement is not justified without a separate qualification. The SciFact
+classifier is unusable standalone. See `PHASE34_SCIENTIFIC_NLI_MODEL_BAKEOFF_RESULTS.md`.
+
+**Lineage of methods used.** Models and data evaluated, none modified, none adopted:
+- MiniLM cross-encoder: Wang, Bao, Huang, Dong & Wei (2021), MiniLMv2; Reimers & Gurevych (2019),
+  Sentence-BERT / cross-encoders; trained on SNLI (Bowman et al., 2015) and MultiNLI (Williams,
+  Nangia & Bowman, 2018).
+- DeBERTa-v3 NLI: He, Gao & Chen (2023), DeBERTaV3; checkpoint by Laurer, van Atteveldt, Casas &
+  Welbers (2024), "Less Annotating, More Classifying"; trained on MultiNLI, FEVER-NLI (Thorne et
+  al., 2018; Nie, Chen & Bansal, 2019) and ANLI (Nie et al., 2020).
+- SciFact label classifier and development data: Wadden, Lin, Lo, Wang, van Zuylen, Cohan &
+  Hajishirzi (2020), "Fact or Fiction: Verifying Scientific Claims"; base model SciBERT (Beltagy,
+  Lo & Cohan, 2019).
+
+No production or experimental runtime code, threshold, semantic version, contract, frozen hash,
+library or historical output changed. Documentation-only checkpoint.
