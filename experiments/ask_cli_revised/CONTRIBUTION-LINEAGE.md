@@ -3732,3 +3732,40 @@ authorized verification-loss diagnosis, authored-input compatibility closure, an
 targeted passage/recovery inspection. No threshold change, corpus tailoring, scientific
 architecture change, version bump, historical rewrite, endpoint/UI work or remediation
 was performed. Documentation-only checkpoint; stop before any implementation.
+
+## Phase 34 -- evidence-admission bakeoff (appended 2026-10-11; preserves all prior entries unchanged)
+
+**Framing, hypotheses and decisions -- Cliff Workman, with project collaborators.** Posed the
+question (cheapest reliable way to recover supported evidence without admitting unsupported
+claims), supplied the five candidate mechanisms (similarity bands, multidimensional evaluation,
+selective contextual escalation, relative ranking, lightweight empirical rule selection) as
+hypotheses rather than answers, and set the boundaries: isolated evaluators only, no production
+or semantic change. Steering after the plan: cheap signals before any LLM call, a smaller and
+more informative blinded packet (about 80-100 pairs), explicit overlap/marginal-gain reporting,
+serious negative controls, predeclared rules, and a hard stop before labels. Chose ChatGPT as
+adjudicator and relayed the packet.
+
+**Reference adjudication -- ChatGPT.** Labelled all 99 blinded items (claim, exact quote and
+surrounding source text only; no scores, strata or origin) as supported / partial / unsupported /
+contradicted / unresolved with a confidence and a one-line note. Single model adjudicator; this is
+not independent human scientific validation.
+
+**Design, harness, analysis and report -- Claude.** Read-only reconnaissance; froze 738 preserved
+records into 288 unique pairs; reproduced frozen similarity and NLI to about 1e-6; observed that the
+similarity gate compares the claim with the whole chunk while NLI reads the isolated quote, and
+added claim-to-quote similarity as a sixth hypothesis, plus frame-stripped NLI and a
+context-as-confirmation variant; authored 40 synthetic negative controls (construction intent
+recorded separately from reference labels); predeclared rules, split and acceptance criteria;
+built the blinded packet; evaluated after labels. Post hoc additions are marked as such in the report.
+
+**Result.** MINIMAL POLICY IDENTIFIED: exact quote + contradiction veto + NLI support >= 0.90 with
+no similarity gate admits 38/59 supported natural pairs (14 today) and the same 5/27 negative
+controls as today. Similarity, measured either way, added no unique information; contextual NLI
+did not rescue evidence but did reduce negative admissions as a confirmation step. Open gap: NLI
+rejects about a third of supported pairs and passes referent swaps. The capped LLM recheck was
+not run because JUNO access was refused. See `PHASE34_EVIDENCE_ADMISSION_BAKEOFF_RESULTS.md`.
+
+**Lineage of methods used.** Local models as already pinned by the project
+(`all-MiniLM-L6-v2`; `cross-encoder/nli-MiniLM2-L6-H768`). No external scholarly method was newly
+implemented. No production code, threshold, version, contract, frozen hash or historical output
+changed. Documentation-only checkpoint; no policy implemented.
