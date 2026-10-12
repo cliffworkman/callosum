@@ -3975,3 +3975,30 @@ classifier is unusable standalone. See `PHASE34_SCIENTIFIC_NLI_MODEL_BAKEOFF_RES
 
 No production or experimental runtime code, threshold, semantic version, contract, frozen hash,
 library or historical output changed. Documentation-only checkpoint.
+
+## Phase 34 -- JUNO NLI hardware bakeoff, interrupted (appended 2026-10-12; preserves all prior entries unchanged)
+
+**Framing and authorization -- Cliff Workman, with project collaborators.** Asked whether
+DeBERTa-v3's laptop cost remains meaningful on JUNO, including alongside generation; specified the
+CPU, GPU and coexistence benchmarks and the hard boundaries. After the incident, designated JUNO a
+protected production host, withdrew all authorization for activity there, and redirected the work
+to a laptop-only close-out with a factual incident record and safeguard recommendations.
+
+**Production recovery and incident ownership -- Cody.** Restored the web stack after the reset and
+owns the production infrastructure and the investigation of the cause.
+
+**Design, execution and assessment -- Claude.** Preflight, isolated environment, checkpoint transfer
+and hash verification on JUNO; started the benchmark that immediately preceded the reset; diagnosed
+read-only afterwards; closed a leftover SSH session; reran both models on the laptop with one
+shared protocol at four and two threads; projected verification cost against the live Q1 and Q3
+runs; drafted the safeguards.
+
+**Result.** HARDWARE TRADEOFF UNRESOLVED -- PRODUCTION INCIDENT. No JUNO measurement exists. JUNO
+hard-reset seconds after the first CPU benchmark began; the cause is not established. On the
+laptop the verifier difference is about 1% of a live Ask run, so the model decision is deferred on
+scientific evidence, not speed. See `PHASE34_JUNO_NLI_HARDWARE_BAKEOFF_RESULTS.md`.
+
+**Lineage of methods used.** No scholarly method was newly implemented. Models as credited in the
+preceding entry (MiniLMv2 cross-encoder; DeBERTa-v3 NLI checkpoint by Laurer et al.), unmodified.
+No production or experimental runtime code, threshold, semantic version, contract, frozen hash,
+library or historical output changed. Documentation-only checkpoint.
