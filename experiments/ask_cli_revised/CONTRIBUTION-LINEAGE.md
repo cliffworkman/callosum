@@ -4153,3 +4153,30 @@ queries, and about 40% of its packets repeat work for the same subquestion. Mode
 run and the CPU verifier an estimated 250-320 s. See `PHASE34_E2E_EXECUTION_TIME_FORENSICS.md`.
 
 **Lineage of methods used.** None implemented. No code, threshold, prompt, contract or run artifact changed.
+
+## Phase 34 -- Recovery reuse and measured latency (appended 2026-10-12; preserves all prior entries unchanged)
+
+**Framing -- Cliff Workman, with project collaborators.** Asked for the removal of redundant recovery work
+without reducing the evidence available downstream: duplicate-query elimination that keeps the query
+distinct from the requirement it serves, conservative packet deduplication only where the scientific
+processing inputs are equivalent, exact question-agnostic identity with no similarity thresholds, direct
+timing of the steps the trace did not measure, and a controlled evaluation of verifier batching without a
+new service. Deferred stage reordering, early exit and generator replacement, and ruled out another E2E run.
+
+**Design and implementation -- Claude.** Measured that 157 recovery calls reissued a byte-identical prompt;
+built opt-in reuse keyed on exact inputs at three levels (search, worker call, source verification), with
+each recovery target keeping its own log row; added opt-in wall-clock spans and a timed verifier that
+wraps the shared verifier's own steps; built an offline replay that runs the real recovery path against
+the preserved library and trace and reproduces the live run exactly with reuse off; benchmarked ten
+DeBERTa execution shapes on the run's 296 preserved pairs.
+
+**Result.** With reuse on, the replay makes 263 worker calls instead of 420 and yields the identical 35
+distinct verified claims on the identical 37 passages, with all 24 target rows unchanged in outcome. Measured
+savings: 200 s of recorded worker inference and 172 s of local work in the recovery round. DeBERTa
+inference in that round measures 72 s, which corrects the earlier 250-320 s estimate; quote location is the
+largest local cost. Ordinary batching does not help; length-sorted batching is 40% faster but not worth a
+restructuring. Not yet run live. See `PHASE34_RECOVERY_REUSE_AND_LATENCY_RESULTS.md`.
+
+**Lineage of methods used.** No scholarly method was newly implemented; the verifier checkpoint is as
+credited in the integration entry. No synthesis prompt, verification threshold, sufficiency rule, frozen
+contract or run artifact changed.

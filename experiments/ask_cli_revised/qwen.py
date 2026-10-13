@@ -14,7 +14,7 @@ from typing import Any
 
 from app.backend.llm.managed_local import ManagedProviderRuntime
 from app.backend.llm.providers import ProviderError, complete
-from experiments.ask_cli_revised import execution_policy
+from experiments.ask_cli_revised import execution_policy, timing
 from experiments.ask_cli_revised.backends import NativeWorker
 from experiments.ask_cli_revised.calibration.structured_output import RESPONSE_FORMAT, schema_config
 from experiments.ask_cli_revised.request_contract import obligation_display
@@ -217,6 +217,8 @@ class _CallResult:
 class QwenTasks:
     config: object  # ManagedProviderConfig
     trace: TraceWriter
+    # Set only for the duration of a recovery round that opted in (see recovery_reuse). None: every call runs.
+    reuse: object | None = None
 
     @property
     def model_name(self) -> str | None:
@@ -259,6 +261,21 @@ class QwenTasks:
         )
 
     def _call(self, *, prompt: str, output_cap: int, json_schema: dict | None = None) -> _CallResult:
+        """One worker call, or the stored result of the byte-identical call already made in this recovery round."""
+        reuse = self.reuse
+        if reuse is None:
+            with timing.span("model.worker_call"):
+                return self._call_backend(prompt=prompt, output_cap=output_cap, json_schema=json_schema)
+        key = reuse.call_key(config=self.config, prompt=prompt, output_cap=output_cap, json_schema=json_schema)
+        stored = reuse.reused_call(key)
+        if stored is not None:
+            return stored
+        with timing.span("model.worker_call"):
+            result = self._call_backend(prompt=prompt, output_cap=output_cap, json_schema=json_schema)
+        reuse.record_call(key, result)
+        return result
+
+    def _call_backend(self, *, prompt: str, output_cap: int, json_schema: dict | None = None) -> _CallResult:
         if isinstance(self.config, NativeWorker):
             return self._call_native(prompt=prompt, output_cap=output_cap, json_schema=json_schema)
         started = time.monotonic()

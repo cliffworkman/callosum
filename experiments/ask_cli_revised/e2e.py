@@ -44,12 +44,14 @@ from experiments.ask_cli_revised import (
     parent_synthesis_ledger,
     parent_synthesis_render,
     provenance,
+    recovery_reuse,
     recovery_routing,
     retrieval,
     stages,
     sufficiency_diagnostic,
     sufficiency_freeze,
     sufficiency_recovery_targets,
+    timing,
 )
 from experiments.ask_cli_revised import nli_verifier as nli
 from experiments.ask_cli_revised import sufficiency_engine as se
@@ -185,8 +187,36 @@ def _initial_pass(conn, *, rt, qwen, subquestions, sink: Sink, trace) -> None:
         )
 
 
-def _recover_round(conn, *, rt, qwen, subquestions, gaps, plan, sink: Sink, trace) -> list[dict]:
-    """Round-two W: execute exactly the planned action per unresolved item; claim mapping stays deferred to R."""
+def _recover_round(conn, *, rt, qwen, subquestions, gaps, plan, sink: Sink, trace, reuse=None) -> list[dict]:
+    """Round-two W: execute exactly the planned action per unresolved item; claim mapping stays deferred to R.
+
+    ``reuse`` (default ``None``: every target, call and verification runs) shares byte-identical work inside this
+    one round. It is attached to the worker and the verifier for the round only and detached afterwards."""
+    if reuse is None:
+        return _recover_cli(
+            conn, rt=rt, qwen=qwen, subquestions=subquestions, gaps=gaps, plan=plan, sink=sink, trace=trace
+        )
+    view = recovery_reuse.ReuseRuntimeView(
+        model=rt.model, vector_store=rt.vector_store, verifier=recovery_reuse.ReusingVerifier(rt.verifier, reuse)
+    )
+    qwen.reuse = reuse
+    try:
+        return _recover_cli(
+            conn,
+            rt=view,
+            qwen=qwen,
+            subquestions=subquestions,
+            gaps=gaps,
+            plan=plan,
+            sink=sink,
+            trace=trace,
+            reuse=reuse,
+        )
+    finally:
+        qwen.reuse = None
+
+
+def _recover_cli(conn, *, rt, qwen, subquestions, gaps, plan, sink: Sink, trace, reuse=None) -> list[dict]:
     return cli._recover(
         conn,
         rt=rt,
@@ -204,6 +234,7 @@ def _recover_round(conn, *, rt, qwen, subquestions, gaps, plan, sink: Sink, trac
         verifications=sink.verifications,
         plan=plan,
         map_claims=False,
+        **({"reuse": reuse} if reuse is not None else {}),
     )
 
 
@@ -419,6 +450,7 @@ def execute(
     parent_synthesis_enabled: bool = False,
     sufficiency_model_assist_enabled: bool = False,
     parent_narrative_enabled: bool = False,
+    recovery_reuse_enabled: bool = False,
     _reviewed_inputs=None,
 ) -> dict:
     fresh_execution = None
@@ -686,6 +718,8 @@ def execute(
 
         plan = plan_record["plan"]
         planned_search = [g["field_id"] for g in gaps if plan.get(g["field_id"]) in cli._SEARCH_ACTIONS]
+        # Opt-in. The retrieval configuration is part of every search identity, so a changed cap is a different search.
+        reuse_state = recovery_reuse.RecoveryReuse(retrieval_config=_caps()) if recovery_reuse_enabled else None
         recovery_log: list[dict] = []
         coverage_final = coverage_initial
         sealed_initial = None  # Phase 17 §E: set only when a round genuinely adds new evidence
@@ -701,6 +735,7 @@ def execute(
                     plan=plan,
                     sink=sink,
                     trace=trace,
+                    **({"reuse": reuse_state} if reuse_state is not None else {}),
                 )
             if len(stages.source_verified(sink.all_records)) > before:
                 responsiveness("R2")
@@ -1173,6 +1208,8 @@ def execute(
         result_out["parent_synthesis"] = parent_synthesis_result
     if hierarchical_answer_result is not None:
         result_out["hierarchical_answer"] = hierarchical_answer_result
+    if recovery_reuse_enabled:
+        result_out["recovery_reuse"] = reuse_state.receipt() if reuse_state is not None else None
     if fresh_result is not None:
         result_out["layerc_v2"] = fresh_result
         result_out["selected_answer"] = text
@@ -1385,6 +1422,8 @@ def run_topology(
     sufficiency_recovery_gate: bool = False,
     parent_synthesis: bool = False,
     parent_narrative: bool = False,
+    recovery_reuse_enabled: bool = False,
+    timing_enabled: bool = False,
     nli_verifier: str = "minilm",
     git_state_fn=provenance.git_state,
     verify_library=library_copy.verify,
@@ -1474,6 +1513,9 @@ def run_topology(
         close_clients()
         trace.write_json("BLOCKED.json", {"blocked": True, "reason": str(exc)})
         return {"blocked": True, "reason": str(exc)}
+    if timing_enabled and isinstance(getattr(rt, "verifier", None), timing.LocalCitationVerifier):
+        # Observational: the same verifier, model, store, thresholds and scorer, with its steps timed.
+        rt.verifier = timing.TimedVerifier.wrapping(rt.verifier)
     guard = backends.ResidencyGuard(clients)
     started = time.monotonic()
     issues: list[str] = []
@@ -1485,7 +1527,11 @@ def run_topology(
         if sampler is not None:
             sampler.start(f"{profile_name}-{question_key}")
         try:
-            with smoke_caps(smoke_limits), overview_guards.nli_screen_config(nli_screen_config):
+            with (
+                smoke_caps(smoke_limits),
+                overview_guards.nli_screen_config(nli_screen_config),
+                timing.collect() if timing_enabled else contextlib.nullcontext() as timings,
+            ):
                 caps = _caps()
                 result = execute(
                     rt=rt, profile=profile, contract=contract, trace=trace, guard=guard, bound=bound,
@@ -1497,7 +1543,10 @@ def run_topology(
                     sufficiency_recovery_gate_enabled=sufficiency_recovery_gate,
                     parent_synthesis_enabled=parent_synthesis,
                     parent_narrative_enabled=parent_narrative,
+                    recovery_reuse_enabled=recovery_reuse_enabled,
                 )  # fmt: skip
+                if timings is not None:
+                    trace.write_json("20_timing.json", timings.summary())
         except Exception as exc:
             trace.write_json("RUN_FAILED.json", {"error_type": type(exc).__name__, "message": str(exc)[:500]})
             raise
@@ -1603,6 +1652,10 @@ def run_topology(
             "children": len(ha.get("children", [])),
             "problems": ha.get("problems"),
         }
+    if recovery_reuse_enabled:
+        manifest["recovery_reuse"] = result.get("recovery_reuse")
+    if timing_enabled:
+        manifest["timing"] = timings.summary() if timings is not None else None
     if nli_receipt is not None:
         # Present only for a non-default verifier: which model actually scored, on what device, at which thresholds.
         manifest["nli_verifier"] = nli_receipt
@@ -1702,6 +1755,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--recovery-reuse",
+        action="store_true",
+        help="within one recovery round, share byte-identical searches, worker calls and verifications. Default off.",
+    )
+    parser.add_argument("--timing", action="store_true", help="record wall-clock spans (20_timing.json). Default off.")
+    parser.add_argument(
         "--nli-verifier",
         choices=nli.VERIFIERS,
         default="minilm",
@@ -1791,6 +1850,8 @@ def main(argv: list[str] | None = None) -> int:
         sufficiency_recovery_gate=args.sufficiency_recovery,
         parent_synthesis=args.parent_synthesis,
         parent_narrative=args.parent_narrative,
+        recovery_reuse_enabled=args.recovery_reuse,
+        timing_enabled=args.timing,
         nli_verifier=args.nli_verifier,
         sampler=sampler,
     )

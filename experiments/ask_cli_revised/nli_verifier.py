@@ -31,6 +31,7 @@ import os
 from dataclasses import dataclass, field
 
 from app.backend.summarization.verification import EmbeddingSupportScorer, NLISupportScorer, VerificationConfig
+from experiments.ask_cli_revised import timing
 
 DEBERTA_NLI_MODEL = "MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli"
 DEBERTA_NLI_REVISION = "6f5cf0a2b59cabb106aca4c287eed12e357e90eb"
@@ -74,7 +75,8 @@ class DebertaSupportScorer(NLISupportScorer):
     load_receipt: dict = field(default_factory=dict, init=False)
 
     def support_and_contradiction_many(self, pairs: list[tuple[str, str]]) -> list[tuple[float, float | None]]:
-        results = super().support_and_contradiction_many(pairs)
+        with timing.span("nli.scorer_call"):
+            results = super().support_and_contradiction_many(pairs)
         self.calls += 1
         self.pairs_scored += len(results)
         self.fallback_pairs += sum(1 for _, contradiction in results if contradiction is None)

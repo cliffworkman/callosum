@@ -22,16 +22,18 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from experiments.ask_cli_revised import coverage as coverage_mod  # noqa: E402
-from experiments.ask_cli_revised import discovery, retrieval, stages, synthesis  # noqa: E402
-from experiments.ask_cli_revised.propositions import marshal_and_verify, _candidate_spans  # noqa: E402
+from experiments.ask_cli_revised import discovery, retrieval, stages, synthesis, timing  # noqa: E402
+from experiments.ask_cli_revised.ledger_renderer import audit_final, render_ledger  # noqa: E402
+from experiments.ask_cli_revised.propositions import _candidate_spans, marshal_and_verify  # noqa: E402
 from experiments.ask_cli_revised.question import BENCHMARK_QUESTION  # noqa: E402
 from experiments.ask_cli_revised.qwen import QwenTasks  # noqa: E402
+from experiments.ask_cli_revised.request_contract import (  # noqa: E402
+    audit_original_request,
+    build_request_contract,
+    request_subquestions,
+)
 from experiments.ask_cli_revised.runtime import QwenUnavailableError, build_runtime  # noqa: E402
 from experiments.ask_cli_revised.trace import TraceWriter  # noqa: E402
-from experiments.ask_cli_revised.request_contract import (  # noqa: E402
-    build_request_contract, request_subquestions, audit_original_request,
-)
-from experiments.ask_cli_revised.ledger_renderer import render_ledger, audit_final  # noqa: E402
 
 
 def _git_sha() -> str:
@@ -104,7 +106,8 @@ def _process_hits(
                 "evidence_role": hit.evidence_role,
             }
         )
-        packet = build_context(hit)
+        with timing.span("recovery_or_initial.context_build"):
+            packet = build_context(hit)
         context_growth.append(
             {
                 "origin": origin,
@@ -122,7 +125,8 @@ def _process_hits(
         # failure (a multi-chunk packet losing a sentence split across a chunk boundary) is not
         # recovery-specific, unlike Phase 2 Section 5's deliberately recovery-only +/-3 neighborhood
         # expansion, which this does not change.
-        candidate_spans = [] if packet.discarded else _candidate_spans(packet, trace, conn=conn)
+        with timing.span("recovery_or_initial.candidate_spans"):
+            candidate_spans = [] if packet.discarded else _candidate_spans(packet, trace, conn=conn)
         evidence_packets.append(
             {
                 "origin": origin,
@@ -135,24 +139,25 @@ def _process_hits(
                 "candidate_spans": candidate_spans,
             }
         )
-        records = marshal_and_verify(
-            conn,
-            verifier=rt.verifier,
-            qwen=qwen,
-            packet=packet,
-            subquestion_text=sq_text,
-            obligations=obligations,
-            nomination_reason=reason_by_paper.get(hit.chunk.paper_id, []),
-            origin=origin,
-            trace=trace,
-            candidate_spans=candidate_spans,
-            map_claims=map_claims,
-        )
+        with timing.span("recovery_or_initial.select_form_verify"):
+            records = marshal_and_verify(
+                conn,
+                verifier=rt.verifier,
+                qwen=qwen,
+                packet=packet,
+                subquestion_text=sq_text,
+                obligations=obligations,
+                nomination_reason=reason_by_paper.get(hit.chunk.paper_id, []),
+                origin=origin,
+                trace=trace,
+                candidate_spans=candidate_spans,
+                map_claims=map_claims,
+            )
         all_records.extend(records)
         for record in records:
             record["provenance"]["request"] = {
-                key: subquestion[key] for key in
-                ("source_unit_id", "source_text", "source_start", "source_end", "question_hash")
+                key: subquestion[key]
+                for key in ("source_unit_id", "source_text", "source_start", "source_end", "question_hash")
                 if key in subquestion
             }
             propositions.append(
@@ -311,9 +316,7 @@ def run(db_path: str, out_dir: str, terminal: str = "render", *, question: str =
             # trace below (all_records / propositions.jsonl / verifications.jsonl are untouched).
             # The PRE-recovery initial_audit call above correctly used all_records: no markers exist
             # yet at that point, so effective_records would be identical there.
-            effective_records = [
-                r for r in all_records if not r["provenance"].get("duplicate_of_existing_evidence")
-            ]
+            effective_records = [r for r in all_records if not r["provenance"].get("duplicate_of_existing_evidence")]
             audit = coverage_mod.audit_coverage(subquestions, effective_records)
             audit["original_request"] = audit_original_request(request_contract, subquestions, effective_records)
             trace.write_json("12_coverage_audit.json", audit)
@@ -325,18 +328,20 @@ def run(db_path: str, out_dir: str, terminal: str = "render", *, question: str =
             trace.write_jsonl("10_verification.jsonl", verifications)
 
         verified_raw = [record for record in effective_records if record["verification"]["status"] == "verified"]
-        verified = [
-            {"proposition_id": f"p{index}", **record}
-            for index, record in enumerate(verified_raw, start=1)
-        ]
+        verified = [{"proposition_id": f"p{index}", **record} for index, record in enumerate(verified_raw, start=1)]
         sealed = {
             "request_contract": request_contract,
             "subquestions": subquestions,
             "verified_propositions": verified,
             "evidence_spans": [
-                {"paper_id": packet["paper_id"], "chunk_id": span["chunk_id"],
-                 "span_id": span["span_id"], "text": span["text"]}
-                for packet in evidence_packets for span in packet["candidate_spans"]
+                {
+                    "paper_id": packet["paper_id"],
+                    "chunk_id": span["chunk_id"],
+                    "span_id": span["span_id"],
+                    "text": span["text"],
+                }
+                for packet in evidence_packets
+                for span in packet["candidate_spans"]
             ],
             "coverage": audit,
         }
@@ -468,6 +473,7 @@ def _recover(
     verifications,
     plan: dict[str, str] | None = None,
     map_claims: bool = True,
+    reuse=None,
 ) -> list[dict]:
     """One recovery pass.
 
@@ -476,6 +482,10 @@ def _recover(
     the existing candidates, ``NOMINATE`` searches only papers that are not already candidates, and any other planned
     action (or an obligation absent from the plan) creates no search state. ``map_claims=False`` defers claim ->
     obligation mapping until after source verification.
+
+    ``reuse`` (a ``recovery_reuse.RecoveryReuse``, default ``None`` = every target searches) lets a ``DEEPEN``
+    target whose search is byte-identical to one already run in this round share that search. The target still
+    gets its own row, with its own gap, naming the target whose search it shares.
     """
     sq_by_id = {subquestion["subquestion_id"]: subquestion for subquestion in subquestions}
     log: list[dict] = []
@@ -537,17 +547,50 @@ def _recover(
             ],
         }
 
+        search_key = None
+        if reuse is not None and action == "DEEPEN":
+            # Same child, same query, same candidate papers, same requested-information list, same retrieval
+            # configuration: the search below would retrieve the same passages and send the same prompts.
+            search_key = reuse.search_key(
+                child_id=subquestion["subquestion_id"],
+                action=action,
+                query=query,
+                paper_ids=original_ids,
+                subquestion_text=subquestion["text"],
+                obligations=gap_subquestion["obligations"],
+            )
+            earlier = reuse.search_done(search_key)
+            if earlier is not None:
+                reuse.counts["searches_reused"] += 1
+                log.append(
+                    {
+                        "gap": gap,
+                        "action": action,
+                        "recovery_query": query,
+                        "existing_candidate_papers": len(original_ids),
+                        "existing_hits": earlier["existing_hits"],
+                        "new_papers_nominated": [],
+                        "new_hits": 0,
+                        "new_verified": 0,
+                        # The identical search ran once for this child; this requirement adds nothing beyond it.
+                        "reason_code": "recovery_no_new_evidence",
+                        "search_shared_with_target": earlier["target"],
+                    }
+                )
+                continue
+
         existing_hits: list = []
         existing_added = 0
         if action in {"DEEPEN", "LEGACY"}:
-            existing_hits = retrieval.within_paper_retrieve(
-                conn,
-                subquestion_id=subquestion["subquestion_id"],
-                subquestion_text=query,
-                paper_ids=original_ids,
-                model=rt.model,
-                vector_store=rt.vector_store,
-            )
+            with timing.span("recovery.retrieval"):
+                existing_hits = retrieval.within_paper_retrieve(
+                    conn,
+                    subquestion_id=subquestion["subquestion_id"],
+                    subquestion_text=query,
+                    paper_ids=original_ids,
+                    model=rt.model,
+                    vector_store=rt.vector_store,
+                )
             existing_before = len(all_records)
             _process_hits(
                 conn,
@@ -565,7 +608,7 @@ def _recover(
                 propositions=propositions,
                 verifications=verifications,
                 map_claims=map_claims,
-                context_fn=lambda hit: retrieval.recovery_neighborhood_context(
+                context_fn=lambda hit, query=query: retrieval.recovery_neighborhood_context(
                     conn, hit=hit, subquestion_text=query
                 ),
             )
@@ -575,6 +618,10 @@ def _recover(
             # (which would count a 100%-duplicate re-verification as "added"). _process_hits itself is
             # unmodified; the initial pass never calls this helper.
             existing_added = _new_unique_verified(all_records, existing_before)
+            if search_key is not None:
+                reuse.record_search(
+                    search_key, target=gap.get("_recovery_target_id") or len(log), existing_hits=len(existing_hits)
+                )
 
         new_noms = []
         new_hits = []
@@ -614,7 +661,7 @@ def _recover(
                 propositions=propositions,
                 verifications=verifications,
                 map_claims=map_claims,
-                context_fn=lambda hit: retrieval.recovery_neighborhood_context(
+                context_fn=lambda hit, query=query: retrieval.recovery_neighborhood_context(
                     conn, hit=hit, subquestion_text=query
                 ),
             )
@@ -640,7 +687,9 @@ def _recover(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--db", required=True, help="path to a COPY of a library sqlite (never the live demo DB)")
-    parser.add_argument("--out", default=None, help="run output directory (default: experiments/ask_cli_revised/runs/<ts>)")
+    parser.add_argument(
+        "--out", default=None, help="run output directory (default: experiments/ask_cli_revised/runs/<ts>)"
+    )
     parser.add_argument("--question-file", help="optional UTF-8 original request, read without stripping or rewriting")
     parser.add_argument(
         "--terminal",
