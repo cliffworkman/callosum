@@ -4272,3 +4272,20 @@ call; ran the before/after counterfactual and read every newly admitted display.
 **Lineage of methods used.** No published method is implemented. The checks being corrected are the
 project's own Phase 30 deterministic answer-plan rules; the cue lists reused are the project's existing
 `overview_evidence` and `contract_directed.attribution` lexicons.
+
+## Phase 34 -- Cross-stage scientific consistency audit (appended 2026-10-13; preserves all prior entries unchanged)
+
+**Framing -- Cliff Workman, with project collaborators.** Observed that problems already worked on, notably
+unspecified referents and undefined acronyms, kept reappearing downstream, and reframed the question from
+"which safeguard is missing" to "where are existing solutions siloed and where is meaning lost between
+stages"; set the five requirement families, the handoff-boundary focus, the six-way classification, and the
+rule that a global requirement does not imply a safeguard at every stage; read-only.
+
+**Analysis -- Claude.** Traced each family through the current code and the October 12 artifacts; established
+what was implemented versus only tested; identified that the reviewed answer discards the verified claim text
+and re-derives display text from the quotation, that epistemic status is classified twice with conflicting
+results, and that grounded acronym expansion exists but is not called by plan-v5.
+
+**Result.** Report only; no code changed. See `PHASE34_CROSS_STAGE_CONSISTENCY_AUDIT.md`.
+
+**Lineage of methods used.** None implemented.
