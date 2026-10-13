@@ -90,6 +90,42 @@ def single_question(request, scientific, *, requested_construct_terms):
     return result
 
 
+def from_hierarchy(request, scientific, *, requested_construct_terms):
+    """Explicit authoring operation, not approval; caller must review the result.
+
+    One visible node per approved child of a hierarchical request, in the request's own order: the node's text is
+    the child's approved wording, its parent is the child's approved parent, and it owns exactly that child.
+    Nothing is merged, hidden, reworded or reordered beyond placing each child after its parent."""
+    from experiments.ask_cli_revised import hierarchy_contract
+    from experiments.ask_cli_revised.request_contract import request_subquestions
+
+    hierarchy_contract.assert_executable(request)
+    parents = hierarchy_contract.parent_of(request)
+    wording = {sq["obligations"][0]["field_id"]: sq["obligations"][0]["note"] for sq in request_subquestions(request)}
+    require(set(wording) == set(scientific), "scientific children must equal the approved children")
+    nodes = []
+
+    def place(parent):
+        for child_id, text in wording.items():
+            own_parent = parents.get(child_id, "R")
+            if (None if own_parent == "R" else own_parent) == parent:
+                nodes.append(
+                    {"node_id": child_id, "literal_text": text, "parent_id": parent, "owning_child_ids": [child_id]}
+                )
+                place(child_id)
+
+    place(None)
+    result = {
+        "schema": SCHEMA,
+        "request_ref": request_ref(request),
+        "nodes": nodes,
+        "scientific_only_child_ids": [],
+        "requested_construct_terms": list(requested_construct_terms),
+    }
+    validate(result, request, scientific)
+    return result
+
+
 def consumer_view(reporting):
     """Shape-only adaptation after validation; no historical overlay metadata."""
     return {

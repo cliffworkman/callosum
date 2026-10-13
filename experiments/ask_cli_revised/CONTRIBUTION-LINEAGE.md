@@ -4203,3 +4203,30 @@ Several reported distortions are pre-existing and occur in both runs. See
 `PHASE34_E2E_REGRESSION_FORENSICS.md`.
 
 **Lineage of methods used.** None implemented. No code, threshold, prompt, contract or artifact changed.
+
+## Phase 34 -- Execution-path divergence: investigation and wiring repair (appended 2026-10-12; preserves all prior entries unchanged)
+
+**Framing -- Cliff Workman, with project collaborators.** Identified that the latest complete E2E had
+exercised the older hierarchical route and bypassed the recent scientific development; asked how that
+happened and for the smallest integration change that lets a complex question exercise the intended
+architecture, with no third route, no duplicated logic, no question-specific behavior, no new safeguards or
+model stages, the three-model configuration preserved, and direct evidence of which implementations ran;
+required a stop before any E2E.
+
+**Investigation and implementation -- Claude.** Traced the divergence through the phase reports and commits
+to the I4-4E1 stop and the separate reviewed entry that followed it; recorded that the choice of route for
+the October 12 run was Claude's own and was not raised; let `run_topology` hand a hierarchical request to
+the existing reviewed branch of `execute`; removed the reviewed route's refusal of model-assisted
+nomination; let child syntheses run for a hierarchical request on either route; added an explicit
+reporting-contract authoring operation for a hierarchy and an execution record built from stage outputs;
+previewed the integrated route offline on the preserved evidence.
+
+**Result.** Wiring repaired and qualified offline; 8 new tests; no model called and no E2E run. The
+offline preview shows the integrated route's selected answer is nearly empty on evidence that contains the
+answers, which the corrected E2E will test for real. The q_aib reporting contract is authored and awaits
+Cliff's review. See `PHASE34_EXECUTION_PATH_DIVERGENCE_AND_REPAIR.md`.
+
+**Lineage of methods used.** No scholarly method was newly implemented; the verifier checkpoint is as
+credited in the integration entry. No prompt, threshold, scientific semantics version, model assignment or
+frozen contract changed. Model nomination under semantics v8 is a new combination of existing parts and is
+flagged for approval.

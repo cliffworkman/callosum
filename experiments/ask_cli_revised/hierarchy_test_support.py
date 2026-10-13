@@ -92,6 +92,7 @@ class HierHarness(Harness):
         sufficiency_model_assist_enabled=False,
         parent_synthesis_enabled=False,
         parent_narrative_enabled=False,
+        _reviewed_inputs=None,
     ):
         # entail=None matches execute()'s own default -- every existing caller that never passed it
         # (no S role bound in its profile) is unaffected; a caller binding an Overview-enabled profile
@@ -128,6 +129,7 @@ class HierHarness(Harness):
                 sufficiency_model_assist_enabled=sufficiency_model_assist_enabled,
                 parent_synthesis_enabled=parent_synthesis_enabled,
                 parent_narrative_enabled=parent_narrative_enabled,
+                _reviewed_inputs=_reviewed_inputs,
             )
 
 

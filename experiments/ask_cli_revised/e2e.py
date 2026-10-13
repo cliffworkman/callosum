@@ -31,6 +31,7 @@ from experiments.ask_cli_revised import (
     discovery,
     e2e_checks,
     e2e_contracts,
+    execution_path,
     hierarchical_answer,
     hierarchy_contract,
     library_copy,
@@ -47,6 +48,7 @@ from experiments.ask_cli_revised import (
     recovery_reuse,
     recovery_routing,
     retrieval,
+    reviewed_ask_inputs,
     stages,
     sufficiency_diagnostic,
     sufficiency_freeze,
@@ -463,15 +465,18 @@ def execute(
         require(contract == plain(_reviewed_inputs.request), "fresh request substitution")
         require(sufficiency_contract == plain(_reviewed_inputs.scientific), "fresh science substitution")
         require((sufficiency_parent_of or {}) == plain(_reviewed_inputs.parent_of), "fresh parent substitution")
-        require(
-            seed_pass is None and not smoke_limits and not sufficiency_model_assist_enabled,
-            "fresh reviewed execution options",
-        )
+        # Model-assisted role nomination is the same opt-in it is on every other route. A contract whose roles are
+        # authored `model_nomination_only` cannot be mapped without it, whichever route carries the request.
+        require(seed_pass is None and not smoke_limits, "fresh reviewed execution options")
         semantics_version = fresh_execution.semantics_version
     scientific_enabled = sufficiency_contract is not None and (
         contract.get("version") == hierarchy_contract.HIER_VERSION or fresh_execution is not None
     )
-    if fresh_execution is None and "S" in bound.supervisors and entail is None:
+    # Child syntheses are a property of a hierarchical request, not of the route that carries it.
+    s_stage_runs = "S" in bound.supervisors and (
+        fresh_execution is None or contract.get("version") == hierarchy_contract.HIER_VERSION
+    )
+    if s_stage_runs and entail is None:
         # Fail closed before any stage, trace file or model call: an overview is never shown unscreened.
         raise ValueError("the overview stage (S) needs a local entailment scorer (entail=) to screen its statements")
     if contract.get("version") == hierarchy_contract.HIER_VERSION:
@@ -943,7 +948,7 @@ def execute(
     overview_record, reasoning = None, ""
     child_overview_manifest: dict[str, dict] | None = None
     child_records: dict[str, dict] = {}
-    if fresh_execution is None and "S" in bound.supervisors:
+    if s_stage_runs:
         if contract.get("version") == hierarchy_contract.HIER_VERSION:
             # Stage B (2026-09-29 authorization): one screened Overview per approved child, from a
             # strictly-filtered (per hierarchy_contract.build_child_sealed_ledger) child-scoped sealed
@@ -1027,7 +1032,7 @@ def execute(
             entail=entail,
         )
     hierarchical_answer_result = None
-    if fresh_execution is None and parent_narrative_enabled and child_overview_manifest is not None:
+    if parent_narrative_enabled and child_overview_manifest is not None:
         # After every child synthesis and the parent claim ledger: one screened narrative overview across the
         # passages the displayed child statements cite, then the deterministic reader-facing document.
         hierarchical_answer_result = _hierarchical_answer_outputs(
@@ -1210,6 +1215,29 @@ def execute(
         result_out["hierarchical_answer"] = hierarchical_answer_result
     if recovery_reuse_enabled:
         result_out["recovery_reuse"] = reuse_state.receipt() if reuse_state is not None else None
+    # Built from what the stages produced, after they produced it. Reports; decides nothing.
+    result_out["execution_path"] = execution_path.build(
+        contract=contract,
+        reviewed=fresh_execution is not None,
+        stage_log=stage_log,
+        map_initial=sufficiency_map_initial,
+        map_final=sufficiency_map_final,
+        nomination_initial=sufficiency_u1_context,
+        nomination_final=sufficiency_u2_context,
+        recovery_log=recovery_log,
+        child_overview_manifest=child_overview_manifest,
+        parent_synthesis_result=parent_synthesis_result,
+        hierarchical_answer_result=hierarchical_answer_result,
+        fresh_result=fresh_result,
+        requested={
+            "sufficiency_model_assist": sufficiency_model_assist_enabled,
+            "sufficiency_recovery": sufficiency_recovery_gate_enabled,
+            "parent_synthesis": parent_synthesis_enabled,
+            "parent_narrative": parent_narrative_enabled,
+            "recovery_reuse": recovery_reuse_enabled,
+        },
+    )
+    trace.write_json("21_execution_path.json", result_out["execution_path"])
     if fresh_result is not None:
         result_out["layerc_v2"] = fresh_result
         result_out["selected_answer"] = text
@@ -1424,6 +1452,8 @@ def run_topology(
     parent_narrative: bool = False,
     recovery_reuse_enabled: bool = False,
     timing_enabled: bool = False,
+    reviewed_reporting=None,
+    reviewed_review=None,
     nli_verifier: str = "minilm",
     git_state_fn=provenance.git_state,
     verify_library=library_copy.verify,
@@ -1455,6 +1485,13 @@ def run_topology(
         raise ValueError("--parent-synthesis requires --hierarchy")
     if parent_narrative and not hierarchy:
         raise ValueError("--parent-narrative requires --hierarchy")
+    if bool(reviewed_reporting) != bool(reviewed_review):
+        raise ValueError("the reviewed route needs both --reviewed-reporting and --reviewed-review")
+    if reviewed_reporting and not hierarchy:
+        # A flat reviewed request supplies its own scientific contract; it keeps its existing entry point.
+        raise ValueError(
+            "through run_topology the reviewed route is for a hierarchical request (use reviewed_ask for flat)"
+        )
     # The default adds no runtime argument and no screen config, so a "minilm" run is exactly the run it was before.
     nli_runtime_kwargs = nli.runtime_kwargs(nli_verifier)
     nli_screen_config = nli.screen_config(nli_verifier)
@@ -1489,6 +1526,18 @@ def run_topology(
     sufficiency_contract = sufficiency_parent_of = None
     if hierarchy:
         sufficiency_contract, sufficiency_parent_of = sufficiency_loader(contract)
+    reviewed_inputs = None
+    if reviewed_reporting:
+        # The same approved hierarchy and frozen scientific contract this route already loads, bound with the
+        # authored reporting contract under a joint review that names all four by content. Fails closed here,
+        # before any trace directory, client or model call, if the review does not match what will run.
+        reviewed_inputs = reviewed_ask_inputs.bind_reviewed_inputs(
+            contract,
+            sufficiency_contract,
+            json.loads(Path(reviewed_reporting).read_bytes()),
+            sufficiency_parent_of or {},
+            json.loads(Path(reviewed_review).read_bytes()),
+        )
     trace = TraceWriter(out_dir)
     trace.write_json(
         "00_question.json", {"question_key": effective_key, "question": question, "hash": contract["question_hash"]}
@@ -1544,6 +1593,7 @@ def run_topology(
                     parent_synthesis_enabled=parent_synthesis,
                     parent_narrative_enabled=parent_narrative,
                     recovery_reuse_enabled=recovery_reuse_enabled,
+                    _reviewed_inputs=reviewed_inputs,
                 )  # fmt: skip
                 if timings is not None:
                     trace.write_json("20_timing.json", timings.summary())
@@ -1654,6 +1704,7 @@ def run_topology(
         }
     if recovery_reuse_enabled:
         manifest["recovery_reuse"] = result.get("recovery_reuse")
+    manifest["execution_path"] = result.get("execution_path")
     if timing_enabled:
         manifest["timing"] = timings.summary() if timings is not None else None
     if nli_receipt is not None:
@@ -1761,6 +1812,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--timing", action="store_true", help="record wall-clock spans (20_timing.json). Default off.")
     parser.add_argument(
+        "--reviewed-reporting",
+        help="with --hierarchy: authored reporting contract (JSON); selects the reviewed route (v8, Layer C, plan-v5)",
+    )
+    parser.add_argument("--reviewed-review", help="with --reviewed-reporting: the joint review record (JSON)")
+    parser.add_argument(
         "--nli-verifier",
         choices=nli.VERIFIERS,
         default="minilm",
@@ -1852,6 +1908,8 @@ def main(argv: list[str] | None = None) -> int:
         parent_narrative=args.parent_narrative,
         recovery_reuse_enabled=args.recovery_reuse,
         timing_enabled=args.timing,
+        reviewed_reporting=args.reviewed_reporting,
+        reviewed_review=args.reviewed_review,
         nli_verifier=args.nli_verifier,
         sampler=sampler,
     )
