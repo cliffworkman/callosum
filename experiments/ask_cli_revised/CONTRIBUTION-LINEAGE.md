@@ -4230,3 +4230,24 @@ Cliff's review. See `PHASE34_EXECUTION_PATH_DIVERGENCE_AND_REPAIR.md`.
 credited in the integration entry. No prompt, threshold, scientific semantics version, model assignment or
 frozen contract changed. Model nomination under semantics v8 is a new combination of existing parts and is
 flagged for approval.
+
+## Phase 34 -- Pre-E2E display diagnostic (appended 2026-10-13; preserves all prior entries unchanged)
+
+**Framing -- Cliff Workman, with project collaborators.** Accepted the integration repair as the basis for
+investigation and approved the two new combinations for evaluation only; asked one narrow question before
+spending another E2E: why the integrated route recognizes established amygdala evidence and declines to
+display it, and whether that is a replay artifact, a mechanical defect or an intended contract; asked for an
+assessment of the q_aib reporting contract without signing it; required a stop for review.
+
+**Analysis -- Claude.** Traced one verified amygdala finding from source through v8 mapping, Layer C value
+coverage, display finalization and plan-v5 to the rendered line, using the decision records from the offline
+preview; identified the exact patterns responsible; applied the same display checks to every sealed
+sentence; verified the reporting contract against the approved hierarchy node by node.
+
+**Result.** Intended contract, not a defect: the `referentially_closed` presentation rule, in the answer
+plan since Phase 30 and recorded then as suppressing this sentence. Not explained by the incomplete replay.
+Of 39 distinct sealed sentences 23 are blocked by display rules, including every amygdala sentence and the
+Hadza result. No code changed. The reporting contract is a one-to-one projection of the approved hierarchy
+and was not signed. See `PHASE34_PRE_E2E_DISPLAY_DIAGNOSTIC.md`.
+
+**Lineage of methods used.** None implemented. No code, prompt, threshold, contract or artifact changed.
