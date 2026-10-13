@@ -4251,3 +4251,24 @@ Hadza result. No code changed. The reporting contract is a one-to-one projection
 and was not signed. See `PHASE34_PRE_E2E_DISPLAY_DIAGNOSTIC.md`.
 
 **Lineage of methods used.** None implemented. No code, prompt, threshold, contract or artifact changed.
+
+## Phase 34 -- Minimal display-policy repair (appended 2026-10-13; preserves all prior entries unchanged)
+
+**Framing and decision -- Cliff Workman, with project collaborators.** Judged from the pre-E2E diagnostic that
+two presentation behaviors were demonstrably harmful, and specified the corrections: assess referential
+closure on the narrowed text actually displayed, without permitting narrowing that removes material
+conditions, negation, uncertainty or relationships; distinguish qualified result language from an aim or
+prediction without promoting hypotheses; validate on the preserved October 12 evidence with named
+must-change and must-stay-restricted cases; no new classifier, safeguard layer or model call.
+
+**Implementation and analysis -- Claude.** Implemented both as pure functions applied in the display
+finalizer on the fresh route only, leaving the hash-pinned checks and the frozen Phase 28 reproduction
+unchanged; added one bounded extension (sharing an already-narrowed clause between values of the same
+proposition) because the relational claim otherwise still rendered nothing, and reported it as a judgment
+call; ran the before/after counterfactual and read every newly admitted display.
+
+**Result.** Qualified offline, not run live. See `PHASE34_DISPLAY_POLICY_REPAIR.md`.
+
+**Lineage of methods used.** No published method is implemented. The checks being corrected are the
+project's own Phase 30 deterministic answer-plan rules; the cue lists reused are the project's existing
+`overview_evidence` and `contract_directed.attribution` lexicons.

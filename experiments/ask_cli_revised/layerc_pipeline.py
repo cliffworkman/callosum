@@ -5,7 +5,10 @@ from experiments.ask_cli_revised.answer_plan import plan_v5, render_v5
 
 
 def build_components(projection, authored, sealed, verified=None, *, fresh_authority=None, recovery=None, search=None):
-    finalized = layerc_presentation.finalize_display(projection, sealed, authored)
+    # The display corrections apply to a fresh invocation; a recorded reproduction keeps its frozen behavior.
+    finalized = layerc_presentation.finalize_display(
+        projection, sealed, authored, corrected=fresh_authority is not None
+    )
     claims = claim_v2.build_claims(projection, authored)
     receipts = claim_v2.evidence_receipts(projection, claims, finalized)
     units = relation_unit_v2.build_relation_units(projection, authored, claims, receipts, finalized)
