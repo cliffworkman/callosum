@@ -4133,3 +4133,23 @@ sources, not independent review. See `PHASE34_DEBERTA_FRESH_E2E_RESULTS.md`.
 
 **Lineage of methods used.** As credited in the integration entry; nothing further was implemented. No
 code, threshold, prompt, contract, frozen hash or library changed after the results were seen.
+
+## Phase 34 -- Execution-time forensics of the fresh q_aib run (appended 2026-10-12; preserves all prior entries unchanged)
+
+**Framing -- Cliff Workman, with project collaborators.** Asked for a read-only timing analysis of the run
+as executed, with attention to the recovery round: why it makes hundreds of calls, what new evidence it
+contributes per subquestion and whether that evidence reaches a synthesis, how time divides between
+inference and other work, and which small question-agnostic changes would save the most; required that
+nothing be optimized yet and that the value of recovery be kept separate from its cost.
+
+**Analysis -- Claude.** Assigned all 684 model calls to stages from the run's own timestamps; separated
+inference, model loading and local time; measured repetition across recovery targets, packets and claims;
+followed recovery evidence into the displayed child statements and the parent overview; ran the same
+analysis on the Phase 28 run; ranked the causes and listed candidate changes with estimated savings.
+
+**Result.** Recovery is half the run. It supplied the interventions section and parts of three others, so
+it has real scientific value, but 42% of its time went to targets that added nothing, 22% to repeated
+queries, and about 40% of its packets repeat work for the same subquestion. Model loads cost 15% of the
+run and the CPU verifier an estimated 250-320 s. See `PHASE34_E2E_EXECUTION_TIME_FORENSICS.md`.
+
+**Lineage of methods used.** None implemented. No code, threshold, prompt, contract or run artifact changed.
