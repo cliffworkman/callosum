@@ -4180,3 +4180,26 @@ restructuring. Not yet run live. See `PHASE34_RECOVERY_REUSE_AND_LATENCY_RESULTS
 **Lineage of methods used.** No scholarly method was newly implemented; the verifier checkpoint is as
 credited in the integration entry. No synthesis prompt, verification threshold, sufficiency rule, frozen
 contract or run artifact changed.
+
+## Phase 34 -- Stage-by-stage E2E regression forensics (appended 2026-10-12; preserves all prior entries unchanged)
+
+**Framing -- Cliff Workman, with project collaborators.** Asked for a read-only comparison of the Phase 28
+and Phase 34 q_aib runs to find where scientific functionality regressed and what should be repaired,
+simplified or reverted; named seven observed regressions to trace to their earliest cause; required that
+each implicated safeguard justify itself by demonstrated scientific benefit; set the product objective
+(useful, faithful, vettable answers) and the Friday release date; excluded implementation, new safeguards
+and new runs.
+
+**Analysis -- Claude.** Diffed the two executing commits and found twenty execution-path modules
+byte-identical; compared the runs stage by stage from their artifacts, including every proposed child
+statement and its screen result, per-requirement sufficiency state and the nomination receipts; classified
+each regression by cause; tallied each safeguard's hits against its harm; ranked repair candidates.
+
+**Result.** The evidence pipeline did not regress and DeBERTa improved it. The reader-facing answer
+regressed for three reasons: the new presentation layer written in the previous increment hides the parent
+claim ledger and feeds the overview only from displayed child statements; unchanged lexical paraphrase
+screens withhold faithful sentences; and sufficiency semantics v7 drops a recorded intervention outcome.
+Several reported distortions are pre-existing and occur in both runs. See
+`PHASE34_E2E_REGRESSION_FORENSICS.md`.
+
+**Lineage of methods used.** None implemented. No code, threshold, prompt, contract or artifact changed.
