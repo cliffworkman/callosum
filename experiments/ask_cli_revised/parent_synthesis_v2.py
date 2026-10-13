@@ -36,16 +36,22 @@ def _authorized_items(claim, receipts, finalized, units):
             ):
                 continue
             require(source["source_ref"] in receipt["citation"], "v2 source has no member citation receipt")
-            yield {
+            item = {
                 "value_ref": receipt["value_ref"],
                 "receipt_ref": ref,
                 "source_ref": source["source_ref"],
                 "display_envelope_ref": source["display_envelope_ref"],
-                "text": source["sentence"],
+                "text": source.get("statement", source["sentence"]),
                 "proposition_id": source["proposition_id"],
                 "reported_finding": receipt["reported_finding"],
                 "scientific_goal_state": receipt["scientific_goal_state"],
             }
+            # The verified claim is the statement; the authorized source sentence stays beside it as its evidence.
+            if "statement" in source:
+                item["evidence_sentence"] = source["sentence"]
+            if "qualification" in source:
+                item["qualification"] = source["qualification"]
+            yield item
 
 
 def claim_value_reasons(claim, item, receipts, finalized, units):

@@ -7,6 +7,7 @@ unchanged checks in ``classify`` and ``text`` withheld; they never add a source,
 import re
 
 from experiments.ask_cli_revised import overview_evidence as oe
+from experiments.ask_cli_revised import overview_guards as og
 from experiments.ask_cli_revised.contract_directed import attribution as attr
 
 CLOSURE = "referentially_closed"
@@ -62,3 +63,28 @@ def removed_text_is_immaterial(original_sentence, clause):
         oe.has_negation(removed) or oe.has_hedge(removed) or oe.causal_stems(removed) or _MATERIAL.search(removed)
     )
     return None if material else removed
+
+
+# Checks that exist because a raw source sentence was being printed as prose. They do not apply to a verified claim.
+RAW_SENTENCE_FORM = ("referentially_closed", "passage_complete")
+
+
+# A sentence that ends in its own punctuation followed by a numeric citation marker ("reactivity.6") is complete.
+_CITATION_MARKER_END = re.compile(r"[.!?][\"')]?\s?\d{1,3}(?:[,;\-]\s?\d{1,3})*\s*$")
+
+
+def ends_at_citation_marker(sentence):
+    return bool(_CITATION_MARKER_END.search(sentence))
+
+
+def claim_statement_reasons(claim, sentence):
+    """Why the sealed claim may not stand as the statement for this evidence sentence; empty when it may.
+
+    The claim was verified against its whole quotation. Here it is held to the one sentence Layer C authorized for
+    display, with the project's existing rephrasing screen: no added direction, cause, number, acronym or vocabulary,
+    and no dropped hedge or negation. Nothing is rewritten; a claim that fails is simply not used.
+    """
+    if not isinstance(claim, str) or not claim.strip():
+        return ["no_claim_text"]
+    unit = {"passage": sentence, "flags": oe.passage_flags(sentence)}
+    return og.screen({"text": claim, "unit_ids": ["U1"], "bears_on": []}, units={"U1": unit}, part_ids=set())

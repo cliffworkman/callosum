@@ -198,8 +198,11 @@ def test_an_admitted_causal_overstatement_cannot_put_its_wording_into_the_select
     fabricated = _reviewed_run(monkeypatch, question, FABRICATED)
     faithful = _reviewed_run(monkeypatch, question, FAITHFUL)
     answer = fabricated["selected_answer"]
-    assert answer == faithful["selected_answer"]
-    assert QUOTE in answer and FABRICATED not in answer
+    # Since 2026-10-13 a verified claim that passes the rephrasing screen is the statement, with the source sentence
+    # beneath it. The fabricated claim fails that screen, so only the source's own words appear for it.
+    assert FAITHFUL in faithful["selected_answer"] and QUOTE in faithful["selected_answer"]
+    assert "cause" not in faithful["selected_answer"].replace(question, "")
+    assert QUOTE in answer and FABRICATED not in answer and FAITHFUL not in answer
     assert "cause" not in answer.replace(question, "")
     output = fabricated["layerc_v2"]
     # The quote's own association is witnessed; that is the source's statement, not the fabricated one.

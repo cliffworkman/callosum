@@ -3,6 +3,20 @@
 from experiments.ask_cli_revised._layerc_common import plain
 
 
+def prefix_for(relation, aggregation):
+    """The visible qualifier for evidence the scientific record does not attribute to the citing study's own result."""
+    synthesis = aggregation == "literature_synthesis"
+    if relation == "attributed_external":
+        return (
+            "The source reports a synthesis of prior evidence: " if synthesis else "The source reports prior evidence: "
+        )
+    if synthesis:
+        return "The source reports a synthesis: " if relation == "current_document" else "Synthesis evidence: "
+    if relation == "unresolved":
+        return "Evidence with unresolved source attribution: "
+    return ""
+
+
 def source_qualifications(records):
     """Follow each existing value path to its own candidate, never a representative."""
     result = {}
@@ -13,18 +27,7 @@ def source_qualifications(records):
             continue
         payload = records["candidate_metadata"][metadata_ref]["payload"]
         relation, aggregation = payload["assertion_relation"], payload["aggregation"]
-        synthesis = aggregation == "literature_synthesis"
-        text = ""
-        if relation == "attributed_external":
-            text = (
-                "The source reports a synthesis of prior evidence: "
-                if synthesis
-                else "The source reports prior evidence: "
-            )
-        elif synthesis:
-            text = "The source reports a synthesis: " if relation == "current_document" else "Synthesis evidence: "
-        elif relation == "unresolved":
-            text = "Evidence with unresolved source attribution: "
+        text = prefix_for(relation, aggregation)
         if text:
             result[ref] = {
                 "candidate_metadata_ref": metadata_ref,
@@ -68,11 +71,24 @@ def facet_disclosures(facet, req, records, finalized, recovery, search, units):
         for ref, p in own.items()
         if p["scientific_goal_state"] == "established" and p["value_id"] not in displayed_established
     ]
-    if limited:
+    # Evidence withheld because it describes the people being judged, not the people judging, is a limit of the
+    # evidence for this part. Calling it a presentation limit would misstate why it is not reported.
+    off_target = [
+        ref
+        for ref in limited
+        if finalized[ref]["attempts"] and all("not_stimulus_rating" in a["reasons"] for a in finalized[ref]["attempts"])
+    ]
+    if off_target:
+        add(
+            "responsiveness_limitation",
+            "Evidence mapped to this part reports how the people being judged were rated, not characteristics of the people judging, so it is not reported as an answer here. This does not show that the library holds no relevant evidence.",
+            off_target,
+        )
+    if len(limited) > len(off_target):
         add(
             "presentation_limitation",
             "An evidence-supported value cannot be displayed with an authorized quotation here; this is a presentation limitation, not scientific absence.",
-            limited,
+            [ref for ref in limited if ref not in off_target],
         )
     relation_display_limited = facet["relation_established"] is True and not any(
         p["purpose"] == "i1_relation_witness" and p["display_state"] == "supported"

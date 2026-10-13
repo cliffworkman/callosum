@@ -4289,3 +4289,25 @@ results, and that grounded acronym expansion exists but is not called by plan-v5
 **Result.** Report only; no code changed. See `PHASE34_CROSS_STAGE_CONSISTENCY_AUDIT.md`.
 
 **Lineage of methods used.** None implemented.
+
+## Phase 34 -- Verified claims restored to the scientific answer (appended 2026-10-13; preserves all prior entries unchanged)
+
+**Framing and decision -- Cliff Workman, with project collaborators.** Decided from the cross-stage audit that
+the verified claim is the explanation, the source quotation is the evidence, and scientific authorization
+determines what may be asserted; required a fidelity reading of all 64 sealed claims before any change, with a
+stop rule if they proved unsafe as prose; specified reuse of the sealed claim, of the scientific attribution
+record and its existing prior-evidence qualifier, and of the Phase 30 acronym expansion; required an accurate
+disclosure for the perceiver/perceived case; forbade new classifiers, safeguards, model stages and q_aib-specific
+rules.
+
+**Implementation and analysis -- Claude.** Read the 64 claim/quotation pairs and categorized them; found the
+project's existing rephrasing screen separates most unfaithful claims and used it as the gate rather than writing
+a check; implemented the four repairs on the fresh route only, leaving the frozen reproduction unchanged;
+reported that the scientific attribution record covers only 9 of 49 values, correcting the audit; ran the
+before/after replay and read the complete resulting answer.
+
+**Result.** Qualified offline, not run live. See `PHASE34_VERIFIED_CLAIM_STATEMENT_RESULTS.md`.
+
+**Lineage of methods used.** No published method is implemented. Reused project components: the worker's claim
+formation, `overview_guards.screen` (rephrasing screen), the I4 assertion-authority record and its
+`disclosure_v5` qualifier, and Phase 30 Step 2 grounded acronym expansion.

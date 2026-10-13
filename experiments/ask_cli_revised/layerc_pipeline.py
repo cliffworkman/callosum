@@ -27,7 +27,13 @@ def build_components(projection, authored, sealed, verified=None, *, fresh_autho
         recovery=recovery,
         search=search,
     )
-    rendered = render_v5.render(plan, claims, receipts, synthesis)
+    ground = None
+    if fresh_authority is not None:
+
+        def ground(nodes):
+            layerc_presentation.ground_acronyms(nodes, sealed)
+
+    rendered = render_v5.render(plan, claims, receipts, synthesis, ground=ground)
     return {
         "claims": claims,
         "claim_evidence": receipts,
