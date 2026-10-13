@@ -4112,3 +4112,24 @@ produced, so there is no scientific finding. No reset, no kernel error, no retry
 
 **Lineage of methods used.** As credited in the integration entry above; nothing further was implemented.
 No production or experimental code, threshold, contract, frozen hash or library changed in this entry.
+
+## Phase 34 -- Fresh DeBERTa q_aib run, second attempt completed (appended 2026-10-12; preserves all prior entries unchanged)
+
+**Framing and authorization -- Cliff Workman, with project collaborators.** Added cooling to JUNO and
+authorized a second attempt; during the run instructed that the temperature limits alert him instead of
+stopping the run, reserving that decision to himself.
+
+**Execution and assessment -- Claude.** Ran the second attempt as a separately recorded run with the
+unchanged configuration; switched the two temperature limits to alert-only on instruction while keeping the
+memory and kernel-error stops; shut the host down cleanly; read every displayed statement against its cited
+passage and traced each observed problem to its earliest stage in the run's own records.
+
+**Result.** FRESH E2E COMPLETED. 2,065 seconds, all stages fresh, technically valid, CPU peak 87 C, no
+alert-only limit ever reached. DeBERTa scored 352 pairs with no fallback; its 0.50 threshold changed no
+decision. The hierarchical answer is fully cited and contains no fabricated statement, but it omits the
+amygdala finding and the Hadza finding that the run verified, presents one prediction as a result, and
+three child syntheses do not answer their subquestion. The assessment is Claude's reading against the
+sources, not independent review. See `PHASE34_DEBERTA_FRESH_E2E_RESULTS.md`.
+
+**Lineage of methods used.** As credited in the integration entry; nothing further was implemented. No
+code, threshold, prompt, contract, frozen hash or library changed after the results were seen.
