@@ -12,7 +12,7 @@ No model was called, no E2E was run, the reporting contract was not signed, JUNO
 
 | Step | Record |
 |---|---|
-| Source | Paper 67, "Morality is in the eye of the beholder: the neurocognitive basis of the 'anomalous-is-bad' stereotype" (2021), chunk 34974, span e7, p. 2 |
+| Source | Paper 67, "Morality is in the eye of the beholder: the neurocognitive basis of the 'anomalous-is-bad' stereotype" (2021), chunk 34974, span e7, p. 1 |
 | Quotation (verified exact) | "Across these levels of organization, the specific amygdala response to facial anomalies correlated with stronger just-world beliefs (i.e., people get what they deserve), less dispositional empathic concern, and less prosociality toward people with facial anomalies." |
 | Verified claims | p2 (child c1) and p14 (child c4); DeBERTa support 0.99 |
 | v8 sufficiency mapping | c4 `specific-region`: **filled**. Role `named_brain_region_or_network` = "the specific amygdala response"; role `region_bears_on_bias_evidence` filled from the same passage |
