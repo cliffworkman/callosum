@@ -12,6 +12,7 @@ from app.backend.embeddings.models import EmbeddingModel, encode_query
 from app.backend.embeddings.pipeline import current_chunk_embedding_ids, embed_chunks
 from app.backend.embeddings.profiles import IncompleteEmbeddingIndexError
 from app.backend.embeddings.vector_store import VectorStore
+from app.backend.summarization.evidence_selection import ELIGIBILITY_OVERFETCH, order_for_budget
 from app.backend.summarization.generators import SourceChunk
 
 
@@ -54,15 +55,18 @@ def _rank_chunks_for_query(
     hits = vector_store.search(
         conn,
         vector=encode_query(model, query),  # query side of an asymmetric profile; identical for MiniLM
-        # A selected-papers synthesis is an explicit request to consider those papers. Retrieve the full ranked
-        # candidate set so the selector below can reserve each paper's strongest hit; ordinary library/query
-        # searches retain the narrower global top-k behavior.
-        top_k=min(len(embedding_to_chunk) if preserve_paper_coverage else top_k, len(embedding_to_chunk)),
+        # A selected-papers synthesis is an explicit request to consider those papers: retrieve the full ranked set so
+        # the selector below can reserve each paper's strongest hit. Library/query searches over-fetch a bounded few so
+        # chunks demoted as disputed bibliography are backfilled from eligible ones (evidence_selection).
+        top_k=min(
+            len(embedding_to_chunk) if preserve_paper_coverage else top_k * ELIGIBILITY_OVERFETCH,
+            len(embedding_to_chunk),
+        ),
         candidate_embedding_ids=set(embedding_to_chunk),
     )
     source_by_id = {chunk.chunk_id: chunk for chunk in source_chunks}
-    ranked = [source_by_id[embedding_to_chunk[hit.embedding_id]] for hit in hits]
-    return _select_ranked_with_paper_coverage(ranked, top_k) if preserve_paper_coverage else ranked
+    ranked = order_for_budget(conn, [source_by_id[embedding_to_chunk[hit.embedding_id]] for hit in hits], top_k)
+    return _select_ranked_with_paper_coverage(ranked, top_k) if preserve_paper_coverage else ranked[:top_k]
 
 
 def _select_ranked_with_paper_coverage(ranked: list[SourceChunk], top_k: int) -> list[SourceChunk]:

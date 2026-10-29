@@ -27,6 +27,7 @@ from app.backend.summarization.chunk_filtering import (
     is_front_matter_chunk,
     repeated_boilerplate_keys,
 )
+from app.backend.summarization.evidence_selection import ELIGIBILITY_OVERFETCH, order_for_budget
 from app.backend.summarization.generators import (
     SourceChunk,
     SummaryGenerator,
@@ -318,7 +319,7 @@ def _source_chunks_for_scope(
     # No query → prefer real body content over title-page/masthead chunks, then spread the budget across the
     # selected papers so a multi-paper summary covers them all (rows are chunk-id-ordered = import order, so the
     # first chunk of each paper is its front matter). Single paper → still drops its own masthead first.
-    return _select_no_query(rows, top_k)
+    return order_for_budget(conn, _select_no_query(rows, top_k * ELIGIBILITY_OVERFETCH), top_k)[:top_k]
 
 
 def _select_no_query(rows: list[SourceChunk], top_k: int) -> list[SourceChunk]:

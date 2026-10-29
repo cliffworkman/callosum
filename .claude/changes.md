@@ -41,6 +41,21 @@ are the design diary; this is the chronological "what & why" record.
 - **Why:** the dev launcher had silently opened the frozen research master, and an unset URL silently creates an empty library at the deleted default path; a researcher must be able to see which library is open before trusting it.
 - **Revert:** revert these files; the machine-local `run-callosum.ps1` keeps working without the two env vars (they are then ignored by older code).
 
+## 2026-10-29 — Increment 607: reference-exclusion repair (narrow-path bibliography demotion + duplicate-DOI ownership)
+- **Files:** `app/backend/summarization/evidence_eligibility.py` (new), `app/backend/summarization/evidence_selection.py` (new), `app/backend/summarization/pipeline.py`, `app/backend/persistence/chunk_structure_repo.py`, `tools/backfill_chunk_structure.py`, three new test files, the research-route adapter/CLI/tests under `experiments/ask_cli_revised/focused_discovery/`, `.claude/CLAUDE.md`, `.claude/security-audits/2026-10-29_reference-evidence-eligibility.md`, `.claude/docs/increment-notes/INCREMENT-607-NOTES.md`, `demo/experience-coverage-v1.json`, `www/showcase-coverage.json`
+- **What:** the narrow synthesis path now reads current anchored `chunk_structure` labels and demotes `bibliographic` chunks behind every eligible candidate before slicing the reading budget.
+  - Demoted chunks backfill only when eligible candidates run out, and that fallback is logged.
+  - Stale labels are ignored. Nothing is withheld or deleted.
+  - The backfill no longer lets a merged or soft-deleted duplicate capture a live paper's cached Crossref references (`doi_owners`).
+- **Why:** the q_lld reference-leakage investigation (2026-10-28) found that the anchored detector's output was never consumed. It also found that a merged duplicate (paper 202) had captured paper 171's DOI, leaving that paper with no reference region at all.
+- **Verification:** targeted and summarization tests, tach, line budget and ruff all pass.
+  - The latency fix (a per-candidate comparison key that was never used) cuts a 50-paper selected-papers synthesis's seam cost from 25 s to 0.5 s, with identical decisions over 180 cases.
+  - Two native-downgrade rules and one guarded-join change failed preregistered held-out criteria and were not implemented.
+  - Native scientific false exclusions remain a documented research-route limitation.
+- **Drift gates:** the demo/showcase deferral is extended from 606 to 607 (`--decline`, authorized by Cliff 2026-10-29). Only the increment counter tripped the gates; no visual review is claimed.
+- **Not done:** no live backfill. The DOI fix takes effect only through a separately authorized `--force --paper-id` re-derivation.
+- **Revert:** revert the commit. `chunk_structure` rows are derived and unchanged by the code itself, and libraries without them were never affected.
+
 ## 2026-10-03 — Increment 606: prepare 0.5.16 Browser Capture Early Access
 - **Accepted lineage:** PR #103 merged with both parents preserved at `1bdde984`; its tree exactly matches accepted head `80025d1a`. Frozen worktrees and prior acceptance receipts remain preserved.
 - **Release preparation:** normal five-file desktop version bump to 0.5.16, informational What's New banner, regenerated frontend, and manual-preview/support wording in README, desktop docs and served help. No application logic, runtime IDs, browser identity or signing-policy change.

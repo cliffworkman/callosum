@@ -5,7 +5,8 @@ chunk_version)`` it was derived from, so re-running the backfill replaces rather
 and a row whose source text has changed is recognisably stale instead of silently masquerading as
 current.
 
-Nothing on the retrieval path calls anything in this module. That is the point of H1a.
+Read on the retrieval path only as a deprioritization/disagreement signal (inc 581 faceted seam; the
+reference-eligibility repair via ``structure_role_states``) -- never as a hard exclusion.
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ from sqlalchemy.engine import Connection
 from app.backend.pdf_processing.chunk_structure import ChunkStructure
 from app.backend.persistence.schema import chunks
 from app.backend.persistence.schema_chunk_structure import DERIVATION_VERSION, chunk_structure
+from app.backend.persistence.sql_batch import in_batches
 
 
 def raw_sha(text: str) -> str:
@@ -162,6 +164,68 @@ def current_structure_roles(
         )
         if current:
             out[int(row["chunk_id"])] = (row["chunk_type"], row["evidence_role"])
+    return out
+
+
+@dataclass(frozen=True)
+class RoleState:
+    """One chunk's stored structure judged against its live text: ``state`` is ``current`` or ``stale``."""
+
+    chunk_id: int
+    state: str
+    chunk_type: str
+    evidence_role: str
+    reference_region_source: str | None
+    stale_reason: str | None
+    raw_sha: str
+
+
+def structure_role_states(
+    conn: Connection,
+    chunk_ids: Iterable[int],
+    *,
+    derivation_version: str = DERIVATION_VERSION,
+) -> dict[int, RoleState]:
+    """Like ``current_structure_roles`` but keeps stale rows, labelled with WHY they are stale.
+
+    Used by the reference-eligibility seam, which must record (not silently reuse or drop) a classification
+    whose text, chunk version or derivation version no longer matches. A chunk with no row is absent from the
+    result. Batched through ``sql_batch`` so an arbitrarily large id set never exceeds SQLite's variable limit.
+    """
+    out: dict[int, RoleState] = {}
+    for batch in in_batches(sorted({int(i) for i in chunk_ids})):
+        rows = conn.execute(
+            select(
+                chunk_structure.c.chunk_id,
+                chunk_structure.c.chunk_type,
+                chunk_structure.c.evidence_role,
+                chunk_structure.c.reference_region_source,
+                chunk_structure.c.raw_sha,
+                chunk_structure.c.chunk_version.label("derived_version"),
+                chunk_structure.c.derivation_version,
+                chunks.c.text.label("live_text"),
+                chunks.c.chunk_version.label("live_version"),
+            )
+            .select_from(chunk_structure.join(chunks, chunks.c.id == chunk_structure.c.chunk_id))
+            .where(chunk_structure.c.chunk_id.in_(batch))
+        ).mappings()
+        for row in rows:
+            reason = None
+            if row["derivation_version"] != derivation_version:
+                reason = "derivation_version"
+            elif row["raw_sha"] != raw_sha(row["live_text"] or ""):
+                reason = "text_hash"
+            elif row["derived_version"] != (row["live_version"] or ""):
+                reason = "chunk_version"
+            out[int(row["chunk_id"])] = RoleState(
+                int(row["chunk_id"]),
+                "stale" if reason else "current",
+                row["chunk_type"],
+                row["evidence_role"],
+                row["reference_region_source"],
+                reason,
+                row["raw_sha"],
+            )
     return out
 
 

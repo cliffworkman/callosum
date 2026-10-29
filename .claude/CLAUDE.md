@@ -33,7 +33,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 608** on main (inc 607 is on the unmerged `codex/focused-discovery-tranche1` branch; see Increment workflow). The accepted Browser Capture head
+It is currently at **Increment 608**, with inc 607 (the 2026-10-29 reference-exclusion repair, `e4d4f4e4`) cherry-picked alongside it on the unpushed `integrate/inc607-608-ask` branch; see Increment workflow. The accepted Browser Capture head
 `80025d1a` passed **3490 tests, 9 skipped**, plus 23 browser smoke tests in CI before merging.
 Fresh release-candidate checks are required for 0.5.16; do not substitute that earlier receipt.
 It is a working MVP backed by a thorough planning suite in `.claude/docs/`.
@@ -1008,12 +1008,16 @@ the full per-increment narrative for all other increments now lives in the reloc
   `.claude/docs/research/2026-08-21_word_citation_migration_formats.md`.
 - **Evidence hygiene, H1a instrumented baseline (inc 577):** `chunks` now has an additive derived
   sibling, `chunk_structure` (`chunk_type`, `evidence_role`, reason codes, `derivation_version`,
-  full `raw_sha` + `chunk_version` for staleness). It is **deliberately non-load-bearing: nothing on
-  the retrieval path reads it**, because the evidence-hygiene study
+  full `raw_sha` + `chunk_version` for staleness). It is **never an exclusion authority: retrieval reads it
+  only to demote.** The faceted path (inc 581) and, since the 2026-10-29 reference-exclusion repair, the narrow
+  path (`summarization/evidence_selection.py`, via `structure_role_states`) move a current `bibliographic`
+  chunk behind every eligible candidate. Such a chunk is used only as a logged fallback, and a stale row is
+  ignored. Nothing withholds or deletes on this label (shared policy: `summarization/evidence_eligibility.py`).
+  That limit exists because the evidence-hygiene study
   (`.claude/docs/research/2026-09-04_evidence-hygiene-architecture.md`) found that **no exclusion
   reason code clears a ≥95% held-out precision gate** — the best sit at 100% on n=6/n=9 (Wilson
   lower bounds 0.61/0.70) and three adjudicated false positives would have deleted real scientific
-  evidence. Classification is shipped to be *observed*, not obeyed. Two standing rules: **(a)**
+  evidence. Classification may *demote* but is never obeyed as an exclusion. Two standing rules: **(a)**
   `evidence_role` is `scientific | bibliographic | structural | unknown`, never a boolean — a
   reference entry is not claim evidence but IS evidence for "what did this paper cite?", so
   eligibility is task-relative and must stay computed per question; and `unknown` is first-class and
@@ -1725,7 +1729,7 @@ latency regressions.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (608 on main; 607 on an unmerged branch). Each increment of real work
+callosum is built in **numbered increments** (608 on main; 607 + 608 integrated on `integrate/inc607-608-ask`). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

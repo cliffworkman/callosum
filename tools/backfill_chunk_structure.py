@@ -83,19 +83,61 @@ def _dense_key(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", canon)
 
 
-def load_reference_metadata(conn) -> dict[int, list[dict]]:
+def doi_owners(conn, diagnostics: dict | None = None) -> dict[str, tuple[int, ...]]:
+    """``{normalized DOI: live canonical paper ids}`` -- never a soft-deleted or merged duplicate.
+
+    A merge leaves the duplicate row (with the same DOI) behind, soft-deleted and pointing at its survivor via
+    ``merged_into``. Mapping DOIs over every row let whichever duplicate came last capture the live paper's cached
+    reference list -- measured, DOI 10.5498/wjp.v11.i6.201 went to merged paper 202, so live paper 171 got no
+    reference region at all. Now: live, unmerged papers own their DOI; a DOI held only by non-live rows resolves
+    through ``merged_into`` to its live survivor. Two LIVE papers sharing a DOI are an unresolved identity
+    duplicate: the reference list belongs to the DOI, so each receives it, and the group is recorded in
+    ``diagnostics['ambiguous_dois']`` instead of letting one silently win.
+    """
+    rows = conn.execute(
+        select(papers.c.id, papers.c.doi, papers.c.deleted_at, papers.c.merged_into).where(papers.c.doi.is_not(None))
+    ).fetchall()
+    live = {int(r[0]) for r in conn.execute(select(papers.c.id).where(papers.c.deleted_at.is_(None)))}
+    merged_into = {int(r[0]): (int(r[3]) if r[3] is not None else None) for r in rows}
+
+    def survivor(paper_id: int) -> int | None:
+        seen: set[int] = set()
+        while paper_id not in live:
+            if paper_id in seen or merged_into.get(paper_id) is None:
+                return None
+            seen.add(paper_id)
+            paper_id = merged_into[paper_id]  # type: ignore[assignment]
+        return paper_id
+
+    direct: dict[str, set[int]] = defaultdict(set)
+    resolved: dict[str, set[int]] = defaultdict(set)
+    for paper_id, doi, deleted_at, merged in rows:
+        key = (doi or "").lower().strip()
+        if not key:
+            continue
+        if deleted_at is None and merged is None:
+            direct[key].add(int(paper_id))
+        else:
+            target = survivor(int(paper_id))
+            if target is not None:
+                resolved[key].add(target)
+    owners = {key: tuple(sorted(direct.get(key) or resolved[key])) for key in set(direct) | set(resolved)}
+    if diagnostics is not None:
+        diagnostics["ambiguous_dois"] = {k: list(v) for k, v in sorted(owners.items()) if len(v) > 1}
+        diagnostics["resolved_through_merge"] = sorted(k for k in resolved if k not in direct)
+    return owners
+
+
+def load_reference_metadata(conn, diagnostics: dict | None = None) -> dict[int, list[dict]]:
     """{paper_id: [reference records]} from LOCAL caches only. No network, ever."""
-    by_doi = {
-        (r[1] or "").lower().strip(): int(r[0])
-        for r in conn.execute(select(papers.c.id, papers.c.doi).where(papers.c.doi.is_not(None)))
-    }
+    by_doi = doi_owners(conn, diagnostics)
     out: dict[int, list[dict]] = defaultdict(list)
     rows = conn.execute(
         sqltext("SELECT cache_key, response_json FROM external_api_cache WHERE provider = 'crossref'")
     ).fetchall()
     for key, payload in rows:
-        paper_id = by_doi.get((key or "").lower().strip())
-        if paper_id is None:
+        owner_ids = by_doi.get((key or "").lower().strip(), ())
+        if not owner_ids:
             continue
         try:
             doc = json.loads(payload)
@@ -104,7 +146,8 @@ def load_reference_metadata(conn) -> dict[int, list[dict]]:
         message = doc.get("message", doc) if isinstance(doc, dict) else {}
         for ref in (message.get("reference") or []) if isinstance(message, dict) else []:
             if isinstance(ref, dict):
-                out[paper_id].append(ref)
+                for paper_id in owner_ids:
+                    out[paper_id].append(ref)
     # `reference_instances` is the persisted Meta-Reference product -- authoritative where present.
     try:
         for citing, title, doi in conn.execute(sqltext("SELECT citing_paper_id, title, doi FROM reference_instances")):
@@ -251,7 +294,9 @@ def backfill(engine, *, paper_id: int | None = None, limit: int | None = None, f
             else [int(r[0]) for r in conn.execute(select(papers.c.id).where(papers.c.deleted_at.is_(None)))]
         )
         done = set() if force else papers_with_current_structure(conn, DERIVATION_VERSION)
-        references = load_reference_metadata(conn)
+        doi_diagnostics: dict = {}
+        references = load_reference_metadata(conn, doi_diagnostics)
+    stats["ambiguous_dois"] = doi_diagnostics["ambiguous_dois"]
 
     for pid in targets:
         if pid in done:
@@ -373,6 +418,8 @@ def main() -> None:
         f"({stats['skipped_current']} already current, "
         f"{stats['no_reference_metadata']} without cached reference metadata)"
     )
+    for doi, ids in stats["ambiguous_dois"].items():
+        print(f"duplicate live papers share DOI {doi}: {ids} -- each receives that DOI's reference metadata")
 
 
 if __name__ == "__main__":
