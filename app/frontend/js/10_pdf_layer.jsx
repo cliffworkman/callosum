@@ -246,7 +246,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
     <div className="pane-list-body">
       <div className="pane-head">
         <div className="lib-head">
-          <p className="eyebrow">{trashView ? "Trash" : "Library"}</p>
+          <p className="eyebrow">{trashView ? "Trash" : "Library"}</p>{!trashView && <LibraryIdentityBadge />}
           {libraryActionsVisible && <span className="lib-head-actions">
             {!trashView && <AddMenu
               onAddDoi={demoMode ? () => explainDemoLock("Adding a paper by DOI resolves live metadata and creates a persistent library record. The static browser demo has no backend; use local Callosum to add papers by DOI.", "/papers/by-doi") : onOpenAddDoi}

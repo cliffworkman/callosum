@@ -54,6 +54,7 @@ from app.backend.api.routers import (
     diagnostics,
     discovery,
     duplicates,
+    embedding_profiles,
     feed,
     feedback,
     findings,
@@ -128,7 +129,12 @@ from app.backend.api.routers import (
     zotero_citations,
 )
 from app.backend.api.sqlite_retry_middleware import SqliteWriteRetryMiddleware
-from app.backend.api.startup import PROJECT_ROOT, _upgrade_database_to_head, load_local_env
+from app.backend.api.startup import (
+    PROJECT_ROOT,
+    _upgrade_database_to_head,
+    load_local_env,
+    require_existing_database,
+)
 from app.backend.discovery.feed import FeedRegistry, build_default_feed_registry
 from app.backend.discovery.providers import SourceRegistry, build_default_registry
 from app.backend.embeddings.models import EmbeddingModel
@@ -201,6 +207,7 @@ def create_app(
     provider_client_runtime: ProviderClientRuntime | None = None,
 ) -> FastAPI:
     resolved_db_url = db_url or os.environ.get("CALLOSUM_DB_URL", DEFAULT_DB_URL)
+    require_existing_database(resolved_db_url)
     resolved_frontend_path = _resolve_frontend_path(frontend_path)
     engine = make_engine(resolved_db_url)
     runtime_registry = model_runtime_registry or ModelRuntimeRegistry()
@@ -255,6 +262,8 @@ def create_app(
     api.state.wip_scan_singleflight_lock = Lock()
     api.state.active_wip_scan_job_id = None
     api.state.library_import_jobs = JobStore()  # inc 93: citation-file import
+    api.state.embedding_index_jobs = JobStore()  # selectable retrieval-profile index builds
+    api.state.embedding_index_cancelled = set()
     api.state.library_bundle_import_jobs = JobStore()  # B2 SP1 (inc 234): portable library bundle import
     api.state.share_import_jobs = JobStore()  # SP4c (backlog #15): decrypt + import a received share
     api.state.zotero_import_jobs = JobStore()  # backlog #57 Phase 1: native Zotero library import
@@ -513,6 +522,7 @@ def create_app(
     api.include_router(word_https.router)  # /word-https/* — local-only packaged Word TLS lifecycle
     api.include_router(axes.router)
     api.include_router(summaries.router)
+    api.include_router(embedding_profiles.router)  # /embedding-profiles/* — retrieval model profiles
     api.include_router(help.router)
     api.include_router(settings.router)  # /settings — BYOK: Gemini key + egress consent from the UI (inc 146)
     api.include_router(usage.router)  # /usage/* — local usage instrumentation, zero egress (backlog #38A, inc 450)

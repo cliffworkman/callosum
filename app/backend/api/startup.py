@@ -104,6 +104,37 @@ def _ensure_sqlite_parent_dir(db_url: str) -> None:
         _loud(logging.WARNING, "could not create database directory %s (%s)", parent, exc)
 
 
+REQUIRE_EXISTING_DB_ENV = "CALLOSUM_DB_REQUIRE_EXISTING"
+
+
+class MissingDatabaseError(RuntimeError):
+    """A launcher required an existing library database and the configured file is absent."""
+
+
+def require_existing_database(db_url: str) -> None:
+    """Refuse to start on a missing SQLite file when ``CALLOSUM_DB_REQUIRE_EXISTING`` is truthy.
+
+    Off by default: the packaged app legitimately creates its database on first launch, and a bare
+    dev ``uvicorn`` still self-heals via ``_ensure_sqlite_parent_dir``. A launcher that names a specific,
+    existing library (the dev launcher) sets the flag so a deleted or mistyped path fails loudly
+    instead of opening a new, empty library that looks like data loss. Runs before any engine connect,
+    so nothing is created.
+    """
+    if os.environ.get(REQUIRE_EXISTING_DB_ENV, "").strip().lower() not in ("1", "true", "yes"):
+        return
+    prefix = "sqlite:///"
+    if not db_url.startswith(prefix):
+        return
+    path_part = db_url[len(prefix) :].split("?", 1)[0]
+    if not path_part or path_part.lstrip("/").startswith(":memory:") or "mode=memory" in db_url:
+        return
+    if not Path(path_part).is_file():
+        raise MissingDatabaseError(
+            f"{REQUIRE_EXISTING_DB_ENV} is set but the configured library database does not exist: {path_part}. "
+            "Nothing was created. Fix CALLOSUM_DB_URL or restore the file."
+        )
+
+
 def _upgrade_database_to_head(db_url: str) -> None:
     """Bring the configured database up to the latest Alembic revision — LOUDLY.
 

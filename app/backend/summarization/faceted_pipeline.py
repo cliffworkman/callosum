@@ -22,8 +22,9 @@ from typing import Literal
 
 from sqlalchemy import Connection, Engine, select
 
-from app.backend.embeddings.models import EmbeddingModel
+from app.backend.embeddings.models import EmbeddingModel, encode_query_texts
 from app.backend.embeddings.pipeline import current_chunk_embedding_ids, embed_chunks
+from app.backend.embeddings.profiles import IncompleteEmbeddingIndexError
 from app.backend.embeddings.vector_store import VectorStore
 from app.backend.persistence.chunk_structure_repo import current_structure_roles
 from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES, attachment_document_role_clause
@@ -103,9 +104,12 @@ def summarize_faceted(
     exclude_references: bool = True,
     on_stage: Callable[[str, str, int | None, bool], None] | None = None,
     on_progress: Callable[[int, int, str], None] | None = None,
+    verification_model: EmbeddingModel | None = None,
+    retrieval_provenance: dict[str, object] | None = None,
 ) -> SummaryPersistenceResult:
     """Broad, facet-aware synthesis. Same three-phase transaction discipline as ``summarize_scope``:
-    no connection is held across the (slow) generation calls in Phase 2."""
+    no connection is held across the (slow) generation calls in Phase 2. ``model`` ranks evidence;
+    ``verification_model`` (default ``model``) is the verifier's similarity model, as in ``summarize_scope``."""
     if on_stage is not None:
         on_stage("preparing_sources", "Preparing sources", None, False)
     with engine.begin() as conn:
@@ -142,7 +146,10 @@ def summarize_faceted(
     with engine.begin() as conn:
         fresh_pool = _refresh_source_chunks(conn, list(all_source_chunks.values()))
         verifier = LocalCitationVerifier(
-            model=model, vector_store=vector_store, config=verifier_config, support_scorer=support_scorer
+            model=verification_model or model,
+            vector_store=vector_store,
+            config=verifier_config,
+            support_scorer=support_scorer,
         )
         if on_stage is not None:
             flat = sum(len(c.citations) for c in candidates)
@@ -166,6 +173,7 @@ def summarize_faceted(
             # inc 582: per-claim responsiveness label (finding/descriptive/unknown), ordinal-aligned to
             # the persisted sentences below. Presentation only -- no verification status/score change.
             "responsiveness": responsiveness,
+            **(retrieval_provenance or {}),
         }
         if on_stage is not None:
             on_stage("finalizing_result", "Finalizing result", len(ordered_candidates), False)
@@ -219,13 +227,18 @@ def _faceted_retrieval(
         return {}
     current = current_chunk_embedding_ids(conn, ((chunk.chunk_id, chunk.chunk_version) for chunk in pool), model=model)
     missing = [chunk for chunk in pool if chunk.chunk_id not in current]
+    if missing and not getattr(model, "lazy_indexing", True):
+        # Same rule as the narrow path: a selectable profile is never embedded on the fly inside Ask.
+        raise IncompleteEmbeddingIndexError(
+            f"{len(missing)} candidate passages have no {model.name} vector; build the retrieval index first."
+        )
     if missing:
         embed_chunks(conn, model=model, vector_store=vector_store, chunk_ids=[c.chunk_id for c in missing])
         current.update(current_chunk_embedding_ids(conn, ((c.chunk_id, c.chunk_version) for c in missing), model=model))
     embedding_to_chunk = {embedding_id: chunk_id for chunk_id, embedding_id in current.items()}
     candidate_ids = set(embedding_to_chunk)
     source_by_id = {chunk.chunk_id: chunk for chunk in pool}
-    facet_vectors = model.encode_texts([facet.query for facet in plan.facets])  # ONE batched encode
+    facet_vectors = encode_query_texts(model, [facet.query for facet in plan.facets])  # ONE batched encode
     out: dict[int, list[SourceChunk]] = {}
     for index, vector in enumerate(facet_vectors):
         hits = vector_store.search(

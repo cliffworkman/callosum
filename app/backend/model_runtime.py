@@ -27,6 +27,9 @@ PINNED_MODEL_REVISIONS: dict[str, str] = {
     "sentence-transformers/all-MiniLM-L6-v2": "1110a243fdf4706b3f48f1d95db1a4f5529b4d41",
     "cross-encoder/nli-MiniLM2-L6-H768": "b95119ce93d3e065de6214e38cd4a97b0f2f2c6d",
     "sentence-transformers/allenai-specter": "2c68eeca61259b2dd70c3f2628219f925df7031a",
+    # Selectable profiles (embedding profile registry + NLI profiles); revisions are the qualified research ones.
+    "Snowflake/snowflake-arctic-embed-s": "e596f507467533e48a2e17c007f0e1dacc837b33",
+    "MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli": "6f5cf0a2b59cabb106aca4c287eed12e357e90eb",
 }
 
 
@@ -141,6 +144,12 @@ class ModelRuntimeRegistry:
         revision: str | None = None,
         device: str | None = None,
         backend: str = "torch",
+        query_prefix: str = "",
+        document_prefix: str = "",
+        expected_pooling: str | None = None,
+        expected_max_seq_length: int | None = None,
+        lazy_indexing: bool = True,
+        profile_key: str | None = None,
     ) -> object:
         identity = ModelRuntimeIdentity(
             family="sentence-transformer",
@@ -150,7 +159,20 @@ class ModelRuntimeRegistry:
             local_files_only=local_files_only,
             backend=backend,
         )
-        key = (identity, version or name, normalization, batch_size)
+        # Wrapper semantics (prefixes, contract checks, indexing policy) are part of the cache key; the
+        # underlying weights are still shared through ``identity``.
+        key = (
+            identity,
+            version or name,
+            normalization,
+            batch_size,
+            query_prefix,
+            document_prefix,
+            expected_pooling,
+            expected_max_seq_length,
+            lazy_indexing,
+            profile_key,
+        )
         with self._registry_lock:
             self._ensure_open()
             model = self._embedding_models.get(key)
@@ -167,6 +189,12 @@ class ModelRuntimeRegistry:
                     revision=revision,
                     device=device,
                     backend=backend,
+                    query_prefix=query_prefix,
+                    document_prefix=document_prefix,
+                    expected_pooling=expected_pooling,
+                    expected_max_seq_length=expected_max_seq_length,
+                    lazy_indexing=lazy_indexing,
+                    profile_key=profile_key,
                     _runtime=runtime,
                 )
                 self._embedding_models[key] = model

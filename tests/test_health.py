@@ -511,3 +511,18 @@ def test_api_exposes_only_read_only_get_routes(temp_db_url: str) -> None:
     )
     assert {(route.path, frozenset(route.methods or set())) for route in write_routes} == allowed_mutation_routes
     assert client.post("/papers").status_code == 405
+
+
+def test_health_reports_library_identity_only_when_a_label_is_configured(temp_db_url: str, monkeypatch) -> None:
+    monkeypatch.delenv("CALLOSUM_LIBRARY_LABEL", raising=False)
+    with TestClient(create_app(db_url=temp_db_url)) as client:
+        assert client.get("/health").json()["library"] is None  # installed app / default: no identity exposed
+
+    monkeypatch.setenv("CALLOSUM_LIBRARY_LABEL", "unified test copy")
+    with TestClient(create_app(db_url=temp_db_url)) as client:
+        _seed_library(temp_db_url)
+        library = client.get("/health").json()["library"]
+    db_path = Path(temp_db_url.removeprefix("sqlite:///"))
+    assert library["label"] == "unified test copy"
+    assert library["db_file"] == f"{db_path.parent.name}/{db_path.name}"  # folder + file, never the full path
+    assert library["live_papers"] >= 1

@@ -117,3 +117,28 @@ def test_ensure_sqlite_parent_dir_noop_for_memory_and_nonsqlite() -> None:
     """In-memory + non-sqlite URLs create nothing and never raise."""
     for url in ("sqlite://", "sqlite:///:memory:", "postgresql://user@host/db"):
         app_module._ensure_sqlite_parent_dir(url)  # must be a silent no-op
+
+
+def test_require_existing_database_refuses_a_missing_file_without_creating_it(tmp_path: Path, monkeypatch) -> None:
+    """With CALLOSUM_DB_REQUIRE_EXISTING set, a configured-but-missing library must stop startup instead of
+    silently creating an empty substitute (the dev-launcher failure mode: a deleted DB path opened as a new,
+    empty library)."""
+    import pytest
+
+    from app.backend.api import create_app
+
+    missing = tmp_path / "gone" / "library.sqlite"
+    monkeypatch.setenv("CALLOSUM_DB_REQUIRE_EXISTING", "1")
+    monkeypatch.setenv("CALLOSUM_DB_URL", f"sqlite:///{missing.as_posix()}")
+    with pytest.raises(app_module.MissingDatabaseError, match="library.sqlite"):
+        create_app()
+    assert not missing.exists() and not missing.parent.exists()
+
+
+def test_require_existing_database_accepts_an_existing_file_and_is_off_by_default(tmp_path: Path, monkeypatch) -> None:
+    db_url = _db_at(tmp_path, "present.sqlite", HEAD)
+    monkeypatch.setenv("CALLOSUM_DB_REQUIRE_EXISTING", "1")
+    app_module.require_existing_database(db_url)  # present -> no error
+    monkeypatch.delenv("CALLOSUM_DB_REQUIRE_EXISTING")
+    app_module.require_existing_database(f"sqlite:///{(tmp_path / 'new.sqlite').as_posix()}")  # flag off -> no-op
+    app_module.require_existing_database("sqlite://")  # in-memory is never a file

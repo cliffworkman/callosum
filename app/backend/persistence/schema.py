@@ -498,6 +498,9 @@ from app.backend.persistence.schema_grobid import paper_sections  # noqa: E402,F
 # Generic async-job bookkeeping (inc 400 split — schema.py crossed the 600-line cap).
 from app.backend.persistence.schema_jobs import JOB_STATUSES, job_errors, jobs  # noqa: E402,F401
 
+# Per-library settings (e.g. the active retrieval embedding profile) — live with the database, not the machine.
+from app.backend.persistence.schema_library_settings import library_settings  # noqa: E402,F401
+
 # Reversible-library-merge bookkeeping (backlog #17/#16) — same split rationale.
 from app.backend.persistence.schema_merge import (  # noqa: E402,F401
     MERGE_STATUSES,

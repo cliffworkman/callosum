@@ -30,6 +30,7 @@ from app.backend.api.dependencies import (
     get_engine,
     resolve_embedding_model,
     resolve_llm_config,
+    resolve_profile_embedding_model,
     resolve_support_scorer,
 )
 from app.backend.api.job_store import JobStore
@@ -48,6 +49,12 @@ from app.backend.api.routers.summary_overview import resolve_overview_generator
 from app.backend.api.routers.summary_overview import router as overview_router
 from app.backend.clustering.axis_membership import axis_cutoff, resolve_axis_corpus
 from app.backend.embeddings.models import EmbeddingModel
+from app.backend.embeddings.profiles import (
+    BASELINE_PROFILE_KEY,
+    IncompleteEmbeddingIndexError,
+    active_retrieval_profile,
+    require_complete_index,
+)
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore, VectorStore
 from app.backend.llm.cache import CachedSummaryGenerator
 from app.backend.llm.egress import EgressGatedSummaryGenerator
@@ -55,6 +62,7 @@ from app.backend.persistence.repository import delete_summary, get_axis, get_sum
 from app.backend.persistence.sqlite_retry import run_write
 from app.backend.summarization.faceted_pipeline import summarize_faceted
 from app.backend.summarization.generators import SummaryGenerator
+from app.backend.summarization.nli_profiles import active_nli_profile, verification_nli_provenance
 from app.backend.summarization.overview_lifecycle import generate_overview
 from app.backend.summarization.pipeline import SummaryScope, summarize_scope
 from app.backend.summarization.query_planner import broadening_hint_applies, classify_breadth, plan_query
@@ -319,11 +327,17 @@ def _run_summarize_job(
         calibration_key = synthesis_timing_key(llm_config)
         generator = _summary_generator(api)
         overview_generator = resolve_overview_generator(api)
-        model = _embedding_model(api)
+        model = _embedding_model(api)  # verification similarity: always the MiniLM-calibrated baseline
         store = _vector_store(api)
-        support_scorer = resolve_support_scorer(api, embedding_model=model)
         config = api.state.verifier_config
         engine: Engine = api.state.engine
+        retrieval_model, retrieval_provenance = _retrieval_model(api, engine, model)
+        with engine.connect() as conn:
+            nli_profile = active_nli_profile(conn)
+        support_scorer = resolve_support_scorer(api, embedding_model=model, nli_profile=nli_profile)
+        nli_provenance = verification_nli_provenance(nli_profile)
+        if nli_provenance:
+            retrieval_provenance = {**(retrieval_provenance or {}), **nli_provenance}
         # summarize_scope manages its own short internal transactions (retrieval, then verify+persist)
         # and holds no connection open during the generation call in between -- no outer `engine.begin()`
         # wrapper here (the primary-synthesis transaction-boundary redesign; see pipeline.py).
@@ -341,7 +355,9 @@ def _run_summarize_job(
                 question=request.query.strip(),
                 plan=plan,
                 generator=generator,
-                model=model,
+                model=retrieval_model,
+                verification_model=model,
+                retrieval_provenance=retrieval_provenance,
                 vector_store=store,
                 verifier_config=config,
                 support_scorer=support_scorer,
@@ -355,7 +371,9 @@ def _run_summarize_job(
                 engine,
                 scope=_summary_scope_from_request(request, scope_origin),
                 generator=generator,
-                model=model,
+                model=retrieval_model,
+                verification_model=model,
+                retrieval_provenance=retrieval_provenance,
                 vector_store=store,
                 top_k=request.top_k,
                 verifier_config=config,
@@ -377,6 +395,9 @@ def _run_summarize_job(
         # exact "Local AI is not ready" wording and routes the user to Settings instead of a bare Retry.
         jobs.mark_error(job_id, f"Local AI is not ready ({exc.code}). Check Settings → AI features.")
         return
+    except IncompleteEmbeddingIndexError as exc:
+        jobs.mark_error(job_id, str(exc))  # already user-facing: names the index gap and both remedies
+        return
     except Exception as exc:
         jobs.mark_error(job_id, f"{type(exc).__name__}: {exc}")
         return
@@ -395,6 +416,28 @@ def _run_summarize_job(
         with engine.connect() as conn:
             refreshed = _persisted_summary_response(conn, summary_id=result.summary_id, job_id=job_id)
         jobs.mark_done(job_id, refreshed, nav={"summary_id": result.summary_id})
+
+
+def _retrieval_model(
+    api: FastAPI, engine: Engine, baseline: EmbeddingModel
+) -> tuple[EmbeddingModel, dict[str, object] | None]:
+    """The library's active retrieval profile. The baseline returns the verification model itself and no
+    provenance (ordinary rows stay unchanged); another profile must have a complete index, and the synthesis records
+    exactly which encoder ranked its evidence."""
+    with engine.connect() as conn:
+        profile = active_retrieval_profile(conn)
+        if profile.key == BASELINE_PROFILE_KEY:
+            return baseline, None
+        coverage = require_complete_index(conn, profile)
+    provenance = {
+        "profile": profile.key,
+        "model_name": profile.model_name,
+        "model_version": profile.model_version,
+        "normalization": profile.normalization,
+        "indexed_chunks": coverage["indexed_chunks"],
+        "verification_embedding": baseline.version,
+    }
+    return resolve_profile_embedding_model(api, profile), {"retrieval_embedding": provenance}
 
 
 def _summary_generator(api: FastAPI) -> SummaryGenerator:

@@ -46,7 +46,15 @@ def _paper_with_attachment(conn, title: str) -> tuple[int, int]:
 
 
 def _chunk_with_embedding(
-    conn, paper_id: int, attachment_id: int, *, text: str, page: int, section: str | None = None
+    conn,
+    paper_id: int,
+    attachment_id: int,
+    *,
+    text: str,
+    page: int,
+    section: str | None = None,
+    model_name: str = "fake",
+    model_version: str = "fake",
 ) -> tuple[int, int]:
     chunk_id = create_chunk(
         conn,
@@ -68,8 +76,8 @@ def _chunk_with_embedding(
             insert(schema.embeddings).values(
                 target_type="chunk",
                 target_id=chunk_id,
-                model_name="fake",
-                model_version="v1",
+                model_name=model_name,
+                model_version=model_version,
                 dimension=3,
                 normalization="none",
                 source_text_version="v1",
@@ -148,7 +156,7 @@ def test_set_chunk_embedding_ids_scopes_to_set():
         _, _a_emb = _chunk_with_embedding(c, a, aa, text="alpha", page=1)
         _, b_emb = _chunk_with_embedding(c, b, ab, text="beta", page=1)
         _, _c_emb = _chunk_with_embedding(c, cc, ac, text="gamma", page=1)
-        got = set_chunk_embedding_ids(c, [a, b], a)
+        got = set_chunk_embedding_ids(c, [a, b], a, model=_FakeEmbed())
     eng.dispose()
     assert got == {b_emb}  # only B (in-set, other); excludes A (self) and C (not in set)
 
@@ -161,10 +169,25 @@ def test_set_chunk_embedding_ids_excludes_references_section():
         b, ab = _paper_with_attachment(c, "B")
         _, b_body = _chunk_with_embedding(c, b, ab, text="a body passage", page=1)
         _, b_refs = _chunk_with_embedding(c, b, ab, text="1. Smith et al. 2020.", page=9, section="references")
-        got = set_chunk_embedding_ids(c, [a, b], a)
+        got = set_chunk_embedding_ids(c, [a, b], a, model=_FakeEmbed())
     eng.dispose()
     assert got == {b_body}
     assert b_refs not in got
+
+
+def test_set_chunk_embedding_ids_never_mixes_embedding_spaces():
+    # Same-dimension profiles share one vec table; another model's vectors must never enter the candidate set.
+    eng = _fresh_db()
+    with eng.begin() as c:
+        a, _aa = _paper_with_attachment(c, "A")
+        b, ab = _paper_with_attachment(c, "B")
+        chunk_text = "a body passage"
+        _, ours = _chunk_with_embedding(c, b, ab, text=chunk_text, page=1)
+        _, theirs = _chunk_with_embedding(c, b, ab, text=chunk_text, page=2, model_name="other", model_version="o1")
+        got = set_chunk_embedding_ids(c, [a, b], a, model=_FakeEmbed())
+    eng.dispose()
+    assert got == {ours}
+    assert theirs not in got
 
 
 def test_set_contested_only_surfaces_intra_set():

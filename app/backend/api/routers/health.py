@@ -6,6 +6,7 @@ import functools
 import logging
 import os
 import subprocess
+from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, Depends
@@ -80,6 +81,19 @@ def _dev_git_version() -> str | None:
     return f"dev-{sha}" + ("+" if dirty else "")
 
 
+LIBRARY_LABEL_ENV = "CALLOSUM_LIBRARY_LABEL"
+
+
+class LibraryIdentity(BaseModel):
+    """Which library this backend has open. Reported only when a launcher sets ``CALLOSUM_LIBRARY_LABEL``
+    (the dev launcher does; the packaged app does not), so the default /health surface is unchanged. The
+    file is the containing folder + name, never the full path, because /health is token-exempt."""
+
+    label: str
+    db_file: str | None = None
+    live_papers: int | None = None
+
+
 class HealthResponse(BaseModel):
     app: str
     verification_version: str
@@ -108,6 +122,23 @@ class HealthResponse(BaseModel):
     # "tunnel-target", or null when no launcher declared one. Independent of app_version: role is
     # process identity, app_version is build identity. See `reported_instance_role`.
     instance_role: InstanceRole | None = None
+    library: LibraryIdentity | None = None
+
+
+def _library_identity(conn: Connection) -> LibraryIdentity | None:
+    label = os.getenv(LIBRARY_LABEL_ENV, "").strip()
+    if not label:
+        return None
+    database = conn.engine.url.database
+    db_file = None
+    if database and not database.startswith(":memory:"):
+        path = Path(database)
+        db_file = f"{path.parent.name}/{path.name}" if path.parent.name else path.name
+    try:
+        live = conn.execute(text("SELECT count(*) FROM papers WHERE deleted_at IS NULL")).scalar_one()
+    except SQLAlchemyError:
+        live = None
+    return LibraryIdentity(label=label[:80], db_file=db_file, live_papers=live)
 
 
 def reported_app_version() -> str | None:
@@ -189,4 +220,5 @@ def health(conn: Connection = Depends(get_connection)) -> HealthResponse:
         onboarding_version=app_settings.stored_onboarding_version(),
         app_version=reported_app_version(),
         instance_role=reported_instance_role(),
+        library=_library_identity(conn),
     )

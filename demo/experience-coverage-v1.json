@@ -195,9 +195,9 @@
     "reviewed_increment": 576,
     "source_fingerprint": "a3d51bd64e6c47ebb5ae5901b0da8404b3e041324cb05ea76c88bc0e824c5c24",
     "note": "Reviewed inc 576 exact-checksum PDF reconnection and cause-specific unavailable states. Recovery depends on local filesystem failures, so the backend-free demo remains intentionally unchanged.",
-    "declined_at": "2026-10-03",
-    "declined_rev": "1bdde984",
-    "declined_increment": 606,
-    "decline_note": "Continue the explicitly approved demo deferral through release-preparation increment 606. Browser Capture manual preview and support limits are documented in release/help copy; no demo visual review or snapshot refresh is claimed."
+    "declined_at": "2026-10-29",
+    "declined_rev": "2f01feef",
+    "declined_increment": 608,
+    "decline_note": "Cliff authorized continuing the demo deferral through increment 608 (2026-10-29). Inc 608 adds experimental, unqualified Arctic S retrieval and DeBERTa verification profiles behind unchanged MiniLM/MiniLM2 defaults, plus a dev-only library identity badge; help copy is updated. No demo visual review or snapshot refresh is claimed."
   }
 }

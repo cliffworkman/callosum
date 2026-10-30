@@ -13,8 +13,10 @@ from app.backend.embeddings.models import (
     DEFAULT_NORMALIZATION,
     EmbeddingModel,
 )
+from app.backend.embeddings.profiles import BASELINE_PROFILE_KEY, EmbeddingProfile
 from app.backend.model_runtime import PINNED_MODEL_REVISIONS
-from app.backend.summarization.verification import DEFAULT_NLI_MODEL, StanceScorer, SupportScorer
+from app.backend.summarization.nli_profiles import NliProfile, verify_nli_checkpoint
+from app.backend.summarization.verification import DEFAULT_NLI_MODEL, NLISupportScorer, StanceScorer, SupportScorer
 
 if TYPE_CHECKING:
     from integrations.gemini.generator import LLMConfig
@@ -73,18 +75,58 @@ def resolve_embedding_model(
     )
 
 
+def resolve_profile_embedding_model(app: FastAPI, profile: EmbeddingProfile) -> EmbeddingModel:
+    """The encoder for one embedding profile. The baseline resolves exactly like ``resolve_embedding_model`` (same
+    wrapper, same stored identity); other profiles carry their full encoding contract. Tests inject per-profile
+    fakes through ``app.state.profile_embedding_models``."""
+    injected = (getattr(app.state, "profile_embedding_models", None) or {}).get(profile.key)
+    if injected is not None:
+        return injected
+    if profile.key == BASELINE_PROFILE_KEY:
+        return resolve_embedding_model(app)
+    return app.state.model_runtime_registry.get_embedding_model(
+        name=profile.model_name,
+        version=profile.model_version,
+        normalization=profile.normalization,
+        revision=profile.revision,
+        query_prefix=profile.query_prefix,
+        document_prefix=profile.document_prefix,
+        expected_pooling=profile.pooling,
+        expected_max_seq_length=profile.max_seq_length,
+        lazy_indexing=profile.lazy_indexing,
+        profile_key=profile.key,
+    )
+
+
 def resolve_support_scorer(
     app: FastAPI,
     *,
     embedding_model: EmbeddingModel,
     model_name: str = DEFAULT_NLI_MODEL,
     local_files_only: bool = False,
+    nli_profile: NliProfile | None = None,
 ) -> SupportScorer:
-    """Resolve synthesis support semantics over the app's shared NLI runtime."""
+    """Resolve synthesis support semantics over the app's shared NLI runtime. A non-baseline ``nli_profile`` is
+    loaded at its pinned revision and its label/architecture/tokenizer contract is verified before use."""
     injected = getattr(app.state, "support_scorer", None)
     if injected is not None:
         return injected
-    return app.state.model_runtime_registry.get_support_scorer(
+    registry = app.state.model_runtime_registry
+    if nli_profile is not None and nli_profile.enforce_contract:
+        runtime = registry.get_nli_runtime(
+            model_name=nli_profile.model_name, revision=nli_profile.revision, local_files_only=local_files_only
+        )
+        runtime.run(lambda model: verify_nli_checkpoint(model, nli_profile))
+        # No embedding fallback: a run recorded as verified by this profile must never carry cosine scores read
+        # against an NLI threshold. An inference failure fails the job instead (shared runtime, no reload).
+        return NLISupportScorer(
+            model_name=nli_profile.model_name,
+            local_files_only=local_files_only,
+            revision=nli_profile.revision,
+            fallback_scorer=None,
+            _runtime=runtime,
+        )
+    return registry.get_support_scorer(
         embedding_model=embedding_model,
         model_name=model_name,
         local_files_only=local_files_only,

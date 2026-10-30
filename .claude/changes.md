@@ -9,6 +9,37 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-10-29 — Selectable retrieval embedding profile (Arctic S) + verification NLI profile (DeBERTa) (inc 608)
+- **Files:** `app/backend/embeddings/{models,profiles,profile_index}.py`, `app/backend/model_runtime.py`,
+  `app/backend/summarization/{pipeline,query_ranking,faceted_pipeline,nli_profiles}.py`,
+  `app/backend/methods/critical_review_set.py`, `app/backend/api/{app,dependencies}.py`,
+  `app/backend/api/routers/{embedding_profiles,summaries,status}.py`, `app/backend/persistence/{schema,schema_library_settings}.py`,
+  `alembic/versions/0085_library_settings.py`, `app/frontend/js/{35_settings,35i_retrieval_profiles}.jsx`,
+  `tests/test_{embedding_profiles,nli_profiles,critical_review_set}.py`, `.claude/qa-routes/route_97_retrieval_profiles.md`,
+  `.claude/security-audits/2026-10-29_retrieval-and-nli-profiles.md`
+- **What:** Arctic S (`Snowflake/snowflake-arctic-embed-s@e596f507`, CLS, max_seq 512, whitespace-v1, query prefix)
+  is a per-library selectable retrieval profile with its own explicit stored identity, a resumable/cancellable
+  Status-tracked index build, coverage over article-fulltext chunks of live papers, and fail-closed gating (no
+  selection or Ask over an incomplete index; never embedded on the fly). Verification stays on MiniLM and its 0.70
+  gate. DeBERTa-v3 base NLI (`MoritzLaurer/...@6f5cf0a2`) is a selectable synthesis-verification profile whose
+  label order/architecture/tokenizer are verified before use; thresholds unchanged and labelled MiniLM2-calibrated.
+  Both baselines are defaults and rollbacks; non-baseline runs record provenance in `scope_ref_json`. DeBERTa has no
+  embedding fallback: an NLI inference failure fails the Ask job rather than persisting cosine scores labelled as NLI. Query ranking
+  moved verbatim from `pipeline.py` to `query_ranking.py` (600-line cap). Fixed a pre-existing gap: Critical Read
+  (set) candidate embeddings had no model-identity filter.
+- **Why:** 0.6.0 tranche — make the bake-off finalists supported application profiles without mixing vector spaces,
+  changing the corpus, or substituting scoring scales.
+- **Revert:** select the baselines in Settings (no data change); to remove entirely, revert the listed files and
+  delete the new files; `library_settings` (0085) is additive and harmless if left; Arctic rows are identifiable by
+  `embeddings.model_name='Snowflake/snowflake-arctic-embed-s'`. Pre-split pipeline at
+  `.claude/backups/pipeline_2026-10-29_before-query-ranking-split.py`.
+
+
+## 2026-10-29 — Active-library identity + fail-closed missing-DB guard (inc 608)
+- **Files:** `app/backend/api/startup.py`, `app/backend/api/app.py`, `app/backend/api/routers/health.py`, `app/frontend/js/03b_library_identity.jsx` (new), `app/frontend/js/10_pdf_layer.jsx`, `app/frontend/styles.css`, `callosum-app.html`, `tests/test_startup_migration.py`, `tests/test_health.py`, `.claude/CLAUDE.md` (Commands table), `.claude/security-audits/2026-10-29_library-identity-and-db-guard.md`.
+- **What:** opt-in `CALLOSUM_DB_REQUIRE_EXISTING` refuses to start on a missing SQLite file before anything is created; opt-in `CALLOSUM_LIBRARY_LABEL` adds `/health.library = {label, db_file, live_papers}` and a muted Library-header badge. Both default off, so the packaged app is unchanged.
+- **Why:** the dev launcher had silently opened the frozen research master, and an unset URL silently creates an empty library at the deleted default path; a researcher must be able to see which library is open before trusting it.
+- **Revert:** revert these files; the machine-local `run-callosum.ps1` keeps working without the two env vars (they are then ignored by older code).
 
 ## 2026-10-03 — Increment 606: prepare 0.5.16 Browser Capture Early Access
 - **Accepted lineage:** PR #103 merged with both parents preserved at `1bdde984`; its tree exactly matches accepted head `80025d1a`. Frozen worktrees and prior acceptance receipts remain preserved.

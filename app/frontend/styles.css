@@ -533,6 +533,7 @@
   .settings-ai-agent-details { grid-column: 1 / -1; }
   .settings-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 6px 2px 10px; }
   .settings-label { font-size: 13px; color: var(--ink); }
+  .library-identity { font-size: 11px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .settings-sub { display: block; font-size: 11px; color: var(--ink-3); margin-top: 3px; max-width: 300px; font-weight: 400; }
   /* Default-axis-cutoff slider (inc 105) */
   .settings-cutoff { display: inline-flex; align-items: center; gap: 8px; flex: none; }

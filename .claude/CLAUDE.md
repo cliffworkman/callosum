@@ -33,7 +33,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 606** (see Increment workflow). The accepted Browser Capture head
+It is currently at **Increment 608** on main (inc 607 is on the unmerged `codex/focused-discovery-tranche1` branch; see Increment workflow). The accepted Browser Capture head
 `80025d1a` passed **3490 tests, 9 skipped**, plus 23 browser smoke tests in CI before merging.
 Fresh release-candidate checks are required for 0.5.16; do not substitute that earlier receipt.
 It is a working MVP backed by a thorough planning suite in `.claude/docs/`.
@@ -94,6 +94,16 @@ the full per-increment narrative for all other increments now lives in the reloc
   the local SQLite happens to allow.
 - **Vectors:** `sqlite-vec` (in-process, no separate daemon) + sentence-transformers
   (default embed model `all-MiniLM-L6-v2`; `bge-base-en-v1.5` also supported).
+  **Selectable retrieval/NLI profiles (inc 608):** `embeddings/profiles.py` defines explicit,
+  revision-pinned retrieval profiles (MiniLM baseline with its legacy stored identity; Arctic S with CLS/512/
+  `whitespace-v1`/query prefix baked into `model_version`). Same-dimension profiles share one vec table, so **every
+  `vector_store.search` must pass `candidate_embedding_ids` scoped to the querying model's full identity** — an AST
+  test in `tests/test_embedding_profiles.py` enforces it. A non-lazy profile is never embedded inside Ask; an
+  incomplete index fails closed (`IncompleteEmbeddingIndexError`). Only Ask retrieval follows the profile;
+  verification similarity stays on MiniLM. `summarization/nli_profiles.py` makes synthesis-verification NLI
+  selectable (DeBERTa-v3 base) with a verified label/architecture/tokenizer contract and unchanged thresholds;
+  stance features keep MiniLM2; DeBERTa is built with no embedding fallback (inference failure fails the job). Per-library
+  choices live in `library_settings` (migration 0085).
 - **Clustering:** scikit-learn agglomerative clustering + local axis scoring.
 - **Explicit feedback (inc 439):** the top-menu Feedback dialog builds either a bug or feature report and shows the
   exact strict version-1 JSON before explicit egress. The local API can reach only `CALLOSUM_FEEDBACK_RELAY_URL`; the
@@ -1477,7 +1487,9 @@ Run from the project root. The shell is **PowerShell** (Windows).
 | `uv sync` | Install the pinned dev/CI toolchain from `uv.lock` into `.venv` (backlog #20; `pyproject.toml` + `[dependency-groups] dev` is the source of truth — `requirements.txt`/`requirements-dev.txt` are a kept-in-sync pip fallback) |
 | `pre-commit install` | Wire the fast pre-commit gate (`.pre-commit-config.yaml`: ruff format/check, whitespace/EOF/large-file hygiene, the line-budget script, `tach check`) — install once per clone |
 | `python -m tach check` | Module-boundary check (`tach.toml`, activated inc 473 — see staged-harnesses/tach.md): `app.backend.persistence` can't import `app.backend.api`; `sync_server`/`mcp_server`/`tui` can't import `app.backend` at all. Run `tach sync` (then review the diff) after a legitimate new cross-module import |
-| `$env:CALLOSUM_DB_URL = "sqlite:///C:/Users/cliff/Dropbox/Dropbox/01_Work/callosum/.local/validation-summarize/validation.sqlite"` | Point the app at a SQLite DB (default if unset: `sqlite:///.local/validation/validation.sqlite`) |
+| `$env:CALLOSUM_DB_URL = "sqlite:///C:/Users/cliff/Dropbox/Dropbox/01_Work/callosum/.local/validation-summarize/validation.sqlite"` | Point the app at a SQLite DB (default if unset: `sqlite:///.local/validation/validation.sqlite` — that file no longer exists, so an unset URL silently creates an empty library there unless the guard below is on) |
+| `$env:CALLOSUM_DB_REQUIRE_EXISTING = "1"` | Fail startup with `MissingDatabaseError` (before any engine connects, so nothing is created) if the configured SQLite file is missing. Opt-in: off by default because the packaged app legitimately creates its DB on first launch. The machine-local `run-callosum.ps1` sets it |
+| `$env:CALLOSUM_LIBRARY_LABEL = "DEV …"` | Operator-set library identity: `/health.library = {label, db_file (parent folder + filename, never the full path), live_papers}` and a muted badge beside the Library eyebrow. Unset (the default, incl. the packaged app) → `library: null`, no badge |
 | `uvicorn app.backend.api.app:app --host 127.0.0.1 --port 8080` | Start the FastAPI app; then open `http://127.0.0.1:8080/` |
 | `python tools/run_dev.py` | Start HTTP (normal use) **and** HTTPS (Word add-in) together as one supervised command pair sharing the same `CALLOSUM_DB_URL` — use this instead of the bare `uvicorn` command above whenever you also want Word working (inc 514; prevents the two servers drifting to different DBs/code versions) |
 | `python tools/run_dev.py --local-ai` | The same, **plus managed Local AI for the dev browser session** (inc 569, backlog #72) — needed because `CALLOSUM_APP_DATA_DIR` is set only by the Tauri shell, so a source-checkout backend otherwise fails every generative feature with `app_data_missing`. Requires Local AI to have been installed once via the packaged app; the desktop app does **not** need to be running |
@@ -1713,7 +1725,7 @@ latency regressions.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (606 on main). Each increment of real work
+callosum is built in **numbered increments** (608 on main; 607 on an unmerged branch). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

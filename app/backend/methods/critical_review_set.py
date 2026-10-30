@@ -26,10 +26,14 @@ from app.backend.persistence.schema import attachments, chunks, embeddings, pape
 from app.backend.summarization.verification import StanceScorer
 
 
-def set_chunk_embedding_ids(conn: Connection, set_ids: list[int], exclude_id: int) -> set[int]:
+def set_chunk_embedding_ids(
+    conn: Connection, set_ids: list[int], exclude_id: int, *, model: EmbeddingModel
+) -> set[int]:
     """Chunk-embedding ids for the OTHER papers IN THE SET — mirror of ``other_paper_chunk_embedding_ids``, but
     scoped to ``set_ids`` (and excluding ``exclude_id`` + soft-deleted papers). This is the set scoping: a
-    contradicter is only retrieved when it belongs to another paper *in the chosen set*."""
+    contradicter is only retrieved when it belongs to another paper *in the chosen set*. Like its mirror it matches
+    the query model's identity: same-dimension profiles share one vector table, so an unfiltered id set would let a
+    query vector be compared against another model's vector space."""
     corpus = (
         embeddings.join(chunks, embeddings.c.target_id == chunks.c.id)
         .join(attachments, attachments.c.id == chunks.c.attachment_id)
@@ -40,6 +44,9 @@ def set_chunk_embedding_ids(conn: Connection, set_ids: list[int], exclude_id: in
         .select_from(corpus)
         .where(
             embeddings.c.target_type == "chunk",
+            embeddings.c.model_name == model.name,
+            embeddings.c.model_version == model.version,
+            embeddings.c.normalization == model.normalization,
             chunks.c.paper_id.in_(set_ids),
             chunks.c.paper_id != exclude_id,
             papers.c.deleted_at.is_(None),
@@ -68,7 +75,7 @@ def set_contested_claims(
         ContestedSearchScope(
             paper_id=paper_id,
             claim_sentences=extract_claim_sentences(conn, paper_id),
-            other_chunk_ids=set_chunk_embedding_ids(conn, set_ids, paper_id),
+            other_chunk_ids=set_chunk_embedding_ids(conn, set_ids, paper_id, model=embed_model),
         )
         for paper_id in set_ids
     ]
