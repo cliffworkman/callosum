@@ -465,6 +465,7 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, requ
                 ? " · section filter only narrows retrieval; verification thresholds are unchanged"
                 : ""}
             </div>}
+          <ModelProvenanceLine provenance={state.result.model_provenance} />
           {sentences.length > 0 && verifiedCount === 0 &&
             <div className="synth-coverage synth-coverage-warn">No claim cleared local verification — your question may not be well-addressed in these papers.</div>}
           {sentences.length === 0 &&

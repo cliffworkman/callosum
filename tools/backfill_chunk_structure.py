@@ -18,8 +18,9 @@ Properties, all deliberate:
   column are untouched. Only ``chunk_structure`` is written.
 * **Per-paper commit, so an interrupted run resumes** by simply re-running: a paper whose rows are
   missing or stale is re-derived, everything else is skipped.
-* **Nothing on the retrieval path reads what this writes.** H1a ships the classification to be
-  observed, not obeyed -- no reason code cleared the >=95% precision gate.
+* **The narrow Ask path now reads what this writes (inc 607):** a current ``bibliographic`` label
+  demotes a chunk behind every eligible candidate, but never withholds it -- no reason code cleared the
+  >=95% precision gate. A library this has never run on is an exact no-op for that seam.
 """
 
 from __future__ import annotations

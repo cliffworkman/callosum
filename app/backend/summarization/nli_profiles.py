@@ -125,15 +125,16 @@ def verify_nli_checkpoint(model: object, profile: NliProfile) -> None:
         )
 
 
-def verification_nli_provenance(profile: NliProfile) -> dict[str, object] | None:
-    """Recorded on a synthesis only when it was verified with a non-baseline NLI profile."""
-    if profile.key == BASELINE_NLI_PROFILE_KEY:
-        return None
+def verification_nli_provenance(profile: NliProfile) -> dict[str, object]:
+    """Recorded on every synthesis, baseline included, so a missing record means "unknown" rather than "MiniLM2".
+    ``embedding_fallback: False`` marks runs made under the no-fallback contract: NLI failure fails the job, so a
+    saved record can never hold cosine scores under an NLI label (rows written before it carry no such marker)."""
     return {
         "verification_nli": {
             "profile": profile.key,
             "model_name": profile.model_name,
             "revision": profile.revision,
             "thresholds_calibrated_on": NLI_PROFILES[BASELINE_NLI_PROFILE_KEY].model_name,
+            "embedding_fallback": False,
         }
     }

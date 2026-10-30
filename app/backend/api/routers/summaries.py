@@ -53,6 +53,7 @@ from app.backend.embeddings.profiles import (
     BASELINE_PROFILE_KEY,
     IncompleteEmbeddingIndexError,
     active_retrieval_profile,
+    baseline_retrieval_provenance,
     require_complete_index,
 )
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore, VectorStore
@@ -62,11 +63,17 @@ from app.backend.persistence.repository import delete_summary, get_axis, get_sum
 from app.backend.persistence.sqlite_retry import run_write
 from app.backend.summarization.faceted_pipeline import summarize_faceted
 from app.backend.summarization.generators import SummaryGenerator
-from app.backend.summarization.nli_profiles import active_nli_profile, verification_nli_provenance
+from app.backend.summarization.nli_profiles import (
+    BASELINE_NLI_PROFILE_KEY,
+    NLI_PROFILES,
+    active_nli_profile,
+    verification_nli_provenance,
+)
 from app.backend.summarization.overview_lifecycle import generate_overview
 from app.backend.summarization.pipeline import SummaryScope, summarize_scope
 from app.backend.summarization.query_planner import broadening_hint_applies, classify_breadth, plan_query
 from app.backend.summarization.reverify import NotImportedError, reverify_imported_summary
+from app.backend.summarization.verification import NLIInferenceError
 
 router = APIRouter()
 router.include_router(overview_router)
@@ -258,10 +265,18 @@ def summary_reverify(
             summary_id,
             model=model,
             vector_store=_vector_store(api),
-            support_scorer=resolve_support_scorer(api, embedding_model=model),
+            support_scorer=resolve_support_scorer(api),  # re-verification deliberately stays on the baseline
+            provenance={
+                "retrieval_embedding": baseline_retrieval_provenance(model),
+                **verification_nli_provenance(NLI_PROFILES[BASELINE_NLI_PROFILE_KEY]),
+            },
         )
     except NotImportedError:
         raise HTTPException(status_code=422, detail="Only an imported synthesis can be re-verified.") from None
+    except NLIInferenceError as exc:  # raised before any write; the request connection is never committed
+        raise HTTPException(
+            status_code=503, detail=f"Citation verification failed; the imported synthesis was not changed. {exc}"
+        ) from None
     conn.commit()
     return _persisted_summary_response(conn, summary_id=summary_id, job_id=f"summary:{summary_id}")
 
@@ -334,10 +349,8 @@ def _run_summarize_job(
         retrieval_model, retrieval_provenance = _retrieval_model(api, engine, model)
         with engine.connect() as conn:
             nli_profile = active_nli_profile(conn)
-        support_scorer = resolve_support_scorer(api, embedding_model=model, nli_profile=nli_profile)
-        nli_provenance = verification_nli_provenance(nli_profile)
-        if nli_provenance:
-            retrieval_provenance = {**(retrieval_provenance or {}), **nli_provenance}
+        support_scorer = resolve_support_scorer(api, nli_profile=nli_profile)
+        retrieval_provenance = {**retrieval_provenance, **verification_nli_provenance(nli_profile)}
         # summarize_scope manages its own short internal transactions (retrieval, then verify+persist)
         # and holds no connection open during the generation call in between -- no outer `engine.begin()`
         # wrapper here (the primary-synthesis transaction-boundary redesign; see pipeline.py).
@@ -398,6 +411,11 @@ def _run_summarize_job(
     except IncompleteEmbeddingIndexError as exc:
         jobs.mark_error(job_id, str(exc))  # already user-facing: names the index gap and both remedies
         return
+    except NLIInferenceError as exc:
+        # Verification never ran: nothing was saved (the verify+persist transaction rolled back) and no claim was
+        # scored by embedding similarity in its place.
+        jobs.mark_error(job_id, f"Citation verification failed, so no synthesis was saved. {exc}")
+        return
     except Exception as exc:
         jobs.mark_error(job_id, f"{type(exc).__name__}: {exc}")
         return
@@ -420,14 +438,14 @@ def _run_summarize_job(
 
 def _retrieval_model(
     api: FastAPI, engine: Engine, baseline: EmbeddingModel
-) -> tuple[EmbeddingModel, dict[str, object] | None]:
-    """The library's active retrieval profile. The baseline returns the verification model itself and no
-    provenance (ordinary rows stay unchanged); another profile must have a complete index, and the synthesis records
-    exactly which encoder ranked its evidence."""
+) -> tuple[EmbeddingModel, dict[str, object]]:
+    """The library's active retrieval profile and the provenance the synthesis records for it. The baseline ranks with
+    the verification model itself; another profile must have a complete index. Either way the record names exactly
+    which encoder ranked the evidence."""
     with engine.connect() as conn:
         profile = active_retrieval_profile(conn)
         if profile.key == BASELINE_PROFILE_KEY:
-            return baseline, None
+            return baseline, {"retrieval_embedding": baseline_retrieval_provenance(baseline)}
         coverage = require_complete_index(conn, profile)
     provenance = {
         "profile": profile.key,

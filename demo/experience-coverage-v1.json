@@ -196,8 +196,8 @@
     "source_fingerprint": "a3d51bd64e6c47ebb5ae5901b0da8404b3e041324cb05ea76c88bc0e824c5c24",
     "note": "Reviewed inc 576 exact-checksum PDF reconnection and cause-specific unavailable states. Recovery depends on local filesystem failures, so the backend-free demo remains intentionally unchanged.",
     "declined_at": "2026-10-29",
-    "declined_rev": "2f01feef",
-    "declined_increment": 608,
-    "decline_note": "Cliff authorized continuing the demo deferral through increment 608 (2026-10-29). Inc 608 adds experimental, unqualified Arctic S retrieval and DeBERTa verification profiles behind unchanged MiniLM/MiniLM2 defaults, plus a dev-only library identity badge; help copy is updated. No demo visual review or snapshot refresh is claimed."
+    "declined_rev": "d85556b6",
+    "declined_increment": 609,
+    "decline_note": "Continue the authorized demo deferral through increment 609 (2026-10-29, integration branch). Inc 609 integrates 607's backend evidence ordering, makes NLI failure fail closed, and adds a one-line model-provenance note to the Ask result screen; no demo visual review or snapshot refresh is claimed."
   }
 }

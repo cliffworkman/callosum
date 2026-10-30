@@ -135,7 +135,8 @@ def summarize_scope(
 ) -> SummaryPersistenceResult:
     """``model`` ranks evidence (it may be a selectable retrieval profile); ``verification_model`` (default:
     ``model``) scores citation similarity against the MiniLM-calibrated gate, so a retrieval-profile switch never
-    rescales verification. ``retrieval_provenance`` (non-baseline profiles only) is merged into scope_ref_json.
+    rescales verification. ``retrieval_provenance`` (the retrieval and verification model identities) is merged into
+    scope_ref_json.
 
     Three phases, each opening its own short connection -- no connection or writer lock is held
     across the (potentially slow, up to ~600s) generation call in between (LATENCY.md). Phase 1

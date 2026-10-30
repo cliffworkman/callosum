@@ -101,12 +101,17 @@ def reverify_imported_summary(
     vector_store: VectorStore,
     support_scorer: SupportScorer | None = None,
     config: VerificationConfig | None = None,
+    provenance: dict[str, object] | None = None,
 ) -> int:
-    """Re-verify an imported synthesis against the local library + convert it in place to native. Returns the id."""
-    row = conn.execute(select(summaries.c.imported_json).where(summaries.c.id == summary_id)).first()
+    """Re-verify an imported synthesis against the local library + convert it in place to native. Returns the id.
+    ``provenance`` (the local models that re-verified it) is merged into ``scope_ref_json``."""
+    row = conn.execute(
+        select(summaries.c.imported_json, summaries.c.scope_ref_json).where(summaries.c.id == summary_id)
+    ).first()
     if row is None or not row[0]:
         raise NotImportedError("Only an imported synthesis can be re-verified.")
     blob = row[0]
+    scope_ref = {**(row[1] if isinstance(row[1], dict) else {}), **(provenance or {})}
     verifier = LocalCitationVerifier(
         model=model, vector_store=vector_store, config=config, support_scorer=support_scorer
     )
@@ -160,6 +165,7 @@ def reverify_imported_summary(
             overview_status="not_requested",
             overview_updated_at=func.current_timestamp(),
             status=status,
+            scope_ref_json=scope_ref,
             generated_by=REVERIFIED_SOURCE,
             chunk_version_verified_against=_combined_chunk_version(all_results) if all_results else "reverify",
             embedding_version_verified_against=_combined_embedding_version(all_results) if all_results else "reverify",

@@ -101,13 +101,13 @@ def resolve_profile_embedding_model(app: FastAPI, profile: EmbeddingProfile) -> 
 def resolve_support_scorer(
     app: FastAPI,
     *,
-    embedding_model: EmbeddingModel,
     model_name: str = DEFAULT_NLI_MODEL,
     local_files_only: bool = False,
     nli_profile: NliProfile | None = None,
 ) -> SupportScorer:
     """Resolve synthesis support semantics over the app's shared NLI runtime. A non-baseline ``nli_profile`` is
-    loaded at its pinned revision and its label/architecture/tokenizer contract is verified before use."""
+    loaded at its pinned revision and its label/architecture/tokenizer contract is verified before use. No profile
+    carries an embedding fallback: an inference failure raises ``NLIInferenceError`` and fails the job."""
     injected = getattr(app.state, "support_scorer", None)
     if injected is not None:
         return injected
@@ -117,8 +117,6 @@ def resolve_support_scorer(
             model_name=nli_profile.model_name, revision=nli_profile.revision, local_files_only=local_files_only
         )
         runtime.run(lambda model: verify_nli_checkpoint(model, nli_profile))
-        # No embedding fallback: a run recorded as verified by this profile must never carry cosine scores read
-        # against an NLI threshold. An inference failure fails the job instead (shared runtime, no reload).
         return NLISupportScorer(
             model_name=nli_profile.model_name,
             local_files_only=local_files_only,
@@ -127,7 +125,6 @@ def resolve_support_scorer(
             _runtime=runtime,
         )
     return registry.get_support_scorer(
-        embedding_model=embedding_model,
         model_name=model_name,
         local_files_only=local_files_only,
         revision=PINNED_MODEL_REVISIONS.get(model_name),

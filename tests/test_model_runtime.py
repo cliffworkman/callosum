@@ -72,7 +72,7 @@ def test_one_load_and_cross_feature_runtime_reuse() -> None:
     assert critical_stance is citation_context_scorer(app)
     assert critical_stance is _suggest_stance_scorer(_Request(app))
 
-    support = resolve_support_scorer(app, embedding_model=summary_model)
+    support = resolve_support_scorer(app)
     summary_model.encode_texts(["first"])
     summary_model.encode_texts(["second"])
     critical_stance.classify_stance(sentence="claim", passage="passage")
@@ -157,7 +157,7 @@ def test_explicit_dependency_injection_wins() -> None:
     )
 
     assert resolve_embedding_model(app) is fake_embedding
-    assert resolve_support_scorer(app, embedding_model=fake_embedding) is fake_support  # type: ignore[arg-type]
+    assert resolve_support_scorer(app) is fake_support  # type: ignore[arg-type]
     assert resolve_stance_scorer(app) is fake_stance
     assert embed_loads == [] and nli_loads == []
 
@@ -177,7 +177,7 @@ def test_default_models_resolve_with_their_pinned_revision() -> None:
 
     embedding = resolve_embedding_model(app)
     embedding.encode_texts(["x"])  # force the lazy load
-    support = resolve_support_scorer(app, embedding_model=embedding)
+    support = resolve_support_scorer(app)
     support.score(sentence="claim", passage="passage")
     stance = resolve_stance_scorer(app)
     stance.classify_stance(sentence="claim", passage="passage")
@@ -335,10 +335,7 @@ def test_registry_close_releases_models_and_prevents_new_resolution() -> None:
 def test_managed_and_standalone_scorers_are_semantically_equivalent() -> None:
     runtime_model = _CrossEncoderRuntime()
     registry = ModelRuntimeRegistry(cross_encoder_factory=lambda _identity: runtime_model)
-    managed_support = registry.get_support_scorer(
-        embedding_model=_FakeEmbeddingModel(),
-        model_name=DEFAULT_NLI_MODEL,
-    )
+    managed_support = registry.get_support_scorer(model_name=DEFAULT_NLI_MODEL)
     managed_stance = registry.get_stance_scorer(model_name=DEFAULT_NLI_MODEL)
     standalone_support = NLISupportScorer(_loader=lambda: runtime_model)
     standalone_stance = NLIStanceScorer(_loader=lambda: runtime_model)

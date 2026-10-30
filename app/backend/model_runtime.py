@@ -224,7 +224,6 @@ class ModelRuntimeRegistry:
     def get_support_scorer(
         self,
         *,
-        embedding_model: object,
         model_name: str,
         local_files_only: bool = False,
         revision: str | None = None,
@@ -238,19 +237,20 @@ class ModelRuntimeRegistry:
             device=device,
             backend=backend,
         )
-        key = (runtime.identity, id(embedding_model))
+        key = runtime.identity
         with self._registry_lock:
             scorer = self._support_scorers.get(key)
             if scorer is None:
-                from app.backend.summarization.verification import EmbeddingSupportScorer, NLISupportScorer
+                from app.backend.summarization.verification import NLISupportScorer
 
+                # No embedding fallback: a failed NLI call raises NLIInferenceError rather than letting cosine
+                # similarity be read against the NLI support threshold and recorded as an NLI verification.
                 scorer = NLISupportScorer(
                     model_name=model_name,
                     local_files_only=local_files_only,
                     revision=revision,
                     device=device,
                     backend=backend,
-                    fallback_scorer=EmbeddingSupportScorer(embedding_model),  # type: ignore[arg-type]
                     _runtime=runtime,
                 )
                 self._support_scorers[key] = scorer

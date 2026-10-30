@@ -44,6 +44,7 @@ function ScopedAskResult({ result, onOpenCitation, onSaveHighlight, coverageNoun
         <div className="synth-coverage">
           Retrieved <b>{result.source_chunk_count}</b> source chunk{result.source_chunk_count === 1 ? "" : "s"} {coverageNoun}
         </div>}
+      <ModelProvenanceLine provenance={result.model_provenance} />
       {result.generation_truncated &&
         <div className="errbox" role="status" style={{ margin: "8px 0 0" }}>
           <b>This answer is incomplete.</b> The AI ran out of room before finishing, so only part of what it set out to say is shown.

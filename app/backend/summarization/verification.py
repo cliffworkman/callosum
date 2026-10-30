@@ -129,6 +129,11 @@ class EmbeddingSupportScorer:
         ]
 
 
+class NLIInferenceError(RuntimeError):
+    """NLI inference (or loading the NLI model) failed for a scorer built without an embedding fallback. Raised so the
+    caller fails visibly instead of reading cosine similarity against an NLI threshold under an NLI label."""
+
+
 @dataclass
 class NLISupportScorer:
     """Local CrossEncoder NLI support scorer.
@@ -159,8 +164,8 @@ class NLISupportScorer:
     def support_and_contradiction_many(self, pairs: list[tuple[str, str]]) -> list[tuple[float, float | None]]:
         """Batched form of ``support_and_contradiction`` — ONE ``model.predict()`` call for every ``(passage,
         sentence)`` pair, instead of one call per pair. Same model, same math, same thresholds — only the number
-        of calls changes. On any failure, falls back to the embedding scorer PER PAIR (preserves the existing
-        silent-fallback contract exactly, just applied to each item)."""
+        of calls changes. On any failure: with a ``fallback_scorer`` (the legacy default, kept for tools and tests),
+        the embedding scorer per pair; without one (every app-resolved synthesis scorer), ``NLIInferenceError``."""
         if not pairs:
             return []
         try:
@@ -170,9 +175,9 @@ class NLISupportScorer:
                 return [_values_from_row(row, model=model) for row in scores]
 
             return self._runtime.run(predict) if self._runtime is not None else predict(self._load_model())
-        except Exception:
+        except Exception as exc:
             if self.fallback_scorer is None:
-                raise
+                raise NLIInferenceError(f"{self.model_name} NLI inference failed: {type(exc).__name__}: {exc}") from exc
             return [
                 (self.fallback_scorer.score(sentence=sentence, passage=passage), None) for passage, sentence in pairs
             ]

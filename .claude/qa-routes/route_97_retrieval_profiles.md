@@ -1,6 +1,6 @@
 <!-- qa-coverage
 api: /verification-nli-profiles, /verification-nli-profiles/active, /embedding-profiles, /embedding-profiles/active, /embedding-profiles/{key}/index, /embedding-profiles/index/{job_id}, /embedding-profiles/index/{job_id}/cancel
-fe: 35i_retrieval_profiles.jsx
+fe: 35i_retrieval_profiles.jsx, 20e_model_provenance.jsx
 -->
 
 # ROUTE 97 — Retrieval model profiles (MiniLM baseline / Arctic S)
@@ -47,6 +47,17 @@ listeners before navigation.
   panel shows a ProgressBar that registers in Status. The copy states the thresholds were calibrated on MiniLM2 and are
   unchanged. A synthesis verified with DeBERTa records `scope_ref_json.verification_nli`. Stance features
   (Suggest/Critical Read) are unaffected.
+
+- **Result-screen provenance (inc 609).** Under the retrieved-chunk line, a synthesis shows
+  `Retrieval: <profile> · Verification: <profile>`, marking a non-baseline profile "(experimental)" and DeBERTa
+  "thresholds calibrated on MiniLM2". The hover text gives exact model ids and revisions. The values come from that
+  synthesis's `model_provenance` (its recorded run), never from the current Settings: switch profiles, then reopen
+  an older synthesis, and its line must not change. A synthesis saved before inc 609 says "Models: not recorded for
+  this synthesis". An imported synthesis shows no model line until re-verified, then shows MiniLM / MiniLM2.
+- **NLI failure is visible (inc 609).** If the verification model fails to load or errors (either profile), Ask ends
+  in an error that starts "Citation verification failed, so no synthesis was saved." No result appears, and no
+  claim is ever scored by embedding similarity in NLI's place. Re-verify of an imported synthesis returns **503** and
+  leaves it imported.
 
 ## Adversarial checklist
 

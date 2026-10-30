@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from sqlalchemy import Connection, select
 
 from app.backend.api.routers.paper_files import _is_pdf_attachment
+from app.backend.api.routers.summaries_provenance import ModelProvenanceResponse, model_provenance_from_ref
 from app.backend.persistence.repository import get_summary
 from app.backend.persistence.schema import (
     attachments,
@@ -95,6 +96,8 @@ class SummarizeJobResponse(BaseModel):
     imported: bool = False  # B2 SP2: a relayed synthesis — the sender's assessment, region precision, not re-verified
     # inc 581: per-facet coverage for a broad (faceted) synthesis; None for narrow/paper/cluster scopes.
     coverage: list[FacetCoverageResponse] | None = None
+    # inc 609: the models this run actually recorded; None for an imported synthesis (the sender's run is not described)
+    model_provenance: ModelProvenanceResponse | None = None
 
 
 class SummaryListItem(BaseModel):
@@ -147,6 +150,7 @@ def _persisted_summary_response(conn: Connection, *, summary_id: int, job_id: st
         overview_status=overview_status_for_row(summary),
         overview_updated_at=summary["overview_updated_at"],
         coverage=_coverage_from_ref(summary["scope_ref_json"]),
+        model_provenance=model_provenance_from_ref(summary["scope_ref_json"]),
     )
 
 

@@ -23,7 +23,7 @@ from app.backend.summarization.nli_profiles import (
     verify_nli_checkpoint,
 )
 from app.backend.summarization.verification import VerificationConfig
-from tests.api_helpers import ApiFakeEmbeddingModel, _summarization_app
+from tests.api_helpers import _summarization_app
 
 DEBERTA = NLI_PROFILES[DEBERTA_NLI_PROFILE_KEY]
 
@@ -89,7 +89,9 @@ def test_active_profile_defaults_to_baseline_and_ignores_unknown(temp_db_url: st
         )
         assert active_nli_profile(conn).key == BASELINE_NLI_PROFILE_KEY
     engine.dispose()
-    assert verification_nli_provenance(NLI_PROFILES[BASELINE_NLI_PROFILE_KEY]) is None
+    # Inc 609: the baseline is recorded too, so an absent record reads as "unknown", never as an assumed MiniLM2.
+    baseline = verification_nli_provenance(NLI_PROFILES[BASELINE_NLI_PROFILE_KEY])["verification_nli"]
+    assert baseline["profile"] == BASELINE_NLI_PROFILE_KEY and baseline["embedding_fallback"] is False
     assert verification_nli_provenance(DEBERTA)["verification_nli"]["revision"] == DEBERTA.revision
 
 
@@ -106,9 +108,7 @@ def test_resolver_loads_the_pinned_profile_and_verifies_it() -> None:
         seen.append((identity.model_name, identity.revision))
         return _fake_cross_encoder()
 
-    scorer = resolve_support_scorer(
-        _app_with_factory(factory), embedding_model=ApiFakeEmbeddingModel(), nli_profile=DEBERTA
-    )
+    scorer = resolve_support_scorer(_app_with_factory(factory), nli_profile=DEBERTA)
     assert seen == [(DEBERTA.model_name, DEBERTA.revision)]
     assert scorer.model_name == DEBERTA.model_name
 
@@ -116,7 +116,7 @@ def test_resolver_loads_the_pinned_profile_and_verifies_it() -> None:
 def test_resolver_refuses_a_mislabelled_checkpoint() -> None:
     factory = lambda identity: _fake_cross_encoder(id2label={0: "contradiction", 1: "entailment", 2: "neutral"})  # noqa: E731
     with pytest.raises(NliProfileConfigurationError):
-        resolve_support_scorer(_app_with_factory(factory), embedding_model=ApiFakeEmbeddingModel(), nli_profile=DEBERTA)
+        resolve_support_scorer(_app_with_factory(factory), nli_profile=DEBERTA)
 
 
 def test_nli_profile_api(temp_db_url: str, monkeypatch: pytest.MonkeyPatch) -> None:

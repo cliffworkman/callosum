@@ -9,6 +9,27 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-10-29 — Inc 607 + 608 integration; NLI failure fails closed for every profile; visible model provenance (inc 609)
+- **Files:** cherry-pick `d85556b6` (inc 607 from `e4d4f4e4`, conflicts resolved in `summarization/{pipeline,query_ranking}.py`);
+  `app/backend/summarization/{verification,nli_profiles,reverify,pipeline}.py`, `app/backend/model_runtime.py`,
+  `app/backend/embeddings/profiles.py`, `app/backend/api/dependencies.py`,
+  `app/backend/api/routers/{summaries,summaries_response,summaries_provenance}.py`,
+  `app/frontend/js/{20_synthesis,20d_scoped_ask,20e_model_provenance}.jsx`, `callosum-app.html`,
+  `app/backend/help/help_content.md`, `tools/backfill_chunk_structure.py` (docstring),
+  `tests/test_{nli_failure_and_provenance,ask_integration_607_608}.py`, `tests/test_{nli_profiles,model_runtime}.py`
+  (dead kwarg + one deliberate contract assertion), QA route 97, audit `2026-10-29_nli-failure-and-model-provenance.md`,
+  `INCREMENT-609-NOTES.md`, demo/website deferral through 609.
+- **What:** 607's narrow-path bibliography demotion runs on 608's identity-scoped retrieval for either profile. App-resolved
+  NLI scorers (MiniLM2 too, not just DeBERTa) no longer fall back to embedding cosine: an inference failure fails Ask with
+  nothing saved, and reverify returns 503. Every new synthesis records retrieval and verification model identities, the
+  API returns them as `model_provenance` (`recorded=false` for older rows, never guessed), and the result screen shows them.
+- **Why:** cosine read against an NLI threshold was saved as a normal verification. Stored-only provenance could not be
+  inspected, and a model comparison must be able to tell retrieval from eligibility from verification effects.
+- **Tests:** see `INCREMENT-609-NOTES.md`. Full suite not re-run (resource limits).
+- **Help corpus:** one bullet added. The `HELP-DOCS-SYNCED` marker is not moved, because the entries since inc 576 were
+  not all reviewed.
+- **Revert:** drop the branch `integrate/inc607-608-ask`; main is untouched.
+
 ## 2026-10-29 — Selectable retrieval embedding profile (Arctic S) + verification NLI profile (DeBERTa) (inc 608)
 - **Files:** `app/backend/embeddings/{models,profiles,profile_index}.py`, `app/backend/model_runtime.py`,
   `app/backend/summarization/{pipeline,query_ranking,faceted_pipeline,nli_profiles}.py`,

@@ -173,6 +173,19 @@ def profile_coverage(conn: Connection, profile: EmbeddingProfile) -> dict:
     }
 
 
+def baseline_retrieval_provenance(model: object) -> dict[str, object]:
+    """What a synthesis records when the baseline ranked its evidence: the encoder that actually ran (which is also
+    the verification-similarity model), read from the model itself rather than from Settings."""
+    version = getattr(model, "version", None)
+    return {
+        "profile": BASELINE_PROFILE_KEY,
+        "model_name": getattr(model, "name", None),
+        "model_version": version,
+        "normalization": getattr(model, "normalization", None),
+        "verification_embedding": version,
+    }
+
+
 def require_complete_index(conn: Connection, profile: EmbeddingProfile) -> dict:
     coverage = profile_coverage(conn, profile)
     if not profile.lazy_indexing and not coverage["complete"]:
