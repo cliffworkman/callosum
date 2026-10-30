@@ -494,6 +494,7 @@ from app.backend.persistence.schema_grim_checks import paper_grim_checks  # noqa
 
 # GROBID's own section structure (backlog #30 Stage 2) — a sibling table to chunks, not a retrofit of it.
 from app.backend.persistence.schema_grobid import paper_sections  # noqa: E402,F401
+from app.backend.persistence.schema_index_runs import embedding_index_runs  # noqa: E402,F401
 
 # Generic async-job bookkeeping (inc 400 split — schema.py crossed the 600-line cap).
 from app.backend.persistence.schema_jobs import JOB_STATUSES, job_errors, jobs  # noqa: E402,F401

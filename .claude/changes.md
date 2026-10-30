@@ -9,6 +9,22 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-10-30 — Supervised, memory-aware, self-recovering profile index builds (inc 610)
+- **Files:** `app/backend/embeddings/{resources,index_lock,index_runs,index_worker,index_supervisor,profile_index}.py`,
+  `app/backend/persistence/{schema_index_runs,schema}.py`, `alembic/versions/0086_embedding_index_runs.py`,
+  `app/backend/api/routers/{embedding_index,embedding_profiles}.py`, `app/backend/api/app.py`,
+  `app/frontend/js/35i_retrieval_profiles.jsx`, `callosum-app.html`, `app/backend/help/help_content.md`,
+  `tools/run_profile_index.py`, `tests/{test_index_recovery,index_worker_fake}.py`, `tests/test_embedding_profiles.py`,
+  QA route 97, audit `2026-10-30_supervised-index-worker.md`, `INCREMENT-610-NOTES.md`,
+  `.claude/docs/research/2026-10-30_arctic-index-recovery/`.
+- **What:** profile index builds now run in a supervised worker process with an OS-lock owner, a durable lifecycle row
+  (migration 0086), bounded batches committed together with their checkpoint, real OS memory measurement, adaptive batch
+  shrinking, bounded backoff with a circuit breaker, startup/live reconciliation of killed workers, and Pause/Resume/Cancel.
+  The disposable Arctic S copy was completed with it.
+- **Why:** two Arctic builds died to external termination and needed manual recovery; a 16 GB laptop running other work
+  cannot be asked to free memory or babysit a terminal.
+- **Revert:** drop the inc-610 commit on `integrate/inc607-608-ask`; migration 0086 is additive (an unused table).
+
 ## 2026-10-29 — Inc 607 + 608 integration; NLI failure fails closed for every profile; visible model provenance (inc 609)
 - **Files:** cherry-pick `d85556b6` (inc 607 from `e4d4f4e4`, conflicts resolved in `summarization/{pipeline,query_ranking}.py`);
   `app/backend/summarization/{verification,nli_profiles,reverify,pipeline}.py`, `app/backend/model_runtime.py`,

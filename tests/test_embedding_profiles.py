@@ -211,8 +211,8 @@ def test_index_build_is_resumable_cancellable_and_idempotent(temp_db_url: str, s
     _seed_summarization_library(temp_db_url)
     engine = make_engine(temp_db_url)
     store = InMemoryVectorStore()
-    papers_pending = len(pending_chunks_by_paper(engine, FakeArctic()))
-    assert papers_pending >= 2
+    chunks_pending = len(_all_chunk_ids(engine))
+    assert chunks_pending >= 2
 
     calls = {"n": 0}
 
@@ -220,12 +220,14 @@ def test_index_build_is_resumable_cancellable_and_idempotent(temp_db_url: str, s
         calls["n"] += 1
         return calls["n"] > 1
 
-    first = build_profile_index(engine, model=FakeArctic(), vector_store=store, should_cancel=cancel_after_first)
-    assert first["cancelled"] is True and first["papers_indexed"] == 1
+    first = build_profile_index(
+        engine, model=FakeArctic(), vector_store=store, should_cancel=cancel_after_first, batch_size=1
+    )
+    assert first["cancelled"] is True and first["chunks_indexed"] == 1  # one committed batch, then stopped
     with engine.connect() as conn:
         assert not profile_coverage(conn, small_arctic)["complete"]
     second = build_profile_index(engine, model=FakeArctic(), vector_store=store)
-    assert second["papers_pending"] == papers_pending - 1 and not second["cancelled"]
+    assert second["chunks_indexed"] == chunks_pending - 1 and not second["cancelled"]
     with engine.connect() as conn:
         assert profile_coverage(conn, small_arctic)["complete"]
         # The baseline space was never touched by the Arctic build.
@@ -276,6 +278,18 @@ def test_every_production_vector_search_scopes_its_candidates() -> None:
 # ---- API + Ask wiring -----------------------------------------------------------------------------------------
 
 
+def wait_for_index_job(client: TestClient, job_id: str, timeout: float = 20.0) -> dict:
+    """The build runs in a supervised worker (inc 610); poll its status like the Settings panel does."""
+    import time
+
+    deadline = time.monotonic() + timeout
+    while True:
+        payload = client.get(f"/embedding-profiles/index/{job_id}").json()
+        if payload["status"] in ("done", "error") or time.monotonic() > deadline:
+            return payload
+        time.sleep(0.05)
+
+
 def _profile_app(temp_db_url: str, arctic: FakeArctic, generator=None):
     app = _summarization_app(temp_db_url, generator=generator)
     app.state.profile_embedding_models = {ARCTIC_S_PROFILE_KEY: arctic}
@@ -296,8 +310,9 @@ def test_profiles_api_gates_selection_on_a_complete_index(temp_db_url: str, smal
 
     started = client.post(f"/embedding-profiles/{ARCTIC_S_PROFILE_KEY}/index")
     assert started.status_code == 202
-    done = client.get(f"/embedding-profiles/index/{started.json()['job_id']}").json()
+    done = wait_for_index_job(client, started.json()["job_id"])
     assert done["status"] == "done" and done["summary"]["chunks_indexed"] > 0
+    assert done["run"]["state"] == "completed" and done["run"]["percent"] == 100.0
     row = next(j for j in client.get("/status/jobs").json()["jobs"] if j["job_id"] == started.json()["job_id"])
     assert row["nav"] == {"workspace": "settings"}
 
@@ -318,7 +333,7 @@ def test_ask_retrieves_with_profile_but_verifies_with_baseline(temp_db_url: str,
     arctic = FakeArctic()
     client = TestClient(_profile_app(temp_db_url, arctic, generator=generator))
     job = client.post(f"/embedding-profiles/{ARCTIC_S_PROFILE_KEY}/index").json()["job_id"]
-    assert client.get(f"/embedding-profiles/index/{job}").json()["status"] == "done"
+    assert wait_for_index_job(client, job)["status"] == "done"
     assert client.put("/embedding-profiles/active", json={"key": ARCTIC_S_PROFILE_KEY}).status_code == 200
 
     started = client.post(

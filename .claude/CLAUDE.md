@@ -33,7 +33,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 609** on the unpushed `integrate/inc607-608-ask` branch (main is at 608; inc 607, the 2026-10-29 reference-exclusion repair `e4d4f4e4`, is cherry-picked there as `d85556b6`); see Increment workflow. The accepted Browser Capture head
+It is currently at **Increment 610** on the unpushed `integrate/inc607-608-ask` branch (main is at 608; inc 607, the 2026-10-29 reference-exclusion repair `e4d4f4e4`, is cherry-picked there as `d85556b6`); see Increment workflow. The accepted Browser Capture head
 `80025d1a` passed **3490 tests, 9 skipped**, plus 23 browser smoke tests in CI before merging.
 Fresh release-candidate checks are required for 0.5.16; do not substitute that earlier receipt.
 It is a working MVP backed by a thorough planning suite in `.claude/docs/`.
@@ -105,7 +105,15 @@ the full per-increment narrative for all other increments now lives in the reloc
   stance features keep MiniLM2. **No app-resolved NLI support scorer has an embedding fallback (inc 609, MiniLM2 included):** an
   inference failure raises `NLIInferenceError`, which fails Ask with nothing saved and makes reverify 503. Only `default_support_scorer`
   (tools/fake-model tests) keeps one. Every synthesis records `retrieval_embedding` + `verification_nli` in `scope_ref_json`; the
-  response returns them as `model_provenance` (`recorded=false` for older rows, never filled from Settings). Per-library
+  response returns them as `model_provenance` (`recorded=false` for older rows, never filled from Settings).
+  **Profile index builds are supervised (inc 610):** `IndexSupervisor` runs one worker *process* per library/profile
+  (`python -m app.backend.embeddings.index_worker`, owner = an OS file lock the OS releases on any exit), commits bounded
+  batches together with their checkpoint, and records a durable lifecycle in `embedding_index_runs` (migration 0086).
+  Completion is always re-derived from stored vectors, never a counter. Memory floors scale with the machine
+  (`embeddings/resources.py`: Windows commit via `GlobalMemoryStatusEx`); resource exits halve the batch; 3 exits without
+  new vectors trip a circuit breaker that only Resume clears; a model that fails to load is never auto-retried. The
+  lifespan reconciles killed workers before serving. **Never import psutil in `app/`**: it is not in `uv.lock`, so the
+  packaged runtime lacks it (test-enforced). Per-library
   choices live in `library_settings` (migration 0085).
 - **Clustering:** scikit-learn agglomerative clustering + local axis scoring.
 - **Explicit feedback (inc 439):** the top-menu Feedback dialog builds either a bug or feature report and shows the
@@ -1732,7 +1740,7 @@ latency regressions.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (608 on main; 607 + 608 + 609 on `integrate/inc607-608-ask`). Each increment of real work
+callosum is built in **numbered increments** (608 on main; 607 + 608 + 609 + 610 on `integrate/inc607-608-ask`). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

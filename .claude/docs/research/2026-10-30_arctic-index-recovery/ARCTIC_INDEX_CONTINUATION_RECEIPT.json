@@ -1,0 +1,309 @@
+{
+ "receipt": "ARCTIC_INDEX_CONTINUATION_RECEIPT",
+ "increment": 610,
+ "generated": "2026-10-30",
+ "database": "C:/Users/cliff/callosum-data/experiments/arctic-index-20261029/copy.sqlite",
+ "database_role": "disposable evaluation copy; originals, research master, desktop DB and DEV library untouched",
+ "byte_backup_before_migration": "C:/Users/cliff/callosum-data/experiments/arctic-continuation-20261030/copy.pre-inc610.sqlite",
+ "migration": {
+  "from": "0085_library_settings",
+  "to": "0086_embedding_index_runs"
+ },
+ "profile": {
+  "key": "arctic-s",
+  "model_name": "Snowflake/snowflake-arctic-embed-s",
+  "model_version": "Snowflake/snowflake-arctic-embed-s@e596f507467533e48a2e17c007f0e1dacc837b33;pooling=cls;max_seq=512;query_prefix=v1;doc_prefix=none",
+  "dimension": 384,
+  "normalization": "whitespace-v1",
+  "local_files_only": true,
+  "HF_HUB_OFFLINE": "1",
+  "threads": 4
+ },
+ "start": {
+  "indexed": 25453,
+  "eligible": 42044,
+  "remaining": 16591
+ },
+ "end": {
+  "indexed": 42044,
+  "eligible": 42044,
+  "complete": true,
+  "state": "completed",
+  "attempts": 4,
+  "failures_without_progress": 0,
+  "final_batch_size": 2,
+  "peak_worker_rss_mb": 629,
+  "min_available_mb_recorded": 4593
+ },
+ "first_bounded_real_batch": "batch 8 (attempt 1): 25,453 -> 25,525 before the injected kill; then the managed supervisor continued without manual action",
+ "events": [
+  {
+   "indexed": 25525,
+   "event": "injected external kill of real worker (pre-refactor code)",
+   "result": "retrying/interrupted_unknown_cause; attempt 2 at batch 4 after 5 s; no lost or duplicated vectors"
+  },
+  {
+   "indexed": 28857,
+   "event": "driver (app) process killed, no cleanup",
+   "result": "worker exited via parent watch within seconds; row left 'running' with dead PID"
+  },
+  {
+   "indexed": 28857,
+   "event": "restart on final (psutil-free) code",
+   "result": "reconciled running->retrying, count re-derived from vectors = 28,857; attempt 3 launched automatically"
+  },
+  {
+   "indexed": 29101,
+   "event": "injected external kill of real worker (final code)",
+   "result": "recovered automatically; attempt 4 at batch 2"
+  },
+  {
+   "indexed": 42044,
+   "event": "completed",
+   "result": "coverage verified from stored vectors"
+  }
+ ],
+ "segments": {
+  "pre_refactor": {
+   "first_t": 1793330926.3,
+   "last_t": 1793331220.6,
+   "wall_seconds": 294.3,
+   "indexed_first": 25453,
+   "indexed_last": 28821,
+   "worker_rss_mb": {
+    "max": 629,
+    "median": 590
+   },
+   "available_physical_mb": {
+    "min": 4881,
+    "max": 5563
+   },
+   "available_commit_mb": {
+    "min": 9845,
+    "max": 10678
+   },
+   "throughput_chunks_per_s_by_batch": {
+    "8": 9.0,
+    "4": 14.3
+   },
+   "events": [
+    {
+     "t": 1793330926.3,
+     "event": "policy",
+     "state": null,
+     "indexed": null,
+     "batch_size": null,
+     "attempts": null,
+     "failure_kind": null,
+     "worker_pid": null,
+     "worker_rss_mb": null
+    },
+    {
+     "t": 1793330926.3,
+     "event": "reconciled",
+     "state": null,
+     "indexed": null,
+     "batch_size": null,
+     "attempts": null,
+     "failure_kind": null,
+     "worker_pid": null,
+     "worker_rss_mb": null
+    },
+    {
+     "t": 1793330928.0,
+     "event": "started",
+     "state": "running",
+     "indexed": 25453,
+     "batch_size": 8,
+     "attempts": 1,
+     "failure_kind": null,
+     "worker_pid": 13568,
+     "worker_rss_mb": 2
+    },
+    {
+     "t": 1793330966.1,
+     "event": "injected_external_kill",
+     "state": "running",
+     "indexed": 25525,
+     "batch_size": 8,
+     "attempts": 1,
+     "failure_kind": null,
+     "worker_pid": 13568,
+     "worker_rss_mb": 615
+    }
+   ],
+   "state_transitions": [
+    {
+     "t": 1793330926.3,
+     "state": null,
+     "indexed": null,
+     "batch_size": null,
+     "attempts": null,
+     "failure_kind": null
+    },
+    {
+     "t": 1793330928.0,
+     "state": "running",
+     "indexed": 25453,
+     "batch_size": 8,
+     "attempts": 1,
+     "failure_kind": null
+    },
+    {
+     "t": 1793330970.3,
+     "state": "retrying",
+     "indexed": 25525,
+     "batch_size": 4,
+     "attempts": 1,
+     "failure_kind": "interrupted_unknown_cause"
+    },
+    {
+     "t": 1793330980.3,
+     "state": "running",
+     "indexed": 25525,
+     "batch_size": 4,
+     "attempts": 2,
+     "failure_kind": null
+    }
+   ]
+  },
+  "final_code": {
+   "first_t": 1793331520.4,
+   "last_t": 1793332586.5,
+   "wall_seconds": 1066.1,
+   "indexed_first": 28857,
+   "indexed_last": 42044,
+   "worker_rss_mb": {
+    "max": 616,
+    "median": 584
+   },
+   "available_physical_mb": {
+    "min": 4611,
+    "max": 5688
+   },
+   "available_commit_mb": {
+    "min": 9541,
+    "max": 10693
+   },
+   "throughput_chunks_per_s_by_batch": {
+    "4": 12.2,
+    "2": 13.0
+   },
+   "events": [
+    {
+     "t": 1793331520.4,
+     "event": "policy",
+     "state": "running",
+     "indexed": 28857,
+     "batch_size": 4,
+     "attempts": 2,
+     "failure_kind": null,
+     "worker_pid": null,
+     "worker_rss_mb": null
+    },
+    {
+     "t": 1793331522.1,
+     "event": "reconciled",
+     "state": "retrying",
+     "indexed": 28857,
+     "batch_size": 4,
+     "attempts": 2,
+     "failure_kind": "interrupted_unknown_cause",
+     "worker_pid": null,
+     "worker_rss_mb": null
+    },
+    {
+     "t": 1793331522.1,
+     "event": "started",
+     "state": "retrying",
+     "indexed": 28857,
+     "batch_size": 4,
+     "attempts": 2,
+     "failure_kind": "interrupted_unknown_cause",
+     "worker_pid": null,
+     "worker_rss_mb": null
+    },
+    {
+     "t": 1793331562.2,
+     "event": "injected_external_kill",
+     "state": "running",
+     "indexed": 29101,
+     "batch_size": 4,
+     "attempts": 3,
+     "failure_kind": null,
+     "worker_pid": 10492,
+     "worker_rss_mb": 586
+    },
+    {
+     "t": 1793332586.5,
+     "event": "finished",
+     "state": "completed",
+     "indexed": 42044,
+     "batch_size": 2,
+     "attempts": 4,
+     "failure_kind": null,
+     "worker_pid": null,
+     "worker_rss_mb": null
+    }
+   ],
+   "state_transitions": [
+    {
+     "t": 1793331520.4,
+     "state": "running",
+     "indexed": 28857,
+     "batch_size": 4,
+     "attempts": 2,
+     "failure_kind": null
+    },
+    {
+     "t": 1793331522.1,
+     "state": "retrying",
+     "indexed": 28857,
+     "batch_size": 4,
+     "attempts": 2,
+     "failure_kind": "interrupted_unknown_cause"
+    },
+    {
+     "t": 1793331522.1,
+     "state": "running",
+     "indexed": 28857,
+     "batch_size": 4,
+     "attempts": 3,
+     "failure_kind": null
+    },
+    {
+     "t": 1793331573.9,
+     "state": "running",
+     "indexed": 29101,
+     "batch_size": 2,
+     "attempts": 4,
+     "failure_kind": null
+    },
+    {
+     "t": 1793332586.5,
+     "state": "completed",
+     "indexed": 42044,
+     "batch_size": 2,
+     "attempts": 4,
+     "failure_kind": null
+    }
+   ]
+  }
+ },
+ "idempotence_rerun": {
+  "arctic_rows_before": 42044,
+  "arctic_rows_after": 42044,
+  "all_embeddings_before": 110401,
+  "all_embeddings_after": 110401,
+  "state": "completed",
+  "note": "worker still loaded the model (~25 s) before finding nothing pending"
+ },
+ "manual_interventions": "the two kills and the driver kill were deliberate failure injections; the driver restart replaced pre-refactor code with the final code. No manual repair of data or state.",
+ "not_run": [
+  "607 backfill",
+  "retrieval comparison",
+  "DeBERTa evaluation",
+  "full pytest suite",
+  "JUNO"
+ ]
+}

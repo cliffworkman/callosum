@@ -23830,40 +23830,29 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
   }
   function RetrievalProfileSettings() {
     const [state, setState] = useState(null);
-    const [job, setJob] = useState(null);
     const [error, setError] = useState("");
     const [busy, setBusy] = useState(false);
+    const timer = useRef(null);
+    const ACTIVE = ["queued", "running", "pausing", "retrying", "waiting_resources"];
     const load = () => api("/embedding-profiles").then((r) => {
       if (!r.ok) {
         setError(r.error || "Couldn't load retrieval models.");
         return;
       }
       setState(r.data);
-      if (r.data.index_job_id && !job) poll(r.data.index_job_id);
+      clearTimeout(timer.current);
+      if (r.data.profiles.some((p) => p.index_run && ACTIVE.includes(p.index_run.state))) timer.current = setTimeout(load, 2e3);
     });
     useEffect(() => {
       load();
+      return () => clearTimeout(timer.current);
     }, []);
-    const poll = (jobId) => api(`/embedding-profiles/index/${jobId}`).then((r) => {
-      if (!r.ok) {
-        setJob({ status: "error", detail: r.error });
-        return;
-      }
-      setJob(r.data);
-      if (r.data.status === "done" || r.data.status === "error") load();
-      else setTimeout(() => poll(jobId), 1500);
-    });
-    const build = async (key) => {
+    const act = async (key, action) => {
       setError("");
-      const r = await apiPost(`/embedding-profiles/${key}/index`, {});
-      if (!r.ok) {
-        setError(r.error || "Couldn't start the index build.");
-        return;
-      }
-      setJob(r.data);
-      poll(r.data.job_id);
+      const r = action === "build" ? await apiPost(`/embedding-profiles/${key}/index`, {}) : await apiPost(`/embedding-profiles/${key}/index/${action}`, {});
+      if (!r.ok) setError(r.error || "Couldn't change the index build.");
+      load();
     };
-    const cancel = () => job && apiPost(`/embedding-profiles/index/${job.job_id}/cancel`, {});
     const select = async (key) => {
       setBusy(true);
       setError("");
@@ -23873,21 +23862,34 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       else setError(r.error || "Couldn't switch the retrieval model.");
     };
     if (!state) return /* @__PURE__ */ React.createElement("div", { className: "retrieval-profiles" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Retrieval model"), error && /* @__PURE__ */ React.createElement("p", { role: "alert", className: "settings-sub" }, error));
-    const running = job && (job.status === "pending" || job.status === "running");
     return /* @__PURE__ */ React.createElement("div", { className: "retrieval-profiles" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Retrieval model"), /* @__PURE__ */ React.createElement("p", { className: "settings-sub" }, "Chooses which local embedding model ranks passages for Ask. Citation verification always uses ", state.verification_model, " and its calibrated thresholds, whichever model retrieves. Switching never changes your library."), state.profiles.map((p) => {
       const c = p.coverage;
+      const run = p.index_run;
       const active = state.active === p.key;
+      const building = run && ACTIVE.includes(run.state);
       return /* @__PURE__ */ React.createElement("div", { key: p.key, className: "settings-subsection" }, /* @__PURE__ */ React.createElement("label", null, /* @__PURE__ */ React.createElement(
         "input",
         {
           type: "radio",
           name: "retrieval-profile",
           checked: active,
-          disabled: busy || running || !active && !c.complete && !p.is_baseline,
+          disabled: busy || building || !active && !c.complete && !p.is_baseline,
           onChange: () => select(p.key)
         }
-      ), " ", /* @__PURE__ */ React.createElement("b", null, p.label), active ? " \u2014 active" : ""), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, /* @__PURE__ */ React.createElement("code", null, p.model_name, "@", p.revision.slice(0, 12)), " \xB7 ", p.qualification), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Index: ", c.indexed_chunks.toLocaleString(), " of ", c.eligible_chunks.toLocaleString(), " passages", c.complete ? " (complete)" : "", c.papers_without_passage_text > 0 ? ` \xB7 ${c.papers_without_passage_text} papers have no full text to index` : ""), !p.is_baseline && !c.complete && !running && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => build(p.key) }, c.indexed_chunks > 0 ? "Resume index build" : "Build index"));
-    }), running && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(ProgressBar, { label: "Building retrieval index", progress: job.progress, managedBy: "backend-job" }), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: cancel }, "Stop after the current paper")), job && job.status === "done" && job.summary && /* @__PURE__ */ React.createElement("p", { role: "status", className: "settings-sub" }, job.summary.cancelled ? "Stopped" : "Finished", ": indexed ", job.summary.chunks_indexed.toLocaleString(), " passages in ", job.summary.papers_indexed, " papers. Progress is kept; a later build resumes."), job && job.status === "error" && /* @__PURE__ */ React.createElement("p", { role: "alert", className: "settings-sub" }, "Index build failed: ", job.detail), error && /* @__PURE__ */ React.createElement("p", { role: "alert", className: "settings-sub" }, error), /* @__PURE__ */ React.createElement(NliProfileSettings, null));
+      ), " ", /* @__PURE__ */ React.createElement("b", null, p.label), active ? " \u2014 active" : ""), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, /* @__PURE__ */ React.createElement("code", null, p.model_name, "@", p.revision.slice(0, 12)), " \xB7 ", p.qualification), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Index: ", c.indexed_chunks.toLocaleString(), " of ", c.eligible_chunks.toLocaleString(), " passages", c.eligible_chunks > 0 ? ` (${(100 * c.indexed_chunks / c.eligible_chunks).toFixed(1)}%)` : "", c.complete ? " \xB7 complete" : "", c.papers_without_passage_text > 0 ? ` \xB7 ${c.papers_without_passage_text} papers have no full text to index` : ""), !p.is_baseline && !c.complete && /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, p.label, " is not yet available for Ask because indexing is incomplete."), run && /* @__PURE__ */ React.createElement(IndexRunStatus, { run, label: p.label, onAction: (a) => act(p.key, a) }), !p.is_baseline && !c.complete && !run && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => act(p.key, "build") }, c.indexed_chunks > 0 ? "Resume index build" : "Build index"));
+    }), error && /* @__PURE__ */ React.createElement("p", { role: "alert", className: "settings-sub" }, error), /* @__PURE__ */ React.createElement(NliProfileSettings, null));
+  }
+  function IndexRunStatus({ run, label, onAction }) {
+    const working = ["queued", "running", "pausing", "retrying", "waiting_resources"].includes(run.state);
+    const names = { pause: "Pause", resume: "Resume", cancel: "Cancel" };
+    return /* @__PURE__ */ React.createElement("div", { className: "index-run" }, working && /* @__PURE__ */ React.createElement(
+      ProgressBar,
+      {
+        label: `Building ${label} index`,
+        managedBy: "backend-job",
+        progress: { current: run.indexed_chunks, total: Math.max(1, run.eligible_chunks), label: run.message }
+      }
+    ), /* @__PURE__ */ React.createElement("p", { role: run.state === "failed" ? "alert" : "status", className: "settings-sub" }, run.message), (run.attempts > 1 || run.failures_without_progress > 0) && /* @__PURE__ */ React.createElement("p", { className: "settings-sub" }, "Attempts: ", run.attempts, run.failures_without_progress > 0 ? ` \xB7 ${run.failures_without_progress} without progress` : "", run.auto_retry_scheduled ? " \xB7 automatic retry scheduled" : ""), run.actions.map((a) => /* @__PURE__ */ React.createElement("button", { key: a, className: "btn btn-ghost", onClick: () => onAction(a) }, names[a])), run.diagnostic && /* @__PURE__ */ React.createElement("details", { className: "settings-sub" }, /* @__PURE__ */ React.createElement("summary", null, "Technical details"), /* @__PURE__ */ React.createElement("code", null, run.diagnostic)));
   }
   function NliProfileSettings() {
     const [state, setState] = useState(null);

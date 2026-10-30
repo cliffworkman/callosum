@@ -1,5 +1,5 @@
 <!-- qa-coverage
-api: /verification-nli-profiles, /verification-nli-profiles/active, /embedding-profiles, /embedding-profiles/active, /embedding-profiles/{key}/index, /embedding-profiles/index/{job_id}, /embedding-profiles/index/{job_id}/cancel
+api: /verification-nli-profiles, /verification-nli-profiles/active, /embedding-profiles, /embedding-profiles/active, /embedding-profiles/{key}/index, /embedding-profiles/index/{job_id}, /embedding-profiles/index/{job_id}/cancel, /embedding-profiles/{key}/index/pause, /embedding-profiles/{key}/index/resume, /embedding-profiles/{key}/index/cancel
 fe: 35i_retrieval_profiles.jsx, 20e_model_provenance.jsx
 -->
 
@@ -28,10 +28,23 @@ listeners before navigation.
 - **No selection of an incomplete index.** The Arctic radio is disabled until coverage is complete; a direct
   `PUT /embedding-profiles/active` returns **409**. An unknown key returns 404. Building the baseline returns 400.
 - **Status.** A build shows one row ("Retrieval index build", Local AI) that clicks to Settings. The inline
-  ProgressBar is `managedBy="backend-job"`, so no duplicate client row appears. Progress is per paper, with a
-  real current/total.
-- **Cancel keeps work.** "Stop after the current paper" ends the job with `cancelled: true`. Coverage then shows a
-  partial index, the button reads **Resume index build**, and a resumed build only indexes what is missing.
+  ProgressBar is `managedBy="backend-job"`, so no duplicate client row appears. Progress is stored passages over
+  eligible passages, re-derived from the vectors (inc 610), never a session counter.
+- **Supervised build (inc 610).** The build runs in a separate worker process. Its row (`index_run`) shows the state
+  (queued / running / pausing / paused / waiting for resources / interrupted / retrying / failed / completed /
+  cancelled), a plain message, attempts, and only the actions that apply (Pause, Resume, Cancel). "Technical details"
+  holds the bounded diagnostic; the message never shows an exception, a path or passage text.
+- **Pause/Cancel keep work and are durable.** Both stop after the batch in progress; coverage keeps every committed
+  batch. A paused or cancelled build stays so after an app restart (no automatic resume). Resume continues from the
+  stored vectors and re-indexes nothing already current.
+- **Low memory is a wait, not a failure.** With little free memory the row says "Indexing paused because available
+  memory is low. Completed work is saved. Callosum will resume automatically when safe." and no worker is running.
+  After a resource exit the next attempt uses a smaller batch ("Indexing resumed with a smaller batch size").
+- **Bounded recovery.** An interrupted worker (killed, crashed, app closed) is detected and retried automatically
+  with backoff. Three attempts without new stored vectors stop the build in **failed** ("Indexing stopped after
+  repeated unsuccessful attempts…", or the not-enough-memory message at one passage per batch); only Resume restarts
+  it. A model that cannot load is never retried automatically.
+- **The app survives the worker.** Killing the worker process leaves Library, Settings and Status responsive.
 - **Corpus unchanged.** Building or switching never changes papers, chunks or the MiniLM vectors; the baseline row's
   coverage is unchanged by an Arctic build.
 - **Verification unchanged.** After selecting Arctic S, an Ask's citations still verify against the MiniLM gate.
@@ -68,3 +81,6 @@ listeners before navigation.
   any rebuild.
 - Select DeBERTa, run Ask → citations show DeBERTa support values; switch back to MiniLM2 → next Ask uses MiniLM2.
 - Import a new full-text paper while Arctic is active → Ask fails closed with the coverage message.
+- Mid-build, end the worker process from Task Manager → Settings shows "interrupted … will retry automatically", the
+  count does not drop, and the build resumes and completes without duplicate vectors.
+- Mid-build, quit Callosum and relaunch → the build resumes on its own; Pause first, quit, relaunch → it stays paused.

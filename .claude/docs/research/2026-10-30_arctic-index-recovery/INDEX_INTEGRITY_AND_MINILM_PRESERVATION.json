@@ -1,0 +1,147 @@
+{
+ "receipt": "INDEX_INTEGRITY_AND_MINILM_PRESERVATION",
+ "increment": 610,
+ "database": "C:/Users/cliff/callosum-data/experiments/arctic-index-20261029/copy.sqlite",
+ "fingerprints": {
+  "alembic": {
+   "pre": "0085_library_settings",
+   "post": "0086_embedding_index_runs",
+   "unchanged": false
+  },
+  "chunks": {
+   "pre": {
+    "rows": 68086,
+    "sha256": "68c0fdca83c19b8fd80ead723d0e25f55871cb7ac544f3a3b3d9712ea0c9df5a"
+   },
+   "post": {
+    "rows": 68086,
+    "sha256": "68c0fdca83c19b8fd80ead723d0e25f55871cb7ac544f3a3b3d9712ea0c9df5a"
+   },
+   "unchanged": true
+  },
+  "duplicate_identity_groups": {
+   "pre": [
+    [
+     "all-MiniLM-L6-v2",
+     "axis",
+     1
+    ]
+   ],
+   "post": [
+    [
+     "all-MiniLM-L6-v2",
+     "axis",
+     1
+    ]
+   ],
+   "unchanged": true
+  },
+  "minilm_metadata": {
+   "pre": {
+    "rows": 68357,
+    "sha256": "8e072a266c219b6f69f11ca25048309f2d8ad07aa566ad4fb635fec05a501e48"
+   },
+   "post": {
+    "rows": 68357,
+    "sha256": "8e072a266c219b6f69f11ca25048309f2d8ad07aa566ad4fb635fec05a501e48"
+   },
+   "unchanged": true
+  },
+  "minilm_vectors": {
+   "pre": {
+    "rows": 68357,
+    "sha256": "b3588d0b9f4e55c3c6747d60a829345cb35222d79f18339c971bcaec606ed944"
+   },
+   "post": {
+    "rows": 68357,
+    "sha256": "b3588d0b9f4e55c3c6747d60a829345cb35222d79f18339c971bcaec606ed944"
+   },
+   "unchanged": true
+  },
+  "preexisting_arctic_metadata": {
+   "pre": {
+    "rows": 25453,
+    "sha256": "d13cc3de9c2d937ec9b155f5a032f76fcc713f4393ba75cd394ac699781f08db"
+   },
+   "post": {
+    "rows": 25453,
+    "sha256": "d13cc3de9c2d937ec9b155f5a032f76fcc713f4393ba75cd394ac699781f08db"
+   },
+   "unchanged": true
+  },
+  "preexisting_arctic_vectors": {
+   "pre": {
+    "rows": 25453,
+    "sha256": "714fb099fae791500c679cf57c89b0f9716be1e47553c82f858a9ee02c7b78a4"
+   },
+   "post": {
+    "rows": 25453,
+    "sha256": "714fb099fae791500c679cf57c89b0f9716be1e47553c82f858a9ee02c7b78a4"
+   },
+   "unchanged": true
+  },
+  "quick_check": {
+   "pre": "ok",
+   "post": "ok",
+   "unchanged": true
+  }
+ },
+ "expected_differences": {
+  "alembic": "0085 -> 0086 (the inc-610 additive migration)"
+ },
+ "minilm_preserved": true,
+ "preexisting_arctic_rows_preserved": true,
+ "chunks_preserved": true,
+ "duplicate_identity_groups_note": "one pre-existing MiniLM axis group, unchanged; no Arctic duplicates",
+ "post_coverage_and_integrity": {
+  "arctic-s": {
+   "coverage": {
+    "eligible_chunks": 42044,
+    "indexed_chunks": 42044,
+    "missing_chunks": 0,
+    "complete": true,
+    "live_papers": 251,
+    "papers_with_eligible_chunks": 151,
+    "papers_without_passage_text": 100
+   },
+   "integrity": {
+    "missing_vector_ids": 0,
+    "orphan_ids": 0,
+    "stale_rows": 0,
+    "duplicate_current_chunks": 0
+   },
+   "require_complete_index": "{'eligible_chunks': 42044, 'indexed_chunks': 42044, 'missing_chunks': 0, 'complete': True, 'live_papers': 251, 'papers_with_eligible_chunks': 151, 'papers_without_passage_text': 100}"
+  },
+  "minilm": {
+   "coverage": {
+    "eligible_chunks": 42044,
+    "indexed_chunks": 42044,
+    "missing_chunks": 0,
+    "complete": true,
+    "live_papers": 251,
+    "papers_with_eligible_chunks": 151,
+    "papers_without_passage_text": 100
+   },
+   "integrity": {
+    "missing_vector_ids": 0,
+    "orphan_ids": 0,
+    "stale_rows": 0,
+    "duplicate_current_chunks": 0
+   }
+  }
+ },
+ "arctic_rows": {
+  "count": 42044,
+  "distinct_chunks": 42044,
+  "dimension_min": 384,
+  "dimension_max": 384
+ },
+ "parity_variable_batch": {
+  "checkpoint": "real Arctic S, local_files_only, 24 stored chunks",
+  "batch1_8_32_vs_stored_max_abs_diff": 9.87e-08,
+  "min_cosine": 0.99999988,
+  "batch1_vs_batch32_max_abs_diff": 1.06e-07,
+  "batch8_vs_batch32_max_abs_diff": 6.7e-08
+ },
+ "fingerprint_method": "C:/Users/cliff/callosum-data/experiments/arctic-continuation-20261030/fingerprints.py (read-only, sha256 over ordered rows)"
+}

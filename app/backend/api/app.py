@@ -54,6 +54,7 @@ from app.backend.api.routers import (
     diagnostics,
     discovery,
     duplicates,
+    embedding_index,
     embedding_profiles,
     feed,
     feedback,
@@ -224,9 +225,11 @@ def create_app(
             backfill_feed_subscriptions(conn)
         _ensure_capture_pairing_ready()
         _recover_provisional_captures(engine)
+        embedding_index.reconcile_index_builds(api)  # inc 610: resume builds a killed session left running
         try:
             yield
         finally:
+            embedding_index.shutdown_index_builds(api)  # owned workers stop with the app; work is committed
             try:
                 client_runtime.close()
             finally:
@@ -263,7 +266,7 @@ def create_app(
     api.state.active_wip_scan_job_id = None
     api.state.library_import_jobs = JobStore()  # inc 93: citation-file import
     api.state.embedding_index_jobs = JobStore()  # selectable retrieval-profile index builds
-    api.state.embedding_index_cancelled = set()
+    api.state.embedding_index_job_ids = {}  # inc 610: profile key -> Status mirror job of its supervised build
     api.state.library_bundle_import_jobs = JobStore()  # B2 SP1 (inc 234): portable library bundle import
     api.state.share_import_jobs = JobStore()  # SP4c (backlog #15): decrypt + import a received share
     api.state.zotero_import_jobs = JobStore()  # backlog #57 Phase 1: native Zotero library import
@@ -523,6 +526,7 @@ def create_app(
     api.include_router(axes.router)
     api.include_router(summaries.router)
     api.include_router(embedding_profiles.router)  # /embedding-profiles/* — retrieval model profiles
+    api.include_router(embedding_index.router)  # inc 610: supervised profile index builds
     api.include_router(help.router)
     api.include_router(settings.router)  # /settings — BYOK: Gemini key + egress consent from the UI (inc 146)
     api.include_router(usage.router)  # /usage/* — local usage instrumentation, zero egress (backlog #38A, inc 450)

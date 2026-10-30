@@ -3,31 +3,28 @@
 // verification always stays on the baseline (named here so a switch is never mistaken for a re-calibration).
 function RetrievalProfileSettings() {
   const [state, setState] = useState(null);
-  const [job, setJob] = useState(null);  // {job_id, status, progress, summary, detail}
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const timer = useRef(null);
 
+  // inc 610: the build runs in a supervised worker; its durable state (and coverage from stored vectors) comes back
+  // with every profile, so polling the profile list is enough to show waiting, retrying and recovery honestly.
+  const ACTIVE = ["queued", "running", "pausing", "retrying", "waiting_resources"];
   const load = () => api("/embedding-profiles").then(r => {
     if (!r.ok) { setError(r.error || "Couldn't load retrieval models."); return; }
     setState(r.data);
-    if (r.data.index_job_id && !job) poll(r.data.index_job_id);
+    clearTimeout(timer.current);
+    if (r.data.profiles.some(p => p.index_run && ACTIVE.includes(p.index_run.state))) timer.current = setTimeout(load, 2000);
   });
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); return () => clearTimeout(timer.current); }, []);
 
-  const poll = (jobId) => api(`/embedding-profiles/index/${jobId}`).then(r => {
-    if (!r.ok) { setJob({ status: "error", detail: r.error }); return; }
-    setJob(r.data);
-    if (r.data.status === "done" || r.data.status === "error") load();
-    else setTimeout(() => poll(jobId), 1500);
-  });
-
-  const build = async (key) => {
+  const act = async (key, action) => {
     setError("");
-    const r = await apiPost(`/embedding-profiles/${key}/index`, {});
-    if (!r.ok) { setError(r.error || "Couldn't start the index build."); return; }
-    setJob(r.data); poll(r.data.job_id);
+    const r = action === "build" ? await apiPost(`/embedding-profiles/${key}/index`, {})
+                                 : await apiPost(`/embedding-profiles/${key}/index/${action}`, {});
+    if (!r.ok) setError(r.error || "Couldn't change the index build.");
+    load();
   };
-  const cancel = () => job && apiPost(`/embedding-profiles/index/${job.job_id}/cancel`, {});
   const select = async (key) => {
     setBusy(true); setError("");
     const r = await apiPut("/embedding-profiles/active", { key });
@@ -36,40 +33,55 @@ function RetrievalProfileSettings() {
   };
 
   if (!state) return <div className="retrieval-profiles"><p className="eyebrow">Retrieval model</p>{error && <p role="alert" className="settings-sub">{error}</p>}</div>;
-  const running = job && (job.status === "pending" || job.status === "running");
   return (
     <div className="retrieval-profiles">
       <p className="eyebrow">Retrieval model</p>
       <p className="settings-sub">Chooses which local embedding model ranks passages for Ask. Citation verification always uses {state.verification_model} and its calibrated thresholds, whichever model retrieves. Switching never changes your library.</p>
       {state.profiles.map(p => {
         const c = p.coverage;
+        const run = p.index_run;
         const active = state.active === p.key;
+        const building = run && ACTIVE.includes(run.state);
         return (
           <div key={p.key} className="settings-subsection">
             <label>
-              <input type="radio" name="retrieval-profile" checked={active} disabled={busy || running || (!active && !c.complete && !p.is_baseline)}
+              <input type="radio" name="retrieval-profile" checked={active} disabled={busy || building || (!active && !c.complete && !p.is_baseline)}
                 onChange={() => select(p.key)} />{" "}
               <b>{p.label}</b>{active ? " — active" : ""}
             </label>
             <span className="settings-sub"><code>{p.model_name}@{p.revision.slice(0, 12)}</code> · {p.qualification}</span>
             <span className="settings-sub">
-              Index: {c.indexed_chunks.toLocaleString()} of {c.eligible_chunks.toLocaleString()} passages{c.complete ? " (complete)" : ""}
+              Index: {c.indexed_chunks.toLocaleString()} of {c.eligible_chunks.toLocaleString()} passages
+              {c.eligible_chunks > 0 ? ` (${(100 * c.indexed_chunks / c.eligible_chunks).toFixed(1)}%)` : ""}{c.complete ? " · complete" : ""}
               {c.papers_without_passage_text > 0 ? ` · ${c.papers_without_passage_text} papers have no full text to index` : ""}
             </span>
-            {!p.is_baseline && !c.complete && !running &&
-              <button className="btn btn-ghost" onClick={() => build(p.key)}>{c.indexed_chunks > 0 ? "Resume index build" : "Build index"}</button>}
+            {!p.is_baseline && !c.complete && <span className="settings-sub">{p.label} is not yet available for Ask because indexing is incomplete.</span>}
+            {run && <IndexRunStatus run={run} label={p.label} onAction={a => act(p.key, a)} />}
+            {!p.is_baseline && !c.complete && !run &&
+              <button className="btn btn-ghost" onClick={() => act(p.key, "build")}>{c.indexed_chunks > 0 ? "Resume index build" : "Build index"}</button>}
           </div>
         );
       })}
-      {running && <>
-        <ProgressBar label="Building retrieval index" progress={job.progress} managedBy="backend-job" />
-        <button className="btn btn-ghost" onClick={cancel}>Stop after the current paper</button>
-      </>}
-      {job && job.status === "done" && job.summary &&
-        <p role="status" className="settings-sub">{job.summary.cancelled ? "Stopped" : "Finished"}: indexed {job.summary.chunks_indexed.toLocaleString()} passages in {job.summary.papers_indexed} papers. Progress is kept; a later build resumes.</p>}
-      {job && job.status === "error" && <p role="alert" className="settings-sub">Index build failed: {job.detail}</p>}
       {error && <p role="alert" className="settings-sub">{error}</p>}
       <NliProfileSettings />
+    </div>
+  );
+}
+
+// One build's durable state: what is happening, whether recovery is scheduled, and the actions that apply now.
+// Technical diagnostics stay behind a disclosure; the message never carries an exception or a path.
+function IndexRunStatus({ run, label, onAction }) {
+  const working = ["queued", "running", "pausing", "retrying", "waiting_resources"].includes(run.state);
+  const names = { pause: "Pause", resume: "Resume", cancel: "Cancel" };
+  return (
+    <div className="index-run">
+      {working && <ProgressBar label={`Building ${label} index`} managedBy="backend-job"
+        progress={{ current: run.indexed_chunks, total: Math.max(1, run.eligible_chunks), label: run.message }} />}
+      <p role={run.state === "failed" ? "alert" : "status"} className="settings-sub">{run.message}</p>
+      {(run.attempts > 1 || run.failures_without_progress > 0) &&
+        <p className="settings-sub">Attempts: {run.attempts}{run.failures_without_progress > 0 ? ` · ${run.failures_without_progress} without progress` : ""}{run.auto_retry_scheduled ? " · automatic retry scheduled" : ""}</p>}
+      {run.actions.map(a => <button key={a} className="btn btn-ghost" onClick={() => onAction(a)}>{names[a]}</button>)}
+      {run.diagnostic && <details className="settings-sub"><summary>Technical details</summary><code>{run.diagnostic}</code></details>}
     </div>
   );
 }
