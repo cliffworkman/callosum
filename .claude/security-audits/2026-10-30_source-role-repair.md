@@ -50,3 +50,11 @@
 | `"body"` / empty text labelled `references` | Excluded (test) |
 
 **Security Audit: PASS**
+
+## Addendum (inc 612, 2026-10-30): cache isolation
+
+A preflight found that the inc-611 rescue memo, keyed by `(chunk_id, chunk_version)`, crossed library boundaries in one
+process: library B's genuine reference entry was admitted on library A's decision for a different text at the same id
+and version. Fixed by keying on a BLAKE2b-128 fingerprint of the text (the decision is a pure function of the text).
+Negative-path test `test_rescue_cache_never_crosses_databases` fails before and passes after. Same memory cap
+(500,000 entries, 16-byte keys). **Security Audit: PASS**

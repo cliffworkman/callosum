@@ -9,6 +9,14 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-10-30 — Reference-rescue memo keyed by text fingerprint (inc 612)
+- **Files:** `app/backend/summarization/reference_rescue.py`, `tests/{test_reference_exclusion,test_source_role_repair}.py`,
+  `INCREMENT-612-NOTES.md`, audit addendum in `2026-10-30_source-role-repair.md`.
+- **What:** the inc-611 rescue memo is keyed by a BLAKE2b fingerprint of the chunk text instead of `(chunk_id, chunk_version)`.
+- **Why:** two independent libraries in one process could share id+version with different text and inherit each other's
+  decision, admitting a genuine reference entry (reproduced by test).
+- **Revert:** drop the inc-612 commit; the inc-611 behaviour returns (correct within a single library).
+
 ## 2026-10-30 — Scientific prose no longer excluded or demoted as bibliography (inc 611)
 - **Files:** `app/backend/pdf_processing/{source_role,chunk_structure}.py`, `app/backend/persistence/schema_chunk_structure.py`,
   `app/backend/summarization/{reference_rescue,chunk_filtering,pipeline,faceted_pipeline,evidence_selection}.py`,

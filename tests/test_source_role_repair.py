@@ -261,11 +261,11 @@ def test_publisher_notices_are_not_rescued_even_though_they_read_as_prose() -> N
     assert not rescued_from_reference_label(notice)
 
 
-def test_rescue_memo_never_serves_a_decision_for_changed_text() -> None:
-    """The per-process memo is keyed by (chunk id, chunk_version); re-extracted text gets a fresh decision."""
+def test_rescue_memo_is_keyed_by_the_text_it_decides() -> None:
+    """The decision depends only on the text, so the memo is keyed by a text fingerprint (inc 612)."""
     from app.backend.summarization.reference_rescue import rescue_decision
 
-    assert rescue_decision(987654, "v-a", CONCLUSION_IN_REFERENCES) is True
-    assert rescue_decision(987654, "v-b", APA_ENTRY) is False  # same id, new version: decided afresh
-    assert rescue_decision(987654, "v-a", CONCLUSION_IN_REFERENCES) is True
-    assert rescue_decision(987655, None, APA_ENTRY) is False  # no version to key on: never cached
+    assert rescue_decision(CONCLUSION_IN_REFERENCES) is True
+    assert rescue_decision(APA_ENTRY) is False
+    assert rescue_decision(CONCLUSION_IN_REFERENCES) is True  # a repeat is served the same, correct answer
+    assert rescue_decision("") is False

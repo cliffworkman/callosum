@@ -11,13 +11,15 @@ inc 611: the label is evidence about role, not proof of it. The ingest section t
 genuine conclusions and limitations carried the label and were removed before vector retrieval could see them. A
 labelled chunk is now kept when its text demonstrably is not a reference list
 (``chunk_filtering.rescued_from_reference_label``). Two phases keep this off the Ask critical path: the main fetch
-is the unchanged SQL exclusion, and a narrow (id, chunk_version) query finds the labelled rows, whose text is read
-only when undecided and whose full rows are fetched only when rescued.
+is the unchanged SQL exclusion, and a narrow (id, text) query finds the labelled rows, whose full rows are fetched
+only when rescued.
 """
 
 from __future__ import annotations
 
-from sqlalchemy import Connection, Select, func, or_, select
+import hashlib
+
+from sqlalchemy import Connection, Select, func, or_
 
 from app.backend.persistence.schema import chunks
 from app.backend.persistence.schema_grobid import paper_sections
@@ -29,10 +31,12 @@ from app.backend.summarization.chunk_filtering import rescued_from_reference_lab
 # and faceted candidate builders exclude references identically (backlog #82).
 REFERENCES_SECTION_KEY = "references"
 
-# (chunk id, chunk_version) -> rescue decision. The decision is a pure function of the chunk text, and a chunk's
-# text cannot change without its chunk_version changing, so the memo cannot serve a stale answer. It confines the
-# ~13k-text content check (~0.8 s on a 251-paper library) to the first whole-library Ask in a process.
-_RESCUE_MEMO: dict[tuple[int, str], bool] = {}
+# text fingerprint -> rescue decision. The decision is a pure function of the text, so keying on the text itself is
+# correct across libraries, database replacement and re-extraction. inc 612: it was keyed on (chunk id,
+# chunk_version), which two independent libraries can share while holding different text -- a decision made for one
+# was then inherited by the other. The memo confines the content check (~0.8 s for ~13k labelled chunks on a
+# 251-paper library) to the first Ask that meets each text in a process.
+_RESCUE_MEMO: dict[bytes, bool] = {}
 _RESCUE_MEMO_CAP = 500_000
 
 
@@ -50,14 +54,12 @@ def exclude_reference_sections(stmt: Select) -> Select:
     return _joined(stmt).where(or_(family.is_(None), family != REFERENCES_SECTION_KEY))
 
 
-def rescue_decision(chunk_id: int, chunk_version: str | None, text: str) -> bool:
-    """Memoized ``rescued_from_reference_label``; uncached when there is no chunk_version to key on."""
-    if not chunk_version:
-        return rescued_from_reference_label(text)
-    key = (int(chunk_id), str(chunk_version))
+def rescue_decision(text: str) -> bool:
+    """Memoized ``rescued_from_reference_label``, keyed by a fingerprint of the text it decides."""
+    key = hashlib.blake2b((text or "").encode("utf-8", "surrogatepass"), digest_size=16).digest()
     cached = _RESCUE_MEMO.get(key)
     if cached is None:
-        cached = rescued_from_reference_label(text)
+        cached = rescued_from_reference_label(text or "")
         if len(_RESCUE_MEMO) >= _RESCUE_MEMO_CAP:
             _RESCUE_MEMO.clear()
         _RESCUE_MEMO[key] = cached
@@ -66,23 +68,11 @@ def rescue_decision(chunk_id: int, chunk_version: str | None, text: str) -> bool
 
 def _rescued_ids(conn: Connection, stmt: Select) -> list[int]:
     labelled = conn.execute(
-        _joined(stmt.with_only_columns(chunks.c.id, chunks.c.chunk_version))
+        _joined(stmt.with_only_columns(chunks.c.id, chunks.c.text))
         .where(_family() == REFERENCES_SECTION_KEY)
         .order_by(None)
-    ).all()
-    rescued: list[int] = []
-    undecided: dict[int, str] = {}
-    for chunk_id, version in labelled:
-        cached = _RESCUE_MEMO.get((int(chunk_id), str(version))) if version else None
-        if cached is None:
-            undecided[int(chunk_id)] = version
-        elif cached:
-            rescued.append(int(chunk_id))
-    for batch in in_batches(sorted(undecided)):
-        for chunk_id, text in conn.execute(select(chunks.c.id, chunks.c.text).where(chunks.c.id.in_(batch))):
-            if rescue_decision(int(chunk_id), undecided[int(chunk_id)], text or ""):
-                rescued.append(int(chunk_id))
-    return sorted(rescued)
+    )
+    return sorted(int(chunk_id) for chunk_id, text in labelled if rescue_decision(text))
 
 
 def reference_filtered_rows(conn: Connection, stmt: Select) -> list:  # type: ignore[type-arg]

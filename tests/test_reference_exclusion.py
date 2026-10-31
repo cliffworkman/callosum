@@ -135,3 +135,32 @@ def test_mislabelled_prose_is_rescued_in_chunk_order_and_genuine_entries_stay_ou
     eng.dispose()
     assert first == second == [before, rescued, after]
     assert genuine not in first
+
+
+def test_rescue_cache_never_crosses_databases(tmp_path, _migrated_template_db) -> None:
+    """Two independent libraries can share a chunk id AND chunk_version while holding different text. A decision
+    made for one must never be inherited by the other in the same process (inc 612 preflight)."""
+    import shutil
+
+    from app.backend.persistence.database import make_engine
+
+    conclusion = (
+        "In conclusion, reduced transporter availability was observed in patients relative to controls, which may "
+        "reflect an early stage of degeneration, and the results support a role for occupancy in treatment response."
+    )
+    entry = "Smith, J. A., & Jones, B. C. (2019). A study of things. Journal of Results, 12(3), 145-160."
+    outcomes = []
+    for name, text in (("a", conclusion), ("b", entry)):
+        path = tmp_path / f"{name}.sqlite"
+        shutil.copyfile(_migrated_template_db, path)  # two independently built libraries, identical ids
+        eng = make_engine(f"sqlite:///{path.as_posix()}")
+        with eng.begin() as conn:
+            pid = create_paper(conn, title="T", csl_json={"title": "T", "type": "article-journal"})
+            att = _attachment(conn, pid)
+            chunk_id = _chunk(conn, pid, att, section="references")
+            conn.execute(chunks.update().where(chunks.c.id == chunk_id).values(text=text, chunk_version="same-v"))
+            outcomes.append(
+                chunk_id in {int(r["id"]) for r in reference_filtered_rows(conn, select(chunks).order_by(chunks.c.id))}
+            )
+        eng.dispose()
+    assert outcomes == [True, False]  # same id + version, different text: decided independently
