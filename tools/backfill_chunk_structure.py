@@ -18,6 +18,9 @@ Properties, all deliberate:
   column are untouched. Only ``chunk_structure`` is written.
 * **Per-paper commit, so an interrupted run resumes** by simply re-running: a paper whose rows are
   missing or stale is re-derived, everything else is skipped.
+* **A derivation-version bump invalidates every older row (inc 611, ``chunk-structure-v2``).** Older rows are
+  ignored by the retrieval path, never reinterpreted; a plain re-run re-derives exactly the papers that are not
+  current at the new version, one committed paper at a time, and ``--summary`` reports the remaining backlog.
 * **The narrow Ask path now reads what this writes (inc 607):** a current ``bibliographic`` label
   demotes a chunk behind every eligible candidate, but never withholds it -- no reason code cleared the
   >=95% precision gate. A library this has never run on is an exact no-op for that seam.
@@ -380,11 +383,42 @@ def inspect(engine, chunk_id: int) -> None:
     print(f"  derivation     : {derived.derivation_version}{'  [STALE]' if derived.is_stale else ''}")
 
 
-def summarize(engine) -> None:
+def coverage(engine) -> dict:
+    """Derivation-version coverage: what the retrieval path will obey (current) vs ignore (stale/absent)."""
     with engine.begin() as conn:
-        rows = conn.execute(select(chunk_structure.c.chunk_type, chunk_structure.c.evidence_role)).fetchall()
+        live = [int(r[0]) for r in conn.execute(select(papers.c.id).where(papers.c.deleted_at.is_(None)))]
+        with_chunks = {int(r[0]) for r in conn.execute(select(chunks.c.paper_id).distinct())}
+        current = papers_with_current_structure(conn, DERIVATION_VERSION)
+        by_version = dict(
+            conn.execute(
+                select(chunk_structure.c.derivation_version, sqltext("count(*)")).group_by(
+                    chunk_structure.c.derivation_version
+                )
+            ).fetchall()
+        )
+    targets = [pid for pid in live if pid in with_chunks]
+    return {
+        "derivation_version": DERIVATION_VERSION,
+        "papers_with_chunks": len(targets),
+        "papers_current": sum(pid in current for pid in targets),
+        "papers_needing_derivation": sum(pid not in current for pid in targets),
+        "rows_by_derivation_version": by_version,
+    }
+
+
+def summarize(engine) -> None:
+    cov = coverage(engine)
+    print(f"derivation version {cov['derivation_version']}: {cov['papers_current']} of {cov['papers_with_chunks']}")
+    print(f"  papers current; {cov['papers_needing_derivation']} need (re)derivation -- their rows are ignored")
+    print(f"  rows by derivation version: {cov['rows_by_derivation_version']}\n")
+    with engine.begin() as conn:
+        rows = conn.execute(
+            select(chunk_structure.c.chunk_type, chunk_structure.c.evidence_role).where(
+                chunk_structure.c.derivation_version == DERIVATION_VERSION
+            )
+        ).fetchall()
     if not rows:
-        print("no derived rows yet")
+        print("no current derived rows yet")
         return
     counts: dict[tuple[str, str], int] = defaultdict(int)
     for chunk_type, role in rows:

@@ -33,7 +33,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 610** on the unpushed `integrate/inc607-608-ask` branch (main is at 608; inc 607, the 2026-10-29 reference-exclusion repair `e4d4f4e4`, is cherry-picked there as `d85556b6`); see Increment workflow. The accepted Browser Capture head
+It is currently at **Increment 611** on the unpushed `integrate/inc607-608-ask` branch (main is at 608; inc 607, the 2026-10-29 reference-exclusion repair `e4d4f4e4`, is cherry-picked there as `d85556b6`); see Increment workflow. The accepted Browser Capture head
 `80025d1a` passed **3490 tests, 9 skipped**, plus 23 browser smoke tests in CI before merging.
 Fresh release-candidate checks are required for 0.5.16; do not substitute that earlier receipt.
 It is a working MVP backed by a thorough planning suite in `.claude/docs/`.
@@ -94,6 +94,13 @@ the full per-increment narrative for all other increments now lives in the reloc
   the local SQLite happens to allow.
 - **Vectors:** `sqlite-vec` (in-process, no separate daemon) + sentence-transformers
   (default embed model `all-MiniLM-L6-v2`; `bge-base-en-v1.5` also supported).
+  **Reference handling is content-checked, never label-only (inc 611):** `pdf_processing/source_role.py` is the one pure,
+  label-blind judgement of text form (citation apparatus stripped; entry structure/starts detected). It protects cited
+  Discussion prose from inc-607 `ref_region.member` (the old veto's `biblio_score < 1.5` cap rejected any paragraph citing
+  its literature), makes fragments/prose-then-entries an explicit `unknown`, and rescues `references`-labelled prose from the
+  heading filter via `summarization/reference_rescue.py` (SQL exclusion unchanged + a narrow memoized rescue pass, before
+  retrieval). `DERIVATION_VERSION = chunk-structure-v2`: v1 rows are stale (ignored) until `tools/backfill_chunk_structure.py`
+  re-derives them. Never key either rule on a chunk/paper/DOI, and never treat a section label as proof of role.
   **Selectable retrieval/NLI profiles (inc 608):** `embeddings/profiles.py` defines explicit,
   revision-pinned retrieval profiles (MiniLM baseline with its legacy stored identity; Arctic S with CLS/512/
   `whitespace-v1`/query prefix baked into `model_version`). Same-dimension profiles share one vec table, so **every

@@ -9,6 +9,19 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-10-30 — Scientific prose no longer excluded or demoted as bibliography (inc 611)
+- **Files:** `app/backend/pdf_processing/{source_role,chunk_structure}.py`, `app/backend/persistence/schema_chunk_structure.py`,
+  `app/backend/summarization/{reference_rescue,chunk_filtering,pipeline,faceted_pipeline,evidence_selection}.py`,
+  `tools/backfill_chunk_structure.py`, `tests/{test_source_role_repair,test_source_role_migration,test_reference_exclusion}.py`,
+  audit `2026-10-30_source-role-repair.md`, `INCREMENT-611-NOTES.md`, `.claude/docs/research/2026-10-30_source-role-repair/`.
+- **What:** a shared, label-blind text-form assessment protects cited Discussion prose inside inferred reference regions
+  (v2 classification; fragments/mixed chunks become `unknown`) and rescues `references`-labelled prose from the heading filter
+  before retrieval; `chunk-structure-v2` invalidates v1 rows; the backfill reports version coverage.
+- **Why:** the four-condition pilot (AI-adjudicated, development evidence) showed genuine conclusions demoted by inc 607 and
+  excluded by the heading filter (5399, 56894, 56618, 58052, 67832); the replay recovers them with bibliography control intact.
+- **Revert:** drop the inc-611 commit on `integrate/inc607-608-ask`; v2 rows written by a backfill become stale under v1 code
+  (ignored), so re-run the v1 backfill if 607 demotion is wanted after a revert.
+
 ## 2026-10-30 — Supervised, memory-aware, self-recovering profile index builds (inc 610)
 - **Files:** `app/backend/embeddings/{resources,index_lock,index_runs,index_worker,index_supervisor,profile_index}.py`,
   `app/backend/persistence/{schema_index_runs,schema}.py`, `alembic/versions/0086_embedding_index_runs.py`,

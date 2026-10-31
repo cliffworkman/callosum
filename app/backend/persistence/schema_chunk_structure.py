@@ -48,7 +48,10 @@ EVIDENCE_ROLES = ("scientific", "bibliographic", "structural", "unknown")
 # How the reference region was established for this chunk's paper.
 REFERENCE_REGION_SOURCES = ("anchored", "heuristic", "none")
 
-DERIVATION_VERSION = "chunk-structure-v1"
+# v2 (inc 611): substantive-prose protection inside reference regions and against the shape rule, plus an
+# explicit `unknown` for ambiguous fragments / prose-then-entries chunks. Every consumer compares this string,
+# so a v1 row is STALE under v2 code (recorded, never obeyed) until the backfill re-derives its paper.
+DERIVATION_VERSION = "chunk-structure-v2"
 
 chunk_structure = Table(
     "chunk_structure",

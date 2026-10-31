@@ -38,9 +38,9 @@ from app.backend.summarization.pipeline import (
     _refresh_source_chunks,
     _source_chunk_from_row,
     _verify_candidates,
-    exclude_reference_sections,
 )
 from app.backend.summarization.query_planner import QueryPlan
+from app.backend.summarization.reference_rescue import reference_filtered_rows
 from app.backend.summarization.responsiveness import classify_responsiveness
 from app.backend.summarization.verification import (
     LocalCitationVerifier,
@@ -206,9 +206,8 @@ def _load_article_pool(conn: Connection, *, exclude_references: bool = True) -> 
         .where(chunks.c.paper_id.in_(live_papers), attachment_document_role_clause(ARTICLE_DOCUMENT_ROLES))
         .order_by(chunks.c.id)
     )
-    if exclude_references:
-        stmt = exclude_reference_sections(stmt)
-    rows = [_source_chunk_from_row(row) for row in conn.execute(stmt).mappings()]
+    fetched = reference_filtered_rows(conn, stmt) if exclude_references else conn.execute(stmt).mappings()
+    rows = [_source_chunk_from_row(row) for row in fetched]
     return exclude_repeated_boilerplate_chunks(rows)
 
 

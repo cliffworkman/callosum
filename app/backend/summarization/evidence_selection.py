@@ -1,6 +1,6 @@
 """Reference-eligibility seam for the narrow synthesis path (``pipeline.summarize_scope``).
 
-The narrow path's only reference guard was the heading-based ``exclude_reference_sections`` (query scope only);
+The narrow path's only reference guard was the heading-based reference-section filter (query scope only);
 the anchored ``chunk_structure`` labels that already recognised bibliography text were never read. This seam
 reads them (current rows only, stale ones recorded) and applies the shared policy in ``evidence_eligibility``:
 an anchored ``bibliographic`` label DEMOTES a chunk behind every eligible candidate -- it never withholds it, since

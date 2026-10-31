@@ -26,6 +26,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 
 from app.backend.pdf_processing.sections import MAX_HEADING_WORDS, detect_section_heading
+from app.backend.pdf_processing.source_role import FRAGMENT, MIXED, SUBSTANTIVE, assess_prose
 from app.backend.persistence.schema_chunk_structure import DERIVATION_VERSION
 
 # --- types (mirrors of the schema's closed vocabulary) -----------------------------------------
@@ -358,15 +359,30 @@ def classify_paper(
         if _PUBLICATION_META.search(text) and not _is_clear_prose(text, score):
             out.append(verdict(PUBLICATION_METADATA, 0.85, "text.publication_meta"))
             continue
+        prose = assess_prose(text)
         if in_region:
-            # Region membership is strong structural evidence, NOT final identity: real Results
-            # prose was measured inside imperfect inferred bounds, so clear prose vetoes it.
+            # Region membership is strong structural evidence, NOT final identity: the region spans
+            # first-to-last matched reference in chunk order, so Discussion prose extracted between
+            # matches (a mixed page, a two-column layout) sits inside it. Clear prose vetoes it.
             if _is_clear_prose(text, score) and not _CAPTION_OPEN.match(text):
                 out.append(verdict(BODY_PROSE, 0.6, "ref_region.prose_veto"))
                 continue
+            # inc 611: the veto above caps biblio_score at 1.5, which a paragraph's own in-text
+            # citations exceed ("et al." + years = 1.8). Judged with citations stripped instead.
+            if prose.outcome == SUBSTANTIVE and not _CAPTION_OPEN.match(text):
+                out.append(verdict(BODY_PROSE, 0.6, "ref_region.prose_veto.citations_stripped"))
+                continue
+            # Short clauses and prose-then-entries chunks are AMBIGUOUS: neither a confident science
+            # label nor a bibliography label is warranted, and `unknown` is never demoted.
+            if prose.outcome in (FRAGMENT, MIXED):
+                out.append(verdict(UNKNOWN, 0.4, f"ref_region.ambiguous.{prose.outcome}"))
+                continue
             out.append(verdict(REFERENCE_ENTRY, 0.85 if score >= 2.0 else 0.6, "ref_region.member"))
             continue
-        if score >= 3.0 and not _is_clear_prose(text, score):
+        if score >= 3.0 and not _is_clear_prose(text, score) and prose.outcome != SUBSTANTIVE:
+            if prose.outcome == MIXED:
+                out.append(verdict(UNKNOWN, 0.4, f"shape.ambiguous.{prose.outcome}"))
+                continue
             out.append(verdict(REFERENCE_ENTRY, 0.7, "shape.biblio_score"))
             continue
         if _CAPTION_OPEN.match(text) and len(text.split()) >= 4 and not _SENTENCE_ABOUT_TABLE.match(text):
@@ -392,6 +408,9 @@ def classify_paper(
             continue
         if _is_clear_prose(text, score):
             out.append(verdict(BODY_PROSE, 0.7, "shape.clear_prose"))
+            continue
+        if prose.outcome == SUBSTANTIVE:
+            out.append(verdict(BODY_PROSE, 0.6, "shape.clear_prose.citations_stripped"))
             continue
         # `unknown` is a real answer and never implies ineligibility.
         out.append(verdict(UNKNOWN, 0.3, "fallthrough"))

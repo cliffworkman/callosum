@@ -14,6 +14,7 @@ import re
 from collections.abc import Iterable
 from typing import Protocol
 
+from app.backend.pdf_processing.source_role import contains_prose
 from app.backend.summarization.generators import SourceChunk
 
 _DOI = re.compile(r"\b10\.\d{4,9}/\S+", re.IGNORECASE)
@@ -176,6 +177,27 @@ def repeated_boilerplate_keys(rows: Iterable[BoilerplateRow]) -> dict[int, set[s
         }
         for paper_id, by_text in pages_by_text.items()
     }
+
+
+# Publisher/licence/access notices read as prose but are neither science nor bibliography; a references-section
+# label on one of them is not rescued (inc 611).
+_NOTICE = re.compile(
+    r"©|copyright|all rights reserved|creative\s?commons|open[- ]access article distributed|"
+    r"intended solely for the personal use|disclaimer|publisher[’']s note",
+    re.IGNORECASE,
+)
+
+
+def rescued_from_reference_label(text: str) -> bool:
+    """True when a chunk labelled ``references`` demonstrably is NOT a reference list (inc 611).
+
+    The ingest section tracker labels everything after a "References" heading -- or a heading it mistook for
+    one -- as ``references``, so the label is evidence about role, not proof of it. Measured on a 251-paper
+    library: genuine conclusions and limitations carried it and were excluded before retrieval could see them.
+    The text itself decides here, via the same pure assessment ``chunk_structure`` uses: substantive prose,
+    prose-then-entries and short finite clauses are kept; anything bibliography-shaped stays excluded.
+    """
+    return contains_prose(text) and not _NOTICE.search(text or "")  # the notice scan only on the rare prose
 
 
 def exclude_repeated_boilerplate_chunks(
