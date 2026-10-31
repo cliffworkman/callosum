@@ -19,6 +19,7 @@ INDEX_RUN_STATES = (
     "pausing",
     "paused",
     "waiting_resources",
+    "waiting_disk",  # inc 616: free disk below the guard's floor; retried at a fixed interval, never a breaker trip
     "interrupted",
     "retrying",
     "failed",
@@ -50,6 +51,10 @@ embedding_index_runs = Table(
     Column("diagnostic", Text),  # bounded technical tail (exit code, exception class); never passage text
     Column("peak_worker_rss_mb", Integer),
     Column("min_available_mb", Integer),
+    # inc 616: the last disk check (numbers only, never a path): the floor, what was free, the remaining estimate.
+    Column("disk_required_bytes", Integer),
+    Column("disk_free_bytes", Integer),
+    Column("disk_estimated_bytes", Integer),
     Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
     Column("updated_at", DateTime, nullable=False, server_default=func.current_timestamp()),
     enum_check("state", INDEX_RUN_STATES, "ck_embedding_index_runs_state"),

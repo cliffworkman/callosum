@@ -16,7 +16,7 @@ from app.backend.embeddings.profiles import EmbeddingProfile, profile_coverage
 from app.backend.persistence.schema import embedding_index_runs
 from app.backend.persistence.sqlite_retry import run_write
 
-ACTIVE_STATES = ("queued", "running", "pausing", "retrying", "waiting_resources")
+ACTIVE_STATES = ("queued", "running", "pausing", "retrying", "waiting_resources", "waiting_disk")
 _DETAIL_CAP = 400
 _DIAGNOSTIC_CAP = 1500
 

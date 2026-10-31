@@ -8,6 +8,8 @@ every exit it re-derives coverage from the stored vectors. Recovery is bounded o
 * an exit without new committed vectors counts against a small budget; at the limit the run stops in
   ``failed`` and only the user's explicit Resume restarts it (the circuit breaker);
 * model unavailable / contract mismatch is never retried automatically;
+* low or full disk (inc 616) waits in ``waiting_disk`` and re-checks at a fixed interval; it never trips the
+  breaker, never shrinks the batch, and never deletes anything to make room;
 * the user's pause or cancel is durable and survives restarts.
 
 Startup reconciliation handles the case cleanup code cannot: a worker or app killed from outside. A row left
@@ -32,7 +34,7 @@ from typing import Protocol
 
 from sqlalchemy import Engine
 
-from app.backend.embeddings import index_runs
+from app.backend.embeddings import disk_guard, index_runs
 from app.backend.embeddings import index_worker as worker
 from app.backend.embeddings.index_lock import worker_holds_lock
 from app.backend.embeddings.profile_index import DEFAULT_INDEX_BATCH
@@ -41,6 +43,9 @@ from app.backend.embeddings.resources import DEFAULT_WORKER_ESTIMATE_MB, Resourc
 from app.backend.model_provisioning import local_files_only_for
 
 _SOURCE_ROOT = Path(__file__).resolve().parents[3]  # the directory holding ``app/`` (dev checkout or packaged)
+
+
+_LAUNCHABLE = ("queued", "retrying", "waiting_resources", "waiting_disk")
 
 
 @dataclass(frozen=True)
@@ -56,6 +61,7 @@ class SupervisorConfig:
     local_files_only: bool = False
     threads: int = field(default_factory=lambda: max(1, min(4, (os.cpu_count() or 2) // 2)))
     resume_on_startup: bool = True
+    disk_recheck_seconds: float = disk_guard.RECHECK_SECONDS
 
 
 class WorkerHandle(Protocol):
@@ -148,11 +154,13 @@ class ThreadLauncher:
         model_for: Callable[[str], object],
         vector_store: object,
         probe: Callable[[], ResourceSnapshot] = measure,
+        disk_usage: disk_guard.DiskUsage | None = None,
     ) -> None:
         self._engine = engine
         self._model_for = model_for
         self._vector_store = vector_store
         self._probe = probe
+        self._disk_usage = disk_usage
 
     def launch(self, profile_key: str, token: str, batch_size: int) -> WorkerHandle:
         return _ThreadHandle(self, profile_key, token, batch_size)
@@ -175,11 +183,22 @@ class _ThreadHandle:
                 batch_size=batch_size,
                 probe=launcher._probe,
                 should_stop=self._stop.is_set,
+                disk_check=lambda size, remaining: disk_guard.check(
+                    launcher._engine.url.render_as_string(hide_password=False),
+                    batch_size=size,
+                    remaining_chunks=remaining,
+                    usage=launcher._disk_usage,
+                ),
             )
             if outcome.failure_kind is not None:
-                index_runs.update_run(
-                    launcher._engine, profile_key, failure_kind=outcome.failure_kind, diagnostic=outcome.diagnostic
-                )
+                with contextlib.suppress(Exception):  # as in the process worker: a full disk may refuse this too
+                    index_runs.update_run(
+                        launcher._engine,
+                        profile_key,
+                        failure_kind=outcome.failure_kind,
+                        diagnostic=outcome.diagnostic,
+                        **outcome.row_values,
+                    )
             self._code = outcome.exit_code
 
         self._thread = threading.Thread(target=run, name=f"index-{profile_key}", daemon=True)
@@ -220,6 +239,7 @@ class IndexSupervisor:
         probe: Callable[[], ResourceSnapshot] = measure,
         clock: Callable[[], float] = time.monotonic,
         on_update: Callable[[dict], None] | None = None,
+        disk_usage: disk_guard.DiskUsage | None = None,
     ) -> None:
         self.engine = engine
         self.config = config
@@ -227,6 +247,7 @@ class IndexSupervisor:
         self.probe = probe
         self.clock = clock
         self.on_update = on_update
+        self.disk_usage = disk_usage
         self._live: dict[str, _Live] = {}
         self._lock = threading.RLock()
         self._wake = threading.Event()
@@ -312,6 +333,10 @@ class IndexSupervisor:
         if worker_holds_lock(self.config.db_url, key):
             return
         index_runs.reconcile_counts(self.engine, profile)
+        if row["state"] == "waiting_disk" and row["intent"] == "run" and self.config.resume_on_startup:
+            index_runs.update_run(self.engine, key, worker_pid=None, worker_token=None, next_retry_at=index_runs.now())
+            self._notify(key)  # no worker ran while waiting: re-check the disk now, not after an interruption
+            return
         kind = row["failure_kind"] if row["state"] == "interrupted" else None
         values: dict = {"worker_pid": None, "worker_token": None, "failure_kind": kind or "interrupted_unknown_cause"}  # nosec B105
         if row["intent"] == "run" and self.config.resume_on_startup:
@@ -360,7 +385,7 @@ class IndexSupervisor:
                 key = row["profile_key"]
                 if key in self._live:
                     self._watch(row, self._live[key])
-                elif row["state"] in ("queued", "retrying", "waiting_resources") and row["intent"] == "run":
+                elif row["state"] in _LAUNCHABLE and row["intent"] == "run":
                     self._maybe_launch(row)
                 elif row["state"] in ("running", "pausing"):
                     self._recover_unowned(row)  # its worker vanished while the app kept running
@@ -374,6 +399,13 @@ class IndexSupervisor:
             return
         if worker_holds_lock(self.config.db_url, key):
             return  # a worker of another Callosum process on this library
+        remaining = max(0, int(row["eligible_chunks"]) - int(row["indexed_chunks"]))
+        disk = disk_guard.check(
+            self.config.db_url, batch_size=int(row["batch_size"]), remaining_chunks=remaining, usage=self.disk_usage
+        )
+        if not disk.ok:  # preflight: no worker (and no model load) while the next batches would not fit
+            self._wait_for_disk(key, "disk_low", disk.row_values())
+            return
         snapshot = self.probe()
         policy = ResourcePolicy.for_machine(snapshot)
         if not policy.can_start(snapshot, self._worker_need_mb(row)):
@@ -401,6 +433,7 @@ class IndexSupervisor:
             failure_kind=None,
             failure_detail=None,
             diagnostic=None,
+            **disk.row_values(),  # the remaining-growth estimate is known before the first batch
         )
         handle = self.launcher.launch(key, token, int(row["batch_size"]))  # type: ignore[attr-defined]
         index_runs.update_run(self.engine, key, worker_pid=handle.pid)
@@ -421,6 +454,8 @@ class IndexSupervisor:
             index_runs.update_run(self.engine, key, min_available_mb=snapshot.available_physical_mb)
         if policy.must_stop(snapshot):
             live.stop_reason = "memory_stop"
+        elif disk_guard.must_stop(self.config.db_url, self.disk_usage):
+            live.stop_reason = "disk_stop"  # something else is filling the disk while a batch is in flight
         elif (
             row["heartbeat_at"] is not None
             and (index_runs.now() - row["heartbeat_at"]).total_seconds() > self.config.stall_seconds
@@ -434,6 +469,18 @@ class IndexSupervisor:
             self._live.pop(key, None)
             self._on_exit(row, live, worker.EXIT_UNEXPECTED if code is None else code)
             return
+        self._notify(key)
+
+    def _disk_wait_values(self, kind: str) -> dict:
+        return {
+            "state": "waiting_disk",
+            "failure_kind": kind,
+            "failure_detail": None,
+            "next_retry_at": index_runs.now() + timedelta(seconds=self.config.disk_recheck_seconds),
+        }
+
+    def _wait_for_disk(self, key: str, kind: str, disk_values: dict) -> None:
+        index_runs.update_run(self.engine, key, **disk_values, **self._disk_wait_values(kind))
         self._notify(key)
 
     def _backoff(self, failures: int) -> float:
@@ -480,7 +527,7 @@ class IndexSupervisor:
                 next_retry_at=index_runs.now() + timedelta(seconds=wait),
             )
 
-        if live.stop_reason == "user_stop" or (code == worker.EXIT_STOPPED and intent != "run"):
+        if live.stop_reason == "user_stop" or (code in (worker.EXIT_STOPPED, worker.EXIT_DISK) and intent != "run"):
             values.update(
                 state={"pause": "paused", "cancel": "cancelled"}.get(intent, "paused"), failures_without_progress=0
             )
@@ -499,6 +546,17 @@ class IndexSupervisor:
             values.update(
                 state="failed", failure_kind="not_owner", failure_detail="Another indexing process holds this index."
             )
+        elif code == worker.EXIT_DISK or live.stop_reason == "disk_stop":
+            # Outside the breaker: a shortage is not a failed attempt. Same batch size; the floor already scales.
+            values["failures_without_progress"] = 0 if progressed else int(row["failures_without_progress"])
+            kind = "disk_stop" if live.stop_reason == "disk_stop" else (current["failure_kind"] or "disk_full")
+            if current["disk_required_bytes"] is None or live.stop_reason == "disk_stop":
+                remaining = max(0, coverage["eligible_chunks"] - coverage["indexed_chunks"])
+                check = disk_guard.check(
+                    self.config.db_url, batch_size=batch, remaining_chunks=remaining, usage=self.disk_usage
+                )
+                values.update(check.row_values())
+            values.update(self._disk_wait_values(kind))
         elif code == worker.EXIT_RESOURCES or live.stop_reason == "memory_stop":
             values["batch_size"] = max(1, batch // 2)
             retry(

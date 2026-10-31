@@ -19,9 +19,9 @@ import sys
 import threading
 import time
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
-from app.backend.embeddings import index_runs
+from app.backend.embeddings import disk_guard, index_runs
 from app.backend.embeddings.index_lock import WorkerLock, lock_path
 from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.profile_index import index_chunk_batch, pending_chunk_ids, repair_partial_vectors
@@ -34,6 +34,7 @@ EXIT_UNEXPECTED = 1
 EXIT_STOPPED = 3  # the user's pause/cancel intent was honoured between batches
 EXIT_MODEL = 65  # model unavailable, corrupt, or contract mismatch: never retried automatically
 EXIT_DATABASE_BUSY = 69
+EXIT_DISK = 74  # free disk below the guard's floor, or SQLite/OS reported a full disk; work so far is committed
 EXIT_ORPHANED = 70  # the owning app went away
 EXIT_NOT_OWNER = 71  # another worker holds the row
 EXIT_RESOURCES = 75  # low memory before a batch, or an allocation failure during one; work so far is committed
@@ -47,6 +48,7 @@ class WorkerOutcome:
     chunks_indexed: int = 0
     failure_kind: str | None = None
     diagnostic: str | None = None
+    row_values: dict = field(default_factory=dict)  # extra durable-row fields (inc 616: the disk check, numbers only)
 
 
 def _scrub(message: str) -> str:
@@ -82,6 +84,7 @@ def run_worker(
     probe: Callable[[], ResourceSnapshot] = measure,
     policy: ResourcePolicy | None = None,
     should_stop: Callable[[], bool] | None = None,
+    disk_check: Callable[[int, int], disk_guard.DiskCheck] | None = None,
 ) -> WorkerOutcome:
     """Index until done, stopped, or out of headroom. Every committed batch is final; nothing else is."""
     from sqlalchemy.exc import OperationalError
@@ -98,6 +101,7 @@ def run_worker(
 
     threading.Thread(target=beat, name="index-heartbeat", daemon=True).start()
     done = 0
+    queue: list[int] = []
     try:
         repair_partial_vectors(engine, model, vector_store=vector_store, dimension=profile.dimension)
         queue = pending_chunk_ids(engine, model)
@@ -105,6 +109,9 @@ def run_worker(
         for start in range(0, len(queue), size):
             if index_runs.intent_of(engine, profile.key) != "run" or (should_stop is not None and should_stop()):
                 return WorkerOutcome(EXIT_STOPPED, done)
+            disk = disk_check(size, len(queue) - start) if disk_check is not None else None
+            if disk is not None and not disk.ok:  # never start a batch the disk cannot safely hold
+                return WorkerOutcome(EXIT_DISK, done, "disk_low", row_values=disk.row_values())
             if policy.should_pause(probe()):
                 return WorkerOutcome(EXIT_RESOURCES, done, "memory_pressure")
             batch = queue[start : start + size]
@@ -120,6 +127,9 @@ def run_worker(
         return WorkerOutcome(EXIT_COMPLETE, done)
     except Exception as exc:  # classified below; the message is scrubbed and bounded by the repo
         diagnostic = _scrub(f"{type(exc).__name__}: {exc}")
+        if disk_guard.is_disk_full(exc):  # the batch's transaction rolled back; every earlier batch is committed
+            values = disk_check(max(1, int(batch_size)), len(queue) - done).row_values() if disk_check else {}
+            return WorkerOutcome(EXIT_DISK, done, "disk_full", diagnostic, values)
         if _is_allocation_failure(exc):
             return WorkerOutcome(EXIT_RESOURCES, done, "allocation_failure", diagnostic)
         if isinstance(exc, OperationalError) and "locked" in str(exc).lower():
@@ -216,12 +226,24 @@ def main(argv: list[str] | None = None, *, model_factory=None, vector_store_fact
         else:
             store = (vector_store_factory or SQLiteVecVectorStore)()
             outcome = run_worker(
-                engine, profile=profile, token=args.token, model=model, vector_store=store, batch_size=args.batch_size
+                engine,
+                profile=profile,
+                token=args.token,
+                model=model,
+                vector_store=store,
+                batch_size=args.batch_size,
+                disk_check=lambda size, remaining: disk_guard.check(
+                    args.db_url, batch_size=size, remaining_chunks=remaining
+                ),
             )
         if outcome.failure_kind is not None:
-            with contextlib.suppress(Exception):
+            with contextlib.suppress(Exception):  # on a full disk this write may fail too; the exit code still says why
                 index_runs.update_run(
-                    engine, profile.key, failure_kind=outcome.failure_kind, diagnostic=outcome.diagnostic
+                    engine,
+                    profile.key,
+                    failure_kind=outcome.failure_kind,
+                    diagnostic=outcome.diagnostic,
+                    **outcome.row_values,
                 )
         return outcome.exit_code
     finally:

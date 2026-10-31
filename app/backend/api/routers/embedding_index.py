@@ -37,6 +37,7 @@ _ACTIONS = {
     "running": ["pause", "cancel"],
     "retrying": ["pause", "cancel"],
     "waiting_resources": ["pause", "cancel"],
+    "waiting_disk": ["pause", "cancel"],
     "pausing": [],
     "paused": ["resume", "cancel"],
     "interrupted": ["resume", "cancel"],
@@ -44,6 +45,14 @@ _ACTIONS = {
     "cancelled": ["resume"],
     "completed": [],
 }
+
+
+class DiskCheckOut(BaseModel):
+    """The last free-disk check (inc 616). Byte counts only: never a path or a drive name."""
+
+    required_free_bytes: int | None = None  # the floor for the next bounded step, not for the whole build
+    free_bytes: int | None = None  # measured on the library's filesystem; None if it could not be measured
+    estimated_remaining_bytes: int | None = None  # growth the rest of the build is expected to add (an estimate)
 
 
 class IndexRunOut(BaseModel):
@@ -59,6 +68,7 @@ class IndexRunOut(BaseModel):
     failure_kind: str | None = None
     diagnostic: str | None = None
     peak_worker_rss_mb: int | None = None
+    disk: DiskCheckOut | None = None
     actions: list[str]
 
 
@@ -78,6 +88,19 @@ class IndexJobResponse(BaseModel):
     run: IndexRunOut | None = None
 
 
+def _gb(value: int | None) -> str:
+    return "an unknown amount" if value is None else f"{value / 2**30:.1f} GB"
+
+
+def _disk_message(row: dict) -> str:
+    needed = f"needs about {_gb(row['disk_required_bytes'])} free"
+    if row["failure_kind"] == "disk_full":
+        lead = f"Waiting for disk space: the disk holding your library filled up ({needed})."
+    else:
+        lead = f"Waiting for disk space: {needed}, {_gb(row['disk_free_bytes'])} free now."
+    return f"{lead} Completed work is saved. Callosum checks again every minute and resumes automatically."
+
+
 def _message(row: dict) -> str:
     state, kind = row["state"], row["failure_kind"]
     smaller = int(row["batch_size"]) < DEFAULT_INDEX_BATCH
@@ -85,6 +108,8 @@ def _message(row: dict) -> str:
         if smaller:
             return f"Indexing resumed with a smaller batch size ({row['batch_size']} passages at a time)."
         return "Indexing passages. Completed work is saved as it goes."
+    if state == "waiting_disk":
+        return _disk_message(row)
     if state == "waiting_resources":
         return "Indexing paused because available memory is low. Completed work is saved. Callosum will resume automatically when safe."
     if state == "retrying":
@@ -121,10 +146,18 @@ def index_run_out(conn: Connection, profile: EmbeddingProfile, coverage: dict | 
         batch_size=int(row["batch_size"]),
         attempts=int(row["attempts"]),
         failures_without_progress=int(row["failures_without_progress"]),
-        auto_retry_scheduled=row["state"] in ("retrying", "waiting_resources") and row["intent"] == "run",
+        auto_retry_scheduled=row["state"] in ("retrying", "waiting_resources", "waiting_disk")
+        and row["intent"] == "run",
         failure_kind=row["failure_kind"],
         diagnostic=row["diagnostic"],
         peak_worker_rss_mb=row["peak_worker_rss_mb"],
+        disk=None
+        if row["disk_required_bytes"] is None
+        else DiskCheckOut(
+            required_free_bytes=row["disk_required_bytes"],
+            free_bytes=row["disk_free_bytes"],
+            estimated_remaining_bytes=row["disk_estimated_bytes"],
+        ),
         actions=_ACTIONS.get(row["state"], []),
     )
 

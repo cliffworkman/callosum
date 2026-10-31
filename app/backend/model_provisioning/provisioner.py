@@ -23,12 +23,12 @@ import errno
 import hashlib
 import json
 import os
-import shutil
 import socket
 import time
 from collections.abc import Callable
 from pathlib import Path
 
+from app.backend.embeddings.disk_guard import free_bytes
 from app.backend.embeddings.index_lock import WorkerLock
 from app.backend.model_provisioning.manifests import (
     ArtifactFile,
@@ -149,10 +149,7 @@ def _sha256(path: Path) -> str:
 
 
 def _free_bytes(path: Path) -> int:
-    probe = path
-    while not probe.exists() and probe.parent != probe:
-        probe = probe.parent
-    return shutil.disk_usage(probe).free
+    return free_bytes(path)  # inc 616: the one shared free-space probe (the cache may be on another volume)
 
 
 class Provisioner:
