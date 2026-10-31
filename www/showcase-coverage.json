@@ -15,10 +15,10 @@
     "reviewed_increment": 603,
     "source_fingerprint": "f6022d6596cfa83651363c0b25e1730b1ba4723fc54efcab3e8ac8d551911d65",
     "note": "Reviewed cap-import and the Library map: the unverified DOI review correction changes no advertised acquisition capability or published screenshot. Candidate lookup remains explicit; packaged Mac acceptance of this local fix is pending.",
-    "declined_at": "2026-10-29",
-    "declined_rev": "b6b8bfe0",
-    "declined_increment": 610,
-    "decline_note": "Inc 610 (supervised Arctic S index builds) is an unmerged integration-branch change; demo/website review stays deferred with 607-609 until the integration is accepted."
+    "declined_at": "2026-10-31",
+    "declined_rev": "01957c6d",
+    "declined_increment": 614,
+    "decline_note": "Administrative extension through inc 614 (rev 01957c6d). Incs 611-614 change no demo- or website-fingerprinted source (git diff 9d9417f9..01957c6d over routers, tools/demo, app/frontend, help, adapters, tui, mcp_server, www, demo is empty): they are evidence-classification and packaging changes on the unmerged integration branch. Review of the 607-610 surfaces stays deferred until the integration is accepted."
   },
   "qa_routes": {
     "route_00_smoke_readonly": "#tour",
