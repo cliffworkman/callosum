@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import os
 from contextlib import asynccontextmanager
-from html import escape
 from pathlib import Path
 from threading import Lock
 
@@ -29,7 +28,12 @@ from app.backend.api.capture_startup import (
 )
 from app.backend.api.capture_updates import CaptureUpdates
 from app.backend.api.capture_updates import router as capture_updates_router
-from app.backend.api.frontend import FRONTEND_DIR, build_frontend_document, frontend_sources_available
+from app.backend.api.frontend import build_frontend_document, frontend_sources_available
+from app.backend.api.frontend_fallback import (
+    assembly_unavailable_response,
+    frontend_response,
+    resolve_frontend_path,
+)
 from app.backend.api.job_store import JobStore
 from app.backend.api.routers import (
     access,
@@ -143,6 +147,7 @@ from app.backend.embeddings.vector_store import VectorStore
 from app.backend.feedback.relay_client import FeedbackRelayClient, HttpFeedbackRelayClient
 from app.backend.help.assistant import HelpAssistant
 from app.backend.methods.retraction import DEFAULT_CHECKERS as DEFAULT_RETRACTION_CHECKERS
+from app.backend.model_provisioning import start_model_provisioning, stop_model_provisioning
 from app.backend.model_runtime import ModelRuntimeRegistry
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.followed_author_repo import backfill_feed_subscriptions
@@ -166,7 +171,6 @@ from integrations.semantic_scholar.adapter import SemanticScholarClient
 from integrations.top_factor import TopFactorClient
 
 DEFAULT_DB_URL = "sqlite:///.local/validation/validation.sqlite"
-FRONTEND_PATH_ENV = "CALLOSUM_FRONTEND_PATH"
 # The frontend source of truth is app/frontend/ (assembled by frontend.py). For convenience
 # and to support file-based UI testing, `tools/build_frontend.py` rebuilds this single file
 # from that source; it is served by default when present, with live assembly as the fallback.
@@ -209,7 +213,7 @@ def create_app(
 ) -> FastAPI:
     resolved_db_url = db_url or os.environ.get("CALLOSUM_DB_URL", DEFAULT_DB_URL)
     require_existing_database(resolved_db_url)
-    resolved_frontend_path = _resolve_frontend_path(frontend_path)
+    resolved_frontend_path = resolve_frontend_path(frontend_path)
     engine = make_engine(resolved_db_url)
     runtime_registry = model_runtime_registry or ModelRuntimeRegistry()
     client_runtime = provider_client_runtime or ProviderClientRuntime()
@@ -226,9 +230,11 @@ def create_app(
         _ensure_capture_pairing_ready()
         _recover_provisional_captures(engine)
         embedding_index.reconcile_index_builds(api)  # inc 610: resume builds a killed session left running
+        start_model_provisioning(api)  # inc 615: background, per-track; never blocks startup
         try:
             yield
         finally:
+            stop_model_provisioning(api)  # a request, not a wait: a partial transfer resumes next launch
             embedding_index.shutdown_index_builds(api)  # owned workers stop with the app; work is committed
             try:
                 client_runtime.close()
@@ -381,7 +387,7 @@ def create_app(
         path = api.state.frontend_path
         resp: FileResponse | HTMLResponse
         if path is not None:
-            resp = _frontend_response(path)
+            resp = frontend_response(path)
         elif DEFAULT_FRONTEND_PATH.is_file():
             resp = FileResponse(DEFAULT_FRONTEND_PATH, media_type="text/html")
         elif frontend_sources_available():
@@ -391,9 +397,9 @@ def create_app(
                 # serves the prebuilt callosum-app.html and never reaches here.
                 resp = HTMLResponse(build_frontend_document(), media_type="text/html")
             except RuntimeError:
-                resp = _assembly_unavailable_response()
+                resp = assembly_unavailable_response()
         else:
-            resp = _assembly_unavailable_response()
+            resp = assembly_unavailable_response()
         # inc 586: the app shell must never be served from a stale webview cache. The packaged
         # desktop app deliberately reuses ONE stable loopback port across launches (so the
         # LibreOffice adapter can find it) and serves the shell WITHOUT a Cache-Control header, so
@@ -550,48 +556,6 @@ def create_app(
     api.include_router(word.router)  # /integrations/word/* — serve the Word add-in task pane + manifest (inc 164)
 
     return api
-
-
-def _resolve_frontend_path(frontend_path: str | Path | None) -> Path | None:
-    # An explicit path (arg or CALLOSUM_FRONTEND_PATH) serves a single prebuilt file;
-    # None means "assemble the modular source under app/frontend/ at serve time".
-    configured = frontend_path or os.environ.get(FRONTEND_PATH_ENV)
-    return Path(configured) if configured else None
-
-
-def _assembly_unavailable_response() -> HTMLResponse:
-    expected = escape(str(FRONTEND_DIR))
-    env_name = escape(FRONTEND_PATH_ENV)
-    return HTMLResponse(
-        content=(
-            "<!doctype html><html><head><title>Callosum frontend not found</title></head>"
-            "<body>"
-            "<h1>Callosum frontend source not found</h1>"
-            f"<p>The API is running, but the frontend source was not found at <code>{expected}</code>.</p>"
-            f"<p>Reinstall the app, or set <code>{env_name}</code> to a prebuilt single-file frontend.</p>"
-            "</body></html>"
-        ),
-        status_code=200,
-    )
-
-
-def _frontend_response(frontend_path: Path) -> FileResponse | HTMLResponse:
-    if frontend_path.is_file():
-        return FileResponse(frontend_path, media_type="text/html")
-    expected = escape(str(frontend_path))
-    env_name = escape(FRONTEND_PATH_ENV)
-    return HTMLResponse(
-        content=(
-            "<!doctype html><html><head><title>Callosum frontend not found</title></head>"
-            "<body>"
-            "<h1>Callosum frontend file not found</h1>"
-            f"<p>The API is running, but no frontend HTML file was found at <code>{expected}</code>.</p>"
-            f"<p>Set <code>{env_name}</code> to the path of <code>callosum-app.html</code>, "
-            "or place the file at the default repository-root location.</p>"
-            "</body></html>"
-        ),
-        status_code=200,
-    )
 
 
 # Load a local .env (gitignored) into the environment before building the default app, so a

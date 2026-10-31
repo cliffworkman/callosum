@@ -33,7 +33,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 614** on the unpushed `integrate/inc607-608-ask` branch (main is at 608; inc 607, the 2026-10-29 reference-exclusion repair `e4d4f4e4`, is cherry-picked there as `d85556b6`); see Increment workflow. The accepted Browser Capture head
+It is currently at **Increment 615** on the unpushed `integrate/inc607-608-ask` branch (main is at 608; inc 607, the 2026-10-29 reference-exclusion repair `e4d4f4e4`, is cherry-picked there as `d85556b6`); see Increment workflow. The accepted Browser Capture head
 `80025d1a` passed **3490 tests, 9 skipped**, plus 23 browser smoke tests in CI before merging.
 Fresh release-candidate checks are required for 0.5.16; do not substitute that earlier receipt.
 It is a working MVP backed by a thorough planning suite in `.claude/docs/`.
@@ -122,6 +122,13 @@ the full per-increment narrative for all other increments now lives in the reloc
   lifespan reconciles killed workers before serving. **Never import psutil in `app/`**: it is not in `uv.lock`, so the
   packaged runtime lacks it (test-enforced). Per-library
   choices live in `library_settings` (migration 0085).
+  **Model provisioning (inc 615):** `app/backend/model_provisioning/` fetches the pinned Arctic S and DeBERTa checkpoints
+  into the shared Hub cache and verifies every file against a pinned SHA-256 manifest plus a static (JSON-only)
+  contract; it never loads weights and never activates a model. Tracks are independent, restart-safe (OS lock +
+  atomic state file), retry network/disk trouble with bounded backoff, and treat integrity/contract/revision failures
+  as terminal until an explicit retry. Verified checkpoints load with `local_files_only=True`. It runs only in the
+  packaged app or with `CALLOSUM_MODEL_PROVISIONING=1`; DeBERTa's automatic download stays behind
+  `DEBERTA_RELEASE_GATES` (unarmed). Verified is not qualified.
 - **Clustering:** scikit-learn agglomerative clustering + local axis scoring.
 - **Explicit feedback (inc 439):** the top-menu Feedback dialog builds either a bug or feature report and shows the
   exact strict version-1 JSON before explicit egress. The local API can reach only `CALLOSUM_FEEDBACK_RELAY_URL`; the
@@ -1747,7 +1754,7 @@ latency regressions.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (608 on main; 607 and 609–614 on `integrate/inc607-608-ask`). Each increment of real work
+callosum is built in **numbered increments** (608 on main; 607 and 609–615 on `integrate/inc607-608-ask`). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

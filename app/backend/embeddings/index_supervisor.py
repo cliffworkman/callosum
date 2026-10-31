@@ -38,6 +38,7 @@ from app.backend.embeddings.index_lock import worker_holds_lock
 from app.backend.embeddings.profile_index import DEFAULT_INDEX_BATCH
 from app.backend.embeddings.profiles import EmbeddingProfile, get_profile
 from app.backend.embeddings.resources import DEFAULT_WORKER_ESTIMATE_MB, ResourcePolicy, ResourceSnapshot, measure
+from app.backend.model_provisioning import local_files_only_for
 
 _SOURCE_ROOT = Path(__file__).resolve().parents[3]  # the directory holding ``app/`` (dev checkout or packaged)
 
@@ -118,8 +119,8 @@ class SubprocessLauncher:
             "--threads",
             str(self._config.threads),
         ]
-        if self._config.local_files_only:
-            argv.append("--local-files-only")
+        if self._config.local_files_only or local_files_only_for(get_profile(profile_key).model_name):
+            argv.append("--local-files-only")  # inc 615: a provisioned checkpoint never reaches the network
         fd, stderr_path = tempfile.mkstemp(prefix="callosum-index-", suffix=".log")
         flags = 0
         if sys.platform == "win32":

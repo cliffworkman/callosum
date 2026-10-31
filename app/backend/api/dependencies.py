@@ -14,6 +14,7 @@ from app.backend.embeddings.models import (
     EmbeddingModel,
 )
 from app.backend.embeddings.profiles import BASELINE_PROFILE_KEY, EmbeddingProfile
+from app.backend.model_provisioning import local_files_only_for
 from app.backend.model_runtime import PINNED_MODEL_REVISIONS
 from app.backend.summarization.nli_profiles import NliProfile, verify_nli_checkpoint
 from app.backend.summarization.verification import DEFAULT_NLI_MODEL, NLISupportScorer, StanceScorer, SupportScorer
@@ -95,6 +96,7 @@ def resolve_profile_embedding_model(app: FastAPI, profile: EmbeddingProfile) -> 
         expected_max_seq_length=profile.max_seq_length,
         lazy_indexing=profile.lazy_indexing,
         profile_key=profile.key,
+        local_files_only=local_files_only_for(profile.model_name),  # inc 615: offline once provisioned
     )
 
 
@@ -113,6 +115,8 @@ def resolve_support_scorer(
         return injected
     registry = app.state.model_runtime_registry
     if nli_profile is not None and nli_profile.enforce_contract:
+        # inc 615: a provisioned checkpoint loads offline; the MiniLM2 baseline path below is unchanged.
+        local_files_only = local_files_only or local_files_only_for(nli_profile.model_name)
         runtime = registry.get_nli_runtime(
             model_name=nli_profile.model_name, revision=nli_profile.revision, local_files_only=local_files_only
         )

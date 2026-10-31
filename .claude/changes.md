@@ -9,6 +9,12 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-10-31 — Automatic model provisioning and recovery (inc 615)
+- **Files:** `app/backend/model_provisioning/` (new), `app/backend/api/app.py`, `app/backend/api/frontend_fallback.py` (new; moved helpers), `app/backend/api/dependencies.py`, `app/backend/embeddings/index_supervisor.py`, `tests/conftest.py`, `tests/test_model_provisioning.py` (new), `.claude/security-audits/2026-10-31_model-provisioning.md`
+- **What:** restart-safe, per-track provisioning of the pinned Arctic S and DeBERTa checkpoints (byte manifests, static contract checks, bounded backoff, cross-process ownership, offline loading once verified). Arctic auto-provisions in the packaged app; DeBERTa's automatic download stays behind unarmed release gates.
+- **Why:** release blocker B2 — model acquisition needed manual recovery; the accepted G1/G2 decision makes DeBERTa the intended verifier, to be provisioned automatically once its gates are recorded.
+- **Revert:** `git revert` the inc-615 commit.
+
 ## 2026-10-31 — Classification currentness counts only classified chunks (inc 614)
 - **Files:** `app/backend/persistence/chunk_structure_repo.py`, `app/backend/pdf_processing/structure_backfill.py`, `tests/test_structure_currentness.py`
 - **What:** one shared `classified_chunks_clause()` now defines both the chunks the source-role derivation classifies and the chunks currentness counts; `coverage()` targets only papers with classified chunks.

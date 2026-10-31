@@ -36,6 +36,10 @@ def _egress_consent_default(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
     # temp dir, so the suite never scans/writes the real project `library/`. Non-existent by default → the
     # rescan skips it; a test that needs it real mkdirs + overrides this env var itself.
     monkeypatch.setenv("CALLOSUM_LIBRARY_DIR", str(tmp_path / "_library"))
+    # inc 615: never start a background model download from an app lifespan, and keep provisioning state out of
+    # the real ~/.callosum (so "verified" on this machine can never change which load path a test takes).
+    monkeypatch.setenv("CALLOSUM_DISABLE_MODEL_PROVISIONING", "1")
+    monkeypatch.setenv("CALLOSUM_MODEL_PROVISIONING_DIR", str(tmp_path / "_model_provisioning"))
 
 
 @pytest.fixture(scope="session")
