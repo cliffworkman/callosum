@@ -22,6 +22,7 @@ from app.backend.embeddings.profile_index import build_profile_index
 from app.backend.embeddings.profiles import ARCTIC_S_PROFILE_KEY, PROFILES, IncompleteEmbeddingIndexError
 from app.backend.embeddings.vector_store import InMemoryVectorStore
 from app.backend.pdf_processing.chunk_structure import ChunkInput, classify_paper
+from app.backend.pdf_processing.structure_backfill import backfill, coverage
 from app.backend.persistence.chunk_structure_repo import raw_sha, replace_paper_structure, structure_role_states
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import create_attachment, create_chunk, create_paper
@@ -36,7 +37,6 @@ from tests.test_source_role_repair import (
     CONCLUSION_WITH_CITATIONS,
     SCIENTIFIC_SOUNDING_TITLE,
 )
-from tools.backfill_chunk_structure import backfill, coverage
 
 V1 = "chunk-structure-v1"
 QUERY = "careless responders screening"

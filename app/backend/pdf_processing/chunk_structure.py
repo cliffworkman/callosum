@@ -7,7 +7,7 @@ precision gate, so this increment ships the classification to be observed, not o
 
 **I/O boundary (deliberate and enforced).** This module opens no database connection, constructs no
 client, performs no network call and never reads a PDF. ``classify_paper`` takes already-resolved
-inputs and returns a verdict per chunk. The caller (``tools/backfill_chunk_structure.py``) owns all
+inputs and returns a verdict per chunk. The caller (``app/backend/pdf_processing/structure_backfill.py``) owns all
 resolution. That is what makes this deterministic and testable from literals -- see
 ``tests/test_chunk_structure.py``, which builds every case by hand.
 

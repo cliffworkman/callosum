@@ -9,6 +9,15 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-10-31 — Source-role v2 derivation moved into packaged application code (inc 613)
+- **Files:** `app/backend/pdf_processing/structure_backfill.py` (new), `tools/backfill_chunk_structure.py` (now a CLI over it),
+  `app/backend/pdf_processing/chunk_structure.py` (docstring), `tests/test_structure_backfill_packaging.py` (new),
+  `tests/{test_backfill_doi_owners,test_source_role_migration}.py` (import path), `INCREMENT-613-NOTES.md`, `.claude/CLAUDE.md`.
+- **What:** the cache-only, per-paper, resumable `chunk_structure` derivation moved verbatim from `tools/` into `app/backend`.
+- **Why:** the desktop installer stages only `app/backend`, `alembic`, `integrations`; a derivation in `tools/` could never
+  classify a user's library (0.6.0 modernization step 1). Output is byte-identical to the inc-612 tool on three library copies.
+- **Revert:** drop the inc-613 commit; the tool regains the code and nothing else changes.
+
 ## 2026-10-30 — Reference-rescue memo keyed by text fingerprint (inc 612)
 - **Files:** `app/backend/summarization/reference_rescue.py`, `tests/{test_reference_exclusion,test_source_role_repair}.py`,
   `INCREMENT-612-NOTES.md`, audit addendum in `2026-10-30_source-role-repair.md`.

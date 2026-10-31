@@ -12,10 +12,10 @@ from datetime import datetime
 
 from sqlalchemy import text
 
+from app.backend.pdf_processing.structure_backfill import doi_owners, load_reference_metadata
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import create_paper
 from app.backend.persistence.schema import papers
-from tools.backfill_chunk_structure import doi_owners, load_reference_metadata
 
 DOI = "10.5498/wjp.v11.i6.201"
 
