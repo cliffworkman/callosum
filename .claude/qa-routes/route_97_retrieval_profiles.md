@@ -31,9 +31,18 @@ listeners before navigation.
   ProgressBar is `managedBy="backend-job"`, so no duplicate client row appears. Progress is stored passages over
   eligible passages, re-derived from the vectors (inc 610), never a session counter.
 - **Supervised build (inc 610).** The build runs in a separate worker process. Its row (`index_run`) shows the state
-  (queued / running / pausing / paused / waiting for resources / interrupted / retrying / failed / completed /
+  (queued / running / pausing / paused / waiting for resources / waiting for disk / interrupted / retrying / failed / completed /
   cancelled), a plain message, attempts, and only the actions that apply (Pause, Resume, Cancel). "Technical details"
   holds the bounded diagnostic; the message never shows an exception, a path or passage text.
+- **Low disk is a wait, not a failure (inc 616).** When the library's drive lacks room for the next batches plus a
+  1 GB reserve, the row is `waiting_disk`: "Waiting for disk space: needs about X GB free, Y GB free now. Completed
+  work is saved. Callosum checks again every minute and resumes automatically." Pause and Cancel are offered; no
+  worker runs. `index_run.disk` carries `required_free_bytes`, `free_bytes` and `estimated_remaining_bytes` as byte
+  counts only: no path, drive or filename anywhere in the response or in Status. A full disk reported by SQLite gives
+  the same state ("the disk holding your library filled up"). Repeated disk waits never end in **failed**, never
+  shrink the batch, and never delete MiniLM vectors or user data; freeing space resumes the build with no action.
+  Known gap: the settings panel does not yet treat `waiting_disk` as active (no polling/progress bar); the Status
+  popover does.
 - **Pause/Cancel keep work and are durable.** Both stop after the batch in progress; coverage keeps every committed
   batch. A paused or cancelled build stays so after an app restart (no automatic resume). Resume continues from the
   stored vectors and re-indexes nothing already current.

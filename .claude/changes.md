@@ -9,6 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-10-31 — Disk-space guard and automatic recovery for index builds (inc 616)
+- **Files:** `app/backend/embeddings/disk_guard.py` (new), `app/backend/embeddings/index_worker.py`,
+  `app/backend/embeddings/index_supervisor.py`, `app/backend/embeddings/index_runs.py`,
+  `app/backend/persistence/schema_index_runs.py`, `alembic/versions/0087_index_run_waiting_disk.py` (new),
+  `app/backend/api/routers/embedding_index.py`, `app/backend/model_provisioning/provisioner.py`,
+  `tests/test_index_disk_guard.py` (new), `tests/index_worker_fake.py`, QA route 97
+- **What:** a free-disk floor (1 GB reserve + 64 MB WAL + 2x next four batches) on the library's filesystem, checked
+  before launch, before every batch and while running; SQLite full/ENOSPC → worker exit 74; a `waiting_disk` state
+  that rechecks every 60 s, resumes by itself, never trips the breaker and never deletes data; a numbers-only `disk`
+  field on the index-run response.
+- **Why:** release blocker B7: an unattended Arctic S build could fill the user's disk or misreport a full disk as
+  repeated unexplained failure.
+- **Revert:** revert `0686a5f6` and this documentation commit. Migration 0087 has no downgrade; a reverted build would
+  reject `waiting_disk` rows, so revert only on a database whose index runs are not in that state.
+
 ## 2026-10-31 — Automatic model provisioning and recovery (inc 615)
 - **Files:** `app/backend/model_provisioning/` (new), `app/backend/api/app.py`, `app/backend/api/frontend_fallback.py` (new; moved helpers), `app/backend/api/dependencies.py`, `app/backend/embeddings/index_supervisor.py`, `tests/conftest.py`, `tests/test_model_provisioning.py` (new), `.claude/security-audits/2026-10-31_model-provisioning.md`
 - **What:** restart-safe, per-track provisioning of the pinned Arctic S and DeBERTa checkpoints (byte manifests, static contract checks, bounded backoff, cross-process ownership, offline loading once verified). Arctic auto-provisions in the packaged app; DeBERTa's automatic download stays behind unarmed release gates.
