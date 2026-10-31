@@ -32,11 +32,12 @@ from sqlalchemy import text as sqltext
 
 from app.backend.pdf_processing.chunk_structure import ChunkInput, classify_paper
 from app.backend.persistence.chunk_structure_repo import (
+    classified_chunks_clause,
+    papers_with_classified_chunks,
     papers_with_current_structure,
     raw_sha,
     replace_paper_structure,
 )
-from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES, attachment_document_role_clause
 from app.backend.persistence.schema import attachments, chunks, papers
 from app.backend.persistence.schema_chunk_structure import DERIVATION_VERSION, chunk_structure
 
@@ -248,7 +249,7 @@ def _paper_rows(conn, paper_id: int) -> list[dict]:
             chunks.c.chunk_version,
         )
         .select_from(chunks.join(attachments, attachments.c.id == chunks.c.attachment_id))
-        .where(chunks.c.paper_id == paper_id, attachment_document_role_clause(ARTICLE_DOCUMENT_ROLES))
+        .where(chunks.c.paper_id == paper_id, classified_chunks_clause())
         .order_by(chunks.c.id)
     )
     rows = []
@@ -331,7 +332,8 @@ def coverage(engine) -> dict:
     """Derivation-version coverage: what the retrieval path will obey (current) vs ignore (stale/absent)."""
     with engine.begin() as conn:
         live = [int(r[0]) for r in conn.execute(select(papers.c.id).where(papers.c.deleted_at.is_(None)))]
-        with_chunks = {int(r[0]) for r in conn.execute(select(chunks.c.paper_id).distinct())}
+        with_any_chunks = {int(r[0]) for r in conn.execute(select(chunks.c.paper_id).distinct())}
+        with_chunks = papers_with_classified_chunks(conn)
         current = papers_with_current_structure(conn, DERIVATION_VERSION)
         by_version = dict(
             conn.execute(
@@ -346,5 +348,8 @@ def coverage(engine) -> dict:
         "papers_with_chunks": len(targets),
         "papers_current": sum(pid in current for pid in targets),
         "papers_needing_derivation": sum(pid not in current for pid in targets),
+        # Live papers whose chunks are all outside the classified population (e.g. registration-only):
+        # nothing to derive, so they are neither current nor pending (inc 614).
+        "papers_without_classified_chunks": sum(pid in with_any_chunks and pid not in with_chunks for pid in live),
         "rows_by_derivation_version": by_version,
     }

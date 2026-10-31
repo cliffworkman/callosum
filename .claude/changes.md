@@ -9,6 +9,12 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-10-31 — Classification currentness counts only classified chunks (inc 614)
+- **Files:** `app/backend/persistence/chunk_structure_repo.py`, `app/backend/pdf_processing/structure_backfill.py`, `tests/test_structure_currentness.py`
+- **What:** one shared `classified_chunks_clause()` now defines both the chunks the source-role derivation classifies and the chunks currentness counts; `coverage()` targets only papers with classified chunks.
+- **Why:** papers with preregistration/supplement attachments could never become current, so the backfill re-derived them forever and an automatic job would never finish. Derived output is byte-identical on three library copies.
+- **Revert:** `git revert` the inc-614 commit.
+
 ## 2026-10-31 — Source-role v2 derivation moved into packaged application code (inc 613)
 - **Files:** `app/backend/pdf_processing/structure_backfill.py` (new), `tools/backfill_chunk_structure.py` (now a CLI over it),
   `app/backend/pdf_processing/chunk_structure.py` (docstring), `tests/test_structure_backfill_packaging.py` (new),

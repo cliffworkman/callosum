@@ -18,11 +18,27 @@ from dataclasses import dataclass
 
 from sqlalchemy import delete, select
 from sqlalchemy.engine import Connection
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.backend.pdf_processing.chunk_structure import ChunkStructure
-from app.backend.persistence.schema import chunks
+from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES, attachment_document_role_clause
+from app.backend.persistence.schema import attachments, chunks
 from app.backend.persistence.schema_chunk_structure import DERIVATION_VERSION, chunk_structure
 from app.backend.persistence.sql_batch import in_batches
+
+# The population the source-role derivation is responsible for (inc 425/613): article full-text chunks only.
+# Preregistration, protocol, supplement and other attachments are never classified, so they must never count
+# towards currentness either (inc 614) -- otherwise a paper with such an attachment can never become current.
+CLASSIFIED_DOCUMENT_ROLES = ARTICLE_DOCUMENT_ROLES
+
+
+def classified_chunks_clause() -> ColumnElement[bool]:
+    """Predicate over ``chunks JOIN attachments`` selecting exactly the chunks the derivation classifies.
+
+    Shared by the derivation's row selection and by ``papers_with_current_structure`` so the two
+    populations cannot drift apart.
+    """
+    return attachment_document_role_clause(CLASSIFIED_DOCUMENT_ROLES)
 
 
 def raw_sha(text: str) -> str:
@@ -229,11 +245,24 @@ def structure_role_states(
     return out
 
 
+def papers_with_classified_chunks(conn: Connection) -> set[int]:
+    """Papers holding at least one chunk the derivation is responsible for (``classified_chunks_clause``)."""
+    stmt = (
+        select(chunks.c.paper_id)
+        .distinct()
+        .select_from(chunks.join(attachments, attachments.c.id == chunks.c.attachment_id))
+        .where(classified_chunks_clause())
+    )
+    return {int(r[0]) for r in conn.execute(stmt)}
+
+
 def papers_with_current_structure(conn: Connection, derivation_version: str) -> set[int]:
-    """Papers whose every chunk has a current row at this derivation version.
+    """Papers whose every *classified* chunk has a current row at this derivation version.
 
     A paper with any missing or stale row is absent, so the backfill re-derives it. This is what
-    makes an interrupted run resumable without a cursor.
+    makes an interrupted run resumable without a cursor. Only the population the derivation
+    classifies counts (``classified_chunks_clause``); a paper with no such chunk is never current
+    and never a derivation target either (see ``papers_with_classified_chunks``).
     """
     rows = conn.execute(
         select(
@@ -244,7 +273,13 @@ def papers_with_current_structure(conn: Connection, derivation_version: str) -> 
             chunk_structure.c.raw_sha,
             chunk_structure.c.chunk_version.label("derived_version"),
             chunk_structure.c.derivation_version,
-        ).select_from(chunks.outerjoin(chunk_structure, chunk_structure.c.chunk_id == chunks.c.id))
+        )
+        .select_from(
+            chunks.join(attachments, attachments.c.id == chunks.c.attachment_id).outerjoin(
+                chunk_structure, chunk_structure.c.chunk_id == chunks.c.id
+            )
+        )
+        .where(classified_chunks_clause())
     ).mappings()
     incomplete: set[int] = set()
     seen: set[int] = set()
