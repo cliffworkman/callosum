@@ -21,6 +21,11 @@
     "0.5.16": {
       "headline": "Browser Capture Early Access: send a page or PDF from Chrome to Callosum for review. Enable the manual extension preview in Settings → Integrations; browser-store installation is not available.",
       "actionKind": null
+    },
+    "0.6.0": {
+      "headline": "Callosum is upgrading its local AI search for this library in the background. Your library stays usable and your papers, notes and results are untouched (nothing is re-extracted). Large libraries can take several sessions and may need extra disk space; work resumes by itself each time you open Callosum. See progress or pause it in Status or Settings.",
+      "freshHeadline": "Callosum 0.6.0 indexes new papers for its local AI search in the background as you add them. You can see progress or pause it in Status or Settings.",
+      "actionKind": "modernization"
     }
   },
   "no_banner": {

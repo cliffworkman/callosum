@@ -9,6 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-11-01 — Visible background modernization and Status integration (inc 620)
+- **Files:** `app/backend/modernization/presentation.py` (new), `modernization/coordinator.py`,
+  `api/dependencies.py`, `api/routers/{modernization,status,embedding_profiles}.py`,
+  `summarization/verifier_resolution.py`, `frontend/js/{04f_modernization_logic,35j_modernization}.jsx` (new),
+  `frontend/js/{04c_status,04e_whatsnew,30c_frame,35_settings,35i_retrieval_profiles,40_app}.jsx`,
+  `frontend/whatsnew.json`, `help/help_content.md`, `tests/test_modernization_status.py` (new), QA route 97, blocker
+  matrix B9, architecture §10a, CLAUDE.md, security audit, increment notes.
+- **What:** one derived "Library modernization" Status entry; a summary on `GET /modernization` (state, grounded
+  counts, effective retrieval and verifier); a Settings panel with Pause/Resume and one shared refresh loop that keeps
+  polling through `waiting_disk`; a 0.6.0 notice; Help. Status reads no longer block during a classification pass.
+- **Why:** blocker B9: background modernization must be visible, understandable and controllable.
+- **Help corpus:** the retrieval/verification bullets and a new "Library modernization" section. The
+  `HELP-DOCS-SYNCED` marker is not moved: entries since inc 576 were not all reviewed.
+- **Revert:** `git revert` the inc-620 commit on `integrate/inc607-608-ask`.
+
 ## 2026-10-31 — Automatic DeBERTa verification with resource-safe compatibility (inc 619)
 - **Files:** `app/backend/summarization/verifier_resolution.py` (new), `summarization/nli_profiles.py`,
   `api/{dependencies,job_timing}.py`, `api/routers/{summaries,embedding_profiles,summaries_provenance,

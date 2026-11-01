@@ -202,3 +202,47 @@ def verifier_inputs(app: FastAPI) -> dict:
         "resident": resident,
         "indexing_reserve_mb": indexing,
     }
+
+
+def preview_verifier(app: FastAPI) -> dict:
+    """The verifier the next synthesis would use and why (inc 619 policy), without loading any model: Settings and
+    the modernization panel show it. The load-time contract check still happens only inside a synthesis."""
+    from app.backend.summarization.nli_profiles import get_nli_profile
+    from app.backend.summarization.verifier_resolution import (
+        VerifierUnavailableError,
+        decide,
+        explanation,
+        memory_check,
+        read_nli_preference,
+    )
+
+    inputs = verifier_inputs(app)
+    with app.state.engine.connect() as conn:
+        preference = read_nli_preference(conn)
+    try:
+        decision = decide(
+            preference,
+            gates_armed=inputs["gates_armed"],
+            model_state=inputs["model_state"],
+            checkpoint_required=inputs["checkpoint_required"],
+            memory=lambda: memory_check(
+                inputs["probe"], resident=inputs["resident"], indexing_reserve_mb=inputs["indexing_reserve_mb"]
+            ),
+        )
+    except VerifierUnavailableError as exc:
+        return {
+            "profile": get_nli_profile(preference.key),  # type: ignore[arg-type]
+            "preference": preference,
+            "fallback_reason": None,
+            "explanation": str(exc),
+            "synthesis_blocked": str(exc),
+            "gates_armed": inputs["gates_armed"],
+        }
+    return {
+        "profile": decision.profile,
+        "preference": preference,
+        "fallback_reason": decision.fallback_reason,
+        "explanation": explanation(decision),
+        "synthesis_blocked": None,
+        "gates_armed": inputs["gates_armed"],
+    }

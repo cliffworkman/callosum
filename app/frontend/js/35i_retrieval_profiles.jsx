@@ -1,35 +1,27 @@
 // Retrieval model: which embedding profile ranks Ask's evidence. Shows each profile's exact model + revision and its
 // index coverage over this library's passages; a profile can be selected only once its index is complete. Citation
 // verification always stays on the baseline (named here so a switch is never mistaken for a re-calibration).
-function RetrievalProfileSettings() {
-  const [state, setState] = useState(null);
-  const [error, setError] = useState("");
+// inc 620: the refresh loop lives in LibraryModelsSection (35j), shared with the modernization panel, and keeps
+// running through every ongoing index state -- including inc 616's waiting_disk (INDEX_RUN_ACTIVE_STATES, 04f).
+function RetrievalProfileSettings({ state, error: loadError, onState, onReload }) {
+  const [actionError, setActionError] = useState("");
   const [busy, setBusy] = useState(false);
-  const timer = useRef(null);
-
-  // inc 610: the build runs in a supervised worker; its durable state (and coverage from stored vectors) comes back
-  // with every profile, so polling the profile list is enough to show waiting, retrying and recovery honestly.
-  const ACTIVE = ["queued", "running", "pausing", "retrying", "waiting_resources"];
-  const load = () => api("/embedding-profiles").then(r => {
-    if (!r.ok) { setError(r.error || "Couldn't load retrieval models."); return; }
-    setState(r.data);
-    clearTimeout(timer.current);
-    if (r.data.profiles.some(p => p.index_run && ACTIVE.includes(p.index_run.state))) timer.current = setTimeout(load, 2000);
-  });
-  useEffect(() => { load(); return () => clearTimeout(timer.current); }, []);
+  const error = actionError || loadError;
+  const ACTIVE = INDEX_RUN_ACTIVE_STATES;
 
   const act = async (key, action) => {
-    setError("");
+    setActionError("");
     const r = action === "build" ? await apiPost(`/embedding-profiles/${key}/index`, {})
                                  : await apiPost(`/embedding-profiles/${key}/index/${action}`, {});
-    if (!r.ok) setError(r.error || "Couldn't change the index build.");
-    load();
+    if (!r.ok) setActionError(r.error || "Couldn't change the index build.");
+    onReload();
   };
   const select = async (key) => {
-    setBusy(true); setError("");
+    setBusy(true); setActionError("");
     const r = await apiPut("/embedding-profiles/active", { key });
     setBusy(false);
-    if (r.ok) setState(r.data); else setError(r.error || "Couldn't switch the retrieval model.");
+    if (r.ok) onState(r.data); else setActionError(r.error || "Couldn't switch the retrieval model.");
+    onReload();
   };
 
   if (!state) return <div className="retrieval-profiles"><p className="eyebrow">Retrieval model</p>{error && <p role="alert" className="settings-sub">{error}</p>}</div>;
@@ -79,7 +71,7 @@ function RetrievalProfileSettings() {
 // One build's durable state: what is happening, whether recovery is scheduled, and the actions that apply now.
 // Technical diagnostics stay behind a disclosure; the message never carries an exception or a path.
 function IndexRunStatus({ run, label, onAction }) {
-  const working = ["queued", "running", "pausing", "retrying", "waiting_resources"].includes(run.state);
+  const working = INDEX_RUN_ACTIVE_STATES.includes(run.state);
   const names = { pause: "Pause", resume: "Resume", cancel: "Cancel" };
   return (
     <div className="index-run">

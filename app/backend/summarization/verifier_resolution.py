@@ -235,3 +235,19 @@ def load_failed(decision: VerifierDecision, exc: BaseException) -> VerifierDecis
         message = UNAVAILABLE_MESSAGES[NOT_VERIFIED].format(label=decision.profile.label)
         raise VerifierUnavailableError(message + WAY_BACK) from exc
     return VerifierDecision(NLI_PROFILES[BASELINE_NLI_PROFILE_KEY], AUTOMATIC, False, NOT_VERIFIED, decision.memory)
+
+
+AUTOMATIC_EXPLANATIONS = {
+    NOT_QUALIFIED: "Using MiniLM2: automatic DeBERTa verification is not enabled in this release yet.",
+    NOT_PROVISIONED: "Using MiniLM2 until the DeBERTa model has been downloaded and verified.",
+    NOT_VERIFIED: "Using MiniLM2: the DeBERTa model files could not be verified or loaded.",
+    INSUFFICIENT_MEMORY: "Using MiniLM2: not enough free memory to run DeBERTa safely right now.",
+    MEMORY_UNMEASURED: "Using MiniLM2: free memory could not be measured.",
+}
+
+
+def explanation(decision: VerifierDecision) -> str:
+    """One plain sentence about which verifier the next synthesis uses and why."""
+    if decision.preference == SOURCE_USER:
+        return f"Using {decision.profile.label} because you selected it."
+    return AUTOMATIC_EXPLANATIONS.get(decision.fallback_reason or "", f"Using {decision.profile.label}.")

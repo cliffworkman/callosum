@@ -13,7 +13,7 @@
 const PDF_TAB_DRAG_TYPE = "application/x-callosum-pdftab";
 const WIP_TAB_DRAG_TYPE = "application/x-callosum-wiptab";
 
-function LibraryFrame({ libraryProps, wip, wipTabs, selectedWipTab, tabs, selectedPaperTab, activeTab, onActivate, onClose, onCloseWip, onOpenPdf, onOpenWip, onReorderTabs, onReorderWipTabs, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture, onOpenLocalAi, onOpenLibraryFolders, onOpenCitation, onSaveHighlight, onOpenSettings }) {
+function LibraryFrame({ libraryProps, wip, wipTabs, selectedWipTab, tabs, selectedPaperTab, activeTab, onActivate, onClose, onCloseWip, onOpenPdf, onOpenWip, onReorderTabs, onReorderWipTabs, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture, onOpenLocalAi, onOpenModernization, onOpenLibraryFolders, onOpenCitation, onSaveHighlight, onOpenSettings }) {
   const [dragOverKey, setDragOverKey] = useState(null);
   const openSelectedPaper = () => {
     if (!selectedPaperTab) return;
@@ -21,7 +21,7 @@ function LibraryFrame({ libraryProps, wip, wipTabs, selectedWipTab, tabs, select
   };
   return (
     <div className="lib-frame">
-      <WhatsNewBanner readOnly={libraryProps && libraryProps.readOnly} onOpenLocalAi={onOpenLocalAi} />
+      <WhatsNewBanner readOnly={libraryProps && libraryProps.readOnly} onOpenLocalAi={onOpenLocalAi} onOpenModernization={onOpenModernization} />
       <div className="frame-tabs">
         <button
           className={"frame-tab" + (activeTab === "library" ? " active" : "")}

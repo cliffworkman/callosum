@@ -33,7 +33,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 619** on the unpushed `integrate/inc607-608-ask` branch (main is at 608; inc 607, the 2026-10-29 reference-exclusion repair `e4d4f4e4`, is cherry-picked there as `d85556b6`); see Increment workflow. The accepted Browser Capture head
+It is currently at **Increment 620** on the unpushed `integrate/inc607-608-ask` branch (main is at 608; inc 607, the 2026-10-29 reference-exclusion repair `e4d4f4e4`, is cherry-picked there as `d85556b6`); see Increment workflow. The accepted Browser Capture head
 `80025d1a` passed **3490 tests, 9 skipped**, plus 23 browser smoke tests in CI before merging.
 Fresh release-candidate checks are required for 0.5.16; do not substitute that earlier receipt.
 It is a working MVP backed by a thorough planning suite in `.claude/docs/`.
@@ -165,6 +165,14 @@ the full per-increment narrative for all other increments now lives in the reloc
   for the operation; a failure after it starts saves nothing (inc 609). DeBERTa always loads `local_files_only=True`.
   **Production stays unarmed** while `packaged_runtime_acceptance` is false. A recorded non-baseline verifier's
   `contradicted` citations carry a cautious `status_note`; the verification-stage timing key is suffixed per verifier.
+  **Modernization visibility (inc 620):** Status shows exactly **one** derived "Library modernization" entry
+  (`routers/modernization.py::modernization_status_job`, recomputed from stored rows on every read, never a second
+  store); while modernization is enabled the `embedding_index_jobs` row is folded into it
+  (`MODERNIZATION_COVERED_STORES`). `modernization/presentation.py::summarize` is the pure state mapping (no combined
+  percentage, `eta_seconds` always null, terminal states never say they resume). `coordinator.status()` must stay
+  non-blocking during a classification pass (0.2 s try-acquire, cached counts). The Settings model section has one
+  refresh loop (`35j_modernization.jsx`, delay from `04f_modernization_logic.jsx::modernizationPollDelay`); any new
+  ongoing index state must join `INDEX_RUN_ACTIVE_STATES` or the panel goes stale.
 - **Clustering:** scikit-learn agglomerative clustering + local axis scoring.
 - **Explicit feedback (inc 439):** the top-menu Feedback dialog builds either a bug or feature report and shows the
   exact strict version-1 JSON before explicit egress. The local API can reach only `CALLOSUM_FEEDBACK_RELAY_URL`; the
@@ -1790,7 +1798,7 @@ latency regressions.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (608 on main; 607 and 609–619 on `integrate/inc607-608-ask`). Each increment of real work
+callosum is built in **numbered increments** (608 on main; 607 and 609–620 on `integrate/inc607-608-ask`). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

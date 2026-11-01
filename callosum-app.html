@@ -3392,7 +3392,7 @@
 </head>
 <body>
 <div id="root"></div>
-<script>window.CALLOSUM_WHATSNEW = {"0.5.5": {"headline": "New: Local AI — run Callosum's compatible AI features on this device, no API key or cloud account required.", "actionKind": "local-ai"}, "0.5.13": {"headline": "New literature Feed sources: follow arXiv, Europe PMC, and PsyArXiv alongside bioRxiv, medRxiv, PubMed, and journals — in Discover → Feed.", "actionKind": null}, "0.5.14": {"headline": "Stay with the paper: while reading a PDF, ask a question about it, look up a cited reference, and add, acquire & critique that citation — all without leaving the reader.", "actionKind": null}, "0.5.15": {"headline": "Ask a whole axis: point Ask at one of your semantic axes and it answers only from that axis's papers — the exact corpus is shown before you run, and a scoped run never falls back to the rest of your library. In Library → Axes, use the ✦ button on any axis.", "actionKind": null}, "0.5.16": {"headline": "Browser Capture Early Access: send a page or PDF from Chrome to Callosum for review. Enable the manual extension preview in Settings → Integrations; browser-store installation is not available.", "actionKind": null}};</script>
+<script>window.CALLOSUM_WHATSNEW = {"0.5.5": {"headline": "New: Local AI — run Callosum's compatible AI features on this device, no API key or cloud account required.", "actionKind": "local-ai"}, "0.5.13": {"headline": "New literature Feed sources: follow arXiv, Europe PMC, and PsyArXiv alongside bioRxiv, medRxiv, PubMed, and journals — in Discover → Feed.", "actionKind": null}, "0.5.14": {"headline": "Stay with the paper: while reading a PDF, ask a question about it, look up a cited reference, and add, acquire & critique that citation — all without leaving the reader.", "actionKind": null}, "0.5.15": {"headline": "Ask a whole axis: point Ask at one of your semantic axes and it answers only from that axis's papers — the exact corpus is shown before you run, and a scoped run never falls back to the rest of your library. In Library → Axes, use the ✦ button on any axis.", "actionKind": null}, "0.5.16": {"headline": "Browser Capture Early Access: send a page or PDF from Chrome to Callosum for review. Enable the manual extension preview in Settings → Integrations; browser-store installation is not available.", "actionKind": null}, "0.6.0": {"headline": "Callosum is upgrading its local AI search for this library in the background. Your library stays usable and your papers, notes and results are untouched (nothing is re-extracted). Large libraries can take several sessions and may need extra disk space; work resumes by itself each time you open Callosum. See progress or pause it in Status or Settings.", "freshHeadline": "Callosum 0.6.0 indexes new papers for its local AI search in the background as you add them. You can see progress or pause it in Status or Settings.", "actionKind": "modernization"}};</script>
 <script>
 (() => {
   const CALLOSUM_DEMO = window.CALLOSUM_DEMO || null;
@@ -5806,7 +5806,19 @@
     const base = Math.max(0, Number(job.elapsed_seconds) || 0);
     return job.status === "running" ? base + Math.max(0, (now - (job.observed_at || now)) / 1e3) : base;
   }
+  function PersistentStatusRow({ job, onNavigate }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "status-row" + (job.status === "error" ? " status-row-error" : "") }, /* @__PURE__ */ React.createElement("div", { className: "status-row-head" }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "status-row-label status-row-label-link",
+        onClick: () => onNavigate(job),
+        title: `Open ${job.label}`
+      },
+      job.label
+    )), job.compute_kind && /* @__PURE__ */ React.createElement("div", { className: "status-row-kind" }, job.compute_kind), /* @__PURE__ */ React.createElement("div", { className: job.status === "error" ? "status-row-error-detail" : "status-row-eta" }, job.detail), job.status === "running" && job.progress && /* @__PURE__ */ React.createElement(ProgressBar, { label: job.detail, progress: { ...job.progress, eta_seconds: null }, managedBy: "status-popover" }), (job.notes || []).map((note) => /* @__PURE__ */ React.createElement("div", { key: note, className: "status-row-eta" }, note)));
+  }
   function StatusJobRow({ job, onDismiss, onNavigate, now }) {
+    if (job.persistent) return /* @__PURE__ */ React.createElement(PersistentStatusRow, { job, onNavigate });
     const finished = job.status === "done" || job.status === "error";
     const navigable = !!job.nav;
     const elapsed = _statusElapsed(job, now);
@@ -5904,7 +5916,7 @@
     };
     const clearFinished = () => {
       if (updateJob && updateJob.status === "done") setUpdateDismissedPhase(desktopUpdate.phase);
-      setJobs((js) => js.filter((j) => j.status !== "done" && j.status !== "error"));
+      setJobs((js) => js.filter((j) => j.persistent || j.status !== "done" && j.status !== "error"));
       apiPost("/status/jobs/clear-finished", {});
       _clearFinishedClientStatus();
     };
@@ -5917,7 +5929,7 @@
     const uniqueClientJobs = clientJobs.filter((j) => !(j.status === "running" && j.nav && backendDestinations.has(_statusDestinationKey(j.nav))));
     const allJobs = [...uniqueClientJobs, ...jobs];
     const displayJobs = updateJob ? [updateJob, ...allJobs] : allJobs;
-    const hasFinished = displayJobs.some((j) => j.status === "done" || j.status === "error");
+    const hasFinished = displayJobs.some((j) => !j.persistent && (j.status === "done" || j.status === "error"));
     return /* @__PURE__ */ React.createElement("span", { className: "status-menu" }, /* @__PURE__ */ React.createElement(
       "button",
       {
@@ -6126,6 +6138,9 @@
     if (actionKind === "local-ai" && handlers.onOpenLocalAi) {
       return { label: "Set up Local AI", run: handlers.onOpenLocalAi };
     }
+    if (actionKind === "modernization" && handlers.onOpenModernization) {
+      return { label: "See progress and controls", run: handlers.onOpenModernization };
+    }
     return null;
   }
   function pickWhatsNew(entries, appVersion, lastSeen) {
@@ -6137,14 +6152,20 @@
       if (_semverCmp(version, lastSeen) <= 0) continue;
       if (_semverCmp(version, appVersion) > 0) continue;
       if (best === null || _semverCmp(version, best.version) > 0) {
-        best = { version, headline: entry.headline, actionKind: entry.actionKind || null };
+        best = {
+          version,
+          headline: entry.headline,
+          actionKind: entry.actionKind || null,
+          freshHeadline: typeof entry.freshHeadline === "string" ? entry.freshHeadline : null
+        };
       }
     }
     return best;
   }
-  function WhatsNewBanner({ readOnly, onOpenLocalAi }) {
+  function WhatsNewBanner({ readOnly, onOpenLocalAi, onOpenModernization }) {
     const [appVersion, setAppVersion] = useState(null);
     const [dismissed, setDismissed] = useState(false);
+    const [libraryEmpty, setLibraryEmpty] = useState(null);
     useEffect(() => {
       try {
         const seen = _loadLayout(WHATSNEW_LASTSEEN_KEY, "");
@@ -6164,6 +6185,24 @@
         alive = false;
       };
     }, [readOnly]);
+    useEffect(() => {
+      if (!appVersion) return void 0;
+      let seen = "";
+      try {
+        seen = _loadLayout(WHATSNEW_LASTSEEN_KEY, "");
+      } catch (e) {
+        seen = "";
+      }
+      const next = pickWhatsNew(typeof window !== "undefined" && window.CALLOSUM_WHATSNEW || {}, appVersion, seen);
+      if (!next || !next.freshHeadline) return void 0;
+      let alive = true;
+      api("/modernization").then((r) => {
+        if (alive) setLibraryEmpty(r.ok && r.data ? r.data.library_empty === true : false);
+      });
+      return () => {
+        alive = false;
+      };
+    }, [appVersion]);
     if (readOnly !== false || dismissed || !appVersion) return null;
     const entries = typeof window !== "undefined" && window.CALLOSUM_WHATSNEW || {};
     let lastSeen = "";
@@ -6174,7 +6213,8 @@
     }
     const pick = pickWhatsNew(entries, appVersion, lastSeen);
     if (!pick) return null;
-    const action = _whatsNewAction(pick.actionKind, { onOpenLocalAi });
+    if (pick.freshHeadline && libraryEmpty === null) return null;
+    const action = _whatsNewAction(pick.actionKind, { onOpenLocalAi, onOpenModernization });
     const dismiss = () => {
       setDismissed(true);
       try {
@@ -6182,10 +6222,36 @@
       } catch (e) {
       }
     };
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-hint workspace-whatsnew", role: "region", "aria-label": "What's new" }, /* @__PURE__ */ React.createElement("span", null, pick.headline), /* @__PURE__ */ React.createElement("div", { className: "workspace-whatsnew-actions" }, action && /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-link", onClick: () => {
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-hint workspace-whatsnew", role: "region", "aria-label": "What's new" }, /* @__PURE__ */ React.createElement("span", null, whatsNewHeadline(pick, libraryEmpty)), /* @__PURE__ */ React.createElement("div", { className: "workspace-whatsnew-actions" }, action && /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-link", onClick: () => {
       action.run();
       dismiss();
     } }, action.label), /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn-icon workspace-whatsnew-dismiss", "aria-label": "Dismiss what's new", title: "Dismiss", onClick: dismiss }, "\xD7")));
+  }
+  const INDEX_RUN_BUSY_STATES = ["queued", "running", "pausing"];
+  const INDEX_RUN_WAITING_STATES = ["retrying", "waiting_resources", "waiting_disk"];
+  const INDEX_RUN_ACTIVE_STATES = INDEX_RUN_BUSY_STATES.concat(INDEX_RUN_WAITING_STATES);
+  function modernizationPollDelay(modernization, profiles) {
+    const runs = (profiles && profiles.profiles || []).map((p) => p && p.index_run).filter(Boolean);
+    if (runs.some((r) => INDEX_RUN_BUSY_STATES.includes(r.state))) return 2e3;
+    if (runs.some((r) => INDEX_RUN_WAITING_STATES.includes(r.state))) return 5e3;
+    const state = modernization && modernization.summary && modernization.summary.state;
+    if (state === "working") return 3e3;
+    if (state === "waiting") return 1e4;
+    return null;
+  }
+  function whatsNewHeadline(pick, libraryEmpty) {
+    if (!pick) return null;
+    return libraryEmpty === true && typeof pick.freshHeadline === "string" && pick.freshHeadline ? pick.freshHeadline : pick.headline;
+  }
+  const MODERNIZATION_SETTINGS_NAV = { workspace: "settings", section: "modernization" };
+  function _focusSettingsSection(id, attempts = 20) {
+    if (typeof document === "undefined" || !id) return;
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ block: "start" });
+      return;
+    }
+    if (attempts > 0) requestAnimationFrame(() => _focusSettingsSection(id, attempts - 1));
   }
   function creditItems(items) {
     return Array.isArray(items) ? items : [items];
@@ -18712,13 +18778,13 @@ ${(p.abstract || "").trim().toLowerCase()}`;
   }
   const PDF_TAB_DRAG_TYPE = "application/x-callosum-pdftab";
   const WIP_TAB_DRAG_TYPE = "application/x-callosum-wiptab";
-  function LibraryFrame({ libraryProps, wip, wipTabs, selectedWipTab, tabs, selectedPaperTab, activeTab, onActivate, onClose, onCloseWip, onOpenPdf, onOpenWip, onReorderTabs, onReorderWipTabs, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture, onOpenLocalAi, onOpenLibraryFolders, onOpenCitation, onSaveHighlight, onOpenSettings }) {
+  function LibraryFrame({ libraryProps, wip, wipTabs, selectedWipTab, tabs, selectedPaperTab, activeTab, onActivate, onClose, onCloseWip, onOpenPdf, onOpenWip, onReorderTabs, onReorderWipTabs, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture, onOpenLocalAi, onOpenModernization, onOpenLibraryFolders, onOpenCitation, onSaveHighlight, onOpenSettings }) {
     const [dragOverKey, setDragOverKey] = useState(null);
     const openSelectedPaper = () => {
       if (!selectedPaperTab) return;
       onOpenPdf({ id: selectedPaperTab.id, title: selectedPaperTab.title });
     };
-    return /* @__PURE__ */ React.createElement("div", { className: "lib-frame" }, /* @__PURE__ */ React.createElement(WhatsNewBanner, { readOnly: libraryProps && libraryProps.readOnly, onOpenLocalAi }), /* @__PURE__ */ React.createElement("div", { className: "frame-tabs" }, /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "lib-frame" }, /* @__PURE__ */ React.createElement(WhatsNewBanner, { readOnly: libraryProps && libraryProps.readOnly, onOpenLocalAi, onOpenModernization }), /* @__PURE__ */ React.createElement("div", { className: "frame-tabs" }, /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "frame-tab" + (activeTab === "library" ? " active" : ""),
@@ -21738,7 +21804,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         onChange: (e) => onAxisCutoffDefault(Number(e.target.value)),
         "aria-label": "Default axis cutoff"
       }
-    ), /* @__PURE__ */ React.createElement("span", { className: "settings-cutoff-val" }, Number(axisCutoffDefault).toFixed(2))), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "The assigned-vs-uncertain threshold a new axis's re-score starts at (you can still adjust it per axis). Higher = stricter.")))), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(AcquisitionSettings, null), /* @__PURE__ */ React.createElement("div", { className: "settings-subsection" }, /* @__PURE__ */ React.createElement(GrobidSettings, null))), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(LocalMaintenanceSettings, { onRetractionRan })), /* @__PURE__ */ React.createElement("div", { className: "settings-section", id: "retrieval-model" }, /* @__PURE__ */ React.createElement(RetrievalProfileSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section settings-section-wide" }, /* @__PURE__ */ React.createElement(PublishersSettings, null)))), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Citation styles", id: "citation-styles" }, /* @__PURE__ */ React.createElement(CitationStylesSettings, null)), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Integrations" }, /* @__PURE__ */ React.createElement(ServerAddressSettings, null), /* @__PURE__ */ React.createElement("div", { className: "settings-sections-grid settings-sections-grid-3" }, /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(LibreOfficeSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(WordSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(RemoteAccessSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section settings-section-wide" }, /* @__PURE__ */ React.createElement(BrowserCaptureSettings, null)))), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Plugins" }, /* @__PURE__ */ React.createElement(PluginsSettings, null)), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Your usage" }, /* @__PURE__ */ React.createElement(UsageSettings, null)), /* @__PURE__ */ React.createElement(DemoExternalInterfaces, null)));
+    ), /* @__PURE__ */ React.createElement("span", { className: "settings-cutoff-val" }, Number(axisCutoffDefault).toFixed(2))), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "The assigned-vs-uncertain threshold a new axis's re-score starts at (you can still adjust it per axis). Higher = stricter.")))), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(AcquisitionSettings, null), /* @__PURE__ */ React.createElement("div", { className: "settings-subsection" }, /* @__PURE__ */ React.createElement(GrobidSettings, null))), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(LocalMaintenanceSettings, { onRetractionRan })), /* @__PURE__ */ React.createElement(LibraryModelsSection, null), /* @__PURE__ */ React.createElement("div", { className: "settings-section settings-section-wide" }, /* @__PURE__ */ React.createElement(PublishersSettings, null)))), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Citation styles", id: "citation-styles" }, /* @__PURE__ */ React.createElement(CitationStylesSettings, null)), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Integrations" }, /* @__PURE__ */ React.createElement(ServerAddressSettings, null), /* @__PURE__ */ React.createElement("div", { className: "settings-sections-grid settings-sections-grid-3" }, /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(LibreOfficeSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(WordSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(RemoteAccessSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section settings-section-wide" }, /* @__PURE__ */ React.createElement(BrowserCaptureSettings, null)))), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Plugins" }, /* @__PURE__ */ React.createElement(PluginsSettings, null)), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Your usage" }, /* @__PURE__ */ React.createElement(UsageSettings, null)), /* @__PURE__ */ React.createElement(DemoExternalInterfaces, null)));
   }
   function MyPubsSettings({ onRefreshed }) {
     const [name, setName] = useState("");
@@ -23831,38 +23897,25 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     };
     return /* @__PURE__ */ React.createElement("div", { className: "browser-preview" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Browser Capture \u2014 early access"), /* @__PURE__ */ React.createElement("p", { className: "settings-sub" }, "Send a page or PDF you have open to Callosum for review. This opt-in preview requires manual installation using your browser's Developer mode. It is not a store installation and may be blocked by your organization's browser policy."), !packaged ? /* @__PURE__ */ React.createElement("p", { className: "settings-sub" }, "Open the installed Callosum desktop app to prepare this integration. Remote access cannot install or manage local extension files.") : /* @__PURE__ */ React.createElement(React.Fragment, null, !state?.enabled ? /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: busy || !state, onClick: () => act("enable") }, "Enable early access") : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: busy, onClick: () => act("prepare") }, "Prepare extension"), " ", /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy || !state.prepared, onClick: () => act("open_folder") }, "Open extension folder"), " ", /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy || !state.prepared || state.update_available, onClick: () => act("verify") }, "Verify connection"), " ", /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: () => act("disable") }, "Turn off early access")), state.package_error && /* @__PURE__ */ React.createElement("p", { role: "alert", className: "settings-sub" }, "Extension verification unavailable: ", state.package_error), state.update_available && /* @__PURE__ */ React.createElement("p", { className: "settings-sub" }, "An extension update is available. Prepare it, then Reload the extension in your browser. Your installation folder stays the same."), state.prepared && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "settings-sub" }, "Prepared version ", state.prepared_version, ". Folder: ", /* @__PURE__ */ React.createElement("code", null, state.folder), /* @__PURE__ */ React.createElement("br", null), "Expected ID: ", /* @__PURE__ */ React.createElement("code", null, state.extension_id)), /* @__PURE__ */ React.createElement("label", { className: "settings-sub" }, "Browser", " ", /* @__PURE__ */ React.createElement("select", { value: browser, onChange: (e) => setBrowser(e.target.value) }, /* @__PURE__ */ React.createElement("option", null, "Chrome"), /* @__PURE__ */ React.createElement("option", null, "Edge"))), /* @__PURE__ */ React.createElement("ol", { className: "settings-sub" }, /* @__PURE__ */ React.createElement("li", null, "Open ", /* @__PURE__ */ React.createElement("code", null, browser === "Chrome" ? "chrome://extensions" : "edge://extensions"), " in ", browser, ". Enable Developer mode."), /* @__PURE__ */ React.createElement("li", null, "Click ", /* @__PURE__ */ React.createElement("b", null, "Load unpacked"), " and choose the prepared folder above. Check that its ID matches. Pin ", /* @__PURE__ */ React.createElement("b", null, "Callosum Capture (early access)"), " in your toolbar."), /* @__PURE__ */ React.createElement("li", null, "Click ", /* @__PURE__ */ React.createElement("b", null, "Verify connection"), " here, then open the extension's ", /* @__PURE__ */ React.createElement("b", null, "Details \u2192 Extension options"), " and press ", /* @__PURE__ */ React.createElement("b", null, "Verify connection"), " there within 60 seconds."), /* @__PURE__ */ React.createElement("li", null, "After verification, open your paper/PDF and click the toolbar icon once. Return to Callosum to review its identity."))), state.connection === "waiting" && /* @__PURE__ */ React.createElement("p", { role: "status" }, "Waiting for the browser. Open Extension options and click Verify connection there. No capture is sent."), state.connection === "verified" && /* @__PURE__ */ React.createElement("p", { role: "status" }, "Connection verified at ", new Date(state.verified_at * 1e3).toLocaleTimeString(), ": the preview extension reached this Callosum app through its native host. This records that check; it does not monitor the connection continuously."), state.connection === "expired" && /* @__PURE__ */ React.createElement("p", { role: "status" }, "No current verification. Start Verify connection again. If it fails, check the browser profile, expected ID, extension Options message and that the installed desktop app is running."))), notice && /* @__PURE__ */ React.createElement("p", { role: "status", className: "settings-sub" }, notice), error && /* @__PURE__ */ React.createElement("p", { role: "alert", className: "settings-sub" }, error), /* @__PURE__ */ React.createElement("p", { className: "settings-sub" }, "Chrome Web Store and Microsoft Edge Add-ons installation is not available yet. To leave the preview, turn it off here and remove it in your browser. There is no automatic store migration."));
   }
-  function RetrievalProfileSettings() {
-    const [state, setState] = useState(null);
-    const [error, setError] = useState("");
+  function RetrievalProfileSettings({ state, error: loadError, onState, onReload }) {
+    const [actionError, setActionError] = useState("");
     const [busy, setBusy] = useState(false);
-    const timer = useRef(null);
-    const ACTIVE = ["queued", "running", "pausing", "retrying", "waiting_resources"];
-    const load = () => api("/embedding-profiles").then((r) => {
-      if (!r.ok) {
-        setError(r.error || "Couldn't load retrieval models.");
-        return;
-      }
-      setState(r.data);
-      clearTimeout(timer.current);
-      if (r.data.profiles.some((p) => p.index_run && ACTIVE.includes(p.index_run.state))) timer.current = setTimeout(load, 2e3);
-    });
-    useEffect(() => {
-      load();
-      return () => clearTimeout(timer.current);
-    }, []);
+    const error = actionError || loadError;
+    const ACTIVE = INDEX_RUN_ACTIVE_STATES;
     const act = async (key, action) => {
-      setError("");
+      setActionError("");
       const r = action === "build" ? await apiPost(`/embedding-profiles/${key}/index`, {}) : await apiPost(`/embedding-profiles/${key}/index/${action}`, {});
-      if (!r.ok) setError(r.error || "Couldn't change the index build.");
-      load();
+      if (!r.ok) setActionError(r.error || "Couldn't change the index build.");
+      onReload();
     };
     const select = async (key) => {
       setBusy(true);
-      setError("");
+      setActionError("");
       const r = await apiPut("/embedding-profiles/active", { key });
       setBusy(false);
-      if (r.ok) setState(r.data);
-      else setError(r.error || "Couldn't switch the retrieval model.");
+      if (r.ok) onState(r.data);
+      else setActionError(r.error || "Couldn't switch the retrieval model.");
+      onReload();
     };
     if (!state) return /* @__PURE__ */ React.createElement("div", { className: "retrieval-profiles" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Retrieval model"), error && /* @__PURE__ */ React.createElement("p", { role: "alert", className: "settings-sub" }, error));
     return /* @__PURE__ */ React.createElement("div", { className: "retrieval-profiles" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Retrieval model"), /* @__PURE__ */ React.createElement("p", { className: "settings-sub" }, "Chooses which local embedding model ranks passages for Ask. Citation verification always uses ", state.verification_model, " and its calibrated thresholds, whichever model retrieves. Switching never changes your library."), /* @__PURE__ */ React.createElement("label", { className: "settings-subsection" }, /* @__PURE__ */ React.createElement(
@@ -23893,7 +23946,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     }), error && /* @__PURE__ */ React.createElement("p", { role: "alert", className: "settings-sub" }, error), /* @__PURE__ */ React.createElement(NliProfileSettings, null));
   }
   function IndexRunStatus({ run, label, onAction }) {
-    const working = ["queued", "running", "pausing", "retrying", "waiting_resources"].includes(run.state);
+    const working = INDEX_RUN_ACTIVE_STATES.includes(run.state);
     const names = { pause: "Pause", resume: "Resume", cancel: "Cancel" };
     return /* @__PURE__ */ React.createElement("div", { className: "index-run" }, working && /* @__PURE__ */ React.createElement(
       ProgressBar,
@@ -23923,6 +23976,51 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     };
     if (!state) return error ? /* @__PURE__ */ React.createElement("p", { role: "alert", className: "settings-sub" }, error) : null;
     return /* @__PURE__ */ React.createElement("div", { className: "settings-subsection" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Verification model (NLI)"), /* @__PURE__ */ React.createElement("p", { className: "settings-sub" }, "Scores whether each cited passage supports or contradicts a synthesis claim. The support and contradiction thresholds were calibrated on ", state.thresholds_calibrated_on, " and are used unchanged for every model. Other stance features keep the baseline."), /* @__PURE__ */ React.createElement("label", null, /* @__PURE__ */ React.createElement("input", { type: "radio", name: "nli-profile", checked: state.preference === "automatic", disabled: busy, onChange: () => select("automatic") }), " ", /* @__PURE__ */ React.createElement("b", null, "Automatic"), " ", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "DeBERTa when it is ready and fits in memory; MiniLM2 otherwise.")), /* @__PURE__ */ React.createElement("p", { role: state.synthesis_blocked ? "alert" : "status", className: "settings-sub" }, state.explanation), state.profiles.map((p) => /* @__PURE__ */ React.createElement("div", { key: p.key }, /* @__PURE__ */ React.createElement("label", null, /* @__PURE__ */ React.createElement("input", { type: "radio", name: "nli-profile", checked: state.preference === p.key, disabled: busy, onChange: () => select(p.key) }), " ", /* @__PURE__ */ React.createElement("b", null, p.label), state.active === p.key ? " \u2014 used for the next synthesis" : ""), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, /* @__PURE__ */ React.createElement("code", null, p.model_name, "@", p.revision.slice(0, 12)), " \xB7 ", p.qualification))), busy && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Verifying the model checkpoint\u2026", managedBy: "tracked-request" }), error && /* @__PURE__ */ React.createElement("p", { role: "alert", className: "settings-sub" }, error));
+  }
+  function LibraryModelsSection() {
+    const [modernization, setModernization] = useState(null);
+    const [profiles, setProfiles] = useState(null);
+    const [error, setError] = useState("");
+    const timer = useRef(null);
+    const alive = useRef(true);
+    const load = useCallback(() => Promise.all([api("/modernization"), api("/embedding-profiles")]).then(([m, p]) => {
+      if (!alive.current) return;
+      if (m.ok) setModernization(m.data);
+      if (p.ok) setProfiles(p.data);
+      else setError(p.error || "Couldn't load retrieval models.");
+      clearTimeout(timer.current);
+      const delay = modernizationPollDelay(m.ok ? m.data : null, p.ok ? p.data : null);
+      if (delay != null) timer.current = setTimeout(load, delay);
+    }), []);
+    useEffect(() => {
+      alive.current = true;
+      load();
+      return () => {
+        alive.current = false;
+        clearTimeout(timer.current);
+      };
+    }, [load]);
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "settings-section", id: "modernization" }, /* @__PURE__ */ React.createElement(ModernizationPanel, { state: modernization, profiles, onChanged: setModernization, onReload: load })), /* @__PURE__ */ React.createElement("div", { className: "settings-section", id: "retrieval-model" }, /* @__PURE__ */ React.createElement(RetrievalProfileSettings, { state: profiles, error, onState: setProfiles, onReload: load })));
+  }
+  function ModernizationPanel({ state, profiles, onChanged, onReload }) {
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState("");
+    if (!state || !state.summary) return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Library modernization"));
+    const s = state.summary;
+    const labelOf = (key) => (profiles && profiles.profiles || []).find((p) => p.key === key)?.label || key;
+    const toggle = async (action) => {
+      if (busy) return;
+      setBusy(true);
+      setError("");
+      const r = await apiPost(`/modernization/${action}`, {});
+      setBusy(false);
+      if (r.ok) onChanged(r.data);
+      else setError(r.error || "Couldn't change background modernization.");
+      onReload();
+    };
+    const retrieval = state.effective_retrieval;
+    const verifier = state.verifier;
+    return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Library modernization"), /* @__PURE__ */ React.createElement("p", { className: "settings-sub" }, "Callosum is upgrading local search for this library in the background: it classifies the scientific sources behind your existing passages and builds an Arctic S retrieval index. Your PDFs are not re-extracted or re-chunked, and the library stays usable. Completed work is saved as it goes and resumes in later sessions."), /* @__PURE__ */ React.createElement("p", { role: s.state === "action_required" ? "alert" : "status", className: "settings-sub" }, /* @__PURE__ */ React.createElement("b", null, s.headline)), s.progress && s.state === "working" && /* @__PURE__ */ React.createElement(ProgressBar, { label: s.headline, progress: { ...s.progress, eta_seconds: null }, managedBy: "status-popover" }), s.attention.map((text) => /* @__PURE__ */ React.createElement("p", { key: text, role: "alert", className: "settings-sub" }, text)), ["model", "classification", "indexing"].filter((k) => !s.attention.includes(s.notes[k])).map((k) => /* @__PURE__ */ React.createElement("p", { key: k, className: "settings-sub" }, s.notes[k])), retrieval && /* @__PURE__ */ React.createElement("p", { role: retrieval.ask_blocked ? "alert" : "status", className: "settings-sub" }, "Ask retrieval right now: ", /* @__PURE__ */ React.createElement("b", null, labelOf(retrieval.profile)), ". ", retrieval.explanation), verifier && /* @__PURE__ */ React.createElement("p", { className: "settings-sub" }, "Citation verification right now: ", /* @__PURE__ */ React.createElement("b", null, verifier.effective_label), ". ", verifier.explanation), state.enabled && (state.intent === "paused" ? /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: () => toggle("resume") }, "Resume modernization") : /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: () => toggle("pause") }, "Pause modernization")), state.enabled && /* @__PURE__ */ React.createElement("p", { className: "settings-sub" }, "Pausing stops background work only. It does not change the retrieval or verification model you have chosen."), error && /* @__PURE__ */ React.createElement("p", { role: "alert", className: "settings-sub" }, error));
   }
   function GapsOverlookedFacets({ facet, onSwitch }) {
     return /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter gapsov-facets" }, /* @__PURE__ */ React.createElement("button", { className: "tags-srcfilter-btn" + (facet === "gaps" ? " on" : ""), onClick: () => onSwitch("gaps") }, "Gaps"), /* @__PURE__ */ React.createElement("button", { className: "tags-srcfilter-btn" + (facet === "overlooked" ? " on" : ""), onClick: () => onSwitch("overlooked") }, "Overlooked"));
@@ -25131,6 +25229,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       if (nav.workspace) {
         selectWorkspace(nav.workspace);
         if (nav.tab) requestWorkspaceTab(nav.workspace, nav.tab);
+        else if (nav.section && nav.workspace === "settings") _focusSettingsSection(nav.section);
       }
       if (nav.pane) {
         if (nav.pane === "methods") {
@@ -25421,6 +25520,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         readingMode,
         onToggleReading: toggleReading,
         mobile,
+        onOpenModernization: () => onStatusNavigate({ nav: MODERNIZATION_SETTINGS_NAV }),
         capture,
         onCaptureAnchor: captureAnchor,
         onCancelCapture: clearCapture,

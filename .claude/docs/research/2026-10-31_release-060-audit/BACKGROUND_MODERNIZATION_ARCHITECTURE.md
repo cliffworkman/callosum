@@ -275,6 +275,30 @@ The test plan asserts this with table fingerprints, using the existing fingerpri
 - **No combined percentage across stages.** The stages report separately within one Status row, with the stage name
   first. This follows principle 7: no opaque composite.
 
+## 10a. Visibility as implemented (inc 620)
+- **One derived entry.** `modernization_status_job(app)` builds the "Library modernization" Status row from
+  `coordinator.status()` plus the Arctic run row on every `/status/jobs` read. It holds no state of its own, so it
+  is identical after a restart and in every window. It is omitted when modernization is disabled or complete. While
+  modernization is enabled, the `embedding_index_jobs` mirror row is hidden so the build is not shown twice.
+- **Summary mapping** (`modernization/presentation.py`, pure). Precedence: paused intent → indexing actively running
+  → classification running (or owned by another window) → model downloading → indexing starting → any wait (disk,
+  memory, network, database busy, retry, waiting for the model) → attention only → complete. Terminal conditions
+  (model `invalid`, run `failed` / `cancelled`) are listed in `attention` alongside whatever is still working; they
+  become the state only when nothing else is. When the model is invalid or not installable, an index that is
+  "waiting for the model" is reported as blocked, not waiting.
+- **Progress.** One grounded `progress` block for the current activity only: passages indexed / eligible passages,
+  or papers current / papers with classifiable passages. No combined percentage, no download percentage (the
+  provisioner has no reliable downloaded-byte count) and `eta_seconds` is always null.
+- **Non-blocking reads.** `status()` try-acquires the coordinator lock for 0.2 s. During a classification pass it
+  returns the counts cached at `checked_at` and reads the run row, intent, model state and preference directly.
+- **Effective retrieval** is the inc-618 `resolve()` itself (an `IncompleteEmbeddingIndexError` becomes
+  `ask_blocked`), cached for up to 60 s keyed on the counts, run state, model state, intent and preference, so a
+  poll does not repeat the coverage count. **Effective verifier** is `dependencies.preview_verifier()`, the same
+  no-load preview the NLI settings panel uses.
+- **Frontend.** One refresh loop (`LibraryModelsSection`) reads `/modernization` and `/embedding-profiles` together;
+  `modernizationPollDelay` returns 2 s (build busy), 5 s (build waiting, incl. `waiting_disk`), 3 s / 10 s (other
+  working / waiting) or stops. The Status popover keeps its own existing cadence.
+
 ## 11. What is deliberately *not* proposed
 - No generation-swap tables, no chunk remapping, no re-extraction.
 - No automatic Crossref fetching to improve anchoring: that would be new egress, and it is a separate, consented

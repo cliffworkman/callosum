@@ -1,6 +1,6 @@
 <!-- qa-coverage
 api: /verification-nli-profiles, /verification-nli-profiles/active, /embedding-profiles, /embedding-profiles/active, /embedding-profiles/{key}/index, /embedding-profiles/index/{job_id}, /embedding-profiles/index/{job_id}/cancel, /embedding-profiles/{key}/index/pause, /embedding-profiles/{key}/index/resume, /embedding-profiles/{key}/index/cancel, /modernization, /modernization/pause, /modernization/resume
-fe: 35i_retrieval_profiles.jsx, 20e_model_provenance.jsx, 20c_synthesis_results.jsx
+fe: 35i_retrieval_profiles.jsx, 35j_modernization.jsx, 04f_modernization_logic.jsx, 04c_status.jsx, 04e_whatsnew.jsx, 20e_model_provenance.jsx, 20c_synthesis_results.jsx
 -->
 
 # ROUTE 97 — Retrieval model profiles (MiniLM baseline / Arctic S)
@@ -27,7 +27,9 @@ listeners before navigation.
   Metadata-only papers are reported as "have no full text to index", never counted as index gaps.
 - **No selection of an incomplete index.** The Arctic radio is disabled until coverage is complete; a direct
   `PUT /embedding-profiles/active` returns **409**. An unknown key returns 404. Building the baseline returns 400.
-- **Status.** A build shows one row ("Retrieval index build", Local AI) that clicks to Settings. The inline
+- **Status.** In a build without automatic modernization, a build shows one row ("Retrieval index build", Local AI)
+  that clicks to Settings. With automatic modernization on, that row is folded into the single "Library
+  modernization" entry (see the inc-620 section). The inline
   ProgressBar is `managedBy="backend-job"`, so no duplicate client row appears. Progress is stored passages over
   eligible passages, re-derived from the vectors (inc 610), never a session counter.
 - **Supervised build (inc 610).** The build runs in a separate worker process. Its row (`index_run`) shows the state
@@ -41,8 +43,8 @@ listeners before navigation.
   counts only: no path, drive or filename anywhere in the response or in Status. A full disk reported by SQLite gives
   the same state ("the disk holding your library filled up"). Repeated disk waits never end in **failed**, never
   shrink the batch, and never delete MiniLM vectors or user data; freeing space resumes the build with no action.
-  Known gap: the settings panel does not yet treat `waiting_disk` as active (no polling/progress bar); the Status
-  popover does.
+  Inc 620 closed the settings-panel gap: `waiting_disk` is an active state there too, so the panel keeps refreshing
+  (every 5 s), shows required/free space, and returns to the running display when space is freed.
 - **Pause/Cancel keep work and are durable.** Both stop after the batch in progress; coverage keeps every committed
   batch. A paused or cancelled build stays so after an app restart (no automatic resume). Resume continues from the
   stored vectors and re-indexes nothing already current.
@@ -146,3 +148,40 @@ listeners before navigation.
   model flags a possible disagreement with the source. Review the cited passage."; a MiniLM2 result keeps "⚠ source
   disagrees". Older syntheses show no new fields.
 - **Status.** The verification stage of a DeBERTa synthesis shows elapsed time only (no range) until it has receipts.
+
+## Inc 620 — Library modernization visibility (B9)
+
+Run with automatic modernization on (packaged app, or `CALLOSUM_MODERNIZATION=1`) on a 0.5.16-shaped library copy.
+
+- **One entry.** Status shows exactly one **Library modernization** row (Local AI) while work remains, never a separate
+  "Retrieval index build" row beside it. It has no dismiss button and no elapsed/remaining time; it shows the current
+  activity, grounded counts (papers classified of papers with passages; passages indexed of eligible passages) and
+  one note per stage (model, classification, indexing). **Clear finished** never removes it. It disappears when all
+  stages are complete and reappears after an import needs catch-up.
+- **Concurrent, not sequential.** With classification and indexing both running, the headline names indexing and the
+  classification note still shows its own counts. There is no combined percentage and no time estimate anywhere.
+- **Navigation.** Clicking the row opens Settings and scrolls to **Library modernization**. The 0.6.0 notice's
+  **See progress and controls** action does the same.
+- **Waits recover; terminal states don't claim to.** Network loss, low disk, low memory and a busy database read
+  as waits with their cause and recover by themselves. A paused intent, a cancelled or failed build, and model files
+  that failed verification read as needing the user (the Status row shows as an error, except paused) and never say
+  they resume automatically. One terminal stage never hides a stage that is still working.
+- **Pause/Resume.** Pause and Resume in the modernization panel are durable across restarts and idempotent, and never
+  change the retrieval or verification preference (check both selectors before and after).
+- **Effective models.** The panel states the retrieval model Ask uses right now and why (Automatic → MiniLM while
+  Arctic S is incomplete), and the verifier the next synthesis uses and why. With the DeBERTa release gates off it
+  says automatic DeBERTa verification is not enabled; it never claims DeBERTa is downloading or about to activate.
+- **Responsive during a pass.** `GET /modernization` and `GET /status/jobs` answer promptly while a classification
+  pass is running (they report the counts cached at `checked_at`).
+- **Settings polling is one bounded loop.** One timer refreshes both panels: 2 s while a build is busy, 5 s during
+  build waits, 3 s / 10 s for other working / waiting states, and it stops when paused, complete, disabled or
+  action-required (a user action reloads). Leaving Settings stops it.
+- **Privacy.** No path, filename, paper title, passage text, exception or model-cache detail appears in either
+  response or in the UI.
+- **Notice.** On first run of 0.6.0 an upgraded library sees the upgrade wording (usable, untouched, may take several
+  sessions and extra disk, resumes by itself, controls in Status/Settings); a library with no papers sees the short
+  fresh-install wording. Dismissing it records 0.6.0 as seen. No completion time or library size is promised.
+  (The app is still 0.5.16 in this increment, so verify the notice via the node tests until the version bump.)
+
+Pinned by `tests/test_modernization_status.py` (backend + node logic). Not yet driven in a real browser: the Playwright
+session was unavailable in the implementing session.

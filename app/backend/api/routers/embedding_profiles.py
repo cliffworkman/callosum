@@ -10,7 +10,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from app.backend.api.dependencies import verifier_inputs
+from app.backend.api.dependencies import preview_verifier, verifier_inputs
 from app.backend.api.routers.embedding_index import IndexRunOut, active_index_job_id, index_run_out
 from app.backend.embeddings.profiles import (
     BASELINE_PROFILE_KEY,
@@ -31,10 +31,6 @@ from app.backend.summarization.nli_profiles import (
     verify_nli_checkpoint,
 )
 from app.backend.summarization.verifier_resolution import (
-    VerifierUnavailableError,
-    decide,
-    memory_check,
-    read_nli_preference,
     set_nli_user_preference,
 )
 
@@ -186,40 +182,11 @@ class NliProfilesResponse(BaseModel):
     profiles: list[NliProfileOut]
 
 
-_NLI_EXPLANATIONS = {
-    "not_qualified": "Using MiniLM2: automatic DeBERTa verification is not enabled in this release yet.",
-    "not_provisioned": "Using MiniLM2 until the DeBERTa model has been downloaded and verified.",
-    "not_verified": "Using MiniLM2: the DeBERTa model files could not be verified or loaded.",
-    "insufficient_memory": "Using MiniLM2: not enough free memory to run DeBERTa safely right now.",
-    "memory_unmeasured": "Using MiniLM2: free memory could not be measured.",
-}
-
-
 def _nli_state(request: Request) -> NliProfilesResponse:
     """Previews the per-operation decision without loading any model (the load-time check happens in synthesis)."""
-    app = request.app
-    inputs = verifier_inputs(app)
-    with app.state.engine.connect() as conn:
-        preference = read_nli_preference(conn)
-    blocked = reason = None
-    try:
-        decision = decide(
-            preference,
-            gates_armed=inputs["gates_armed"],
-            model_state=inputs["model_state"],
-            checkpoint_required=inputs["checkpoint_required"],
-            memory=lambda: memory_check(
-                inputs["probe"], resident=inputs["resident"], indexing_reserve_mb=inputs["indexing_reserve_mb"]
-            ),
-        )
-        active, reason = decision.profile, decision.fallback_reason
-        if decision.preference == "user":
-            said = f"Using {active.label} because you selected it."
-        else:
-            said = _NLI_EXPLANATIONS.get(reason or "", f"Using {active.label}.")
-    except VerifierUnavailableError as exc:
-        active, blocked = get_nli_profile(preference.key), str(exc)  # type: ignore[arg-type]
-        said = blocked
+    preview = preview_verifier(request.app)
+    active, preference, reason = preview["profile"], preview["preference"], preview["fallback_reason"]
+    said, blocked = preview["explanation"], preview["synthesis_blocked"]
     return NliProfilesResponse(
         active=active.key,
         preference=preference.key or AUTOMATIC,

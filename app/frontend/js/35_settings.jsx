@@ -507,7 +507,7 @@ function SettingsView({ theme, onTheme, hideUncertainDefault, onHideUncertainDef
               <div className="settings-subsection"><GrobidSettings /></div>
             </div>
             <div className="settings-section"><LocalMaintenanceSettings onRetractionRan={onRetractionRan} /></div>
-            <div className="settings-section" id="retrieval-model"><RetrievalProfileSettings /></div>
+            <LibraryModelsSection />
             <div className="settings-section settings-section-wide"><PublishersSettings /></div>
           </div>
         </SettingsCard>

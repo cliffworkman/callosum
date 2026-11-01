@@ -366,33 +366,41 @@ class ModernizationCoordinator:
     def status(self) -> dict:
         """Structured state for the forthcoming UI. Counts come from stored rows at ``checked_at``; no combined
         percentage, ETA or invented progress."""
-        with self._lock:
+        # inc 620: Status and Settings poll this. A classification pass holds the lock for its whole bounded pass, so a
+        # read never waits on it: when the lock is busy it reports the counts cached at ``checked_at`` (the pass itself
+        # is reported as running) and re-reads the cheap rows below directly.
+        acquired = self._lock.acquire(timeout=0.2)
+        try:
             row = self._run_row()
-            with contextlib.suppress(Exception):
-                if self._class_coverage is None:
-                    self._refresh_classification(force=True)
-                if row is None or row["state"] not in _ACTIVE:  # an active build's row carries reconciled counts
-                    self._fresh_index_coverage(row)
+            if acquired:
+                with contextlib.suppress(Exception):
+                    if self._class_coverage is None:
+                        self._refresh_classification(force=True)
+                    if row is None or row["state"] not in _ACTIVE:  # an active build's row carries reconciled counts
+                        self._fresh_index_coverage(row)
             intent = read_intent(self.engine)
             model = self._safe_model_status()
             with self.engine.connect() as conn:
                 preference = read_preference(conn)
-            return build_status(
-                enabled=self.enabled,
-                disabled_reason=self.disabled_reason,
-                intent=intent,
-                leader=self.is_leader,
-                class_state=self._class_state if self.enabled else "disabled",
-                class_detail=self._class_detail,
-                class_coverage=self._class_coverage or {},
-                failed=len(self.classifier.failures),
-                index_coverage=self._index_coverage or {},
-                run=row,
-                model=model,
-                index_note=self._index_note,
-                checked_at=self._checked_at,
-                preference=preference,
-            )
+        finally:
+            if acquired:
+                self._lock.release()
+        return build_status(
+            enabled=self.enabled,
+            disabled_reason=self.disabled_reason,
+            intent=intent,
+            leader=self.is_leader,
+            class_state=self._class_state if self.enabled else "disabled",
+            class_detail=self._class_detail,
+            class_coverage=self._class_coverage or {},
+            failed=len(self.classifier.failures),
+            index_coverage=self._index_coverage or {},
+            run=row,
+            model=model,
+            index_note=self._index_note,
+            checked_at=self._checked_at,
+            preference=preference,
+        )
 
 
 def _index_state(enabled: bool, intent: str, coverage: dict, run: dict | None, model: dict, note: str | None) -> str:

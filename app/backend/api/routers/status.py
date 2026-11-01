@@ -302,6 +302,10 @@ class StatusJob(BaseModel):
     # time — NOT job.result, which stays deliberately unread here (inc 406 audit). Most jobs never set it.
     nav: dict[str, Any] | None = None
     compute_kind: str | None = None
+    # inc 620: the derived "Library modernization" row only. It has no backend job to dismiss and spans sessions, so
+    # it shows its stage notes instead of an elapsed time and stays until its work is done or the user acts.
+    notes: list[str] = Field(default_factory=list)
+    persistent: bool = False
 
 
 class StatusResponse(BaseModel):
@@ -364,10 +368,13 @@ def list_status_jobs(request: Request) -> StatusResponse:
     stores = discover_stores(request.app.state)
     out: list[StatusJob] = []
     jobs_by_id: dict[str, Job] = {}
+    modernization = _modernization_row(request.app)
     for store_name, store in stores.items():
         store.prune_finished_older_than(_FINISHED_TTL_SECONDS)
         if store_name in STATUS_HIDDEN_STORES:
             continue
+        if store_name in MODERNIZATION_COVERED_STORES and _modernization_on(request.app):
+            continue  # the Arctic build is part of "Library modernization": one entry, not two competing rows
         for job_id, job in store.list_all():
             if job.status == "pending" and job.started_at is None and job.finished_at is None:
                 # Freshly created, not yet picked up by the background task — not worth a row yet.
@@ -375,7 +382,29 @@ def list_status_jobs(request: Request) -> StatusResponse:
             jobs_by_id[job_id] = job
             out.append(_to_status_job(store_name, job_id, job))
     out.sort(key=lambda sj: _sort_key(sj, jobs_by_id))
+    if modernization is not None:
+        out.insert(0, modernization)
     return StatusResponse(jobs=out)
+
+
+# The Arctic index build's own JobStore mirror; while automatic modernization is on it is shown inside that entry.
+MODERNIZATION_COVERED_STORES = frozenset({"embedding_index_jobs"})
+
+
+def _modernization_on(app: object) -> bool:
+    managed = getattr(app.state, "modernization", None)
+    return bool(managed is not None and managed.enabled)
+
+
+def _modernization_row(app: object) -> StatusJob | None:
+    """The derived "Library modernization" entry (inc 620). A failure to derive it never breaks the Status list."""
+    from app.backend.api.routers.modernization import modernization_status_job
+
+    try:
+        row = modernization_status_job(app)  # type: ignore[arg-type]
+    except Exception:  # noqa: BLE001 -- Status must keep listing other work
+        return None
+    return None if row is None else StatusJob(**row)
 
 
 @router.post("/status/jobs/{store}/{job_id}/dismiss")

@@ -24,7 +24,7 @@ MiniLM2 remain for compatibility, and their retirement is deferred.
 | B6 | Atomic automatic Arctic activation (**authorized, A3**). **Implemented in inc 618: one write transaction that rechecks preference, model and coverage; idempotent across checks and processes** | UX / honesty | B3 | No (with B5) | No |
 | B7 | No disk-space guard. **Implemented in inc 616 (`0686a5f6`): focused-tested and process-tested with simulated resources; not release-validated** (real low-disk volume run, packaged-runtime checks under B10, and the settings-panel state still owed) | Data safety | B3 | Yes | No |
 | B8 | DeBERTa automatic preference: effective-verifier resolution, provenance, gate (**policy authorized, A5; G1 CONDITIONAL accepted by product decision (not a PASS), G2 conditional runtime acceptance (2026-10-31); DeBERTa is the intended preferred verifier; automatic use awaits the four release gates in `model_provisioning/runner.py`: qualification recorded ✔, operation memory guard, verifier provenance/failure, packaged-runtime acceptance**). **Implemented in inc 619: per-operation resolution, memory guard, provenance, fail-closed, verifier-keyed ETA, cautious wording; gates 2 and 3 recorded true; packaged-runtime acceptance PENDING, so automatic use stays unarmed** | Scientific provenance / latency contract | B2 | Yes | **Arming only** (see row) |
-| B9 | First-run notice and modernization Status semantics | UX | B3, B6 | Yes | No |
+| B9 | First-run notice and modernization Status semantics. **Implemented in inc 620: one derived "Library modernization" Status entry, `GET /modernization` summary (state, grounded counts, effective retrieval and verifier), Settings panel with Pause/Resume, waiting_disk polling fix, 0.6.0 notice (upgrade/fresh wording), Help; focused-tested (backend + node logic), not browser- or release-validated** | UX | B3, B6 | Yes | No |
 | B10 | Packaging and CI coverage for models, the worker and the upgrade path | Release integrity | B2–B7 | After B2–B7 | No |
 
 ---
@@ -425,6 +425,24 @@ never need to select it. MiniLM2 is the compatibility verifier until then.
   - Details: `INCREMENT-619-NOTES.md`.
 
 ## B9: First-run notice and Status semantics
+**Update 2026-11-01, inc 620 (implemented; not release-validated).**
+- One derived Status entry, "Library modernization" (Local AI), built on each read from the inc-617 coordinator status
+  (`routers/modernization.py::modernization_status_job`). No second store; it survives restarts unchanged because it
+  is recomputed from stored rows. While modernization is enabled the `embedding_index_jobs` row is folded into it.
+- `GET /modernization` adds `summary` (state: working / waiting / paused / action_required / complete / disabled;
+  headline; attention; per-stage notes; grounded `progress`; `eta_seconds` always null), `index_run` (message and
+  disk bytes), `effective_retrieval`, `verifier` and `library_empty`. `coordinator.status()` no longer blocks for a
+  whole classification pass.
+- Settings → Library behavior → **Library modernization**, with Pause/Resume, the effective Ask retrieval model and
+  verifier, and one shared refresh loop with the retrieval panel. `waiting_disk` now keeps that loop running.
+- A 0.6.0 `whatsnew` entry (`actionKind: "modernization"`, upgrade and fresh-install wording). It cannot appear
+  until the version bump, which is out of scope; it is node-tested.
+- **Deliberate departures from the "Required behavior" below:** no time estimate and no download percentage (no
+  measured modernization throughput and no reliable downloaded-byte count exist yet), and the notice gives no
+  4,000-paper time/disk figures (historical estimate only). Both follow §4/§5 of the inc-620 brief.
+- **Still owed:** real-browser verification of the row, navigation and panel; packaged first-run verification of the
+  notice after the 0.6.0 version bump; release validation (B10).
+
 **Update 2026-10-31, inc 617.** `GET /modernization` now provides the backend contract this blocker's UI needs:
 separate `classification`, `indexing` and `model` groups, each with `state`, `automatic_recovery` and `needs_user`,
 stored-row counts, no combined percentage and no ETA. No banner, Status row or panel consumes it yet.
@@ -501,7 +519,7 @@ checks, and a local commit only after tests pass.
 | 4 | Automatic modernization coordinator (detect, auto-start, Pause intent) | B3 | **Implemented: inc 617** (focused- and process-tested with simulated resources; release validation and UI owed) |
 | 5 | Arctic S preference, MiniLM fallback, import catch-up, atomic activation | B5, B6 | **Implemented: inc 618** (focused-tested, incl. a real two-process activation; release validation owed) |
 | 6 | Automatic DeBERTa preference: per-operation memory precheck, effective verifier, provenance, fail-closed, verifier-keyed ETA, cautious `contradicted` wording. Gate constant exists (inc 615, unarmed) | B8 | **Implemented: inc 619** (focused-tested with simulated memory and fake scorers; packaged-runtime acceptance owed; production gate unarmed) |
-| 7 | Nonblocking first-launch notice and unified modernization Status | B9 | — |
+| 7 | Nonblocking first-launch notice and unified modernization Status | B9 | **Implemented: inc 620** (focused-tested, backend + node logic; browser and packaged first-run validation owed) |
 | 8 | Restart recovery, activation, catch-up and 4,000-paper workload tests | B10 (part) | — |
 | 9 | Bounded DeBERTa latency/memory acceptance (G2), plus the G1 re-score | G1, G2 | **Done: receipts `G1_DEBERTA_EXACT_THRESHOLD_RECEIPT.md` (CONDITIONAL), `G2_DEBERTA_CPU_RESOURCE_RECEIPT.md` (CONDITIONAL GO)** |
 | 10 | Full regression, packaging and upgrade validation; then merge (G3) | B1, B10 | Needs authorization |

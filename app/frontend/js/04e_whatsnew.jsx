@@ -40,6 +40,9 @@ function _whatsNewAction(actionKind, handlers) {
   if (actionKind === "local-ai" && handlers.onOpenLocalAi) {
     return { label: "Set up Local AI", run: handlers.onOpenLocalAi };
   }
+  if (actionKind === "modernization" && handlers.onOpenModernization) {  // inc 620
+    return { label: "See progress and controls", run: handlers.onOpenModernization };
+  }
   return null;
 }
 
@@ -53,15 +56,17 @@ function pickWhatsNew(entries, appVersion, lastSeen) {
     if (_semverCmp(version, lastSeen) <= 0) continue; // already seen (or older than last-seen)
     if (_semverCmp(version, appVersion) > 0) continue; // never announce a version newer than what's running
     if (best === null || _semverCmp(version, best.version) > 0) {
-      best = { version, headline: entry.headline, actionKind: entry.actionKind || null };
+      best = { version, headline: entry.headline, actionKind: entry.actionKind || null,
+        freshHeadline: typeof entry.freshHeadline === "string" ? entry.freshHeadline : null };
     }
   }
   return best;
 }
 
-function WhatsNewBanner({ readOnly, onOpenLocalAi }) {
+function WhatsNewBanner({ readOnly, onOpenLocalAi, onOpenModernization }) {
   const [appVersion, setAppVersion] = useState(null);
   const [dismissed, setDismissed] = useState(false);
+  const [libraryEmpty, setLibraryEmpty] = useState(null);  // inc 620: upgrade vs fresh-install wording
 
   // One-time migration: a user who dismissed the old Local AI hint shouldn't see it again under the new key.
   useEffect(() => {
@@ -81,21 +86,34 @@ function WhatsNewBanner({ readOnly, onOpenLocalAi }) {
     return () => { alive = false; };
   }, [readOnly]);
 
+  // inc 620: only an entry with fresh-install wording asks whether this library has papers (one read per mount).
+  useEffect(() => {
+    if (!appVersion) return undefined;
+    let seen = "";
+    try { seen = _loadLayout(WHATSNEW_LASTSEEN_KEY, ""); } catch (e) { seen = ""; }
+    const next = pickWhatsNew((typeof window !== "undefined" && window.CALLOSUM_WHATSNEW) || {}, appVersion, seen);
+    if (!next || !next.freshHeadline) return undefined;
+    let alive = true;
+    api("/modernization").then(r => { if (alive) setLibraryEmpty(r.ok && r.data ? r.data.library_empty === true : false); });
+    return () => { alive = false; };
+  }, [appVersion]);
+
   if (readOnly !== false || dismissed || !appVersion) return null;
   const entries = (typeof window !== "undefined" && window.CALLOSUM_WHATSNEW) || {};
   let lastSeen = "";
   try { lastSeen = _loadLayout(WHATSNEW_LASTSEEN_KEY, ""); } catch (e) { lastSeen = ""; }
   const pick = pickWhatsNew(entries, appVersion, lastSeen);
   if (!pick) return null;
+  if (pick.freshHeadline && libraryEmpty === null) return null;  // wait for the one library read above
 
-  const action = _whatsNewAction(pick.actionKind, { onOpenLocalAi });
+  const action = _whatsNewAction(pick.actionKind, { onOpenLocalAi, onOpenModernization });
   const dismiss = () => {
     setDismissed(true);
     try { _saveLayout(WHATSNEW_LASTSEEN_KEY, appVersion); } catch (e) { /* best-effort */ }
   };
   return (
     <div className="axis-hint workspace-whatsnew" role="region" aria-label="What's new">
-      <span>{pick.headline}</span>
+      <span>{whatsNewHeadline(pick, libraryEmpty)}</span>
       <div className="workspace-whatsnew-actions">
         {action && <button type="button" className="btn btn-link" onClick={() => { action.run(); dismiss(); }}>{action.label}</button>}
         <button type="button" className="btn-icon workspace-whatsnew-dismiss" aria-label="Dismiss what's new" title="Dismiss" onClick={dismiss}>×</button>

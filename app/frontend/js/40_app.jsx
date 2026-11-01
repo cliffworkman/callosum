@@ -217,7 +217,7 @@ function App() {
     if (nav.summary_id != null) { openSynthesisSummary(nav.summary_id); return; }
     if (nav.workspace) {
       selectWorkspace(nav.workspace);
-      if (nav.tab) requestWorkspaceTab(nav.workspace, nav.tab);
+      if (nav.tab) requestWorkspaceTab(nav.workspace, nav.tab); else if (nav.section && nav.workspace === "settings") _focusSettingsSection(nav.section);
     }
     if (nav.pane) {
       if (nav.pane === "methods") { setMethodsOpen(nav.section || "details"); if (mobile) setMobilePane("methods"); }
@@ -452,7 +452,7 @@ function App() {
           onReorderTabs={reorderPdfTabs} onReorderWipTabs={reorderWipTabs}
           annoRefresh={annoRefresh}
           readingMode={readingMode} onToggleReading={toggleReading}
-          mobile={mobile}
+          mobile={mobile} onOpenModernization={() => onStatusNavigate({ nav: MODERNIZATION_SETTINGS_NAV })}
           capture={capture} onCaptureAnchor={captureAnchor} onCancelCapture={clearCapture}
           onOpenLocalAi={() => setOnboarding(s => ({ ...s, done: false, refresh: true }))} onOpenLibraryFolders={() => setScanOpen(true)}
         />

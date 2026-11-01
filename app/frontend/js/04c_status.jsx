@@ -155,7 +155,27 @@ function _statusElapsed(job, now) {
   return job.status === "running" ? base + Math.max(0, (now - (job.observed_at || now)) / 1000) : base;
 }
 
+// Inc 620: the derived "Library modernization" entry spans sessions and stages, so it shows its headline, grounded
+// counts and per-stage notes instead of an elapsed time, and it cannot be dismissed (it leaves when its work is done
+// or after the user acts). Its progress bar never carries a time estimate.
+function PersistentStatusRow({ job, onNavigate }) {
+  return (
+    <div className={"status-row" + (job.status === "error" ? " status-row-error" : "")}>
+      <div className="status-row-head">
+        <button className="status-row-label status-row-label-link" onClick={() => onNavigate(job)}
+          title={`Open ${job.label}`}>{job.label}</button>
+      </div>
+      {job.compute_kind && <div className="status-row-kind">{job.compute_kind}</div>}
+      <div className={job.status === "error" ? "status-row-error-detail" : "status-row-eta"}>{job.detail}</div>
+      {job.status === "running" && job.progress &&
+        <ProgressBar label={job.detail} progress={{ ...job.progress, eta_seconds: null }} managedBy="status-popover" />}
+      {(job.notes || []).map(note => <div key={note} className="status-row-eta">{note}</div>)}
+    </div>
+  );
+}
+
 function StatusJobRow({ job, onDismiss, onNavigate, now }) {
+  if (job.persistent) return <PersistentStatusRow job={job} onNavigate={onNavigate} />;
   const finished = job.status === "done" || job.status === "error";
   const navigable = !!job.nav;
   const elapsed = _statusElapsed(job, now);
@@ -281,7 +301,7 @@ function StatusMenu({ onNavigate, desktopUpdate }) {
   };
   const clearFinished = () => {
     if (updateJob && updateJob.status === "done") setUpdateDismissedPhase(desktopUpdate.phase);
-    setJobs(js => js.filter(j => j.status !== "done" && j.status !== "error"));
+    setJobs(js => js.filter(j => j.persistent || (j.status !== "done" && j.status !== "error")));
     apiPost("/status/jobs/clear-finished", {});
     _clearFinishedClientStatus();
   };
@@ -296,7 +316,7 @@ function StatusMenu({ onNavigate, desktopUpdate }) {
   const uniqueClientJobs = clientJobs.filter(j => !(j.status === "running" && j.nav && backendDestinations.has(_statusDestinationKey(j.nav))));
   const allJobs = [...uniqueClientJobs, ...jobs];
   const displayJobs = updateJob ? [updateJob, ...allJobs] : allJobs;
-  const hasFinished = displayJobs.some(j => j.status === "done" || j.status === "error");
+  const hasFinished = displayJobs.some(j => !j.persistent && (j.status === "done" || j.status === "error"));
 
   return (
     <span className="status-menu">
