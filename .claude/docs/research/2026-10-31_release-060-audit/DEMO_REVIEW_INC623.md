@@ -21,9 +21,11 @@ The refresh replaces the review block, so its earlier content is kept here.
 `tools/qa/check_demo_experience_coverage.py` checks two things: every `www/` capability claim has a ledger status, and the
 review is current for `app/backend/api/routers/*.py` and `tools/demo/*.py`. It does not check that the demo renders, that a
 surface is truthful, or any frontend file. Findings D1-D4 below were all invisible to it: the gate had been failing only on
-staleness, and a blanket refresh would have left every one of them in place. The 121 capability statuses were re-read
-against this review, and none needed to change. `cap-reader` was already `saved-inspectable`; correction C1 is what makes
-that accurate.
+staleness, and a blanket refresh would have left every one of them in place.
+
+All 120 ledger statuses were read by name against this review, and the showcase text was read for those the corrections touch. One
+changed: `cap-pdf-search` moves from `missing-snapshot` to `saved-inspectable`, because Find now works and is exercised. `cap-reader`
+keeps its status, which C1 makes accurate. `cap-fulltext` (Library full-text search) stays `missing-snapshot`.
 
 ## Findings: misleading or broken (class D), all corrected
 | # | Finding | Evidence | Since | Correction |

@@ -36,4 +36,52 @@ Unchanged. No threshold, label, model identity, retrieval or verification code w
 ## Security
 No trigger on the audit gate: no endpoint, fetch, ingestion path or dependency. Independent review remains outstanding.
 
+- **Git Bash rewrites `--base-path /callosum-demo/`** into `/C:/Program Files/Git/callosum-demo/`, and the build accepts it. One of my
+  manual builds came out that way. It did not affect any receipt below (the harness and tests call `build_demo()` directly), and the
+  PowerShell build is correct. The README now says so. I did not change `_base_path`.
+
 ## Receipts
+All on review commit `1c8b203a` plus the ledger renewal, with `CALLOSUM_DB_URL` overridden to a new disposable file under
+`.local\validation-623\` and checked by `preflight_db.py`. No model loaded and no backend ran for the browser checks.
+
+### The three historical failures
+| Test | Cause | Outcome |
+|---|---|---|
+| `test_demo_experience_coverage.py::test_every_public_capability_claim_has_an_explicit_demo_disposition` | Gate stale at 576 | **Resolved** by the review |
+| `test_demo_snapshot.py::test_static_build_is_self_contained_and_base_path_safe` | `build_demo` validates the gate, same cause | **Resolved** by the review |
+| `test_website_how_it_works.py::test_primary_local_destinations_exist[demo/-target2]` | `dist-demo` absent. It is gitignored and CI builds it first, but CI's build was failing on the same gate | **Resolved** by a supported build. Not a website content defect |
+
+Run together with their parametrized siblings: **5 passed**. The test still fails without a build, by design, now naming the command.
+
+### Checks
+| Check | Result |
+|---|---|
+| Demo gate, `check_demo_experience_coverage.py` | Pass. 120 capabilities: 55 saved-inspectable, 26 saved-partial, 6 missing-snapshot, 5 browser-local, 13 external, 14 live-only, 1 inapplicable; 12 homepage links |
+| `test_demo_experience_coverage`, `test_demo_snapshot`, `test_website_how_it_works`, `test_frontend_assembly` | 122 passed, 1 skipped. The skip needs the curated source database, which is not present (environment) |
+| `CALLOSUM_RUN_E2E=1 tests/e2e/test_demo_static.py` | 2 passed |
+| Rendered acceptance, `browser_acceptance.py --label final`, unpatched build, Chromium headless, 1440px and 375px | **58 passed, 0 failed**, 0 console errors, 0 page errors, 1226 in-memory provider calls, 12 distinct HTTP paths, all under `/callosum-demo/` |
+| Builds | `dist-demo/` and a PowerShell subpath build: `<base href="/callosum-demo/">`. Root build: `<base href="/">`. No CDN or loopback marker |
+| QA surface map, tach, line budget, what's-new, bandit, scoped ruff, pre-commit hooks | Pass |
+| **Website gate, `check_website_coverage.py`** | **Fails, as expected.** Inc 624's job. Not refreshed or declined |
+
+Provider reads still answered with a non-2xx status in the run: the six pre-576 Settings reads, plus the deliberate 405s for Delete and
+`/references/resolve`.
+
+Screenshots and `result.json`: `.local\validation-623\final\`. Earlier preview runs used the in-process staleness bypass and are labelled
+`preview-*`.
+
+### Outcome by origin
+- **Historical failures resolved:** the three above.
+- **Historical failures remaining:** none of these three. The website gate remains, and has its own review.
+- **New regressions:** none observed in what ran.
+- **Environment:** one skip (curated source database).
+
+**Final-code full suite: not run in this increment, still owed.** It was not attempted here because the host stopped the last two
+attempts. The newest complete receipt remains `70273c01` (3791 passed, 12 skipped, 3 failed), which predates incs 621-623.
+
+### Protected state
+Research master unchanged (665096192 bytes, 2026-09-22 18:10). Desktop DB unchanged by stat only (613908480 bytes, 2026-10-29 17:16:50).
+Main checkout's dirty state unchanged. JUNO not touched. No model downloaded, no library indexed, nothing re-adjudicated.
+
+## Not run
+Real static hosting, other browsers, a packaged build, Settings on a phone (not offered there, same as live).

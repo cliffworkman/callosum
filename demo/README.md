@@ -204,9 +204,10 @@ python -m http.server 8081 --directory .local/demo-preview
 # open http://127.0.0.1:8081/callosum-demo/
 ```
 
-`python tools/demo/build_demo.py` with no arguments writes the gitignored `dist-demo/` at the root path. CI runs it
-before pytest, and `tests/test_website_how_it_works.py` needs it, so run it first for a full local suite. The build
-refuses to run while the demo review gate is stale: review the drift, then use `--refresh` (see Coverage program).
+`python tools/demo/build_demo.py` with no arguments writes the gitignored `dist-demo/` with base path `/callosum-demo/`.
+CI runs it before pytest, and `tests/test_website_how_it_works.py` needs it, so run it first for a full local suite. The
+build refuses to run while the demo review gate is stale: review the drift, then use `--refresh` (see Coverage program).
+Run these from PowerShell on Windows: Git Bash rewrites `--base-path /callosum-demo/` into a Windows path.
 
 For a simple root-path local preview, use `--base-path /` and serve `dist-demo` itself. A realistic subpath smoke
 test and all contract/security checks are automated:
