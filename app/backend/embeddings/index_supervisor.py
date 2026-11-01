@@ -36,7 +36,7 @@ from sqlalchemy import Engine
 
 from app.backend.embeddings import disk_guard, index_runs
 from app.backend.embeddings import index_worker as worker
-from app.backend.embeddings.index_lock import worker_holds_lock
+from app.backend.embeddings.index_lock import WorkerLock, held_elsewhere, launch_lease_path, try_lock, worker_holds_lock
 from app.backend.embeddings.profile_index import DEFAULT_INDEX_BATCH
 from app.backend.embeddings.profiles import EmbeddingProfile, get_profile
 from app.backend.embeddings.resources import DEFAULT_WORKER_ESTIMATE_MB, ResourcePolicy, ResourceSnapshot, measure
@@ -227,6 +227,7 @@ class _Live:
     launched_at: float
     stop_reason: str | None = None  # why the supervisor itself terminated the worker, if it did
     pausing_since: float | None = None
+    lease: WorkerLock | None = None  # inc 617: this process's launch lease, released once the exit is observed
 
 
 class IndexSupervisor:
@@ -330,7 +331,7 @@ class IndexSupervisor:
                 failure_detail="The retrieval model's pinned version changed. Start the build again.",
             )
             return
-        if worker_holds_lock(self.config.db_url, key):
+        if self._owned_elsewhere(key):
             return
         index_runs.reconcile_counts(self.engine, profile)
         if row["state"] == "waiting_disk" and row["intent"] == "run" and self.config.resume_on_startup:
@@ -372,6 +373,8 @@ class IndexSupervisor:
                     self.engine, key, state="interrupted", failure_kind="app_closed", worker_pid=None, worker_token=None
                 )
                 self._live.pop(key, None)
+                if live.lease is not None:
+                    live.lease.release()
         if self._thread is not None:
             self._thread.join(timeout=5)
 
@@ -390,6 +393,11 @@ class IndexSupervisor:
                 elif row["state"] in ("running", "pausing"):
                     self._recover_unowned(row)  # its worker vanished while the app kept running
 
+    def _owned_elsewhere(self, key: str) -> bool:
+        """Another process's worker is running, or another process launched one that may still be starting."""
+        db_url = self.config.db_url
+        return worker_holds_lock(db_url, key) or held_elsewhere(launch_lease_path(db_url, key))
+
     def _worker_need_mb(self, row: dict) -> int:
         return max(int(row["peak_worker_rss_mb"] or 0), DEFAULT_WORKER_ESTIMATE_MB)
 
@@ -397,7 +405,7 @@ class IndexSupervisor:
         key = row["profile_key"]
         if row["next_retry_at"] is not None and row["next_retry_at"] > index_runs.now():
             return
-        if worker_holds_lock(self.config.db_url, key):
+        if self._owned_elsewhere(key):
             return  # a worker of another Callosum process on this library
         remaining = max(0, int(row["eligible_chunks"]) - int(row["indexed_chunks"]))
         disk = disk_guard.check(
@@ -419,6 +427,9 @@ class IndexSupervisor:
                 )
                 self._notify(key)
             return
+        lease = try_lock(launch_lease_path(self.config.db_url, key))
+        if lease is None:
+            return  # another process is launching this build right now
         token = uuid.uuid4().hex
         index_runs.update_run(
             self.engine,
@@ -435,9 +446,13 @@ class IndexSupervisor:
             diagnostic=None,
             **disk.row_values(),  # the remaining-growth estimate is known before the first batch
         )
-        handle = self.launcher.launch(key, token, int(row["batch_size"]))  # type: ignore[attr-defined]
+        try:
+            handle = self.launcher.launch(key, token, int(row["batch_size"]))  # type: ignore[attr-defined]
+        except BaseException:
+            lease.release()
+            raise
         index_runs.update_run(self.engine, key, worker_pid=handle.pid)
-        self._live[key] = _Live(handle, int(row["indexed_chunks"]), self.clock())
+        self._live[key] = _Live(handle, int(row["indexed_chunks"]), self.clock(), lease=lease)
         self._notify(key)
 
     def _watch(self, row: dict, live: _Live) -> None:
@@ -489,6 +504,8 @@ class IndexSupervisor:
 
     def _on_exit(self, row: dict, live: _Live, code: int) -> None:
         key = row["profile_key"]
+        if live.lease is not None:
+            live.lease.release()
         profile = get_profile(key)
         coverage = index_runs.reconcile_counts(self.engine, profile)
         progressed = coverage["indexed_chunks"] > live.indexed_at_launch

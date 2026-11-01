@@ -18,8 +18,8 @@ MiniLM2 remain for compatibility, and their retirement is deferred.
 |---|---|---|---|---|---|
 | B1 | Release base not integrated; dirty main tree. **Base adopted in the worktree (A1); merge needs separate authorization (G3)** | Data safety / release integrity | — | Release only | No |
 | B2 | Model provisioning: no offline-safe, auto-retrying acquisition. **Infrastructure done in inc 615** (pinned byte manifests, restart-safe tracks, bounded backoff, cross-process ownership, offline loading once verified); Arctic auto-provisions in the packaged app; DeBERTa track built but its release gate is unarmed. **Status/UI surface still owed** (coordinator increment) | UX: requires manual recovery | B1 | Yes | No |
-| B3 | No automatic detection or start of modernization | UX: 0.6.0 undelivered | B1 | Yes (with B4) | No |
-| B4 | Source-role v2 reclassification never runs for users. **Packaging done in inc 613 (`829f35f4`, byte-identical); currentness defect fixed in inc 614 (`01957c6d`, byte-identical, research master 2→0 pending)**; automatic run remains | Scientific: feature inert | — | Yes | No (rules unchanged) |
+| B3 | No automatic detection or start of modernization. **Implemented in inc 617: lifespan coordinator, durable Pause/Resume, backend status contract; focused- and process-tested on disposable libraries, not release-validated; no UI yet (B9)** | UX: 0.6.0 undelivered | B1 | Yes (with B4) | No |
+| B4 | Source-role v2 reclassification never runs for users. **Packaging done in inc 613 (`829f35f4`, byte-identical); currentness defect fixed in inc 614 (`01957c6d`, byte-identical, research master 2→0 pending); runs automatically from inc 617's coordinator (packaged app)** | Scientific: feature inert | — | Yes | No (rules unchanged) |
 | B5 | Arctic preference with MiniLM fallback and import catch-up (**policy authorized, A2–A4**) | UX: Ask fails without it | B6 | No (with B6) | No |
 | B6 | Atomic automatic Arctic activation (**authorized, A3**) | UX / honesty | B3 | No (with B5) | No |
 | B7 | No disk-space guard. **Implemented in inc 616 (`0686a5f6`): focused-tested and process-tested with simulated resources; not release-validated** (real low-disk volume run, packaged-runtime checks under B10, and the settings-panel state still owed) | Data safety | B3 | Yes | No |
@@ -119,6 +119,29 @@ MiniLM2 remain for compatibility, and their retirement is deferred.
   - Two app processes on one library start one worker (the existing OS lock).
 - **Par.:** yes, with B4.
 - **Frozen?** No.
+- **Update 2026-10-31, inc 617.** The findings above are the original audit and are kept as found.
+  - **Implemented.** `app/backend/modernization/` (coordinator + classifier) started from the lifespan after
+    `reconcile_index_builds`; enabled in the packaged app (`CALLOSUM_APP_DATA_DIR`) or with `CALLOSUM_MODERNIZATION=1`,
+    off with `CALLOSUM_DISABLE_MODERNIZATION=1`. Startup does no synchronous work; one OS lock
+    (`<library>.modernization.lock`) elects one coordinator per library across processes.
+  - **Deviation from step 2 of the workstream, on purpose.** The coordinator does **not** write intent `run` on
+    the index row itself. It asks the existing supervisor to `start` only when vectors are missing, the Arctic
+    checkpoint is **verified** (inc 615), the row is not active/failed, and the user has not paused or cancelled
+    it. A fresh row written while the model is unverified would let the inc-610 worker download weights through
+    Hugging Face, which inc 615 forbids.
+  - **Durable intent.** `library_settings.modernization_intent` (`auto`/`paused`) and `modernization_resumed_at`.
+    A Settings Pause or Cancel of the build is never restarted automatically unless modernization is resumed after it.
+  - **Validation level.** Focused-tested: yes (`tests/test_modernization.py`, 25 passed, three consecutive runs).
+    Process-tested: yes, with simulated resources (a real second process leads and is killed mid-paper; real index
+    worker processes for shutdown/restart and the two-supervisor race). Release-validated: **no** (packaged app on a
+    real upgraded library, B10).
+  - **Race found and fixed.** A second app process could mistake a still-starting worker (no worker lock yet) for a
+    dead one and launch a duplicate. The launching process now holds `<library>.index-<key>.launch.lock` from
+    before launch until it observes the exit.
+  - **Residual.** A build already queued with intent `run` (e.g. a manual Build in Settings) can still be launched
+    by the supervisor while the checkpoint is unverified, downloading through Hugging Face: the pre-existing inc-610
+    path, not changed here. Classification is reported by `GET /modernization` but is not mirrored into the Status
+    popover (B9).
 
 ## B4: Source-role v2 never runs for users
 **Progress.** Packaging completed in inc 613 (`829f35f4`). The derivation now lives in
@@ -275,6 +298,12 @@ changes. It must land before the coordinator, or progress never completes and th
   library, rounded up). About 1.07 GB at the default batch of 8: only the next bounded step, never the whole build.
   **Shipping condition:** automatic model downloads and indexing must not ship without visible, truthful progress
   reporting (invariant #5); the Status popover already shows `waiting_disk`, the settings panel does not yet.
+  **Still open after inc 617:** the Settings retrieval panel does not poll while a build is `waiting_disk`, so its
+  numbers go stale until reopened (the Status popover polls).
+  **Release-validation item (added after inc 616):** a full disk can also block the supervisor's own status writes
+  (`index_runs.update_run`, `last_disk_check_json`) and, from inc 617, the coordinator's intent writes. Validate on a
+  real nearly-full volume that the app keeps serving reads, that a failed status write is retried rather than lost
+  silently, and that nothing reports progress it could not record.
 
 ## B8: DeBERTa automatic preference (revised 2026-10-31)
 **Decision (authorized, A5).** DeBERTa is the automatically preferred NLI verifier once its gates are satisfied. Users
@@ -332,6 +361,12 @@ never need to select it. MiniLM2 is the compatibility verifier until then.
   not something implementation may decide.
 
 ## B9: First-run notice and Status semantics
+**Update 2026-10-31, inc 617.** `GET /modernization` now provides the backend contract this blocker's UI needs:
+separate `classification`, `indexing` and `model` groups, each with `state`, `automatic_recovery` and `needs_user`,
+stored-row counts, no combined percentage and no ETA. No banner, Status row or panel consumes it yet.
+**Shipping condition (kept):** automatic downloads and modernization must not ship without accurate, visible,
+nonblocking status and progress reporting.
+
 - **Current behavior.**
   - The Status row is "Retrieval index build" (`routers/status.py:53`) and navigates to Settings.
   - Pause/Resume/Cancel exist only in `js/35i_retrieval_profiles.jsx`.
@@ -399,7 +434,7 @@ checks, and a local commit only after tests pass.
 | 2 | Model acquisition, verification and offline recovery (Arctic; DeBERTa behind its gate) | B2 | **Done: inc 615** |
 | 2a | The currentness predicate restricted to article roles | B4 (defect) | **Done: inc 614 `01957c6d`** |
 | 3 | Disk-space protection and resource-aware scheduling | B7 | **Implemented: inc 616 `0686a5f6`** (focused- and process-tested with simulated resources; release validation owed) |
-| 4 | Automatic modernization coordinator (detect, auto-start, Pause intent) | B3 | — |
+| 4 | Automatic modernization coordinator (detect, auto-start, Pause intent) | B3 | **Implemented: inc 617** (focused- and process-tested with simulated resources; release validation and UI owed) |
 | 5 | Arctic S preference, MiniLM fallback, import catch-up, atomic activation | B5, B6 | — |
 | 6 | Automatic DeBERTa preference: per-operation memory precheck, effective verifier, provenance, fail-closed, verifier-keyed ETA, cautious `contradicted` wording. Gate constant exists (inc 615, unarmed) | B8 | — |
 | 7 | Nonblocking first-launch notice and unified modernization Status | B9 | — |
@@ -409,3 +444,12 @@ checks, and a local commit only after tests pass.
 
 **Verdict: CONDITIONAL GO** to continue implementation of steps 2–8. **NO-GO for release** until B1–B10 are accepted
 and G1–G4 are resolved, or until Cliff decides to ship with automatic DeBERTa preference disarmed.
+
+## Pending dedicated reviews (recorded after inc 616; unchanged by inc 617)
+Neither is resolved by refreshing a receipt, and neither was declined.
+- **Demo coverage.** `tools/qa/check_demo_experience_coverage.py` fails on drift accumulated since the inc-576 review
+  (about 29 routers). It needs a dedicated demo review; inc 617 adds `/modernization`, which the demo does not serve.
+- **Website coverage.** `tools/qa/check_website_coverage.py` fails on 11 frontend/help files changed since the inc-603
+  review. `www/shots/synthesis_current.png` predates the inc-609 provenance line and needs re-capture in that review.
+- **Help text.** Help describes memory waits but not disk waits (inc 616) or background modernization (inc 617).
+  Left for the UI increment, per the instruction not to alter Help inside the coordinator increment.

@@ -324,7 +324,9 @@ def test_disk_shortage_with_a_pause_requested_ends_paused(temp_db_url: str, smal
     index_runs.upsert_requested(engine, small_arctic, batch_size=8)
     row = supervisor.row(KEY)
     index_runs.update_run(engine, KEY, intent="pause")
-    live = SimpleNamespace(handle=SimpleNamespace(diagnostic_tail=lambda: None), indexed_at_launch=0, stop_reason=None)
+    live = SimpleNamespace(
+        handle=SimpleNamespace(diagnostic_tail=lambda: None), indexed_at_launch=0, stop_reason=None, lease=None
+    )
     supervisor._on_exit(row, live, worker.EXIT_DISK)  # the worker reported a shortage after the user paused
     assert supervisor.row(KEY)["state"] == "paused"
     engine.dispose()

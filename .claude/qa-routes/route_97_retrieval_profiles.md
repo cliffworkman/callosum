@@ -1,5 +1,5 @@
 <!-- qa-coverage
-api: /verification-nli-profiles, /verification-nli-profiles/active, /embedding-profiles, /embedding-profiles/active, /embedding-profiles/{key}/index, /embedding-profiles/index/{job_id}, /embedding-profiles/index/{job_id}/cancel, /embedding-profiles/{key}/index/pause, /embedding-profiles/{key}/index/resume, /embedding-profiles/{key}/index/cancel
+api: /verification-nli-profiles, /verification-nli-profiles/active, /embedding-profiles, /embedding-profiles/active, /embedding-profiles/{key}/index, /embedding-profiles/index/{job_id}, /embedding-profiles/index/{job_id}/cancel, /embedding-profiles/{key}/index/pause, /embedding-profiles/{key}/index/resume, /embedding-profiles/{key}/index/cancel, /modernization, /modernization/pause, /modernization/resume
 fe: 35i_retrieval_profiles.jsx, 20e_model_provenance.jsx
 -->
 
@@ -81,6 +81,19 @@ listeners before navigation.
   claim is ever scored by embedding similarity in NLI's place. Re-verify of an imported synthesis returns **503** and
   leaves it imported.
 
+- **Background modernization (inc 617, backend contract only; no UI yet).** `GET /modernization` reports three
+  separate groups: `classification` (source-role v2 papers current / pending / failed this session), `indexing`
+  (Arctic S eligible / indexed / missing passages, with the supervised run's state) and `model` (provisioning
+  state, `verified`). Each group carries `state`, `automatic_recovery` and `needs_user`; there is no combined
+  percentage and no ETA, and the response holds no path, passage or exception text. In a source checkout
+  `enabled` is false (`disabled_reason: development_checkout`) and nothing runs; the packaged app (or
+  `CALLOSUM_MODERNIZATION=1`) enables it, and `CALLOSUM_DISABLE_MODERNIZATION=1` turns it off.
+  `POST /modernization/pause` is durable across restarts and stops both classification and automatic Arctic
+  indexing; `POST /modernization/resume` returns `intent: auto`. A Settings Pause or Cancel of the index build is
+  never restarted automatically, even after an import or a restart; only Resume (here or in Settings) restarts it.
+  Indexing waits as `waiting_for_model` until the Arctic checkpoint is verified; nothing downloads or loads
+  unverified weights. MiniLM stays the effective retrieval model throughout.
+
 ## Adversarial checklist
 
 - Load Settings → exactly one `GET /embedding-profiles`; no POST is issued.
@@ -93,3 +106,8 @@ listeners before navigation.
 - Mid-build, end the worker process from Task Manager → Settings shows "interrupted … will retry automatically", the
   count does not drop, and the build resumes and completes without duplicate vectors.
 - Mid-build, quit Callosum and relaunch → the build resumes on its own; Pause first, quit, relaunch → it stays paused.
+- Packaged app on a 0.5.16 library → `GET /modernization` shows classification `running` then `complete`; with the
+  Arctic model verified the index build starts by itself; Library and Ask stay usable throughout.
+- `POST /modernization/pause`, quit, relaunch → `intent` is still `paused`; no classification or build starts.
+  Resume → both continue from stored rows; nothing already current is redone.
+- Open two Callosum windows on one library → only one reports `coordinating_here: true`.

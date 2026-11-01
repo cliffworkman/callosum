@@ -9,6 +9,19 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-10-31 — Automatic background modernization coordinator (inc 617)
+- **Files:** `app/backend/modernization/` (new), `app/backend/api/routers/modernization.py` (new), `app/backend/api/app.py`,
+  `app/backend/pdf_processing/structure_backfill.py`, `app/backend/embeddings/index_lock.py`,
+  `app/backend/embeddings/index_supervisor.py`, `tests/test_modernization.py` (new), `tests/modernization_child.py` (new),
+  `tests/test_index_disk_guard.py`, QA route 97, blocker matrix, `.claude/security-audits/2026-10-31_modernization-coordinator.md`
+- **What:** a lifespan coordinator that detects pending source-role v2 classification and missing Arctic S vectors from
+  stored rows, classifies one paper per transaction, schedules the existing supervisor only once the model is verified,
+  honors a durable Pause and the user's own build Pause/Cancel, and reports a structured `GET /modernization` contract;
+  plus a launch lease fixing a two-process duplicate-worker race.
+- **Why:** release blockers B3/B4: 0.6.0 modernization never started for existing users.
+- **Revert:** revert the inc-617 commit. The two `library_settings` keys it writes are inert without it; lock files beside
+  the library can be deleted when Callosum is closed.
+
 ## 2026-10-31 — Disk-space guard and automatic recovery for index builds (inc 616)
 - **Files:** `app/backend/embeddings/disk_guard.py` (new), `app/backend/embeddings/index_worker.py`,
   `app/backend/embeddings/index_supervisor.py`, `app/backend/embeddings/index_runs.py`,

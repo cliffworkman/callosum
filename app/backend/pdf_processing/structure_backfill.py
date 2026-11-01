@@ -272,6 +272,40 @@ def _paper_rows(conn, paper_id: int) -> list[dict]:
     return rows
 
 
+def derive_paper(conn, paper_id: int, references: dict[int, list[dict]]) -> int | None:
+    """Derive and replace one paper's rows inside the caller's transaction. Returns the rows written, or None when
+    the paper has no classified chunk. Shared by ``backfill`` and the background coordinator (inc 617), so the two
+    can never derive different output."""
+    rows = _paper_rows(conn, paper_id)
+    if not rows:
+        return None
+    region, source = infer_reference_region(rows, references.get(paper_id, []))
+    repeats = detect_repeats(rows)
+    results = classify_paper(
+        [
+            ChunkInput(
+                chunk_id=int(r["id"]),
+                paper_id=int(r["paper_id"]),
+                text=r["text"] or "",
+                section=r["section"],
+                page_start=r["page_start"],
+                bbox_json=r["bbox_json"],
+                chunk_version=r["chunk_version"] or "",
+            )
+            for r in rows
+        ],
+        reference_region=region,
+        reference_region_source=source,
+        repeated=repeats,
+    )
+    return replace_paper_structure(
+        conn,
+        paper_id=paper_id,
+        results=results,
+        source={int(r["id"]): (raw_sha(r["text"] or ""), r["chunk_version"] or "") for r in rows},
+    )
+
+
 def backfill(engine, *, paper_id: int | None = None, limit: int | None = None, force: bool = False) -> dict:
     stats = {"papers": 0, "chunks": 0, "skipped_current": 0, "no_reference_metadata": 0}
     with engine.begin() as conn:
@@ -292,37 +326,11 @@ def backfill(engine, *, paper_id: int | None = None, limit: int | None = None, f
         if limit is not None and stats["papers"] >= limit:
             break
         with engine.begin() as conn:  # per-paper commit: an interrupted run simply resumes
-            rows = _paper_rows(conn, pid)
-            if not rows:
+            written = derive_paper(conn, pid, references)
+            if written is None:
                 continue
-            refs = references.get(pid, [])
-            if not refs:
+            if not references.get(pid):
                 stats["no_reference_metadata"] += 1
-            region, source = infer_reference_region(rows, refs)
-            repeats = detect_repeats(rows)
-            results = classify_paper(
-                [
-                    ChunkInput(
-                        chunk_id=int(r["id"]),
-                        paper_id=int(r["paper_id"]),
-                        text=r["text"] or "",
-                        section=r["section"],
-                        page_start=r["page_start"],
-                        bbox_json=r["bbox_json"],
-                        chunk_version=r["chunk_version"] or "",
-                    )
-                    for r in rows
-                ],
-                reference_region=region,
-                reference_region_source=source,
-                repeated=repeats,
-            )
-            written = replace_paper_structure(
-                conn,
-                paper_id=pid,
-                results=results,
-                source={int(r["id"]): (raw_sha(r["text"] or ""), r["chunk_version"] or "") for r in rows},
-            )
             stats["papers"] += 1
             stats["chunks"] += written
     return stats

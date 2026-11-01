@@ -89,6 +89,7 @@ from app.backend.api.routers import (
     methods_statcheck_cache,
     methods_top_factor,
     methods_zcurve,
+    modernization,
     my_publication_citing_authors,
     my_publication_gaps,
     my_publication_topics,
@@ -231,9 +232,11 @@ def create_app(
         _recover_provisional_captures(engine)
         embedding_index.reconcile_index_builds(api)  # inc 610: resume builds a killed session left running
         start_model_provisioning(api)  # inc 615: background, per-track; never blocks startup
+        modernization.start_modernization(api)  # inc 617: background classification + Arctic scheduling
         try:
             yield
         finally:
+            modernization.stop_modernization(api)  # first, so no new build is scheduled during shutdown
             stop_model_provisioning(api)  # a request, not a wait: a partial transfer resumes next launch
             embedding_index.shutdown_index_builds(api)  # owned workers stop with the app; work is committed
             try:
@@ -533,6 +536,7 @@ def create_app(
     api.include_router(summaries.router)
     api.include_router(embedding_profiles.router)  # /embedding-profiles/* — retrieval model profiles
     api.include_router(embedding_index.router)  # inc 610: supervised profile index builds
+    api.include_router(modernization.router)  # inc 617: background modernization state and Pause/Resume
     api.include_router(help.router)
     api.include_router(settings.router)  # /settings — BYOK: Gemini key + egress consent from the UI (inc 146)
     api.include_router(usage.router)  # /usage/* — local usage instrumentation, zero egress (backlog #38A, inc 450)

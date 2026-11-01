@@ -33,7 +33,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 616** on the unpushed `integrate/inc607-608-ask` branch (main is at 608; inc 607, the 2026-10-29 reference-exclusion repair `e4d4f4e4`, is cherry-picked there as `d85556b6`); see Increment workflow. The accepted Browser Capture head
+It is currently at **Increment 617** on the unpushed `integrate/inc607-608-ask` branch (main is at 608; inc 607, the 2026-10-29 reference-exclusion repair `e4d4f4e4`, is cherry-picked there as `d85556b6`); see Increment workflow. The accepted Browser Capture head
 `80025d1a` passed **3490 tests, 9 skipped**, plus 23 browser smoke tests in CI before merging.
 Fresh release-candidate checks are required for 0.5.16; do not substitute that earlier receipt.
 It is a working MVP backed by a thorough planning suite in `.claude/docs/`.
@@ -135,6 +135,17 @@ the full per-increment narrative for all other increments now lives in the reloc
   build. SQLite `database or disk is full`/ENOSPC exits the worker with code 74. The `waiting_disk` state rechecks
   every 60 s, resumes by itself, never counts toward the no-progress breaker, never shrinks the batch, and never
   deletes data; Pause stays authoritative. Status and the API carry byte counts only, never a path.
+  **Background modernization (inc 617):** `app/backend/modernization/` runs one lifespan thread per app (packaged app,
+  or `CALLOSUM_MODERNIZATION=1`; `CALLOSUM_DISABLE_MODERNIZATION=1` wins; off in source checkouts/tests). An OS lock
+  (`<library>.modernization.lock`) elects one leader per library; others only report. The leader classifies pending
+  source-role v2 papers one per transaction through `structure_backfill.derive_paper` (bounded passes, memory/disk
+  checked before writes, failing papers remembered per session by chunk fingerprint), and asks the inc-610 supervisor
+  to `start` Arctic S **only** once the inc-615 checkpoint is verified -- never writing a `run` row itself, which would
+  open the Hugging Face download path. A durable `library_settings.modernization_intent` Pause stops both; a Settings
+  Pause/Cancel of the build is never restarted unless modernization is resumed after it (`modernization_resumed_at`).
+  It never switches the active profile. `GET /modernization` separates classification / indexing / model with no
+  combined percentage or ETA. The supervisor's launch lease (`<library>.index-<key>.launch.lock`, held from launch to
+  observed exit) keeps a second process from launching a duplicate worker while the first is still starting.
 - **Clustering:** scikit-learn agglomerative clustering + local axis scoring.
 - **Explicit feedback (inc 439):** the top-menu Feedback dialog builds either a bug or feature report and shows the
   exact strict version-1 JSON before explicit egress. The local API can reach only `CALLOSUM_FEEDBACK_RELAY_URL`; the
@@ -1760,7 +1771,7 @@ latency regressions.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (608 on main; 607 and 609–616 on `integrate/inc607-608-ask`). Each increment of real work
+callosum is built in **numbered increments** (608 on main; 607 and 609–617 on `integrate/inc607-608-ask`). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 
