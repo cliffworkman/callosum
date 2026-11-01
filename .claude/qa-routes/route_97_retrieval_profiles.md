@@ -1,5 +1,5 @@
 <!-- qa-coverage
-api: /verification-nli-profiles, /verification-nli-profiles/active, /embedding-profiles, /embedding-profiles/active, /embedding-profiles/{key}/index, /embedding-profiles/index/{job_id}, /embedding-profiles/index/{job_id}/cancel, /embedding-profiles/{key}/index/pause, /embedding-profiles/{key}/index/resume, /embedding-profiles/{key}/index/cancel, /modernization, /modernization/pause, /modernization/resume
+api: /verification-nli-profiles, /verification-nli-profiles/active, /embedding-profiles, /embedding-profiles/active, /embedding-profiles/{key}/index, /embedding-profiles/index/{job_id}, /embedding-profiles/index/{job_id}/cancel, /embedding-profiles/{key}/index/pause, /embedding-profiles/{key}/index/resume, /embedding-profiles/{key}/index/cancel, /modernization, /modernization/pause, /modernization/resume, /modernization/models/{track}/retry
 fe: 35i_retrieval_profiles.jsx, 35j_modernization.jsx, 04f_modernization_logic.jsx, 04c_status.jsx, 04e_whatsnew.jsx, 20e_model_provenance.jsx, 20c_synthesis_results.jsx
 -->
 
@@ -82,6 +82,16 @@ listeners before navigation.
   in an error that starts "Citation verification failed, so no synthesis was saved." No result appears, and no
   claim is ever scored by embedding similarity in NLI's place. Re-verify of an imported synthesis returns **503** and
   leaves it imported.
+
+- **Model "Try again" (inc 622, recovery contract F8).** With a provisioned model in `invalid`, Settings → Library
+  modernization shows an alert explaining the failure and a **Try again** button named for that model. No button appears
+  while a model is absent, downloading or waiting on network, disk or memory, or once verified. Clicking it runs one
+  forced attempt for that model: the button goes away, the panel and the one Status entry say "trying again", and the
+  panel never reads "downloaded and verified" until the provisioner has verified the files. A failure that persists brings
+  the button back with "The last Try again did not fix this." `POST /modernization/models/{track}/retry` returns 404 for
+  an unknown model, 409 when no retry applies, 403 in read-only mode, and 401 without the Remote access token. Honesty
+  invariants: Pause stays paused after a repair, Ask stays on MiniLM until the model is verified and existing conditions
+  allow Arctic, a repaired DeBERTa does not turn on automatic DeBERTa, and no response carries a path or exception text.
 
 - **Background modernization (inc 617, backend contract only; no UI yet).** `GET /modernization` reports three
   separate groups: `classification` (source-role v2 papers current / pending / failed this session), `indexing`

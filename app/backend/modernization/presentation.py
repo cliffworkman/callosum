@@ -31,6 +31,38 @@ def _n(value: object) -> int:
     return int(value) if isinstance(value, int) and not isinstance(value, bool) else 0
 
 
+_TRACK_LABELS = {"arctic-s": "Arctic S retrieval model", "deberta-v3-base": "DeBERTa verification model"}
+_TRACK_CONSEQUENCE = {
+    "arctic-s": "Ask does not use it.",
+    "deberta-v3-base": "Repairing it does not turn on automatic DeBERTa verification.",
+}
+_INVALID_NOTE = "the downloaded files failed verification, so Callosum will not use them and will not retry by itself."
+
+
+def recovery_message(item: dict) -> str:
+    """The sentence for one model needing a manual retry (inc 622). ``item`` holds only stored provisioning facts."""
+    track = item.get("track") or ""
+    label = _TRACK_LABELS.get(track, "Model")
+    if item.get("retrying"):
+        return f"{label}: trying again. It is not used until its files pass verification."
+    if item.get("state") != "invalid":
+        cause = "its download stopped before finishing and nothing is resuming it, so it will not be used."
+    elif item.get("error_kind") == "pinned_revision_unavailable":
+        cause = (
+            "the pinned version could not be obtained from its source, so it will not be used and Callosum will "
+            "not retry by itself."
+        )
+    else:
+        cause = "the downloaded files failed verification, so Callosum will not use them and will not retry by itself."
+    retried = " The last Try again did not fix this." if item.get("manual_retries") else ""
+    action = (
+        " Try again checks the files and fetches only what failed."
+        if item.get("can_retry")
+        else " Automatic download is off in this build, so it cannot be repaired here."
+    )
+    return f"{label}: {cause} {_TRACK_CONSEQUENCE.get(track, '')}{retried}{action}"
+
+
 def _model_note(model: dict) -> tuple[str, str]:
     """(kind, sentence) for the Arctic S download. Kinds: ready, working, waiting, attention, off."""
     state = model.get("state")
@@ -38,10 +70,7 @@ def _model_note(model: dict) -> tuple[str, str]:
     if state == "verified":
         return "ready", "Arctic S retrieval model: downloaded and verified."
     if state == "invalid":
-        return "attention", (
-            "Arctic S retrieval model: the downloaded files failed verification, so Callosum will not use them and "
-            "will not retry by itself. Ask keeps using MiniLM. There is no in-app repair yet; please report this."
-        )
+        return "attention", f"Arctic S retrieval model: {_INVALID_NOTE}"
     if not automatic:
         return "off", "Arctic S retrieval model: not installed, and automatic download is off in this build."
     if state == "downloading":
@@ -121,10 +150,18 @@ def _index_note(i: dict, run_message: str | None) -> tuple[str, str]:
     return "working", f"Arctic S index: building ({counts})."
 
 
-def summarize(status: dict, *, run_message: str | None = None) -> dict:
+def summarize(status: dict, *, run_message: str | None = None, recovery: list[dict] | None = None) -> dict:
     """The one modernization summary for Status and Settings. ``run_message`` is the index run's own plain message
-    (``embedding_index._message``), reused so disk/memory waits read the same everywhere."""
+    (``embedding_index._message``), reused so disk/memory waits read the same everywhere. ``recovery`` lists the models
+    needing or running a manual retry (inc 622); a retry is reported only as running until the provisioner verifies it."""
     model_kind, model_text = _model_note(status.get("model") or {})
+    recovery = recovery or []
+    arctic = next((item for item in recovery if item["track"] == "arctic-s"), None)
+    if arctic is not None:
+        model_kind, model_text = ("working" if arctic["retrying"] else "attention"), recovery_message(arctic)
+    verifier_item = next((item for item in recovery if item["track"] != "arctic-s"), None)
+    verifier_text = recovery_message(verifier_item) if verifier_item is not None else None
+    retrying = next((item for item in recovery if item["retrying"]), None)
     class_kind, class_text = _class_note(status.get("classification") or {})
     index_kind, index_text = _index_note(status.get("indexing") or {}, run_message)
     indexing, classification = status.get("indexing") or {}, status.get("classification") or {}
@@ -141,6 +178,10 @@ def summarize(status: dict, *, run_message: str | None = None) -> dict:
         )
     notes = {"model": model_text, "classification": class_text, "indexing": index_text}
     attention = [text for kind, text in ((model_kind, model_text), (index_kind, index_text)) if kind == "attention"]
+    if verifier_text is not None:
+        notes["verifier_model"] = verifier_text
+        if not verifier_item["retrying"]:
+            attention.append(verifier_text)
 
     progress = None
     if not status.get("enabled"):
@@ -157,6 +198,9 @@ def summarize(status: dict, *, run_message: str | None = None) -> dict:
             classification.get("papers_with_classified_chunks"),
             "papers classified",
         )
+    elif retrying is not None:
+        label = _TRACK_LABELS.get(retrying["track"], "model")
+        state, headline = WORKING, f"Trying again to get the {label}."
     elif model_kind == "working":
         state, headline = WORKING, "Downloading the Arctic S retrieval model."
     elif index_kind == "working":

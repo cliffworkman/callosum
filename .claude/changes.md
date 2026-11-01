@@ -9,6 +9,18 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-11-01 — Manual "Try again" for a failed model checkpoint (inc 622)
+<!-- HELP-DOCS-SYNCED inc 622: Library modernization, model download failures -->
+- **Files:** `app/backend/api/routers/modernization.py`, `app/backend/model_provisioning/{provisioner,runner}.py`,
+  `app/backend/modernization/{coordinator,presentation}.py`, `app/frontend/js/{04f_modernization_logic,35j_modernization}.jsx`,
+  `callosum-app.html`, `app/backend/help/help_content.md`, `tests/test_model_recovery.py`, QA route 97, security audit,
+  recovery contract, blocker matrix, increment notes.
+- **What:** a terminally failed pinned checkpoint now offers Try again in Settings, which runs the provisioner's existing
+  forced attempt for that model only and reports what actually happened.
+- **Why:** the recovery contract promised this action (F8) and none existed, so a failed checkpoint left a library on
+  MiniLM with no way out inside the app.
+- **Revert:** revert this commit. Scientific behaviour is untouched.
+
 ## 2026-11-01 — Release stabilization: mounted Settings panel no longer goes stale (inc 621)
 - **Files:** `app/frontend/js/{04f_modernization_logic,35j_modernization}.jsx`, `callosum-app.html`,
   `tests/test_modernization_status.py`, QA route 97, blocker matrix, test plan, recovery contract, increment notes.

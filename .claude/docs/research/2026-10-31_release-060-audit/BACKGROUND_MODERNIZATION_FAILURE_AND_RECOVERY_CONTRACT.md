@@ -71,6 +71,19 @@ activation:       not_ready ─► active(source=modernization) ;  user choice �
 | F19 | Not enough memory for DeBERTa at operation start | `resources.py` precheck (*new*) | n/a | MiniLM2 for this operation, recorded as `insufficient_memory` | Re-checked per operation | Provenance line names MiniLM2 and the reason |
 | F20 | Arctic model unavailable or invalid | Model stage, F7/F8 | n/a | MiniLM retrieval, `fallback_reason=model_unavailable` | As F7/F8 | As F7/F8 |
 
+### Inc 622: F8 implemented
+The inc-621 F8 deviation below is closed. Implemented behaviour, which refines the row above:
+- "Try again" re-downloads only the files that failed, then re-verifies the whole pinned manifest and static contract.
+  Files that pass keep their bytes. A contract-only failure fetches nothing and returns to `invalid`.
+- It appears for `invalid`, and for a retryable state on a track with no automatic runner. It never appears for a normal
+  download or wait on a track that has its runner.
+- A failed retry stays visible and actionable, and is never repeated without another click. Network and resource waits
+  inside a retry recover by themselves, keeping the retry's force.
+- The retry is independent of Pause: it neither needs Resume nor lifts Pause. Scheduling after a repair applies all
+  existing conditions, so Pause, Cancel and explicit retrieval or verifier choices stand.
+- A repaired DeBERTa stays behind its release gates.
+- Tested with mocked network only. A real transfer and `force_download` over a corrupt blob are release-validation items.
+
 ### Inc 621 evidence notes
 - **F6, status writes refused too** (simulated: every write raises `database or disk is full`; no disk filled). Browsing
   and both status reads stayed 200, both monitor threads survived, integrity stayed ok, and work finished 4.6 s after
@@ -81,7 +94,7 @@ activation:       not_ready ─► active(source=modernization) ;  user choice �
   (`test_completed_run_row_does_not_prove_coverage`) and `GET /embedding-profiles` says so at once, but the modernization
   summary stays "complete" until reconciliation (at most 30 minutes; repaired 1.1 s once due), and its retrieval line
   showed Arctic S throughout the 17.7 s observed. Deferred improvement.
-- **F8 deviation.** The row above promises one "Try again" action. None exists: the panel says "There is no in-app repair
+- **F8 deviation (closed by inc 622; kept as the record of inc 621).** The row above promises one "Try again" action. None exists: the panel says "There is no in-app repair
   yet; please report this." Safe (MiniLM continues, nothing loops, shown in Status), but that library stays on MiniLM.
   Product decision owed before release: build the action or amend this contract.
 - **F14** is pinned by in-process and worker-process lock tests; not yet run as two real apps with a browser attached.

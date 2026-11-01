@@ -552,6 +552,23 @@ Settings is open; add it to the F-4000 receipt. One product decision is owed: th
 **Security.** Self-reviews exist for incs 616-620. **No independent review has been run on the integrated tree**; the
 repo has no automated independent-review workflow (CI runs `bandit` only). Still pending.
 
+## Status after inc 622 (2026-11-01)
+**F8 is implemented; it is not release-validated.** The inc-621 table above is otherwise unchanged. Implemented, focused
+tests and a rendered-browser check with a mocked network: yes. Packaged runtime and a real Hugging Face transfer: **not run**.
+The "one product decision owed" recorded after inc 621 is resolved by this work.
+
+Tracked validation items, none resolved by inc 622:
+1. A completely full filesystem can prevent status writes and durable Pause.
+2. A missing Arctic vector with an unchanged chunk can delay automatic repair until periodic reconciliation.
+3. A second real app process with browser-visible state is untested.
+4. Settings endpoint latency at larger scale.
+5. Real Arctic encoder behaviour, including batch-size recovery after memory pressure, is unvalidated.
+6. Mobile-width presentation is not browser-tested, now including the Try again control.
+7. Independent security review of the integrated modernization work is outstanding.
+8. New: a real `force_download` over a corrupt cached blob, on each OS.
+
+Demo and website gates remain unresolved and untouched: not refreshed, declined, skipped or weakened.
+
 ## Pending dedicated reviews (recorded after inc 616; unchanged by inc 617)
 Neither is resolved by refreshing a receipt, and neither was declined.
 - **Demo coverage.** `tools/qa/check_demo_experience_coverage.py` fails on drift accumulated since the inc-576 review

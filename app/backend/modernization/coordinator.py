@@ -158,6 +158,10 @@ class ModernizationCoordinator:
 
     # ---- lifecycle ------------------------------------------------------------------------------------------------
 
+    def wake(self) -> None:
+        """Check now instead of at the next interval. Scheduling itself still applies every condition."""
+        self._wake.set()
+
     def start(self) -> None:
         if self.enabled and self._thread is None:
             self._thread = threading.Thread(target=self._loop, name="modernization-coordinator", daemon=True)

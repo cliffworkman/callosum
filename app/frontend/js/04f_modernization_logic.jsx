@@ -28,7 +28,7 @@ function modernizationPollDelay(modernization, profiles) {
 // What an idle tick compares: anything the two panels would show differently. Unchanged means the far costlier
 // GET /embedding-profiles (seconds on a real library, against milliseconds here) is not needed on that tick.
 function modernizationSignature(m) {
-  return m ? JSON.stringify([m.intent, m.summary, m.effective_retrieval, m.retrieval_preference, m.verifier]) : null;
+  return m ? JSON.stringify([m.intent, m.summary, m.effective_retrieval, m.retrieval_preference, m.verifier, m.model_recovery]) : null;
 }
 
 // The 0.6.0 notice explains background work an upgraded library will do; a library with no papers has nothing to

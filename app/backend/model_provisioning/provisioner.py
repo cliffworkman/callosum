@@ -198,7 +198,7 @@ class Provisioner:
         return data if data.get("state") in STATES else {}
 
     def _write(self, **fields: object) -> dict:
-        data = {k: v for k, v in self._read().items() if k in {"attempts", "failures"}}
+        data = {k: v for k, v in self._read().items() if k in {"attempts", "failures", "manual_retries"}}
         data.update(
             track=self.manifest.track,
             repo_id=self.manifest.repo_id,
@@ -266,6 +266,7 @@ class Provisioner:
             "diagnostic": data.get("diagnostic") if state not in {VERIFIED, ABSENT, PRESENT_UNVERIFIED} else None,
             "next_attempt_at": data.get("next_attempt_at") if state in RETRYABLE else None,
             "attempts": int(data.get("attempts") or 0),
+            "manual_retries": int(data.get("manual_retries") or 0),
             "verified_at": data.get("verified_at") if state == VERIFIED else None,
             "owned_elsewhere": state == DOWNLOADING and not self._holding,
         }
@@ -314,6 +315,7 @@ class Provisioner:
             error_kind=None,
             diagnostic=None,
             failures=0,
+            manual_retries=0,
             next_attempt_at=None,
             verified_at=self._clock(),
             verified_files=stats,
@@ -332,6 +334,8 @@ class Provisioner:
                 return self.status()
             if data.get("state") == INVALID and not force:
                 return self.status()  # terminal: never retried automatically
+            if data.get("state") == INVALID:  # only an explicit retry reaches here; network waits inside it don't count
+                self._write(manual_retries=int(data.get("manual_retries") or 0) + 1, state=INVALID)
             self._write(attempts=int(data.get("attempts") or 0) + 1, state=data.get("state") or ABSENT)
             missing, corrupt = self._verify()
             if corrupt and not force:

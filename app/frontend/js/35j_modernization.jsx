@@ -61,6 +61,15 @@ function ModernizationPanel({ state, profiles, onChanged, onReload }) {
     if (r.ok) onChanged(r.data); else setError(r.error || "Couldn't change background modernization.");
     onReload();
   };
+  // Inc 622: the backend lists a model only when a retry applies, and reports what actually happened afterwards.
+  const retry = async (track) => {
+    if (busy) return;
+    setBusy(true); setError("");
+    const r = await apiPost(`/modernization/models/${track}/retry`, {});
+    setBusy(false);
+    if (r.ok) onChanged(r.data); else setError(r.error || "Couldn't start the retry.");
+    onReload();
+  };
   const retrieval = state.effective_retrieval;
   const verifier = state.verifier;
   return (
@@ -75,7 +84,10 @@ function ModernizationPanel({ state, profiles, onChanged, onReload }) {
       {s.progress && s.state === "working" &&
         <ProgressBar label={s.headline} progress={{ ...s.progress, eta_seconds: null }} managedBy="status-popover" />}
       {s.attention.map(text => <p key={text} role="alert" className="settings-sub">{text}</p>)}
-      {["model", "classification", "indexing"].filter(k => !s.attention.includes(s.notes[k])).map(k =>
+      {(state.model_recovery || []).filter(r => r.can_retry).map(r =>
+        <button key={r.track} className="btn btn-ghost" disabled={busy} aria-label={`Try again: ${r.message.split(":")[0]}`}
+          onClick={() => retry(r.track)}>Try again</button>)}
+      {["model", "verifier_model", "classification", "indexing"].filter(k => s.notes[k] && !s.attention.includes(s.notes[k])).map(k =>
         <p key={k} className="settings-sub">{s.notes[k]}</p>)}
       {retrieval &&
         <p role={retrieval.ask_blocked ? "alert" : "status"} className="settings-sub">

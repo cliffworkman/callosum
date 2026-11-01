@@ -1556,6 +1556,8 @@ Three kinds of work happen, independently and possibly at the same time:
 
 **Resuming.** Completed work is saved as it goes. Work picks up where it left off when you reopen Callosum, after a crash or interruption, when the network returns, when disk space is freed (checked every minute), or when memory pressure eases. These waits are shown with their reason. Work does **not** resume by itself after you pause it, after you cancel a manual build, after repeated failures that save nothing, or if the model files fail verification; Status and Settings say so and the entry stays until you act.
 
+**Model download failures.** If a model's downloaded files fail verification, or its pinned version can't be obtained, Callosum doesn't use them and doesn't keep retrying by itself. **Settings → Library behavior → Library modernization** explains the problem, shows what Ask is using right now, and offers **Try again**, which checks the files and fetches only what failed. Your library, indexes and other downloaded models aren't touched. Try again doesn't resume paused work or change which models you selected, and repairing the DeBERTa download doesn't turn on automatic DeBERTa verification.
+
 **Multiple windows.** If two Callosum windows open the same library, only one does the background work; the other shows it as running in another window.
 
 ## Asking the help assistant

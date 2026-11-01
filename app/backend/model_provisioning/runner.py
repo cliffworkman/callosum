@@ -4,6 +4,9 @@ Each track runs on its own daemon thread, so ordinary startup never waits for a 
 never wait on each other. A runner stops when its track is ``verified`` or terminally ``invalid``; retryable states
 sleep until the recorded ``next_attempt_at`` and try again, indefinitely, so a lost connection never needs a manual
 restart. Shutdown is a request, not a wait: an in-flight file transfer is abandoned and resumed next launch.
+
+A terminally ``invalid`` track has no runner until the user asks for one (inc 622): ``force=True`` is that explicit
+"Try again". It keeps its force through network and resource waits, and still ends at the first terminal state.
 """
 
 from __future__ import annotations
@@ -96,8 +99,12 @@ class ProvisioningRunner:
         clock: Callable[[], float] = time.time,
         busy_poll_seconds: float = 60.0,
         min_wait_seconds: float = 1.0,
+        force: bool = False,
+        on_settled: Callable[[], None] | None = None,
     ) -> None:
         self.provisioner = provisioner
+        self._force = force
+        self._on_settled = on_settled
         self._clock = clock
         self._busy_poll = busy_poll_seconds
         self._min_wait = min_wait_seconds
@@ -110,19 +117,31 @@ class ProvisioningRunner:
         status = self.provisioner.status()
         while not self._stop.is_set():
             try:
-                status = self.provisioner.provision_once()
+                status = self.provisioner.provision_once(force=self._force)
             except Exception as exc:  # noqa: BLE001 -- the runner must outlive any single failed attempt
                 _log.warning("model provisioning attempt failed for %s: %s", self.provisioner.manifest.track, exc)
                 status = {**self.provisioner.status(), "next_attempt_at": self._clock() + self._busy_poll}
             self.last_status = status
             if status["state"] in TERMINAL:
                 break
+            if self._force and status.get("owned_elsewhere"):
+                break  # another process has the track: one retry never queues a second one behind it
             if status["state"] == DOWNLOADING:  # another instance owns the track
                 wait = self._busy_poll
             else:
                 wait = max(self._min_wait, float(status.get("next_attempt_at") or 0) - self._clock())
             self._stop.wait(wait)
+        if self._on_settled is not None:
+            self._on_settled()
         return status
+
+    @property
+    def is_retry(self) -> bool:
+        return self._force
+
+    @property
+    def active(self) -> bool:
+        return self._thread is not None and self._thread.is_alive()
 
     def start(self) -> ProvisioningRunner:
         self._thread = threading.Thread(

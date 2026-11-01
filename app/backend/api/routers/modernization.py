@@ -8,9 +8,10 @@ or ETA, and no response carries a path, passage or exception text.
 from __future__ import annotations
 
 import contextlib
+import threading
 import time
 
-from fastapi import APIRouter, FastAPI, Request
+from fastapi import APIRouter, FastAPI, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import Connection, func, select
 
@@ -19,6 +20,14 @@ from app.backend.api.routers.embedding_index import DiskCheckOut, _message, inde
 from app.backend.embeddings import index_runs
 from app.backend.embeddings.profiles import ARCTIC_S_PROFILE_KEY, IncompleteEmbeddingIndexError
 from app.backend.embeddings.retrieval_resolution import Resolution, explanation, resolve
+from app.backend.model_provisioning.manifests import MANIFESTS
+from app.backend.model_provisioning.provisioner import INVALID, RETRYABLE, VERIFIED
+from app.backend.model_provisioning.runner import (
+    ProvisioningRunner,
+    auto_provisioning_enabled,
+    default_provisioner,
+    provisioning_tracks,
+)
 from app.backend.modernization import (
     PAUSED,
     CoordinatorConfig,
@@ -27,7 +36,7 @@ from app.backend.modernization import (
     modernization_enabled,
     read_intent,
 )
-from app.backend.modernization.presentation import summarize
+from app.backend.modernization.presentation import recovery_message, summarize
 from app.backend.persistence.schema import papers
 
 router = APIRouter(tags=["modernization"])
@@ -118,6 +127,18 @@ class VerifierOut(BaseModel):
     automatic_deberta_enabled: bool  # the production release gates; never armed by this panel
 
 
+class ModelRecoveryOut(BaseModel):
+    """One model needing, or running, a manual retry (inc 622). Plain facts: no path, file name or exception."""
+
+    track: str
+    state: str
+    error_kind: str | None = None
+    retrying: bool
+    can_retry: bool
+    manual_retries: int
+    message: str
+
+
 class ModernizationOut(BaseModel):
     enabled: bool
     disabled_reason: str | None = None
@@ -133,6 +154,7 @@ class ModernizationOut(BaseModel):
     library_empty: bool | None = None
     effective_retrieval: EffectiveRetrievalOut | None = None
     verifier: VerifierOut | None = None
+    model_recovery: list[ModelRecoveryOut] = []
 
 
 def coordinator(app: FastAPI) -> ModernizationCoordinator:
@@ -198,11 +220,48 @@ def _run_detail(app: FastAPI) -> tuple[dict | None, IndexRunDetailOut | None]:
     return row, detail
 
 
-def summary_of(app: FastAPI, status: dict) -> tuple[dict, IndexRunDetailOut | None]:
-    """(inc-620 summary, index run detail) from a coordinator status. Reads stored rows only; never loads a model."""
+def _runner(app: FastAPI, track: str) -> ProvisioningRunner | None:
+    return (getattr(app.state, "model_provisioning", None) or {}).get(track)
+
+
+def model_recovery(app: FastAPI) -> list[dict]:
+    """The models a manual retry applies to right now. Local reads only: no hashing and no network.
+
+    ``invalid`` is the terminal failure. A retryable state counts only for a track with no automatic runner (DeBERTa
+    while its release gate is unarmed): a retry interrupted by a restart would otherwise wait for a runner that never
+    comes. A normal background download or wait on a track that has its runner is never listed."""
+    automatic = auto_provisioning_enabled()
+    unattended = set(MANIFESTS) - set(provisioning_tracks())
+    items = []
+    for track in MANIFESTS:
+        try:
+            status = default_provisioner(track).status()
+        except OSError:
+            continue
+        runner = _runner(app, track)
+        retrying = runner is not None and runner.active and runner.is_retry
+        state = status["state"]
+        if state == VERIFIED or not (retrying or state == INVALID or (state in RETRYABLE and track in unattended)):
+            continue
+        item = {
+            "track": track,
+            "state": state,
+            "error_kind": status["error_kind"],
+            "retrying": retrying,
+            "can_retry": automatic and not retrying,
+            "manual_retries": status["manual_retries"],
+        }
+        items.append({**item, "message": recovery_message(item)})
+    return items
+
+
+def summary_of(app: FastAPI, status: dict) -> tuple[dict, IndexRunDetailOut | None, list[dict]]:
+    """(inc-620 summary, index run detail, inc-622 recovery) from a coordinator status. Reads stored rows and
+    provisioning state only; never loads a model."""
     row, detail = _run_detail(app)
     message = detail.message if detail is not None and row["state"] in index_runs.ACTIVE_STATES else None
-    return summarize(status, run_message=message), detail
+    recovery = model_recovery(app)
+    return summarize(status, run_message=message, recovery=recovery), detail, recovery
 
 
 _RETRIEVAL_TTL_SECONDS = 60.0
@@ -254,7 +313,7 @@ def _verifier(app: FastAPI) -> VerifierOut:
 
 
 def _full(app: FastAPI, status: dict) -> ModernizationOut:
-    summary, detail = summary_of(app, status)
+    summary, detail, recovery = summary_of(app, status)
     with app.state.engine.connect() as conn:
         live = conn.execute(select(func.count()).select_from(papers).where(papers.c.deleted_at.is_(None))).scalar_one()
     return ModernizationOut(
@@ -264,6 +323,7 @@ def _full(app: FastAPI, status: dict) -> ModernizationOut:
         library_empty=live == 0,
         effective_retrieval=_effective_retrieval(app, status),
         verifier=_verifier(app),
+        model_recovery=[ModelRecoveryOut(**item) for item in recovery],
     )
 
 
@@ -284,6 +344,37 @@ def resume_modernization(request: Request) -> ModernizationOut:
     return _full(request.app, coordinator(request.app).resume())
 
 
+_retry_guard = threading.Lock()  # makes this process's check-and-start atomic; the track lock covers other processes
+
+
+@router.post("/modernization/models/{track}/retry", response_model=ModernizationOut)
+def retry_model(track: str, request: Request) -> ModernizationOut:
+    """The explicit "Try again" for one failed pinned checkpoint (inc 622, recovery contract F8).
+
+    ``track`` is only ever a key of the pinned manifests; the request supplies no repository, revision or file. It runs
+    the provisioner's own forced attempt, which re-fetches only files that failed and accepts the checkpoint only after
+    the manifest hashes and static contract pass. A second click while one runs starts nothing. It does not resume
+    paused work or change a retrieval or verifier choice, and a repaired DeBERTa stays behind its release gates."""
+    app = request.app
+    if track not in MANIFESTS:
+        raise HTTPException(status_code=404, detail="Unknown model.")
+    with _retry_guard:
+        runner = _runner(app, track)
+        if not (runner is not None and runner.active and runner.is_retry):
+            item = next((i for i in model_recovery(app) if i["track"] == track), None)
+            if item is None or not item["can_retry"]:
+                raise HTTPException(status_code=409, detail="This model has no failed download to retry right now.")
+            runners = getattr(app.state, "model_provisioning", None)
+            if runners is None:
+                runners = app.state.model_provisioning = {}
+            if runner is not None:
+                runner.stop(timeout=0)
+            runners[track] = ProvisioningRunner(
+                default_provisioner(track), force=True, on_settled=coordinator(app).wake
+            ).start()
+    return _full(app, coordinator(app).status())
+
+
 # ---- the one Status entry ----------------------------------------------------------------------------------------
 
 MODERNIZATION_STORE = "modernization"
@@ -298,11 +389,15 @@ def modernization_status_job(app: FastAPI) -> dict | None:
     if not managed.enabled:
         return None  # no row and no coverage scan in a build that does not modernize automatically
     status = managed.status()
-    summary, _ = summary_of(app, status)
+    summary, _, _ = summary_of(app, status)
     job_status = _STATUS_OF.get(summary["state"])
     if job_status is None:
         return None
-    notes = [summary["notes"][key] for key in ("indexing", "classification", "model")]
+    notes = [
+        summary["notes"][key]
+        for key in ("indexing", "classification", "model", "verifier_model")
+        if key in summary["notes"]
+    ]
     return {
         "store": MODERNIZATION_STORE,
         "job_id": "library",

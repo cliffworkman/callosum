@@ -6242,7 +6242,7 @@
     return null;
   }
   function modernizationSignature(m) {
-    return m ? JSON.stringify([m.intent, m.summary, m.effective_retrieval, m.retrieval_preference, m.verifier]) : null;
+    return m ? JSON.stringify([m.intent, m.summary, m.effective_retrieval, m.retrieval_preference, m.verifier, m.model_recovery]) : null;
   }
   function whatsNewHeadline(pick, libraryEmpty) {
     if (!pick) return null;
@@ -24032,9 +24032,29 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       else setError(r.error || "Couldn't change background modernization.");
       onReload();
     };
+    const retry = async (track) => {
+      if (busy) return;
+      setBusy(true);
+      setError("");
+      const r = await apiPost(`/modernization/models/${track}/retry`, {});
+      setBusy(false);
+      if (r.ok) onChanged(r.data);
+      else setError(r.error || "Couldn't start the retry.");
+      onReload();
+    };
     const retrieval = state.effective_retrieval;
     const verifier = state.verifier;
-    return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Library modernization"), /* @__PURE__ */ React.createElement("p", { className: "settings-sub" }, "Callosum is upgrading local search for this library in the background: it classifies the scientific sources behind your existing passages and builds an Arctic S retrieval index. Your PDFs are not re-extracted or re-chunked, and the library stays usable. Completed work is saved as it goes and resumes in later sessions."), /* @__PURE__ */ React.createElement("p", { role: s.state === "action_required" ? "alert" : "status", className: "settings-sub" }, /* @__PURE__ */ React.createElement("b", null, s.headline)), s.progress && s.state === "working" && /* @__PURE__ */ React.createElement(ProgressBar, { label: s.headline, progress: { ...s.progress, eta_seconds: null }, managedBy: "status-popover" }), s.attention.map((text) => /* @__PURE__ */ React.createElement("p", { key: text, role: "alert", className: "settings-sub" }, text)), ["model", "classification", "indexing"].filter((k) => !s.attention.includes(s.notes[k])).map((k) => /* @__PURE__ */ React.createElement("p", { key: k, className: "settings-sub" }, s.notes[k])), retrieval && /* @__PURE__ */ React.createElement("p", { role: retrieval.ask_blocked ? "alert" : "status", className: "settings-sub" }, "Ask retrieval right now: ", /* @__PURE__ */ React.createElement("b", null, labelOf(retrieval.profile)), ". ", retrieval.explanation), verifier && /* @__PURE__ */ React.createElement("p", { className: "settings-sub" }, "Citation verification right now: ", /* @__PURE__ */ React.createElement("b", null, verifier.effective_label), ". ", verifier.explanation), state.enabled && (state.intent === "paused" ? /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: () => toggle("resume") }, "Resume modernization") : /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: () => toggle("pause") }, "Pause modernization")), state.enabled && /* @__PURE__ */ React.createElement("p", { className: "settings-sub" }, "Pausing stops background work only. It does not change the retrieval or verification model you have chosen."), error && /* @__PURE__ */ React.createElement("p", { role: "alert", className: "settings-sub" }, error));
+    return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Library modernization"), /* @__PURE__ */ React.createElement("p", { className: "settings-sub" }, "Callosum is upgrading local search for this library in the background: it classifies the scientific sources behind your existing passages and builds an Arctic S retrieval index. Your PDFs are not re-extracted or re-chunked, and the library stays usable. Completed work is saved as it goes and resumes in later sessions."), /* @__PURE__ */ React.createElement("p", { role: s.state === "action_required" ? "alert" : "status", className: "settings-sub" }, /* @__PURE__ */ React.createElement("b", null, s.headline)), s.progress && s.state === "working" && /* @__PURE__ */ React.createElement(ProgressBar, { label: s.headline, progress: { ...s.progress, eta_seconds: null }, managedBy: "status-popover" }), s.attention.map((text) => /* @__PURE__ */ React.createElement("p", { key: text, role: "alert", className: "settings-sub" }, text)), (state.model_recovery || []).filter((r) => r.can_retry).map((r) => /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        key: r.track,
+        className: "btn btn-ghost",
+        disabled: busy,
+        "aria-label": `Try again: ${r.message.split(":")[0]}`,
+        onClick: () => retry(r.track)
+      },
+      "Try again"
+    )), ["model", "verifier_model", "classification", "indexing"].filter((k) => s.notes[k] && !s.attention.includes(s.notes[k])).map((k) => /* @__PURE__ */ React.createElement("p", { key: k, className: "settings-sub" }, s.notes[k])), retrieval && /* @__PURE__ */ React.createElement("p", { role: retrieval.ask_blocked ? "alert" : "status", className: "settings-sub" }, "Ask retrieval right now: ", /* @__PURE__ */ React.createElement("b", null, labelOf(retrieval.profile)), ". ", retrieval.explanation), verifier && /* @__PURE__ */ React.createElement("p", { className: "settings-sub" }, "Citation verification right now: ", /* @__PURE__ */ React.createElement("b", null, verifier.effective_label), ". ", verifier.explanation), state.enabled && (state.intent === "paused" ? /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: () => toggle("resume") }, "Resume modernization") : /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: () => toggle("pause") }, "Pause modernization")), state.enabled && /* @__PURE__ */ React.createElement("p", { className: "settings-sub" }, "Pausing stops background work only. It does not change the retrieval or verification model you have chosen."), error && /* @__PURE__ */ React.createElement("p", { role: "alert", className: "settings-sub" }, error));
   }
   function GapsOverlookedFacets({ facet, onSwitch }) {
     return /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter gapsov-facets" }, /* @__PURE__ */ React.createElement("button", { className: "tags-srcfilter-btn" + (facet === "gaps" ? " on" : ""), onClick: () => onSwitch("gaps") }, "Gaps"), /* @__PURE__ */ React.createElement("button", { className: "tags-srcfilter-btn" + (facet === "overlooked" ? " on" : ""), onClick: () => onSwitch("overlooked") }, "Overlooked"));
