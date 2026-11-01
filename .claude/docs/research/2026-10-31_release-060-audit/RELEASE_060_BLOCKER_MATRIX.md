@@ -557,6 +557,9 @@ repo has no automated independent-review workflow (CI runs `bandit` only). Still
 tests and a rendered-browser check with a mocked network: yes. Packaged runtime and a real Hugging Face transfer: **not run**.
 The "one product decision owed" recorded after inc 621 is resolved by this work.
 
+**Final-code full suite: BLOCKED by the host, still owed.** The Claude Code low-memory reaper stopped a serial run on
+`97f1358a` at about 14%, with 6.9 GB commit free. Run it in CI or a plain terminal before merge. Details: inc-622 notes.
+
 Tracked validation items, none resolved by inc 622:
 1. A completely full filesystem can prevent status writes and durable Pause.
 2. A missing Arctic vector with an unchanged chunk can delay automatic repair until periodic reconciliation.

@@ -59,3 +59,34 @@ Audit `.claude/security-audits/2026-11-01_model-retry.md`: PASS, **self-review**
 incs 616-622.
 
 ## Receipts
+All on code commit `97f1358a`, with `CALLOSUM_DB_URL` overridden to a new disposable file under
+`.local\validation-622\` and checked by `preflight_db.py` before each run.
+
+| Check | Result |
+|---|---|
+| Focused (`test_model_recovery`, `test_model_provisioning`, `test_modernization_status`, `test_modernization`, `test_arctic_activation`, `test_frontend_assembly`, `test_access_control`) | 245 passed |
+| Adjacent targeted (`test_status`, `test_status_timing`, `test_verifier_resolution`, `test_help`, `test_embedding_profiles`, `test_index_disk_guard`, `test_nli_failure_and_provenance`, `test_nli_profiles`, plus the three known failures) | 124 passed, 3 failed: exactly the known baseline |
+| Repo browser tests (`test_smoke`, `test_capture_updates`, `test_doi_review`, `test_browser_preview`, `CALLOSUM_RUN_E2E=1`) | 21 passed |
+| Rendered recovery check, Chromium headless, mocked network (`browser_recovery.py`) | 20 passed, 0 failed, 0 console errors |
+| Static: scoped ruff check and format, line budget, tach, QA surface gate, what's-new, bandit, pre-commit hooks | Pass |
+
+**Final-code full suite: BLOCKED by the host, still owed. Incomplete: no pass is claimed.** One serial run
+(`python -m pytest -q -p no:cacheprovider`) on `97f1358a` started 2026-11-01 16:26:47 UTC. The Claude Code host's low-memory
+reaper stopped it while the session was idle, about 4.5 minutes in, at about 14% of collected tests. Last sample 16:31:10
+UTC: 4.05 GB physical and 6.95 GB commit free; minimum commit free 6.91 GB, above this run's own 1.5 GB floor. The reaper's
+threshold is the host's own and is not the same as that floor. Visible progress showed dots and two skips and no failure
+marker, which supports no conclusion about the remaining 86%. There is no summary or JUnit file. It was not restarted, the
+reaper was not disabled, and no process was left behind.
+
+This is the second such stop: `ccbe3599` with `-n 2` (inc 621) reached about 21%. Serial used no less exposure, so this
+machine under an idle Claude Code session is not a suitable place for this run. Options are CI, or a plain terminal outside
+Claude Code. The newest complete full-suite receipt remains `70273c01` (3791 passed, 12 skipped, 3 failed), **which predates
+incs 621 and 622 and is not a final-code result**.
+
+CI-relevant failures, by origin:
+- **Known historical, unchanged:** `tests/test_demo_experience_coverage.py::test_every_public_capability_claim_has_an_explicit_demo_disposition`
+  and `tests/test_demo_snapshot.py::test_static_build_is_self_contained_and_base_path_safe` (demo review gate: reviewed at
+  576, now at 622); `tests/test_website_how_it_works.py::test_primary_local_destinations_exist[demo/-target2]` (no local
+  `dist-demo`). Same tests and causes as `70273c01`. Not refreshed, declined, skipped or weakened.
+- **Introduced by the F8 repair:** none observed in the runs above. The other 86% of the suite did not run.
+- **Environment or resource:** the reaper stop above.

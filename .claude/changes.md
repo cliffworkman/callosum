@@ -19,6 +19,7 @@ are the design diary; this is the chronological "what & why" record.
   forced attempt for that model only and reports what actually happened.
 - **Why:** the recovery contract promised this action (F8) and none existed, so a failed checkpoint left a library on
   MiniLM with no way out inside the app.
+- **Note:** the final-code full suite remains owed: the host's reaper stopped it at about 14% (see the notes).
 - **Revert:** revert this commit. Scientific behaviour is untouched.
 
 ## 2026-11-01 — Release stabilization: mounted Settings panel no longer goes stale (inc 621)
