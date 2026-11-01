@@ -29,6 +29,7 @@ import contextlib
 import logging
 import threading
 import time
+import zlib
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
@@ -38,6 +39,12 @@ from sqlalchemy import Engine, func, select
 from app.backend.embeddings import index_runs
 from app.backend.embeddings.index_lock import WorkerLock, named_lock_path, try_lock
 from app.backend.embeddings.profiles import ARCTIC_S_PROFILE_KEY, get_profile, profile_coverage
+from app.backend.embeddings.retrieval_resolution import (
+    SOURCE_MODERNIZATION,
+    Preference,
+    activate_arctic,
+    read_preference,
+)
 from app.backend.modernization.classification import STOP_PAUSED, STOP_SHUTDOWN, SourceRoleClassifier
 from app.backend.pdf_processing.structure_backfill import coverage as classification_coverage
 from app.backend.persistence.chunk_structure_repo import classified_chunks_clause
@@ -76,6 +83,17 @@ def _set_setting(engine: Engine, key: str, value: str) -> None:
             conn.execute(library_settings.update().where(library_settings.c.key == key).values(**values))
 
     run_write(engine, write)
+
+
+def _version_crc(version: str | None, chunk_id: int | None) -> int:
+    if not version:
+        return 0
+    return (zlib.crc32(version.encode("utf-8")) * ((chunk_id or 0) % 1_000_003)) % 2_147_483_647
+
+
+def _register_checksum(conn) -> None:  # type: ignore[no-untyped-def]
+    """Per-connection deterministic SQL function for the signature (stdlib ``zlib``; no SQL text from data)."""
+    conn.connection.driver_connection.create_function("callosum_version_crc", 2, _version_crc, deterministic=True)
 
 
 def read_intent(engine: Engine) -> str:
@@ -189,6 +207,7 @@ class ModernizationCoordinator:
             if not leader:
                 self._class_state = "owned_elsewhere" if pending else self._settled_class_state()
                 return self.config.check_seconds
+            self._activate()  # inc 618: recording a complete index is not background work, so Pause does not block it
             if intent == PAUSED:
                 self._class_state = "paused" if pending else self._settled_class_state()
                 return self.config.check_seconds
@@ -231,26 +250,36 @@ class ModernizationCoordinator:
     # ---- stored truth -----------------------------------------------------------------------------------------------
 
     def _signature_now(self) -> tuple:
-        """Cheap aggregate over the rows that decide pending work: chunk count/max id/versions, the classified
-        population (follows attachment-role changes), ``chunk_structure`` rows and live papers."""
+        """Cheap aggregate over the rows that decide pending work, in the one chunk scan 617 already made.
+
+        Inc 618: a length total missed an in-place change between two versions of equal length (``chunk_version`` is
+        fixed-width), and a count missed an attachment-role swap with equal chunk counts. Each row now contributes
+        a CRC32 of its version weighted by its id, and the classified population contributes the sum of its ids, so
+        either change moves the signature (bar a ~2^-31 arithmetic coincidence, which the 30-minute safety refresh
+        and the per-Ask coverage check still cover)."""
         with self.engine.connect() as conn:
+            _register_checksum(conn)
             classified = conn.execute(
-                select(func.count())
+                select(func.count(), func.total(chunks.c.id))
                 .select_from(chunks.join(attachments, attachments.c.id == chunks.c.attachment_id))
                 .where(classified_chunks_clause())
-            ).scalar_one()
+            ).one()
             totals = conn.execute(
                 select(
                     func.count(),
                     func.coalesce(func.max(chunks.c.id), 0),
-                    func.total(func.length(chunks.c.chunk_version)),
+                    func.coalesce(func.sum(func.callosum_version_crc(chunks.c.chunk_version, chunks.c.id)), 0),
                 )
             ).one()
             return (
                 tuple(totals),
-                classified,
+                tuple(classified),
                 conn.execute(select(func.count()).select_from(chunk_structure)).scalar_one(),
-                conn.execute(select(func.count()).where(papers.c.deleted_at.is_(None))).scalar_one(),
+                tuple(
+                    conn.execute(
+                        select(func.count(), func.total(papers.c.id)).where(papers.c.deleted_at.is_(None))
+                    ).one()
+                ),
             )
 
     def _refresh_classification(self, *, force: bool = False) -> None:
@@ -307,6 +336,25 @@ class ModernizationCoordinator:
             return
         self._supervisor().start(get_profile(ARCTIC_S_PROFILE_KEY))  # type: ignore[attr-defined]
 
+    def _activate(self) -> None:
+        """Record Arctic S as the modernization-managed retrieval preference once its index is complete and its
+        checkpoint verified. The cached coverage only decides whether to try; ``activate_arctic`` rechecks everything
+        inside one write transaction, so a stale cache can never activate a partial index."""
+        coverage = self._fresh_index_coverage(self._run_row())
+        if int(coverage.get("missing_chunks") or 0) != 0 or not int(coverage.get("eligible_chunks") or 0):
+            return
+        with self.engine.connect() as conn:
+            current = read_preference(conn)
+        if current.explicit or current == Preference(ARCTIC_S_PROFILE_KEY, SOURCE_MODERNIZATION):
+            return
+        verified = self.model_status().get("state") == "verified"
+        if verified:
+            run_write(self.engine, lambda conn: activate_arctic(conn, model_verified=True))
+
+    def model_status(self) -> dict:
+        """The inc-615 state of the Arctic S checkpoint; an unreadable state is reported as unknown."""
+        return self._safe_model_status()
+
     def _safe_model_status(self) -> dict:
         try:
             return dict(self._model_status())
@@ -327,6 +375,8 @@ class ModernizationCoordinator:
                     self._fresh_index_coverage(row)
             intent = read_intent(self.engine)
             model = self._safe_model_status()
+            with self.engine.connect() as conn:
+                preference = read_preference(conn)
             return build_status(
                 enabled=self.enabled,
                 disabled_reason=self.disabled_reason,
@@ -341,6 +391,7 @@ class ModernizationCoordinator:
                 model=model,
                 index_note=self._index_note,
                 checked_at=self._checked_at,
+                preference=preference,
             )
 
 
@@ -373,6 +424,7 @@ def build_status(
     model: dict,
     index_note: str | None,
     checked_at: datetime | None,
+    preference: Preference | None = None,
 ) -> dict:
     index_state = _index_state(enabled, intent, index_coverage, run, model, index_note)
     if run is not None and run["state"] in _ACTIVE:
@@ -410,6 +462,12 @@ def build_status(
             "run_failure_kind": run["failure_kind"] if run else None,
             "automatic_recovery": index_state in _ACTIVE or index_state == "waiting_for_model",
             "needs_user": index_state in {"paused", "cancelled", "failed", "interrupted"},
+        },
+        "retrieval_preference": {
+            "profile": preference.key if preference else None,
+            "source": preference.source if preference else None,
+            "legacy": bool(preference and preference.legacy),
+            "arctic_activated": preference == Preference(ARCTIC_S_PROFILE_KEY, SOURCE_MODERNIZATION),
         },
         "model": {
             "track": model.get("track", ARCTIC_S_PROFILE_KEY),

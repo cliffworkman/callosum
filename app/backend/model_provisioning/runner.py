@@ -72,6 +72,22 @@ def local_files_only_for(model_name: str) -> bool:
         return False
 
 
+def checkpoint_pending(model_name: str) -> bool:
+    """True when automatic provisioning manages ``model_name`` and its checkpoint is not yet verified (inc 618).
+
+    Nothing may then load the model: an unprovisioned load would fetch weights from the Hugging Face Hub outside
+    the inc-615 provisioner, unpinned to its byte manifest. Source checkouts without automatic provisioning keep the
+    pre-615 developer path. An unreadable provisioning state counts as pending: never risk a network load on it.
+    """
+    track = TRACK_FOR_MODEL.get(model_name)
+    if track is None or not auto_provisioning_enabled():
+        return False
+    try:
+        return not default_provisioner(track).is_verified()
+    except Exception:  # noqa: BLE001
+        return True
+
+
 class ProvisioningRunner:
     def __init__(
         self,

@@ -23,6 +23,28 @@ class RetrievalProvenanceResponse(BaseModel):
     model_name: str | None = None
     model_version: str | None = None
     experimental: bool = False
+    # inc 618: why this encoder ranked the evidence. All None on syntheses saved before inc 618 (not guessed).
+    preference: str | None = None  # automatic | user
+    fallback_reason: str | None = None
+    index_verified_complete: bool | None = None
+    note: str | None = None
+
+
+# Past tense: a saved synthesis describes what happened when it ran.
+_FALLBACK_NOTES = {
+    "model_unavailable": "MiniLM was used because the Arctic S model was not yet downloaded and verified.",
+    "indexing": "MiniLM was used while the Arctic S index was being built.",
+    "catching_up": "MiniLM was used while newly added or changed passages were indexed for Arctic S.",
+    "paused": "MiniLM was used because Arctic S indexing was paused.",
+    "cancelled": "MiniLM was used because Arctic S indexing was cancelled.",
+    "failed": "MiniLM was used because Arctic S indexing had stopped after repeated failures.",
+}
+
+
+def _retrieval_note(raw: dict) -> str | None:
+    if raw.get("preference") == "user":
+        return "Selected explicitly in Settings."
+    return _FALLBACK_NOTES.get(raw.get("fallback_reason"))  # type: ignore[arg-type]
 
 
 class VerificationProvenanceResponse(BaseModel):
@@ -57,6 +79,12 @@ def model_provenance_from_ref(scope_ref: Any) -> ModelProvenanceResponse:
             model_name=_text(retrieval_raw.get("model_name")),
             model_version=_text(retrieval_raw.get("model_version")),
             experimental=bool(profile and profile.key != BASELINE_PROFILE_KEY),
+            preference=_text(retrieval_raw.get("preference")),
+            fallback_reason=_text(retrieval_raw.get("fallback_reason")),
+            index_verified_complete=(
+                verified if isinstance(verified := retrieval_raw.get("index_verified_complete"), bool) else None
+            ),
+            note=_retrieval_note(retrieval_raw),
         )
     if isinstance(verification_raw, dict):
         nli = NLI_PROFILES.get(verification_raw.get("profile"))  # type: ignore[arg-type]

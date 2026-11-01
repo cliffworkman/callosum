@@ -173,6 +173,21 @@ heading rescue is text-only.
 
 **Faceted path:** the same resolution, applied to `faceted_pipeline.py:231`.
 
+**As implemented (inc 618).** The policy lives in `embeddings/retrieval_resolution.py::resolve`, reached through
+`routers/modernization.py::resolve_retrieval` and called once per operation by `_retrieval_model`. The faceted path
+needed no separate change: `_run_summarize_job` resolves before `summarize_faceted`, which receives the model.
+Differences from the proposal above:
+- Automatic selection applies only when the coordinator is enabled (packaged app or `CALLOSUM_MODERNIZATION=1`). A
+  source checkout keeps MiniLM unless the user chooses otherwise.
+- Provenance field names: `intended_profile` (not `target_profile`), plus `preference`, `preference_source`,
+  `index_verified_complete` and `index_contract`. Reasons: `model_unavailable`, `indexing` (not `modernizing`),
+  `catching_up`, `paused`, `cancelled`, `failed`.
+- MiniLM is complete because its contract is lazy (the ranking step embeds missing candidates), not because every
+  ingest path embeds it; the record says `index_contract: baseline_embeds_missing`.
+- The way back from a forced incomplete Arctic S is the Settings "Automatic" option or
+  `PUT /embedding-profiles/active {"key": "automatic"}`; the error text names both.
+- Pause stops background work, not use: a complete, verified Arctic index is used while modernization is paused.
+
 ## 5a. Verifier resolution (B8)
 Before each synthesis or re-verification operation, resolve the **effective verifier** once:
 1. **An explicit user choice** of MiniLM2 or DeBERTa is honored. A forced DeBERTa that is unavailable fails with a
@@ -202,6 +217,13 @@ Read, citation context and imported re-verification keep MiniLM2 (§7 of the Sco
 **Consistency.** SQLite serializes the write against concurrent imports. An import committed after the flip makes
 coverage incomplete, and §5 resolves that to MiniLM until catch-up. An Ask in flight keeps the model it resolved at
 start.
+
+**As implemented (inc 618).** `activate_arctic` in `embeddings/retrieval_resolution.py`. It takes SQLite's writer lock
+first (no-op UPDATE) so its reads cannot be overtaken, then checks the preference, the model's verified state and
+coverage, in that order. Resolution does not wait for activation: a complete, verified index is used from the first
+operation, and activation records that modernization made the choice. "An Ask in flight keeps the model it resolved"
+holds; if the library changed under it, the ranking-time check fails the operation closed (nothing saved) rather than
+searching a partial Arctic index.
 
 ## 7. Annotations, anchors and citations
 **Preserved by construction.** 0.6.0 writes only:

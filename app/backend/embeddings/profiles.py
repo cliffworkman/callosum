@@ -27,7 +27,7 @@ from app.backend.embeddings.models import (
 )
 from app.backend.model_runtime import PINNED_MODEL_REVISIONS
 from app.backend.persistence.document_roles import ARTICLE_DOCUMENT_ROLES, attachment_document_role_clause
-from app.backend.persistence.schema import attachments, chunks, embeddings, library_settings, papers
+from app.backend.persistence.schema import attachments, chunks, embeddings, papers
 
 ARCTIC_QUERY_PREFIX = "Represent this sentence for searching relevant passages: "
 
@@ -100,30 +100,6 @@ def get_profile(key: str) -> EmbeddingProfile:
         raise UnknownEmbeddingProfileError(f"Unknown embedding profile: {key}") from None
 
 
-def active_retrieval_profile(conn: Connection) -> EmbeddingProfile:
-    """The library's selected retrieval profile; the baseline when unset. An unknown stored key (e.g. written by a
-    newer build) falls back to the baseline rather than guessing."""
-    value = conn.execute(
-        select(library_settings.c.value).where(library_settings.c.key == ACTIVE_RETRIEVAL_PROFILE_SETTING)
-    ).scalar_one_or_none()
-    return PROFILES.get(value or BASELINE_PROFILE_KEY, PROFILES[BASELINE_PROFILE_KEY])
-
-
-def set_active_retrieval_profile(conn: Connection, key: str) -> EmbeddingProfile:
-    profile = get_profile(key)
-    existing = conn.execute(
-        select(library_settings.c.key).where(library_settings.c.key == ACTIVE_RETRIEVAL_PROFILE_SETTING)
-    ).first()
-    values = {"value": profile.key, "updated_at": func.current_timestamp()}
-    if existing is None:
-        conn.execute(library_settings.insert().values(key=ACTIVE_RETRIEVAL_PROFILE_SETTING, **values))
-    else:
-        conn.execute(
-            library_settings.update().where(library_settings.c.key == ACTIVE_RETRIEVAL_PROFILE_SETTING).values(**values)
-        )
-    return profile
-
-
 def eligible_chunks_query():
     """Article-fulltext chunks of live papers: exactly the pool Ask's evidence retrieval ranks."""
     return (
@@ -191,7 +167,7 @@ def require_complete_index(conn: Connection, profile: EmbeddingProfile) -> dict:
     if not profile.lazy_indexing and not coverage["complete"]:
         raise IncompleteEmbeddingIndexError(
             f"The {profile.label} index covers {coverage['indexed_chunks']} of {coverage['eligible_chunks']} "
-            "passages in this library. Build the index in Settings → Retrieval model, or switch back to "
-            f"{PROFILES[BASELINE_PROFILE_KEY].label}."
+            "passages in this library. Callosum does not search a partial index. Build the index in Settings → "
+            f"Retrieval model, or switch to {PROFILES[BASELINE_PROFILE_KEY].label} or to automatic selection."
         )
     return coverage

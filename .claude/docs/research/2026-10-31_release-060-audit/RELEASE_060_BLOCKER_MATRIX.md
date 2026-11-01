@@ -20,8 +20,8 @@ MiniLM2 remain for compatibility, and their retirement is deferred.
 | B2 | Model provisioning: no offline-safe, auto-retrying acquisition. **Infrastructure done in inc 615** (pinned byte manifests, restart-safe tracks, bounded backoff, cross-process ownership, offline loading once verified); Arctic auto-provisions in the packaged app; DeBERTa track built but its release gate is unarmed. **Status/UI surface still owed** (coordinator increment) | UX: requires manual recovery | B1 | Yes | No |
 | B3 | No automatic detection or start of modernization. **Implemented in inc 617: lifespan coordinator, durable Pause/Resume, backend status contract; focused- and process-tested on disposable libraries, not release-validated; no UI yet (B9)** | UX: 0.6.0 undelivered | B1 | Yes (with B4) | No |
 | B4 | Source-role v2 reclassification never runs for users. **Packaging done in inc 613 (`829f35f4`, byte-identical); currentness defect fixed in inc 614 (`01957c6d`, byte-identical, research master 2→0 pending); runs automatically from inc 617's coordinator (packaged app)** | Scientific: feature inert | — | Yes | No (rules unchanged) |
-| B5 | Arctic preference with MiniLM fallback and import catch-up (**policy authorized, A2–A4**) | UX: Ask fails without it | B6 | No (with B6) | No |
-| B6 | Atomic automatic Arctic activation (**authorized, A3**) | UX / honesty | B3 | No (with B5) | No |
+| B5 | Arctic preference with MiniLM fallback and import catch-up (**policy authorized, A2–A4**). **Implemented in inc 618: per-operation resolution, truthful provenance, automatic catch-up; focused-tested on disposable libraries, not release-validated** | UX: Ask fails without it | B6 | No (with B6) | No |
+| B6 | Atomic automatic Arctic activation (**authorized, A3**). **Implemented in inc 618: one write transaction that rechecks preference, model and coverage; idempotent across checks and processes** | UX / honesty | B3 | No (with B5) | No |
 | B7 | No disk-space guard. **Implemented in inc 616 (`0686a5f6`): focused-tested and process-tested with simulated resources; not release-validated** (real low-disk volume run, packaged-runtime checks under B10, and the settings-panel state still owed) | Data safety | B3 | Yes | No |
 | B8 | DeBERTa automatic preference: effective-verifier resolution, provenance, gate (**policy authorized, A5; G1 CONDITIONAL accepted by product decision (not a PASS), G2 conditional runtime acceptance (2026-10-31); DeBERTa is the intended preferred verifier; automatic use awaits the four release gates in `model_provisioning/runner.py`: qualification recorded ✔, operation memory guard, verifier provenance/failure, packaged-runtime acceptance**) | Scientific provenance / latency contract | B2 | Yes | **Arming only** (see row) |
 | B9 | First-run notice and modernization Status semantics | UX | B3, B6 | Yes | No |
@@ -140,7 +140,12 @@ MiniLM2 remain for compatibility, and their retirement is deferred.
     before launch until it observes the exit.
   - **Residual.** A build already queued with intent `run` (e.g. a manual Build in Settings) can still be launched
     by the supervisor while the checkpoint is unverified, downloading through Hugging Face: the pre-existing inc-610
-    path, not changed here. Classification is reported by `GET /modernization` but is not mirrored into the Status
+    path, not changed here. **Closed in inc 618:** when automatic provisioning manages the model
+    (`model_provisioning.checkpoint_pending`), `_maybe_launch` holds the build (state unchanged,
+    `failure_kind = model_not_ready`, re-check every 60 s) and Settings shows "Waiting for the model download to
+    finish and be verified". An unreadable provisioning state counts as pending. Source checkouts without
+    provisioning keep the developer path. The same risk existed in the app process for a user-forced Arctic choice
+    whose checkpoint lost verification after indexing; that Ask now fails closed without loading the model. Classification is reported by `GET /modernization` but is not mirrored into the Status
     popover (B9).
 
 ## B4: Source-role v2 never runs for users
@@ -225,6 +230,29 @@ changes. It must land before the coordinator, or progress never completes and th
   - The AST isolation test still passes.
 - **Par.:** no; build it together with B6.
 - **Frozen?** No. The retrieval semantics per profile are unchanged; only the choice of complete index changes.
+- **Update 2026-10-31, inc 618.** The findings above are the original audit and are kept as found.
+  - **Implemented.** `embeddings/retrieval_resolution.py::resolve` is the one policy; `routers/modernization.py::
+    resolve_retrieval` supplies the coordinator's gating, model status, Pause intent and run row, and
+    `routers/summaries.py::_retrieval_model` calls it once per operation for every scope (library, selected
+    papers, cluster, faceted). Order: explicit user choice → Arctic S if the checkpoint is verified and
+    `profile_coverage` is complete → MiniLM (lazy: it embeds any missing candidate before searching).
+  - **Deviation from step 1, on purpose.** Automatic selection does not depend on activation having been written:
+    a complete, verified index is used from the first Ask, and the coordinator's record follows. Activation is the
+    durable "modernization did this" fact; coverage is the authority for every operation.
+  - **An operation keeps the model it resolved.** If the library changes between resolution and ranking, the
+    existing ranking-time check (`query_ranking` / `faceted_pipeline`) refuses the non-lazy profile, the job ends
+    with a plain "library changed, ask again" message and nothing is saved. No partial index is searched.
+  - **Catch-up.** The coordinator's signature now checksums `chunk_version` (a per-connection CRC UDF) and sums
+    classified chunk ids and live paper ids, so same-length in-place version changes and equal-count role swaps
+    are seen on the next check (617 summed lengths and counts and missed both until the 30-minute refresh). Cost on
+    a 700k-chunk synthetic library: about 1.65 s per check versus 1.19 s, on the same single scan; idle checks are
+    still every 60 s and still skip the coverage queries when nothing changed.
+  - **Message.** No "N passages" count and no percentage: the instruction for this increment limits user messages to
+    the reason. Counts stay in Settings and `GET /modernization`.
+  - **Residual.** An Arctic vector removed without any chunk change (e.g. a manual purge) is not in the signature; the
+    per-Ask coverage check still falls back immediately, and the 30-minute refresh re-schedules the catch-up.
+  - **Validation level.** Focused-tested: yes (`tests/test_arctic_activation.py`, 28 passed).
+    Release-validated: no (packaged app on a real upgraded library, B10).
 
 ## B6: No atomic automatic activation
 - **Current behavior.**
@@ -251,6 +279,24 @@ changes. It must land before the coordinator, or progress never completes and th
   - A user who manually selected MiniLM after an automatic flip stays on MiniLM.
 - **Par.:** no; build it with B5.
 - **Frozen?** No.
+
+- **Update 2026-10-31, inc 618.**
+  - **Implemented.** `retrieval_resolution.activate_arctic`, called from the coordinator's check (leader only, before
+    the Pause check: Pause stops work, not recording that a complete index exists). One `run_write` transaction
+    first takes SQLite's writer lock with a no-op UPDATE, then rechecks the stored preference, the model's verified
+    state and `profile_coverage`, and only then writes `retrieval_embedding_profile = arctic-s` with
+    `retrieval_embedding_profile_source = modernization`. Outcomes: `activated`, `already_active`,
+    `user_preference`, `model_unavailable`, `incomplete`.
+  - **Preference states.** No preference (automatic) / modernization-written / user MiniLM / user Arctic S. A key
+    without a source predates inc 618; the only earlier writer was the Settings selection, so it is kept as the
+    user's choice (never auto-switched; a legacy Arctic choice that becomes incomplete keeps failing closed).
+    `PUT /embedding-profiles/active {"key": "automatic"}` removes the choice; the Settings panel has an Automatic
+    option.
+  - **Tested races.** Coverage drop before activation; import during the first build; a user choice committed while
+    activation holds the transaction (serialized; the user's write lands last and wins); two real processes activating
+    at once (`activated` + `already_active`, two settings rows); a build finishing during an Ask; an import between
+    resolution and ranking; Pause and Cancel while incomplete; model verification lost; a `completed` run row whose
+    vectors were deleted.
 
 ## B7: No disk-space guard
 - **Current behavior.**
@@ -435,7 +481,7 @@ checks, and a local commit only after tests pass.
 | 2a | The currentness predicate restricted to article roles | B4 (defect) | **Done: inc 614 `01957c6d`** |
 | 3 | Disk-space protection and resource-aware scheduling | B7 | **Implemented: inc 616 `0686a5f6`** (focused- and process-tested with simulated resources; release validation owed) |
 | 4 | Automatic modernization coordinator (detect, auto-start, Pause intent) | B3 | **Implemented: inc 617** (focused- and process-tested with simulated resources; release validation and UI owed) |
-| 5 | Arctic S preference, MiniLM fallback, import catch-up, atomic activation | B5, B6 | — |
+| 5 | Arctic S preference, MiniLM fallback, import catch-up, atomic activation | B5, B6 | **Implemented: inc 618** (focused-tested, incl. a real two-process activation; release validation owed) |
 | 6 | Automatic DeBERTa preference: per-operation memory precheck, effective verifier, provenance, fail-closed, verifier-keyed ETA, cautious `contradicted` wording. Gate constant exists (inc 615, unarmed) | B8 | — |
 | 7 | Nonblocking first-launch notice and unified modernization Status | B9 | — |
 | 8 | Restart recovery, activation, catch-up and 4,000-paper workload tests | B10 (part) | — |

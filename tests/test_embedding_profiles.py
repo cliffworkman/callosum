@@ -22,15 +22,20 @@ from app.backend.embeddings.models import (
 from app.backend.embeddings.pipeline import embed_chunks
 from app.backend.embeddings.profile_index import build_profile_index, pending_chunks_by_paper
 from app.backend.embeddings.profiles import (
+    ACTIVE_RETRIEVAL_PROFILE_SETTING,
     ARCTIC_QUERY_PREFIX,
     ARCTIC_S_PROFILE_KEY,
     BASELINE_PROFILE_KEY,
     PROFILES,
     IncompleteEmbeddingIndexError,
-    active_retrieval_profile,
     profile_coverage,
     require_complete_index,
-    set_active_retrieval_profile,
+)
+from app.backend.embeddings.retrieval_resolution import (
+    SOURCE_USER,
+    Preference,
+    read_preference,
+    set_user_preference,
 )
 from app.backend.embeddings.vector_store import InMemoryVectorStore
 from app.backend.persistence.database import make_engine
@@ -40,6 +45,13 @@ from app.backend.summarization.query_ranking import _rank_chunks_for_query
 from tests.api_helpers import ApiFakeEmbeddingModel, _seed_summarization_library, _summarization_app
 
 ARCTIC = PROFILES[ARCTIC_S_PROFILE_KEY]
+
+
+def _legacy_selection(conn, key: str) -> None:  # type: ignore[no-untyped-def]
+    """What Settings wrote before inc 618: the profile key with no record of who chose it."""
+    from app.backend.persistence.schema import library_settings
+
+    conn.execute(library_settings.insert().values(key=ACTIVE_RETRIEVAL_PROFILE_SETTING, value=key))
 
 
 @dataclass
@@ -240,15 +252,15 @@ def test_index_build_is_resumable_cancellable_and_idempotent(temp_db_url: str, s
 def test_active_profile_defaults_to_baseline_and_ignores_unknown_keys(temp_db_url: str) -> None:
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:
-        assert active_retrieval_profile(conn).key == BASELINE_PROFILE_KEY
-        set_active_retrieval_profile(conn, ARCTIC_S_PROFILE_KEY)
-        assert active_retrieval_profile(conn).key == ARCTIC_S_PROFILE_KEY
-        set_active_retrieval_profile(conn, BASELINE_PROFILE_KEY)
-        assert active_retrieval_profile(conn).key == BASELINE_PROFILE_KEY
+        assert read_preference(conn) == Preference(None, None)  # nothing stored: automatic selection
+        set_user_preference(conn, ARCTIC_S_PROFILE_KEY)
+        assert read_preference(conn) == Preference(ARCTIC_S_PROFILE_KEY, SOURCE_USER)
+        set_user_preference(conn, BASELINE_PROFILE_KEY)
+        assert read_preference(conn) == Preference(BASELINE_PROFILE_KEY, SOURCE_USER)
         from app.backend.persistence.schema import library_settings
 
         conn.execute(library_settings.update().values(value="from-the-future"))
-        assert active_retrieval_profile(conn).key == BASELINE_PROFILE_KEY
+        assert read_preference(conn) == Preference(None, None)  # a key from a newer build is not honored
     engine.dispose()
 
 
@@ -361,7 +373,7 @@ def test_ask_fails_closed_when_the_active_profile_index_became_incomplete(temp_d
     _seed_summarization_library(temp_db_url)
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:  # selected earlier, then new chunks arrived (here: never indexed at all)
-        set_active_retrieval_profile(conn, ARCTIC_S_PROFILE_KEY)
+        _legacy_selection(conn, ARCTIC_S_PROFILE_KEY)  # a pre-618 row: key only, no source -> the user's choice
     engine.dispose()
     client = TestClient(_profile_app(temp_db_url, FakeArctic()))
     started = client.post("/summarize", json={"scope_type": "query", "query": "facial", "top_k": 2})

@@ -16,6 +16,7 @@ function ModelProvenanceLine({ provenance }) {
   const name = (p) => (p ? p.label || p.model_name || "unknown" : "not recorded");
   const detail = [
     r && `Retrieval: ${r.model_name || "unknown"}${r.model_version ? ` (${r.model_version})` : ""}`,
+    r && r.note,
     v && `Verification: ${v.model_name || "unknown"}${v.revision ? `@${v.revision}` : ""}`,
     v && v.thresholds_calibrated_on && `Verification thresholds calibrated on ${v.thresholds_calibrated_on}`,
   ].filter(Boolean).join("\n");
@@ -24,6 +25,7 @@ function ModelProvenanceLine({ provenance }) {
       Retrieval: <b>{name(r)}</b>{r && r.experimental ? " (experimental)" : ""}
       {" · "}Verification: <b>{name(v)}</b>
       {v && v.experimental ? " (experimental; thresholds calibrated on MiniLM2)" : ""}
+      {r && r.fallback_reason && r.note ? <>{" · "}{r.note}</> : null}
     </div>
   );
 }

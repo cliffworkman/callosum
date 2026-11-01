@@ -52,9 +52,7 @@ from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.profiles import (
     BASELINE_PROFILE_KEY,
     IncompleteEmbeddingIndexError,
-    active_retrieval_profile,
     baseline_retrieval_provenance,
-    require_complete_index,
 )
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore, VectorStore
 from app.backend.llm.cache import CachedSummaryGenerator
@@ -337,6 +335,7 @@ def _run_summarize_job(
     jobs: JobStore[SummarizeJobResponse] = api.state.summary_jobs
     jobs.mark_running(job_id)
     overview_generator = None
+    retrieval_provenance: dict[str, object] = {}
     try:
         llm_config = resolve_llm_config(api)
         calibration_key = synthesis_timing_key(llm_config)
@@ -409,7 +408,13 @@ def _run_summarize_job(
         jobs.mark_error(job_id, f"Local AI is not ready ({exc.code}). Check Settings → AI features.")
         return
     except IncompleteEmbeddingIndexError as exc:
-        jobs.mark_error(job_id, str(exc))  # already user-facing: names the index gap and both remedies
+        resolved = retrieval_provenance.get("retrieval_embedding") or {}
+        if isinstance(resolved, dict) and resolved.get("preference") == "automatic":
+            # inc 618: Arctic S was complete when this Ask started; passages added since have no vector yet. The
+            # operation keeps the model it started with and never searches the indexed part alone.
+            jobs.mark_error(job_id, AUTOMATIC_CHANGED_MESSAGE)
+        else:
+            jobs.mark_error(job_id, str(exc))  # already user-facing: names the index gap and both remedies
         return
     except NLIInferenceError as exc:
         # Verification never ran: nothing was saved (the verify+persist transaction rolled back) and no claim was
@@ -436,26 +441,25 @@ def _run_summarize_job(
         jobs.mark_done(job_id, refreshed, nav={"summary_id": result.summary_id})
 
 
+AUTOMATIC_CHANGED_MESSAGE = (
+    "The library changed while this question was running: new passages are not indexed for Arctic S yet. Nothing "
+    "was saved. Ask again; Callosum uses MiniLM until Arctic S has caught up."
+)
+
+
 def _retrieval_model(
     api: FastAPI, engine: Engine, baseline: EmbeddingModel
 ) -> tuple[EmbeddingModel, dict[str, object]]:
-    """The library's active retrieval profile and the provenance the synthesis records for it. The baseline ranks with
-    the verification model itself; another profile must have a complete index. Either way the record names exactly
-    which encoder ranked the evidence."""
+    """The effective retrieval profile for this operation (inc 618: ``retrieval_resolution``), resolved once at its
+    start and kept for its duration, and the provenance the synthesis records for it. Every Ask scope (library,
+    selected papers, cluster, faceted) resolves here. The baseline ranks with the verification model itself."""
+    from app.backend.api.routers.modernization import resolve_retrieval
+
     with engine.connect() as conn:
-        profile = active_retrieval_profile(conn)
-        if profile.key == BASELINE_PROFILE_KEY:
-            return baseline, {"retrieval_embedding": baseline_retrieval_provenance(baseline)}
-        coverage = require_complete_index(conn, profile)
-    provenance = {
-        "profile": profile.key,
-        "model_name": profile.model_name,
-        "model_version": profile.model_version,
-        "normalization": profile.normalization,
-        "indexed_chunks": coverage["indexed_chunks"],
-        "verification_embedding": baseline.version,
-    }
-    return resolve_profile_embedding_model(api, profile), {"retrieval_embedding": provenance}
+        resolution = resolve_retrieval(api, conn)
+    profile = resolution.profile
+    model = baseline if profile.key == BASELINE_PROFILE_KEY else resolve_profile_embedding_model(api, profile)
+    return model, {"retrieval_embedding": resolution.provenance(model, baseline.version)}
 
 
 def _summary_generator(api: FastAPI) -> SummaryGenerator:

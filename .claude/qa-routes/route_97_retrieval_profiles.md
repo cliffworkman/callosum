@@ -92,7 +92,19 @@ listeners before navigation.
   indexing; `POST /modernization/resume` returns `intent: auto`. A Settings Pause or Cancel of the index build is
   never restarted automatically, even after an import or a restart; only Resume (here or in Settings) restarts it.
   Indexing waits as `waiting_for_model` until the Arctic checkpoint is verified; nothing downloads or loads
-  unverified weights. MiniLM stays the effective retrieval model throughout.
+  unverified weights. (Inc 617 alone kept MiniLM effective; inc 618 below adds automatic activation.)
+- **Automatic Arctic S activation and fallback (inc 618).** `PUT /embedding-profiles/active` also accepts
+  `{"key": "automatic"}`, which removes the user's choice. `GET /embedding-profiles` adds `preference`
+  (`automatic` or the chosen key), `preference_source` (`user` / `modernization` / null), `legacy_preference`,
+  `fallback_reason`, `explanation` (one sentence) and `ask_blocked` (set only when a user-forced Arctic S index is
+  incomplete). `active` is now the profile Ask would use right now. With automatic selection on (packaged app or
+  `CALLOSUM_MODERNIZATION=1`), Ask uses Arctic S only while its checkpoint is verified **and** its index covers every
+  eligible passage; otherwise MiniLM with a reason (`model_unavailable`, `indexing`, `catching_up`, `paused`,
+  `cancelled`, `failed`). `GET /modernization` adds `retrieval_preference` (`profile`, `source`, `legacy`,
+  `arctic_activated`). Every saved synthesis records the resolution in `scope_ref_json.retrieval_embedding`
+  (`preference`, `intended_profile`, `fallback_reason`, `index_verified_complete`), and the result's provenance line
+  explains a fallback in one past-tense sentence. No percentage, no ETA. A manually requested build while the
+  checkpoint is unverified waits ("Waiting for the model download…") and loads nothing.
 
 ## Adversarial checklist
 
@@ -102,7 +114,15 @@ listeners before navigation.
 - Resume → completes; radio enables; select → `active` becomes `arctic-s`; switch back to MiniLM → works without
   any rebuild.
 - Select DeBERTa, run Ask → citations show DeBERTa support values; switch back to MiniLM2 → next Ask uses MiniLM2.
-- Import a new full-text paper while Arctic is active → Ask fails closed with the coverage message.
+- Import a new full-text paper while Arctic is **explicitly selected** → Ask fails closed with the coverage message,
+  which names Automatic and MiniLM as ways back; `ask_blocked` is set.
+- Automatic selection, Arctic active, import a paper → the next Ask uses MiniLM, its provenance line says new
+  passages were being indexed; the catch-up runs with no click; the following Ask is on Arctic S again.
+- Automatic selection, choose MiniLM explicitly → stays MiniLM after the Arctic index completes; choose Automatic →
+  `active` becomes `arctic-s` immediately if the index is complete.
+- Automatic selection, Pause modernization with a complete index → Ask stays on Arctic S (Pause stops work, not use).
+- Settings → Build index before the Arctic model is verified (packaged app) → the build shows "Waiting for the model
+  download…", no worker starts and no network request is made; it starts by itself once verified.
 - Mid-build, end the worker process from Task Manager → Settings shows "interrupted … will retry automatically", the
   count does not drop, and the build resumes and completes without duplicate vectors.
 - Mid-build, quit Callosum and relaunch → the build resumes on its own; Pause first, quit, relaunch → it stays paused.

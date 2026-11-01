@@ -9,6 +9,20 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-10-31 — Automatic Arctic S activation and complete-index fallback (inc 618)
+- **Files:** `app/backend/embeddings/retrieval_resolution.py` (new), `embeddings/profiles.py`,
+  `modernization/coordinator.py`, `api/routers/{summaries,embedding_profiles,modernization,summaries_provenance,
+  embedding_index}.py`, `embeddings/{index_runs,index_supervisor}.py`, `model_provisioning/{runner,__init__}.py`,
+  `frontend/js/{35i_retrieval_profiles,20e_model_provenance}.jsx`, `tests/test_arctic_activation.py` (new), two
+  existing test files, QA route 97, blocker matrix, architecture doc, security audit, increment notes.
+- **What:** Ask resolves its retrieval profile per operation (user choice → complete verified Arctic S → MiniLM),
+  records why, and the coordinator atomically records Arctic activation; imports fall back to MiniLM and catch up
+  automatically; a manually queued build no longer loads an unverified managed checkpoint.
+- **Why:** release blockers B5/B6: without them an import disabled Ask, and Arctic was never used automatically.
+- **Revert:** `git revert <inc-618 commit>` on `integrate/inc607-608-ask`. Caution: a pre-618 build ignores the
+  source row and reads a modernization-written `arctic-s` key as an active selection (Ask then fails closed after an
+  import), so also delete both `retrieval_embedding_profile*` rows from `library_settings` on any library 618 ran on.
+
 ## 2026-10-31 — Automatic background modernization coordinator (inc 617)
 - **Files:** `app/backend/modernization/` (new), `app/backend/api/routers/modernization.py` (new), `app/backend/api/app.py`,
   `app/backend/pdf_processing/structure_backfill.py`, `app/backend/embeddings/index_lock.py`,

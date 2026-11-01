@@ -11,13 +11,19 @@ import contextlib
 
 from fastapi import APIRouter, FastAPI, Request
 from pydantic import BaseModel
+from sqlalchemy import Connection
 
 from app.backend.api.routers.embedding_index import index_supervisor
+from app.backend.embeddings import index_runs
+from app.backend.embeddings.profiles import ARCTIC_S_PROFILE_KEY
+from app.backend.embeddings.retrieval_resolution import Resolution, resolve
 from app.backend.modernization import (
+    PAUSED,
     CoordinatorConfig,
     ModernizationCoordinator,
     arctic_model_status,
     modernization_enabled,
+    read_intent,
 )
 
 router = APIRouter(tags=["modernization"])
@@ -49,6 +55,13 @@ class IndexingOut(BaseModel):
     needs_user: bool
 
 
+class RetrievalPreferenceOut(BaseModel):
+    profile: str | None = None
+    source: str | None = None
+    legacy: bool
+    arctic_activated: bool
+
+
 class ModelOut(BaseModel):
     track: str
     state: str | None = None
@@ -64,6 +77,7 @@ class ModernizationOut(BaseModel):
     checked_at: str | None = None
     classification: ClassificationOut
     indexing: IndexingOut
+    retrieval_preference: RetrievalPreferenceOut
     model: ModelOut
 
 
@@ -81,6 +95,19 @@ def coordinator(app: FastAPI) -> ModernizationCoordinator:
         )
         app.state.modernization = existing
     return existing
+
+
+def resolve_retrieval(app: FastAPI, conn: Connection) -> Resolution:
+    """The effective retrieval profile right now (inc 618). Automatic selection follows the coordinator's own gating:
+    off in a source checkout unless requested, so a development library behaves as before."""
+    managed = coordinator(app)
+    return resolve(
+        conn,
+        automatic=managed.enabled,
+        model_status=managed.model_status,
+        paused=read_intent(app.state.engine) == PAUSED,
+        run=index_runs.get_run(conn, ARCTIC_S_PROFILE_KEY),
+    )
 
 
 def start_modernization(app: FastAPI) -> None:

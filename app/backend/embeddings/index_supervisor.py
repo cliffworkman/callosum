@@ -7,7 +7,8 @@ every exit it re-derives coverage from the stored vectors. Recovery is bounded o
 * resource exits halve the batch (down to one passage) and wait, with backoff, until headroom returns;
 * an exit without new committed vectors counts against a small budget; at the limit the run stops in
   ``failed`` and only the user's explicit Resume restarts it (the circuit breaker);
-* model unavailable / contract mismatch is never retried automatically;
+* model unavailable / contract mismatch is never retried automatically, and a model whose checkpoint the
+  provisioner manages is never loaded before it is verified (inc 618: the build waits instead);
 * low or full disk (inc 616) waits in ``waiting_disk`` and re-checks at a fixed interval; it never trips the
   breaker, never shrinks the batch, and never deletes anything to make room;
 * the user's pause or cancel is durable and survives restarts.
@@ -40,10 +41,9 @@ from app.backend.embeddings.index_lock import WorkerLock, held_elsewhere, launch
 from app.backend.embeddings.profile_index import DEFAULT_INDEX_BATCH
 from app.backend.embeddings.profiles import EmbeddingProfile, get_profile
 from app.backend.embeddings.resources import DEFAULT_WORKER_ESTIMATE_MB, ResourcePolicy, ResourceSnapshot, measure
-from app.backend.model_provisioning import local_files_only_for
+from app.backend.model_provisioning import checkpoint_pending, local_files_only_for
 
 _SOURCE_ROOT = Path(__file__).resolve().parents[3]  # the directory holding ``app/`` (dev checkout or packaged)
-
 
 _LAUNCHABLE = ("queued", "retrying", "waiting_resources", "waiting_disk")
 
@@ -395,11 +395,8 @@ class IndexSupervisor:
 
     def _owned_elsewhere(self, key: str) -> bool:
         """Another process's worker is running, or another process launched one that may still be starting."""
-        db_url = self.config.db_url
-        return worker_holds_lock(db_url, key) or held_elsewhere(launch_lease_path(db_url, key))
-
-    def _worker_need_mb(self, row: dict) -> int:
-        return max(int(row["peak_worker_rss_mb"] or 0), DEFAULT_WORKER_ESTIMATE_MB)
+        url = self.config.db_url
+        return worker_holds_lock(url, key) or held_elsewhere(launch_lease_path(url, key))
 
     def _maybe_launch(self, row: dict) -> None:
         key = row["profile_key"]
@@ -407,6 +404,8 @@ class IndexSupervisor:
             return
         if self._owned_elsewhere(key):
             return  # a worker of another Callosum process on this library
+        if checkpoint_pending(get_profile(key).model_name):  # inc 618: only the inc-615 provisioner fetches weights
+            return index_runs.hold_for_model(self.engine, key, self.config.disk_recheck_seconds)
         remaining = max(0, int(row["eligible_chunks"]) - int(row["indexed_chunks"]))
         disk = disk_guard.check(
             self.config.db_url, batch_size=int(row["batch_size"]), remaining_chunks=remaining, usage=self.disk_usage
@@ -416,7 +415,7 @@ class IndexSupervisor:
             return
         snapshot = self.probe()
         policy = ResourcePolicy.for_machine(snapshot)
-        if not policy.can_start(snapshot, self._worker_need_mb(row)):
+        if not policy.can_start(snapshot, max(int(row["peak_worker_rss_mb"] or 0), DEFAULT_WORKER_ESTIMATE_MB)):
             if row["state"] != "waiting_resources":
                 index_runs.update_run(
                     self.engine,

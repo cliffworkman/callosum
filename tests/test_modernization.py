@@ -28,12 +28,11 @@ from app.backend.embeddings.index_lock import launch_lease_path, worker_holds_lo
 from app.backend.embeddings.index_supervisor import IndexSupervisor, SubprocessLauncher, SupervisorConfig
 from app.backend.embeddings.profile_index import vector_integrity
 from app.backend.embeddings.profiles import (
-    ACTIVE_RETRIEVAL_PROFILE_SETTING,
     ARCTIC_S_PROFILE_KEY,
     PROFILES,
-    active_retrieval_profile,
     profile_coverage,
 )
+from app.backend.embeddings.retrieval_resolution import SOURCE_MODERNIZATION, Preference, read_preference
 from app.backend.modernization import AUTO, PAUSED, CoordinatorConfig, ModernizationCoordinator, read_intent
 from app.backend.modernization.classification import SourceRoleClassifier
 from app.backend.pdf_processing.structure_backfill import coverage as class_coverage
@@ -41,7 +40,7 @@ from app.backend.pdf_processing.structure_backfill import derive_paper
 from app.backend.persistence.annotations_repo import create_annotation
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import create_attachment, create_chunk, create_paper
-from app.backend.persistence.schema import annotations, chunks, embeddings, library_settings, papers
+from app.backend.persistence.schema import annotations, chunks, embeddings, papers
 from app.backend.persistence.schema_chunk_structure import chunk_structure
 from tests.test_index_recovery import LOW, PLENTY, Probe, ScriptedArctic, _threaded, _wait
 from tests.test_source_role_migration import PLAIN
@@ -250,7 +249,8 @@ def _drive(coordinator: ModernizationCoordinator, supervisor: IndexSupervisor | 
         status = coordinator.status()
         idle = delay > 0 and (supervisor is None or not supervisor._live)
         if idle and status["indexing"]["run_state"] not in set(index_runs.ACTIVE_STATES):
-            return status
+            coordinator.tick()  # the next check after a build completes records activation (inc 618)
+            return coordinator.status()
         if idle:
             time.sleep(0.1)
     return coordinator.status()
@@ -275,14 +275,9 @@ def test_a_0516_library_modernizes_automatically_and_touches_nothing_else(temp_d
     with engine.connect() as conn:
         assert profile_coverage(conn, small_arctic)["indexed_chunks"] == len(lib["chunks"])
         integrity = vector_integrity(conn, ScriptedArctic(), dimension=3)
-        # Scheduling only: the effective retrieval model stays MiniLM and no preference was written.
-        assert active_retrieval_profile(conn).key == "minilm"
-        assert (
-            conn.execute(
-                select(library_settings.c.value).where(library_settings.c.key == ACTIVE_RETRIEVAL_PROFILE_SETTING)
-            ).first()
-            is None
-        )
+        # Inc 618: a complete, verified index is recorded as the modernization-managed preference.
+        assert read_preference(conn) == Preference(ARCTIC_S_PROFILE_KEY, SOURCE_MODERNIZATION)
+        assert status["retrieval_preference"]["arctic_activated"]
     assert integrity["missing_vector_ids"] == [] and integrity["duplicate_current_chunks"] == 0
     assert _integrity_ok(engine)
     engine.dispose()

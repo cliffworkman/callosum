@@ -104,6 +104,8 @@ def _disk_message(row: dict) -> str:
 def _message(row: dict) -> str:
     state, kind = row["state"], row["failure_kind"]
     smaller = int(row["batch_size"]) < DEFAULT_INDEX_BATCH
+    if kind == "model_not_ready" and state in ("queued", "retrying", "waiting_resources", "waiting_disk"):
+        return "Waiting for the model download to finish and be verified. Indexing starts by itself afterwards."
     if state == "running":
         if smaller:
             return f"Indexing resumed with a smaller batch size ({row['batch_size']} passages at a time)."

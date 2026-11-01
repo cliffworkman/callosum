@@ -8,7 +8,7 @@ never claim a batch that was rolled back. Counts here are snapshots: ``reconcile
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import Connection, Engine, insert, select, update
 
@@ -52,6 +52,14 @@ def update_run(engine: Engine, profile_key: str, **values: object) -> None:
         )
 
     run_write(engine, write)
+
+
+def hold_for_model(engine: Engine, profile_key: str, recheck_seconds: float) -> None:
+    """Keep a requested build waiting, without launching a worker, until its model checkpoint is verified (inc 618).
+    The state is left as it was (queued/retrying/...); only the reason and the next check time change."""
+    update_run(
+        engine, profile_key, failure_kind="model_not_ready", next_retry_at=now() + timedelta(seconds=recheck_seconds)
+    )
 
 
 def upsert_requested(engine: Engine, profile: EmbeddingProfile, *, batch_size: int) -> dict:

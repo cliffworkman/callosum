@@ -15,12 +15,12 @@ from app.backend.embeddings.profiles import (
     BASELINE_PROFILE_KEY,
     PROFILES,
     EmbeddingProfile,
+    IncompleteEmbeddingIndexError,
     UnknownEmbeddingProfileError,
-    active_retrieval_profile,
     get_profile,
     profile_coverage,
-    set_active_retrieval_profile,
 )
+from app.backend.embeddings.retrieval_resolution import AUTOMATIC, explanation, read_preference, set_user_preference
 from app.backend.persistence.sqlite_retry import run_write
 from app.backend.summarization.nli_profiles import (
     BASELINE_NLI_PROFILE_KEY,
@@ -62,7 +62,13 @@ class ProfileOut(BaseModel):
 
 
 class ProfilesResponse(BaseModel):
-    active: str
+    active: str  # inc 618: the profile Ask would use right now (the effective one), not merely the stored choice
+    preference: str  # "automatic", or the key the user explicitly selected
+    preference_source: str | None = None  # user | modernization | None
+    legacy_preference: bool = False  # a selection saved before inc 618 recorded who made it; kept as the user's
+    fallback_reason: str | None = None
+    explanation: str
+    ask_blocked: str | None = None  # a user-forced profile whose index is incomplete: Ask fails closed with this
     verification_model: str  # what citation verification uses regardless of the retrieval profile
     profiles: list[ProfileOut]
     index_job_id: str | None = None
@@ -91,14 +97,28 @@ def _profile_out(profile: EmbeddingProfile, coverage: dict, run: IndexRunOut | N
 
 
 def profiles_state(request: Request) -> ProfilesResponse:
+    from app.backend.api.routers.modernization import resolve_retrieval
+
     with request.app.state.engine.connect() as conn:
-        active = active_retrieval_profile(conn)
+        preference = read_preference(conn)
+        blocked = None
+        try:
+            resolution = resolve_retrieval(request.app, conn)
+            active, reason, said = resolution.profile.key, resolution.fallback_reason, explanation(resolution)
+        except IncompleteEmbeddingIndexError as exc:
+            active, reason, said, blocked = preference.key or BASELINE_PROFILE_KEY, None, str(exc), str(exc)
         profiles = []
         for p in PROFILES.values():
             coverage = profile_coverage(conn, p)
             profiles.append(_profile_out(p, coverage, index_run_out(conn, p, coverage)))
     return ProfilesResponse(
-        active=active.key,
+        active=active,
+        preference=preference.key if preference.explicit else AUTOMATIC,
+        preference_source=preference.source,
+        legacy_preference=preference.legacy,
+        fallback_reason=reason,
+        explanation=said,
+        ask_blocked=blocked,
         verification_model=PROFILES[BASELINE_PROFILE_KEY].label,
         profiles=profiles,
         index_job_id=active_index_job_id(request.app),
@@ -119,8 +139,12 @@ def list_profiles(request: Request) -> ProfilesResponse:
 
 @router.put("/embedding-profiles/active", response_model=ProfilesResponse)
 def select_profile(payload: SelectProfileRequest, request: Request) -> ProfilesResponse:
-    profile = _known(payload.key)
+    """An explicit user choice (it then wins over automatic selection), or ``automatic`` to clear it."""
     engine = request.app.state.engine
+    if payload.key == AUTOMATIC:
+        run_write(engine, lambda conn: set_user_preference(conn, None))
+        return profiles_state(request)
+    profile = _known(payload.key)
     with engine.connect() as conn:
         coverage = profile_coverage(conn, profile)
     if not profile.lazy_indexing and not coverage["complete"]:
@@ -129,7 +153,7 @@ def select_profile(payload: SelectProfileRequest, request: Request) -> ProfilesR
             detail=f"The {profile.label} index covers {coverage['indexed_chunks']} of {coverage['eligible_chunks']} "
             "passages. Build it before selecting this profile.",
         )
-    run_write(engine, lambda conn: set_active_retrieval_profile(conn, profile.key))
+    run_write(engine, lambda conn: set_user_preference(conn, profile.key))
     return profiles_state(request)
 
 

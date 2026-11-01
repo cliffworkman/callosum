@@ -10,6 +10,7 @@ from app.backend.model_provisioning.provisioner import STATES, Provisioner
 from app.backend.model_provisioning.runner import (
     DEBERTA_RELEASE_GATES,
     ProvisioningRunner,
+    checkpoint_pending,
     deberta_auto_provisioning_armed,
     local_files_only_for,
     start_model_provisioning,
@@ -24,6 +25,7 @@ __all__ = [
     "STATES",
     "Provisioner",
     "ProvisioningRunner",
+    "checkpoint_pending",
     "deberta_auto_provisioning_armed",
     "local_files_only_for",
     "start_model_provisioning",

@@ -15992,10 +15992,11 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const name = (p) => p ? p.label || p.model_name || "unknown" : "not recorded";
     const detail = [
       r && `Retrieval: ${r.model_name || "unknown"}${r.model_version ? ` (${r.model_version})` : ""}`,
+      r && r.note,
       v && `Verification: ${v.model_name || "unknown"}${v.revision ? `@${v.revision}` : ""}`,
       v && v.thresholds_calibrated_on && `Verification thresholds calibrated on ${v.thresholds_calibrated_on}`
     ].filter(Boolean).join("\n");
-    return /* @__PURE__ */ React.createElement("div", { className: "synth-coverage", title: detail }, "Retrieval: ", /* @__PURE__ */ React.createElement("b", null, name(r)), r && r.experimental ? " (experimental)" : "", " \xB7 ", "Verification: ", /* @__PURE__ */ React.createElement("b", null, name(v)), v && v.experimental ? " (experimental; thresholds calibrated on MiniLM2)" : "");
+    return /* @__PURE__ */ React.createElement("div", { className: "synth-coverage", title: detail }, "Retrieval: ", /* @__PURE__ */ React.createElement("b", null, name(r)), r && r.experimental ? " (experimental)" : "", " \xB7 ", "Verification: ", /* @__PURE__ */ React.createElement("b", null, name(v)), v && v.experimental ? " (experimental; thresholds calibrated on MiniLM2)" : "", r && r.fallback_reason && r.note ? /* @__PURE__ */ React.createElement(React.Fragment, null, " \xB7 ", r.note) : null);
   }
   const DetailReadOnly = React.createContext(false);
   function EditableRow({ label, value, placeholder, onSave, mono, numeric }) {
@@ -23862,9 +23863,19 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       else setError(r.error || "Couldn't switch the retrieval model.");
     };
     if (!state) return /* @__PURE__ */ React.createElement("div", { className: "retrieval-profiles" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Retrieval model"), error && /* @__PURE__ */ React.createElement("p", { role: "alert", className: "settings-sub" }, error));
-    return /* @__PURE__ */ React.createElement("div", { className: "retrieval-profiles" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Retrieval model"), /* @__PURE__ */ React.createElement("p", { className: "settings-sub" }, "Chooses which local embedding model ranks passages for Ask. Citation verification always uses ", state.verification_model, " and its calibrated thresholds, whichever model retrieves. Switching never changes your library."), state.profiles.map((p) => {
+    return /* @__PURE__ */ React.createElement("div", { className: "retrieval-profiles" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Retrieval model"), /* @__PURE__ */ React.createElement("p", { className: "settings-sub" }, "Chooses which local embedding model ranks passages for Ask. Citation verification always uses ", state.verification_model, " and its calibrated thresholds, whichever model retrieves. Switching never changes your library."), /* @__PURE__ */ React.createElement("label", { className: "settings-subsection" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "radio",
+        name: "retrieval-profile",
+        checked: state.preference === "automatic",
+        disabled: busy,
+        onChange: () => select("automatic")
+      }
+    ), " ", /* @__PURE__ */ React.createElement("b", null, "Automatic"), " ", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Arctic S once its index is complete; MiniLM until then.")), /* @__PURE__ */ React.createElement("p", { role: state.ask_blocked ? "alert" : "status", className: "settings-sub" }, state.explanation), state.profiles.map((p) => {
       const c = p.coverage;
       const run = p.index_run;
+      const chosen = state.preference === p.key;
       const active = state.active === p.key;
       const building = run && ACTIVE.includes(run.state);
       return /* @__PURE__ */ React.createElement("div", { key: p.key, className: "settings-subsection" }, /* @__PURE__ */ React.createElement("label", null, /* @__PURE__ */ React.createElement(
@@ -23872,11 +23883,11 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         {
           type: "radio",
           name: "retrieval-profile",
-          checked: active,
-          disabled: busy || building || !active && !c.complete && !p.is_baseline,
+          checked: chosen,
+          disabled: busy || building || !chosen && !c.complete && !p.is_baseline,
           onChange: () => select(p.key)
         }
-      ), " ", /* @__PURE__ */ React.createElement("b", null, p.label), active ? " \u2014 active" : ""), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, /* @__PURE__ */ React.createElement("code", null, p.model_name, "@", p.revision.slice(0, 12)), " \xB7 ", p.qualification), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Index: ", c.indexed_chunks.toLocaleString(), " of ", c.eligible_chunks.toLocaleString(), " passages", c.eligible_chunks > 0 ? ` (${(100 * c.indexed_chunks / c.eligible_chunks).toFixed(1)}%)` : "", c.complete ? " \xB7 complete" : "", c.papers_without_passage_text > 0 ? ` \xB7 ${c.papers_without_passage_text} papers have no full text to index` : ""), !p.is_baseline && !c.complete && /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, p.label, " is not yet available for Ask because indexing is incomplete."), run && /* @__PURE__ */ React.createElement(IndexRunStatus, { run, label: p.label, onAction: (a) => act(p.key, a) }), !p.is_baseline && !c.complete && !run && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => act(p.key, "build") }, c.indexed_chunks > 0 ? "Resume index build" : "Build index"));
+      ), " ", /* @__PURE__ */ React.createElement("b", null, p.label), active ? " \u2014 in use for Ask" : ""), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, /* @__PURE__ */ React.createElement("code", null, p.model_name, "@", p.revision.slice(0, 12)), " \xB7 ", p.qualification), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Index: ", c.indexed_chunks.toLocaleString(), " of ", c.eligible_chunks.toLocaleString(), " passages", c.eligible_chunks > 0 ? ` (${(100 * c.indexed_chunks / c.eligible_chunks).toFixed(1)}%)` : "", c.complete ? " \xB7 complete" : "", c.papers_without_passage_text > 0 ? ` \xB7 ${c.papers_without_passage_text} papers have no full text to index` : ""), !p.is_baseline && !c.complete && /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, p.label, " is not yet available for Ask because indexing is incomplete."), run && /* @__PURE__ */ React.createElement(IndexRunStatus, { run, label: p.label, onAction: (a) => act(p.key, a) }), !p.is_baseline && !c.complete && !run && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => act(p.key, "build") }, c.indexed_chunks > 0 ? "Resume index build" : "Build index"));
     }), error && /* @__PURE__ */ React.createElement("p", { role: "alert", className: "settings-sub" }, error), /* @__PURE__ */ React.createElement(NliProfileSettings, null));
   }
   function IndexRunStatus({ run, label, onAction }) {

@@ -37,17 +37,25 @@ function RetrievalProfileSettings() {
     <div className="retrieval-profiles">
       <p className="eyebrow">Retrieval model</p>
       <p className="settings-sub">Chooses which local embedding model ranks passages for Ask. Citation verification always uses {state.verification_model} and its calibrated thresholds, whichever model retrieves. Switching never changes your library.</p>
+      {/* inc 618: Automatic uses Arctic S only while its index covers every passage, otherwise MiniLM. */}
+      <label className="settings-subsection">
+        <input type="radio" name="retrieval-profile" checked={state.preference === "automatic"} disabled={busy}
+          onChange={() => select("automatic")} />{" "}
+        <b>Automatic</b> <span className="settings-sub">Arctic S once its index is complete; MiniLM until then.</span>
+      </label>
+      <p role={state.ask_blocked ? "alert" : "status"} className="settings-sub">{state.explanation}</p>
       {state.profiles.map(p => {
         const c = p.coverage;
         const run = p.index_run;
-        const active = state.active === p.key;
+        const chosen = state.preference === p.key;  // the user's explicit choice
+        const active = state.active === p.key;  // what Ask uses right now
         const building = run && ACTIVE.includes(run.state);
         return (
           <div key={p.key} className="settings-subsection">
             <label>
-              <input type="radio" name="retrieval-profile" checked={active} disabled={busy || building || (!active && !c.complete && !p.is_baseline)}
+              <input type="radio" name="retrieval-profile" checked={chosen} disabled={busy || building || (!chosen && !c.complete && !p.is_baseline)}
                 onChange={() => select(p.key)} />{" "}
-              <b>{p.label}</b>{active ? " — active" : ""}
+              <b>{p.label}</b>{active ? " — in use for Ask" : ""}
             </label>
             <span className="settings-sub"><code>{p.model_name}@{p.revision.slice(0, 12)}</code> · {p.qualification}</span>
             <span className="settings-sub">
