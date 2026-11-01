@@ -97,6 +97,13 @@ on disposable copies of three libraries: byte-identical (`INCREMENT-613-NOTES.md
    - Record peak RSS concurrent with the index worker.
    - *Authorization required.* This measures a shipped configuration; it is not a model comparison for selection.
 
+## 3a. Inc 621 receipts (2026-11-01; local evidence under `.local/validation-621/`)
+- **Done with stand-ins:** rendered-browser acceptance on disposable libraries; upgrade path on a copy of F-0084 with real
+  classification over 151 papers, then a stand-in encoder over a 10-paper, 1,446-passage subset.
+- **Added to §3.7's scale receipt:** record `GET /embedding-profiles` and `GET /modernization` latency.
+- **Still owed:** every row of §4; a real low-disk volume with status writes refused; two real app processes; real Arctic
+  indexing (authorized receipt only); the panel at mobile width; the 0.6.0 notice under a real version bump.
+
 ## 4. Packaging (three OSes; extend existing workflows)
 Extend `app/desktop-shell/packaging/smoke_test_backend.py` and `.github/workflows/desktop-shell-{windows,macos,linux}.yml`.
 

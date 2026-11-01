@@ -469,6 +469,13 @@ console.log(JSON.stringify({
   paused: modernizationPollDelay(mod('paused'), runs('paused')),
   cancelled: modernizationPollDelay(mod('action_required'), runs('cancelled')),
   complete: modernizationPollDelay(mod('complete'), runs('completed')),
+  disabled: modernizationPollDelay(mod('disabled'), { profiles: [] }),
+  same: modernizationSignature({ summary: { state: 'complete', notes: { indexing: '24 of 24' } } })
+    === modernizationSignature({ summary: { state: 'complete', notes: { indexing: '24 of 24' } } }),
+  counts: modernizationSignature({ summary: { state: 'complete', notes: { indexing: '24 of 24' } } })
+    === modernizationSignature({ summary: { state: 'complete', notes: { indexing: '26 of 26' } } }),
+  chosen: modernizationSignature({ summary: {}, retrieval_preference: { profile: null } })
+    === modernizationSignature({ summary: {}, retrieval_preference: { profile: 'minilm' } }),
   unknown: modernizationPollDelay(null, null),
   active: INDEX_RUN_ACTIVE_STATES,
 }));
@@ -476,7 +483,12 @@ console.log(JSON.stringify({
     )
     assert out["running"] == 2000 and out["disk"] == out["memory"] == out["retrying"] == 5000
     assert out["classifying"] == 3000 and out["network"] == 10000
-    assert out["paused"] is out["cancelled"] is out["complete"] is out["unknown"] is None  # bounded: stops
+    # inc 621: settled states keep a slow idle refresh, because work can restart with no action in this panel (an import
+    # reopening a complete index, another window resuming). A stop here left a mounted panel stale for good.
+    assert out["paused"] == out["cancelled"] == out["complete"] == 15000
+    assert out["disabled"] is out["unknown"] is None  # nothing can change, or nothing is known: no timer
+    # The idle tick skips the costly full read only when nothing either panel shows has changed.
+    assert out["same"] is True and out["counts"] is False and out["chosen"] is False
     assert "waiting_disk" in out["active"]
 
 

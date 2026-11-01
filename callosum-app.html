@@ -6230,6 +6230,7 @@
   const INDEX_RUN_BUSY_STATES = ["queued", "running", "pausing"];
   const INDEX_RUN_WAITING_STATES = ["retrying", "waiting_resources", "waiting_disk"];
   const INDEX_RUN_ACTIVE_STATES = INDEX_RUN_BUSY_STATES.concat(INDEX_RUN_WAITING_STATES);
+  const MODERNIZATION_IDLE_MS = 15e3;
   function modernizationPollDelay(modernization, profiles) {
     const runs = (profiles && profiles.profiles || []).map((p) => p && p.index_run).filter(Boolean);
     if (runs.some((r) => INDEX_RUN_BUSY_STATES.includes(r.state))) return 2e3;
@@ -6237,7 +6238,11 @@
     const state = modernization && modernization.summary && modernization.summary.state;
     if (state === "working") return 3e3;
     if (state === "waiting") return 1e4;
+    if (state === "paused" || state === "complete" || state === "action_required") return MODERNIZATION_IDLE_MS;
     return null;
+  }
+  function modernizationSignature(m) {
+    return m ? JSON.stringify([m.intent, m.summary, m.effective_retrieval, m.retrieval_preference, m.verifier]) : null;
   }
   function whatsNewHeadline(pick, libraryEmpty) {
     if (!pick) return null;
@@ -23983,15 +23988,24 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const [error, setError] = useState("");
     const timer = useRef(null);
     const alive = useRef(true);
-    const load = useCallback(() => Promise.all([api("/modernization"), api("/embedding-profiles")]).then(([m, p]) => {
+    const seen = useRef(null);
+    const load = useCallback(async (idle) => {
+      const m = await api("/modernization");
       if (!alive.current) return;
-      if (m.ok) setModernization(m.data);
-      if (p.ok) setProfiles(p.data);
-      else setError(p.error || "Couldn't load retrieval models.");
+      const signature = m.ok ? modernizationSignature(m.data) : null;
+      let delay = MODERNIZATION_IDLE_MS;
+      if (idle !== true || signature === null || signature !== seen.current) {
+        const p = await api("/embedding-profiles");
+        if (!alive.current) return;
+        seen.current = signature;
+        if (m.ok) setModernization(m.data);
+        if (p.ok) setProfiles(p.data);
+        else setError(p.error || "Couldn't load retrieval models.");
+        delay = modernizationPollDelay(m.ok ? m.data : null, p.ok ? p.data : null);
+      }
       clearTimeout(timer.current);
-      const delay = modernizationPollDelay(m.ok ? m.data : null, p.ok ? p.data : null);
-      if (delay != null) timer.current = setTimeout(load, delay);
-    }), []);
+      if (delay != null) timer.current = setTimeout(() => load(delay === MODERNIZATION_IDLE_MS), delay);
+    }, []);
     useEffect(() => {
       alive.current = true;
       load();

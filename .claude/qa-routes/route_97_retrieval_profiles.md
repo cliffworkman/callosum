@@ -174,8 +174,9 @@ Run with automatic modernization on (packaged app, or `CALLOSUM_MODERNIZATION=1`
 - **Responsive during a pass.** `GET /modernization` and `GET /status/jobs` answer promptly while a classification
   pass is running (they report the counts cached at `checked_at`).
 - **Settings polling is one bounded loop.** One timer refreshes both panels: 2 s while a build is busy, 5 s during
-  build waits, 3 s / 10 s for other working / waiting states, and it stops when paused, complete, disabled or
-  action-required (a user action reloads). Leaving Settings stops it.
+  build waits, 3 s / 10 s for other working / waiting states, a 15 s idle tick when paused, complete or action-required
+  (inc 621: an import or another window can change those with no action in this panel). The idle tick reads only
+  `GET /modernization` and does the full read when something changed. It stops when disabled; leaving Settings stops it.
 - **Privacy.** No path, filename, paper title, passage text, exception or model-cache detail appears in either
   response or in the UI.
 - **Notice.** On first run of 0.6.0 an upgraded library sees the upgrade wording (usable, untouched, may take several

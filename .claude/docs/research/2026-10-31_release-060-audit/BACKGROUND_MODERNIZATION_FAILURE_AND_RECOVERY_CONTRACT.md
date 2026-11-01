@@ -71,6 +71,21 @@ activation:       not_ready ─► active(source=modernization) ;  user choice �
 | F19 | Not enough memory for DeBERTa at operation start | `resources.py` precheck (*new*) | n/a | MiniLM2 for this operation, recorded as `insufficient_memory` | Re-checked per operation | Provenance line names MiniLM2 and the reason |
 | F20 | Arctic model unavailable or invalid | Model stage, F7/F8 | n/a | MiniLM retrieval, `fallback_reason=model_unavailable` | As F7/F8 | As F7/F8 |
 
+### Inc 621 evidence notes
+- **F6, status writes refused too** (simulated: every write raises `database or disk is full`; no disk filled). Browsing
+  and both status reads stayed 200, both monitor threads survived, integrity stayed ok, and work finished 4.6 s after
+  writes returned. Two honest gaps: the row keeps saying "Building" with a frozen count, because the state saying
+  otherwise cannot be written, and `POST /modernization/pause` returns 500, so that Pause is not recorded. Normally the
+  disk guard stops work well before this point. Release-validation obligation; the display is a deferred improvement.
+- **Vector missing with no chunk change** (outside normal paths: a restored or damaged index). Ask fails safe to MiniLM
+  (`test_completed_run_row_does_not_prove_coverage`) and `GET /embedding-profiles` says so at once, but the modernization
+  summary stays "complete" until reconciliation (at most 30 minutes; repaired 1.1 s once due), and its retrieval line
+  showed Arctic S throughout the 17.7 s observed. Deferred improvement.
+- **F8 deviation.** The row above promises one "Try again" action. None exists: the panel says "There is no in-app repair
+  yet; please report this." Safe (MiniLM continues, nothing loops, shown in Status), but that library stays on MiniLM.
+  Product decision owed before release: build the action or amend this contract.
+- **F14** is pinned by in-process and worker-process lock tests; not yet run as two real apps with a browser attached.
+
 ## 4. Interrupted-transaction recovery
 - SQLite WAL guarantees that an uncommitted batch or paper is absent after a crash.
 - **On startup, before resuming, the coordinator runs:**

@@ -527,6 +527,31 @@ checks, and a local commit only after tests pass.
 **Verdict: CONDITIONAL GO** to continue implementation of steps 2–8. **NO-GO for release** until B1–B10 are accepted
 and G1–G4 are resolved, or until Cliff decides to ship with automatic DeBERTa preference disarmed.
 
+## Acceptance status after inc 621 (2026-11-01)
+Labels are not interchangeable. "Browser" means rendered Chromium with stand-in models and scripted resources.
+
+| # | Implemented | Focused | Browser | Process | Packaged runtime | Release-validated |
+|---|---|---|---|---|---|---|
+| B1 | n/a | n/a | n/a | n/a | n/a | **Blocked**: merge needs authorization (G3) |
+| B2 | Yes | Yes | Readiness display only | Yes | **Not run** | No |
+| B3 | Yes | Yes | Yes | Yes | **Not run** | No |
+| B4 | Yes | Yes | Yes (count display) | Real code, 151 real papers on a copy | **Not run** | No |
+| B5 | Yes | Yes | Yes | Yes, stand-in encoder, subset | **Not run** | No |
+| B6 | Yes | Yes | Yes (display) | Yes, stand-in encoder, subset | **Not run** | No |
+| B7 | Yes | Yes | Yes (scripted free space) | Yes | **Not run** | No: real low-disk volume owed |
+| B8 | Yes | Yes | Display only; gates stay off | Yes | **Not run** | No |
+| B9 | Yes | Yes | **Yes, 71/71** | n/a | **Not run** | No: notice seen with a simulated version only |
+| B10 | Partly | n/a | n/a | n/a | **Not run** | No |
+
+**Inc 621 findings.** D1 (stale mounted panel) was a release blocker and is fixed. No new open release blocker was found.
+Release-validation obligations added: (a) a dedicated low-disk volume run must also cover refused status writes (see the
+recovery contract, inc-621 notes); (b) two real app processes with a browser attached; (c) Settings latency at scale:
+`GET /embedding-profiles` takes 3.4-4.8 s on 68,086 chunks, and during a build that read repeats every few seconds while
+Settings is open; add it to the F-4000 receipt. One product decision is owed: the F8 "Try again" action (recovery contract).
+
+**Security.** Self-reviews exist for incs 616-620. **No independent review has been run on the integrated tree**; the
+repo has no automated independent-review workflow (CI runs `bandit` only). Still pending.
+
 ## Pending dedicated reviews (recorded after inc 616; unchanged by inc 617)
 Neither is resolved by refreshing a receipt, and neither was declined.
 - **Demo coverage.** `tools/qa/check_demo_experience_coverage.py` fails on drift accumulated since the inc-576 review

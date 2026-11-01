@@ -9,6 +9,15 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-11-01 — Release stabilization: mounted Settings panel no longer goes stale (inc 621)
+- **Files:** `app/frontend/js/{04f_modernization_logic,35j_modernization}.jsx`, `callosum-app.html`,
+  `tests/test_modernization_status.py`, QA route 97, blocker matrix, test plan, recovery contract, increment notes.
+- **What:** settled modernization states keep a 15 s idle tick that reads only `GET /modernization` and does the full
+  read when something changed. Browser, upgrade-path and operational-failure validation recorded.
+- **Why:** real-browser acceptance showed a mounted panel could keep saying "Ask retrieval right now: Arctic S" after an
+  import had moved Ask to MiniLM, because the only refresh loop ended at complete, paused and action-required.
+- **Revert:** revert this commit. Scientific behaviour is untouched.
+
 ## 2026-11-01 — Visible background modernization and Status integration (inc 620)
 - **Files:** `app/backend/modernization/presentation.py` (new), `modernization/coordinator.py`,
   `api/dependencies.py`, `api/routers/{modernization,status,embedding_profiles}.py`,

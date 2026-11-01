@@ -1,7 +1,8 @@
 // Inc 620: Settings → Library behavior → Library modernization, plus the one refresh loop shared with the retrieval
 // panel. GET /modernization and GET /embedding-profiles are read together on each tick; modernizationPollDelay
-// (04f) picks the next tick from the stored states, so waits (disk, memory, network) keep refreshing and paused,
-// complete or action-required states stop until the user acts. Nothing here loads a model or starts work: Pause and
+// (04f) picks the next tick from the stored states, so waits (disk, memory, network) keep refreshing. Settled states
+// keep a slow idle tick (inc 621) that reads only GET /modernization and does the full read when it sees a change, so a
+// mounted panel notices an import or another window. Nothing here loads a model or starts work: Pause and
 // Resume call the existing durable endpoints and never change a retrieval or verifier choice.
 function LibraryModelsSection() {
   const [modernization, setModernization] = useState(null);
@@ -10,14 +11,24 @@ function LibraryModelsSection() {
   const timer = useRef(null);
   const alive = useRef(true);
 
-  const load = useCallback(() => Promise.all([api("/modernization"), api("/embedding-profiles")]).then(([m, p]) => {
+  const seen = useRef(null);
+
+  const load = useCallback(async (idle) => {
+    const m = await api("/modernization");
     if (!alive.current) return;
-    if (m.ok) setModernization(m.data);
-    if (p.ok) setProfiles(p.data); else setError(p.error || "Couldn't load retrieval models.");
+    const signature = m.ok ? modernizationSignature(m.data) : null;
+    let delay = MODERNIZATION_IDLE_MS;  // an idle tick that saw no change: the full read below is not needed
+    if (idle !== true || signature === null || signature !== seen.current) {
+      const p = await api("/embedding-profiles");
+      if (!alive.current) return;
+      seen.current = signature;
+      if (m.ok) setModernization(m.data);
+      if (p.ok) setProfiles(p.data); else setError(p.error || "Couldn't load retrieval models.");
+      delay = modernizationPollDelay(m.ok ? m.data : null, p.ok ? p.data : null);
+    }
     clearTimeout(timer.current);
-    const delay = modernizationPollDelay(m.ok ? m.data : null, p.ok ? p.data : null);
-    if (delay != null) timer.current = setTimeout(load, delay);
-  }), []);
+    if (delay != null) timer.current = setTimeout(() => load(delay === MODERNIZATION_IDLE_MS), delay);
+  }, []);
   useEffect(() => {
     alive.current = true;
     load();
