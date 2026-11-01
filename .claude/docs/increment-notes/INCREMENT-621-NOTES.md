@@ -54,7 +54,13 @@ all 151 real papers. The blocker matrix carries the per-blocker labels; the rece
 | Repo browser tests (`test_smoke`, `test_capture_updates`, `test_doi_review`, `test_browser_preview`) | final tree | 21 passed |
 | Focused (`test_modernization_status`, `test_frontend_assembly`) | final tree | 118 passed |
 
-The final-tree full-suite receipt is recorded after this commit, because it has to run on the committed tree.
+**Final-tree full suite: incomplete, still owed.** One bounded `-n 2` run on `ccbe3599` was stopped at about 21% by the
+Claude Code host's low-memory reaper while the session was idle (started 14:25:32 UTC; last sample 14:29:54 UTC with
+3.88 GB physical and 7.75 GB commit free, above this run's own 1.5 GB floor). It produced no summary or JUnit file and
+supports no conclusion. It was not restarted, as the reaper instructs; no process was left behind. The 3791-pass receipt
+above is from `70273c01` and **is not a final-tree result**. The three baseline failures were re-confirmed individually on
+`ccbe3599`. The repair changed only frontend scheduling and one test, so risk is low, but a full run on the final tree must
+precede merge (`pytest -n 2 -q`, on an idle machine; CI also runs the suite).
 
 ## Manual verification script
 1. `python .local\validation-621\browser_acceptance.py` with `CALLOSUM_DB_URL` overridden; read `browser\result.json`.
