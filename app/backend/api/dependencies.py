@@ -110,13 +110,17 @@ def resolve_support_scorer(
     """Resolve synthesis support semantics over the app's shared NLI runtime. A non-baseline ``nli_profile`` is
     loaded at its pinned revision and its label/architecture/tokenizer contract is verified before use. No profile
     carries an embedding fallback: an inference failure raises ``NLIInferenceError`` and fails the job."""
+    per_profile = getattr(app.state, "nli_support_scorers", None) or {}  # tests: one fake scorer per profile
+    if nli_profile is not None and nli_profile.key in per_profile:
+        return per_profile[nli_profile.key]
     injected = getattr(app.state, "support_scorer", None)
     if injected is not None:
         return injected
     registry = app.state.model_runtime_registry
     if nli_profile is not None and nli_profile.enforce_contract:
-        # inc 615: a provisioned checkpoint loads offline; the MiniLM2 baseline path below is unchanged.
-        local_files_only = local_files_only or local_files_only_for(nli_profile.model_name)
+        # inc 619: a contract-checked profile always loads offline. Only the inc-615 provisioner fetches its weights;
+        # inference never downloads. The MiniLM2 baseline path below is unchanged.
+        local_files_only = True
         runtime = registry.get_nli_runtime(
             model_name=nli_profile.model_name, revision=nli_profile.revision, local_files_only=local_files_only
         )
@@ -158,3 +162,43 @@ def require_superuser() -> None:
     what the flag gates; this is the mechanism, applied first to `GET /diagnostics`."""
     if not app_settings.oauth_account_status()["is_superuser"]:
         raise HTTPException(status_code=403, detail="Superuser access required")
+
+
+def verifier_inputs(app: FastAPI) -> dict:
+    """Everything the inc-619 verifier decision reads, each injectable through ``app.state`` for tests: the DeBERTa
+    release gates, its provisioning state, whether the provisioner manages it, the memory probe, whether DeBERTa is
+    already resident in this process, and the allowance for a running Arctic index worker."""
+    from app.backend.embeddings import index_runs
+    from app.backend.embeddings.profiles import ARCTIC_S_PROFILE_KEY
+    from app.backend.embeddings.resources import DEFAULT_WORKER_ESTIMATE_MB, measure
+    from app.backend.model_provisioning import DEBERTA_RELEASE_GATES, DEBERTA_TRACK, deberta_auto_provisioning_armed
+    from app.backend.model_provisioning.runner import auto_provisioning_enabled, default_provisioner
+    from app.backend.summarization.nli_profiles import DEBERTA_NLI_PROFILE_KEY, NLI_PROFILES
+
+    state = app.state
+    gates = getattr(state, "deberta_release_gates", None) or DEBERTA_RELEASE_GATES
+    model_state = getattr(state, "deberta_model_state", None) or (
+        lambda: default_provisioner(DEBERTA_TRACK).status()["state"]
+    )
+    deberta = NLI_PROFILES[DEBERTA_NLI_PROFILE_KEY].model_name
+    resident = any(
+        entry.identity.model_name == deberta and entry.loaded_model is not None
+        for entry in state.model_runtime_registry.runtime_entries()
+    )
+    with state.engine.connect() as conn:
+        run = index_runs.get_run(conn, ARCTIC_S_PROFILE_KEY)
+    # A running (or about-to-run) worker's current memory is already outside "free"; its growth up to its recorded
+    # peak (or the default estimate before its first attempt) is reserved in full -- conservative, as G2 was.
+    indexing = 0
+    if run is not None and run["state"] in index_runs.ACTIVE_STATES:
+        indexing = int(run["peak_worker_rss_mb"] or DEFAULT_WORKER_ESTIMATE_MB)
+    return {
+        "gates_armed": deberta_auto_provisioning_armed(gates),
+        "model_state": model_state,
+        "checkpoint_required": auto_provisioning_enabled()
+        if (required := getattr(state, "deberta_checkpoint_required", None)) is None
+        else required,
+        "probe": getattr(state, "memory_probe", None) or measure,
+        "resident": resident,
+        "indexing_reserve_mb": indexing,
+    }

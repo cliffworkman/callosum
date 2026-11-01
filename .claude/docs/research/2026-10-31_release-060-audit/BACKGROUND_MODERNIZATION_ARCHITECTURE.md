@@ -205,6 +205,16 @@ Before each synthesis or re-verification operation, resolve the **effective veri
 **Scope.** This covers synthesis verification only, the inc 608 scope. Stance features, Suggest-citation, Critical
 Read, citation context and imported re-verification keep MiniLM2 (§7 of the Scope document; pinned by test).
 
+**As implemented (inc 619).** `summarization/verifier_resolution.py::decide`, called once per synthesis by
+`summaries._verifier` (before retrieval). Differences from the text above:
+- The gate is `DEBERTA_RELEASE_GATES` / `deberta_auto_provisioning_armed` (inc 615); field names are
+  `preferred_profile` and `fallback_reason` inside `verification_nli`.
+- Memory: free = min(available physical, available commit) from `resources.measure()`; need = 1,500 MB when DeBERTa
+  is not resident (G2: 540 → 2,016 MB peak), 512 MB when it is, plus a running Arctic worker's recorded peak (or the
+  1,200 MB estimate); `ResourcePolicy.can_start` adds the reserve. Unmeasurable → `memory_unmeasured`.
+- A load or contract failure before scoring is `not_verified` (automatic → MiniLM2; explicit → refused).
+- Imported re-verification still uses MiniLM2 (the stated scope), so §5a's "or re-verification" does not apply yet.
+
 ## 6. Atomic activation (B6)
 `activate_if_complete()` runs in **one** `run_write` transaction:
 1. Re-compute `profile_coverage(conn, arctic)`. If it is not complete, abort.

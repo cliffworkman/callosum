@@ -25,9 +25,9 @@ _log = logging.getLogger(__name__)
 DEBERTA_RELEASE_GATES: dict[str, bool] = {
     # G1 CONDITIONAL result accepted by product decision (not a PASS) + G2 conditional runtime acceptance (inc 615).
     "runtime_qualification_recorded": True,
-    "operation_memory_guard": False,  # per-operation memory precheck with recorded MiniLM2 fallback reason
-    "verifier_provenance_and_failure": False,  # actual verifier identity recorded; no mid-operation substitution
-    "packaged_runtime_acceptance": False,  # cold/warm 21-pair recheck on the packaged runtime
+    "operation_memory_guard": True,  # inc 619: per-operation memory precheck, recorded MiniLM2 fallback reason
+    "verifier_provenance_and_failure": True,  # inc 619: actual verifier recorded; no mid-operation substitution
+    "packaged_runtime_acceptance": False,  # PENDING: cold/warm 21-pair recheck on the packaged runtime (release step)
 }
 
 

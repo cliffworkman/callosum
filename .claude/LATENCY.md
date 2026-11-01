@@ -739,6 +739,17 @@ Unless deliberately changed and revalidated, Callosum currently relies on these 
   and future qualification identity use that observed state plus the deterministic launcher-and-library bundle
   manifest identity rather than a launcher hash alone.
 
+- **Synthesis verifier (inc 619).** The NLI verifier is resolved once per synthesis
+  (`summarization/verifier_resolution.py`) and never changes inside it. DeBERTa is an intentional, measured latency
+  change for a scientific reason: G2 measured about **+3 s for the 21-pair verification stage** (MiniLM2 2.2–2.9 s
+  stable vs DeBERTa 5.4–7.2 s) and more for larger batches (63 pairs: about +10–12 s), on the development runtime
+  (torch 2.6) on one 16 GB Windows 11 machine. Nothing is claimed for the packaged runtime, other operating systems or
+  8 GB hardware; the packaged-runtime recheck is a pending release gate. The verification stage's calibration key
+  carries `|nli-<profile>` for a non-baseline verifier, so its Status estimate never reuses MiniLM2 durations and stays
+  indeterminate until three DeBERTa receipts exist; MiniLM2 and generation keys are unchanged. Receipts recorded
+  before inc 619 for an explicitly selected DeBERTa sit under the baseline key (a small, known contamination of that
+  history). DeBERTa is loaded at the operation boundary and reused through the shared `ModelRuntimeRegistry`.
+
 Any modification that affects these properties requires explicit review.
 
 ---

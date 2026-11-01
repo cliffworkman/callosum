@@ -9,6 +9,19 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-10-31 — Automatic DeBERTa verification with resource-safe compatibility (inc 619)
+- **Files:** `app/backend/summarization/verifier_resolution.py` (new), `summarization/nli_profiles.py`,
+  `api/{dependencies,job_timing}.py`, `api/routers/{summaries,embedding_profiles,summaries_provenance,
+  summaries_response}.py`, `model_provisioning/runner.py`, `frontend/js/{35i_retrieval_profiles,20e_model_provenance,
+  20c_synthesis_results}.jsx`, `tests/test_verifier_resolution.py` (new), `tests/{api_helpers,test_nli_profiles,
+  test_summaries}.py`, QA route 97, blocker matrix B8, architecture §5a, LATENCY.md, security audit, increment notes.
+- **What:** each synthesis resolves its NLI verifier once (user choice → gated, verified, memory-safe DeBERTa →
+  MiniLM2 with a recorded reason), never switches mid-operation, records the full identity, keys the verification ETA
+  by verifier, and words DeBERTa contradictions cautiously; DeBERTa never loads from the network.
+- **Why:** blocker B8 (G1 CONDITIONAL / G2 CONDITIONAL GO conditions); production automatic use stays unarmed until
+  the packaged-runtime acceptance gate.
+- **Revert:** `git revert` the inc-619 commit on `integrate/inc607-608-ask`.
+
 ## 2026-10-31 — Automatic Arctic S activation and complete-index fallback (inc 618)
 - **Files:** `app/backend/embeddings/retrieval_resolution.py` (new), `embeddings/profiles.py`,
   `modernization/coordinator.py`, `api/routers/{summaries,embedding_profiles,modernization,summaries_provenance,

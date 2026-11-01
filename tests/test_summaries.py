@@ -477,6 +477,7 @@ def test_summary_readback_matches_completed_job_result_shape(temp_db_url: str) -
         "quote_confidence",
         "support_confidence",
         "status",
+        "status_note",  # inc 619: cautious wording for a non-baseline verifier's contradicted (else None)
         "coordinate_precision",
         "bbox_json",
         "attachment_id",

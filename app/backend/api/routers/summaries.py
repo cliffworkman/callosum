@@ -32,6 +32,7 @@ from app.backend.api.dependencies import (
     resolve_llm_config,
     resolve_profile_embedding_model,
     resolve_support_scorer,
+    verifier_inputs,
 )
 from app.backend.api.job_store import JobStore
 from app.backend.api.job_timing import stage_reporter, synthesis_timing_key
@@ -64,14 +65,20 @@ from app.backend.summarization.generators import SummaryGenerator
 from app.backend.summarization.nli_profiles import (
     BASELINE_NLI_PROFILE_KEY,
     NLI_PROFILES,
-    active_nli_profile,
     verification_nli_provenance,
 )
 from app.backend.summarization.overview_lifecycle import generate_overview
 from app.backend.summarization.pipeline import SummaryScope, summarize_scope
 from app.backend.summarization.query_planner import broadening_hint_applies, classify_breadth, plan_query
 from app.backend.summarization.reverify import NotImportedError, reverify_imported_summary
-from app.backend.summarization.verification import NLIInferenceError
+from app.backend.summarization.verification import NLIInferenceError, SupportScorer, VerificationConfig
+from app.backend.summarization.verifier_resolution import (
+    VerifierUnavailableError,
+    decide,
+    load_failed,
+    memory_check,
+    read_nli_preference,
+)
 
 router = APIRouter()
 router.include_router(overview_router)
@@ -338,7 +345,6 @@ def _run_summarize_job(
     retrieval_provenance: dict[str, object] = {}
     try:
         llm_config = resolve_llm_config(api)
-        calibration_key = synthesis_timing_key(llm_config)
         generator = _summary_generator(api)
         overview_generator = resolve_overview_generator(api)
         model = _embedding_model(api)  # verification similarity: always the MiniLM-calibrated baseline
@@ -346,10 +352,10 @@ def _run_summarize_job(
         config = api.state.verifier_config
         engine: Engine = api.state.engine
         retrieval_model, retrieval_provenance = _retrieval_model(api, engine, model)
-        with engine.connect() as conn:
-            nli_profile = active_nli_profile(conn)
-        support_scorer = resolve_support_scorer(api, nli_profile=nli_profile)
-        retrieval_provenance = {**retrieval_provenance, **verification_nli_provenance(nli_profile)}
+        support_scorer, nli_provenance = _verifier(api, engine, config)
+        retrieval_provenance = {**retrieval_provenance, **nli_provenance}
+        verifier_key = nli_provenance["verification_nli"]["profile"]
+        calibration_key = synthesis_timing_key(llm_config)
         # summarize_scope manages its own short internal transactions (retrieval, then verify+persist)
         # and holds no connection open during the generation call in between -- no outer `engine.begin()`
         # wrapper here (the primary-synthesis transaction-boundary redesign; see pipeline.py).
@@ -376,7 +382,7 @@ def _run_summarize_job(
                 overview_requested=overview_generator is not None,
                 exclude_references=request.exclude_references,
                 on_progress=lambda i, n, label: jobs.mark_progress(job_id, i, n, label),
-                on_stage=stage_reporter(jobs, job_id, calibration_key),
+                on_stage=stage_reporter(jobs, job_id, calibration_key, verifier=verifier_key),
             )
         else:
             result = summarize_scope(
@@ -392,7 +398,7 @@ def _run_summarize_job(
                 support_scorer=support_scorer,
                 overview_requested=overview_generator is not None,
                 on_progress=lambda i, n, label: jobs.mark_progress(job_id, i, n, label),
-                on_stage=stage_reporter(jobs, job_id, calibration_key),
+                on_stage=stage_reporter(jobs, job_id, calibration_key, verifier=verifier_key),
             )
         # Phase A has committed. Reread the authoritative trust spine from a fresh connection before
         # publishing completion; no generated-but-unverified or uncommitted response can reach JobStore.
@@ -415,6 +421,9 @@ def _run_summarize_job(
             jobs.mark_error(job_id, AUTOMATIC_CHANGED_MESSAGE)
         else:
             jobs.mark_error(job_id, str(exc))  # already user-facing: names the index gap and both remedies
+        return
+    except VerifierUnavailableError as exc:
+        jobs.mark_error(job_id, str(exc))  # an explicitly chosen verifier cannot run; user-facing, names the way back
         return
     except NLIInferenceError as exc:
         # Verification never ran: nothing was saved (the verify+persist transaction rolled back) and no claim was
@@ -439,6 +448,38 @@ def _run_summarize_job(
         with engine.connect() as conn:
             refreshed = _persisted_summary_response(conn, summary_id=result.summary_id, job_id=job_id)
         jobs.mark_done(job_id, refreshed, nav={"summary_id": result.summary_id})
+
+
+def _verifier(api: FastAPI, engine: Engine, config) -> tuple[SupportScorer, dict[str, object]]:  # type: ignore[no-untyped-def]
+    """The synthesis verifier (inc 619: ``verifier_resolution``), resolved once at operation start -- before retrieval
+    and generation -- and used for every claim. Loading and its contract check happen here too, so a DeBERTa that
+    will not load is known before anything is scored; once scoring starts, a failure fails the operation."""
+    inputs = verifier_inputs(api)
+    with engine.connect() as conn:
+        preference = read_nli_preference(conn)
+    decision = decide(
+        preference,
+        gates_armed=inputs["gates_armed"],
+        model_state=inputs["model_state"],
+        checkpoint_required=inputs["checkpoint_required"],
+        memory=lambda: memory_check(
+            inputs["probe"], resident=inputs["resident"], indexing_reserve_mb=inputs["indexing_reserve_mb"]
+        ),
+    )
+    try:
+        scorer = resolve_support_scorer(api, nli_profile=decision.profile)
+    except Exception as exc:  # noqa: BLE001 -- load or contract failure, before any claim is scored
+        if not decision.profile.enforce_contract:
+            raise
+        decision = load_failed(decision, exc)  # explicit choice: raises; automatic: MiniLM2, not_verified
+        scorer = resolve_support_scorer(api, nli_profile=decision.profile)
+    config = config or VerificationConfig()  # the same defaults the verifier applies when none is injected
+    provenance = decision.provenance(
+        support_threshold=config.support_threshold,
+        contradiction_threshold=config.contradiction_threshold,
+        similarity_threshold=config.retrieval_threshold,
+    )
+    return scorer, provenance
 
 
 AUTOMATIC_CHANGED_MESSAGE = (

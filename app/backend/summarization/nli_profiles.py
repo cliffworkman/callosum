@@ -6,6 +6,8 @@ score is used, because a silently mis-ordered softmax would turn entailment into
 thresholds (support >= 0.55, contradiction >= 0.55) are NOT re-tuned per profile: they are probabilities of the same
 labels, but they were calibrated on MiniLM2, so a non-baseline profile is labelled uncalibrated wherever it appears.
 
+Which profile a synthesis uses is decided per operation by ``verifier_resolution`` (inc 619).
+
 Scope: synthesis citation verification only. Stance features (Suggest-citation, Critical Read, citation context)
 keep MiniLM2 and their own thresholds; switching this profile never changes them.
 """
@@ -14,10 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from sqlalchemy import Connection, func, select
-
 from app.backend.model_runtime import PINNED_MODEL_REVISIONS
-from app.backend.persistence.schema import library_settings
 from app.backend.summarization.stance import DEFAULT_NLI_MODEL
 
 
@@ -59,7 +58,10 @@ NLI_PROFILES: dict[str, NliProfile] = {
         model_type="deberta-v2",
         tokenizer_class_prefix="DebertaV2",
         enforce_contract=True,
-        qualification="Experimental and uncalibrated: uses the MiniLM2-calibrated thresholds unchanged.",
+        qualification=(
+            "Preferred verifier once its release gates pass (G1 accepted conditionally). Uses the MiniLM2-calibrated "
+            "thresholds unchanged; its contradiction flags are shown as possible disagreements to review."
+        ),
     ),
 }
 
@@ -79,25 +81,6 @@ def get_nli_profile(key: str) -> NliProfile:
         return NLI_PROFILES[key]
     except KeyError:
         raise UnknownNliProfileError(f"Unknown NLI profile: {key}") from None
-
-
-def active_nli_profile(conn: Connection) -> NliProfile:
-    """The library's verification NLI profile; the baseline when unset or unknown (never a guess)."""
-    value = conn.execute(
-        select(library_settings.c.value).where(library_settings.c.key == ACTIVE_NLI_PROFILE_SETTING)
-    ).scalar_one_or_none()
-    return NLI_PROFILES.get(value or BASELINE_NLI_PROFILE_KEY, NLI_PROFILES[BASELINE_NLI_PROFILE_KEY])
-
-
-def set_active_nli_profile(conn: Connection, key: str) -> NliProfile:
-    profile = get_nli_profile(key)
-    values = {"value": profile.key, "updated_at": func.current_timestamp()}
-    where = library_settings.c.key == ACTIVE_NLI_PROFILE_SETTING
-    if conn.execute(select(library_settings.c.key).where(where)).first() is None:
-        conn.execute(library_settings.insert().values(key=ACTIVE_NLI_PROFILE_SETTING, **values))
-    else:
-        conn.execute(library_settings.update().where(where).values(**values))
-    return profile
 
 
 def verify_nli_checkpoint(model: object, profile: NliProfile) -> None:

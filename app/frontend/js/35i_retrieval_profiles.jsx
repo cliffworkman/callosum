@@ -115,11 +115,17 @@ function NliProfileSettings() {
     <div className="settings-subsection">
       <p className="eyebrow">Verification model (NLI)</p>
       <p className="settings-sub">Scores whether each cited passage supports or contradicts a synthesis claim. The support and contradiction thresholds were calibrated on {state.thresholds_calibrated_on} and are used unchanged for every model. Other stance features keep the baseline.</p>
+      {/* inc 619: Automatic uses DeBERTa when it is enabled, verified and fits in memory; otherwise MiniLM2. */}
+      <label>
+        <input type="radio" name="nli-profile" checked={state.preference === "automatic"} disabled={busy} onChange={() => select("automatic")} />{" "}
+        <b>Automatic</b> <span className="settings-sub">DeBERTa when it is ready and fits in memory; MiniLM2 otherwise.</span>
+      </label>
+      <p role={state.synthesis_blocked ? "alert" : "status"} className="settings-sub">{state.explanation}</p>
       {state.profiles.map(p => (
         <div key={p.key}>
           <label>
-            <input type="radio" name="nli-profile" checked={state.active === p.key} disabled={busy} onChange={() => select(p.key)} />{" "}
-            <b>{p.label}</b>{state.active === p.key ? " — active" : ""}
+            <input type="radio" name="nli-profile" checked={state.preference === p.key} disabled={busy} onChange={() => select(p.key)} />{" "}
+            <b>{p.label}</b>{state.active === p.key ? " — used for the next synthesis" : ""}
           </label>
           <span className="settings-sub"><code>{p.model_name}@{p.revision.slice(0, 12)}</code> · {p.qualification}</span>
         </div>

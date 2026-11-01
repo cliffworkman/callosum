@@ -6,16 +6,23 @@ from typing import Any
 
 from app.backend.api.job_store import timing_key
 
+# Stages whose duration depends on the synthesis verifier (inc 619). G2: DeBERTa takes about 2.5x MiniLM2's time here.
+VERIFIER_STAGES = frozenset({"verifying_citations"})
 
-def stage_reporter(store: Any, job_id: str, calibration_key: str):
-    """Adapt a workflow's stage callback to the shared JobStore contract."""
+
+def stage_reporter(store: Any, job_id: str, calibration_key: str, *, verifier: str | None = None):
+    """Adapt a workflow's stage callback to the shared JobStore contract. A non-baseline ``verifier`` gets its own
+    calibration identity for the verification stage only, so its estimate never reuses MiniLM2 durations (until three
+    receipts exist the Status estimate stays indeterminate); generation and other stages keep their history."""
+    from app.backend.summarization.nli_profiles import BASELINE_NLI_PROFILE_KEY
 
     def report(key: str, label: str, size: int | None, variable: bool) -> None:
+        separate = verifier is not None and verifier != BASELINE_NLI_PROFILE_KEY and key in VERIFIER_STAGES
         store.mark_stage(
             job_id,
             key,
             label,
-            timing_key=calibration_key,
+            timing_key=f"{calibration_key}|nli-{verifier}"[:400] if separate else calibration_key,
             workload_size=size,
             variable=variable,
         )

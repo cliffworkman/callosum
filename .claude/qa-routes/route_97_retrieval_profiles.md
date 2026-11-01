@@ -1,6 +1,6 @@
 <!-- qa-coverage
 api: /verification-nli-profiles, /verification-nli-profiles/active, /embedding-profiles, /embedding-profiles/active, /embedding-profiles/{key}/index, /embedding-profiles/index/{job_id}, /embedding-profiles/index/{job_id}/cancel, /embedding-profiles/{key}/index/pause, /embedding-profiles/{key}/index/resume, /embedding-profiles/{key}/index/cancel, /modernization, /modernization/pause, /modernization/resume
-fe: 35i_retrieval_profiles.jsx, 20e_model_provenance.jsx
+fe: 35i_retrieval_profiles.jsx, 20e_model_provenance.jsx, 20c_synthesis_results.jsx
 -->
 
 # ROUTE 97 — Retrieval model profiles (MiniLM baseline / Arctic S)
@@ -131,3 +131,18 @@ listeners before navigation.
 - `POST /modernization/pause`, quit, relaunch → `intent` is still `paused`; no classification or build starts.
   Resume → both continue from stored rows; nothing already current is redone.
 - Open two Callosum windows on one library → only one reports `coordinating_here: true`.
+
+## Verification model (inc 619)
+
+- **Automatic is the default.** Settings → Verification model shows Automatic selected and one sentence. In this
+  release the production gate is unarmed, so it reads "Using MiniLM2: automatic DeBERTa verification is not enabled in
+  this release yet." `GET /verification-nli-profiles` returns `preference: "automatic"`, `active: "minilm2"`,
+  `fallback_reason: "not_qualified"`. Selecting a profile and then Automatic deletes the stored choice.
+- **Explicit DeBERTa** whose checkpoint is not verified (packaged app) → `PUT` returns **409**; no request leaves the
+  machine. A choice made earlier whose checkpoint was later lost → Ask fails with "Nothing was saved. Choose
+  Automatic or MiniLM2 in Settings → Verification model…"; Settings shows the same sentence as an alert.
+- **Provenance line** after a MiniLM2 fallback names the reason in past tense; its tooltip lists support ≥ 0.55,
+  contradiction ≥ 0.55. A DeBERTa result's `contradicted` pill reads "⚠ possible disagreement" with the note "The
+  model flags a possible disagreement with the source. Review the cited passage."; a MiniLM2 result keeps "⚠ source
+  disagrees". Older syntheses show no new fields.
+- **Status.** The verification stage of a DeBERTa synthesis shows elapsed time only (no range) until it has receipts.

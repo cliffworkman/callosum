@@ -23,7 +23,7 @@ MiniLM2 remain for compatibility, and their retirement is deferred.
 | B5 | Arctic preference with MiniLM fallback and import catch-up (**policy authorized, A2–A4**). **Implemented in inc 618: per-operation resolution, truthful provenance, automatic catch-up; focused-tested on disposable libraries, not release-validated** | UX: Ask fails without it | B6 | No (with B6) | No |
 | B6 | Atomic automatic Arctic activation (**authorized, A3**). **Implemented in inc 618: one write transaction that rechecks preference, model and coverage; idempotent across checks and processes** | UX / honesty | B3 | No (with B5) | No |
 | B7 | No disk-space guard. **Implemented in inc 616 (`0686a5f6`): focused-tested and process-tested with simulated resources; not release-validated** (real low-disk volume run, packaged-runtime checks under B10, and the settings-panel state still owed) | Data safety | B3 | Yes | No |
-| B8 | DeBERTa automatic preference: effective-verifier resolution, provenance, gate (**policy authorized, A5; G1 CONDITIONAL accepted by product decision (not a PASS), G2 conditional runtime acceptance (2026-10-31); DeBERTa is the intended preferred verifier; automatic use awaits the four release gates in `model_provisioning/runner.py`: qualification recorded ✔, operation memory guard, verifier provenance/failure, packaged-runtime acceptance**) | Scientific provenance / latency contract | B2 | Yes | **Arming only** (see row) |
+| B8 | DeBERTa automatic preference: effective-verifier resolution, provenance, gate (**policy authorized, A5; G1 CONDITIONAL accepted by product decision (not a PASS), G2 conditional runtime acceptance (2026-10-31); DeBERTa is the intended preferred verifier; automatic use awaits the four release gates in `model_provisioning/runner.py`: qualification recorded ✔, operation memory guard, verifier provenance/failure, packaged-runtime acceptance**). **Implemented in inc 619: per-operation resolution, memory guard, provenance, fail-closed, verifier-keyed ETA, cautious wording; gates 2 and 3 recorded true; packaged-runtime acceptance PENDING, so automatic use stays unarmed** | Scientific provenance / latency contract | B2 | Yes | **Arming only** (see row) |
 | B9 | First-run notice and modernization Status semantics | UX | B3, B6 | Yes | No |
 | B10 | Packaging and CI coverage for models, the worker and the upgrade path | Release integrity | B2–B7 | After B2–B7 | No |
 
@@ -406,6 +406,24 @@ never need to select it. MiniLM2 is the compatibility verifier until then.
   verified/contradicted/flagged statuses at MiniLM2-calibrated thresholds. That is release decision G1 (Scope §6),
   not something implementation may decide.
 
+- **Update 2026-10-31, inc 619 (implemented; the original requirements above are kept as written).**
+  - `summarization/verifier_resolution.py` resolves the verifier once per synthesis in `summaries._verifier`, before
+    retrieval and generation, for every scope (library, selected papers, cluster, faceted). One scorer serves the
+    whole operation.
+  - The gate is `DEBERTA_RELEASE_GATES` (inc 615), not a separate `DEBERTA_AUTOMATIC_PREFERENCE_QUALIFIED` constant.
+    `operation_memory_guard` and `verifier_provenance_and_failure` are now recorded true; `packaged_runtime_acceptance`
+    stays false, so automatic use and automatic download remain **unarmed** in production. Tests arm an injected copy.
+  - Provenance field names follow the existing record: `verification_nli.{profile, model_name, revision, preference,
+    preferred_profile, fallback_reason, support_threshold, contradiction_threshold, similarity_threshold,
+    thresholds_calibrated_on, memory_check}` (the requirement's `preferred_verifier` / `verifier_fallback_reason`).
+    Reasons: `not_qualified`, `not_provisioned`, `not_verified`, `insufficient_memory`, `memory_unmeasured`,
+    `user_choice`.
+  - DeBERTa always loads with `local_files_only=True` (synthesis and the Settings contract check): inference never
+    downloads.
+  - A non-baseline verifier's `contradicted` citations carry `status_note` ("The model flags a possible disagreement
+    with the source. Review the cited passage."); the status and thresholds are unchanged.
+  - Details: `INCREMENT-619-NOTES.md`.
+
 ## B9: First-run notice and Status semantics
 **Update 2026-10-31, inc 617.** `GET /modernization` now provides the backend contract this blocker's UI needs:
 separate `classification`, `indexing` and `model` groups, each with `state`, `automatic_recovery` and `needs_user`,
@@ -482,7 +500,7 @@ checks, and a local commit only after tests pass.
 | 3 | Disk-space protection and resource-aware scheduling | B7 | **Implemented: inc 616 `0686a5f6`** (focused- and process-tested with simulated resources; release validation owed) |
 | 4 | Automatic modernization coordinator (detect, auto-start, Pause intent) | B3 | **Implemented: inc 617** (focused- and process-tested with simulated resources; release validation and UI owed) |
 | 5 | Arctic S preference, MiniLM fallback, import catch-up, atomic activation | B5, B6 | **Implemented: inc 618** (focused-tested, incl. a real two-process activation; release validation owed) |
-| 6 | Automatic DeBERTa preference: per-operation memory precheck, effective verifier, provenance, fail-closed, verifier-keyed ETA, cautious `contradicted` wording. Gate constant exists (inc 615, unarmed) | B8 | — |
+| 6 | Automatic DeBERTa preference: per-operation memory precheck, effective verifier, provenance, fail-closed, verifier-keyed ETA, cautious `contradicted` wording. Gate constant exists (inc 615, unarmed) | B8 | **Implemented: inc 619** (focused-tested with simulated memory and fake scorers; packaged-runtime acceptance owed; production gate unarmed) |
 | 7 | Nonblocking first-launch notice and unified modernization Status | B9 | — |
 | 8 | Restart recovery, activation, catch-up and 4,000-paper workload tests | B10 (part) | — |
 | 9 | Bounded DeBERTa latency/memory acceptance (G2), plus the G1 re-score | G1, G2 | **Done: receipts `G1_DEBERTA_EXACT_THRESHOLD_RECEIPT.md` (CONDITIONAL), `G2_DEBERTA_CPU_RESOURCE_RECEIPT.md` (CONDITIONAL GO)** |

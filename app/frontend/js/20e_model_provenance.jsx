@@ -19,6 +19,8 @@ function ModelProvenanceLine({ provenance }) {
     r && r.note,
     v && `Verification: ${v.model_name || "unknown"}${v.revision ? `@${v.revision}` : ""}`,
     v && v.thresholds_calibrated_on && `Verification thresholds calibrated on ${v.thresholds_calibrated_on}`,
+    v && v.support_threshold != null && `Support ≥ ${v.support_threshold}, contradiction ≥ ${v.contradiction_threshold}`,
+    v && v.note,
   ].filter(Boolean).join("\n");
   return (
     <div className="synth-coverage" title={detail}>
@@ -26,6 +28,7 @@ function ModelProvenanceLine({ provenance }) {
       {" · "}Verification: <b>{name(v)}</b>
       {v && v.experimental ? " (experimental; thresholds calibrated on MiniLM2)" : ""}
       {r && r.fallback_reason && r.note ? <>{" · "}{r.note}</> : null}
+      {v && v.fallback_reason && v.note ? <>{" · "}{v.note}</> : null}
     </div>
   );
 }

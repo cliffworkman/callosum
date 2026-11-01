@@ -10,6 +10,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from app.backend.api.dependencies import verifier_inputs
 from app.backend.api.routers.embedding_index import IndexRunOut, active_index_job_id, index_run_out
 from app.backend.embeddings.profiles import (
     BASELINE_PROFILE_KEY,
@@ -26,10 +27,15 @@ from app.backend.summarization.nli_profiles import (
     BASELINE_NLI_PROFILE_KEY,
     NLI_PROFILES,
     UnknownNliProfileError,
-    active_nli_profile,
     get_nli_profile,
-    set_active_nli_profile,
     verify_nli_checkpoint,
+)
+from app.backend.summarization.verifier_resolution import (
+    VerifierUnavailableError,
+    decide,
+    memory_check,
+    read_nli_preference,
+    set_nli_user_preference,
 )
 
 router = APIRouter(tags=["embedding-profiles"])
@@ -170,16 +176,57 @@ class NliProfileOut(BaseModel):
 
 
 class NliProfilesResponse(BaseModel):
-    active: str
+    active: str  # inc 619: the verifier the next synthesis would use (the stored choice when it is refused)
+    preference: str  # "automatic", or the key the user selected
+    legacy_preference: bool = False  # a selection saved before inc 619 recorded who made it; kept as the user's
+    fallback_reason: str | None = None
+    explanation: str
+    synthesis_blocked: str | None = None  # an explicitly chosen verifier that cannot run now; synthesis is refused
     thresholds_calibrated_on: str
     profiles: list[NliProfileOut]
 
 
+_NLI_EXPLANATIONS = {
+    "not_qualified": "Using MiniLM2: automatic DeBERTa verification is not enabled in this release yet.",
+    "not_provisioned": "Using MiniLM2 until the DeBERTa model has been downloaded and verified.",
+    "not_verified": "Using MiniLM2: the DeBERTa model files could not be verified or loaded.",
+    "insufficient_memory": "Using MiniLM2: not enough free memory to run DeBERTa safely right now.",
+    "memory_unmeasured": "Using MiniLM2: free memory could not be measured.",
+}
+
+
 def _nli_state(request: Request) -> NliProfilesResponse:
-    with request.app.state.engine.connect() as conn:
-        active = active_nli_profile(conn)
+    """Previews the per-operation decision without loading any model (the load-time check happens in synthesis)."""
+    app = request.app
+    inputs = verifier_inputs(app)
+    with app.state.engine.connect() as conn:
+        preference = read_nli_preference(conn)
+    blocked = reason = None
+    try:
+        decision = decide(
+            preference,
+            gates_armed=inputs["gates_armed"],
+            model_state=inputs["model_state"],
+            checkpoint_required=inputs["checkpoint_required"],
+            memory=lambda: memory_check(
+                inputs["probe"], resident=inputs["resident"], indexing_reserve_mb=inputs["indexing_reserve_mb"]
+            ),
+        )
+        active, reason = decision.profile, decision.fallback_reason
+        if decision.preference == "user":
+            said = f"Using {active.label} because you selected it."
+        else:
+            said = _NLI_EXPLANATIONS.get(reason or "", f"Using {active.label}.")
+    except VerifierUnavailableError as exc:
+        active, blocked = get_nli_profile(preference.key), str(exc)  # type: ignore[arg-type]
+        said = blocked
     return NliProfilesResponse(
         active=active.key,
+        preference=preference.key or AUTOMATIC,
+        legacy_preference=preference.legacy,
+        fallback_reason=None if reason == "user_choice" else reason,
+        explanation=said,
+        synthesis_blocked=blocked,
         thresholds_calibrated_on=NLI_PROFILES[BASELINE_NLI_PROFILE_KEY].label,
         profiles=[
             NliProfileOut(
@@ -202,20 +249,28 @@ def list_nli_profiles(request: Request) -> NliProfilesResponse:
 
 @router.put("/verification-nli-profiles/active", response_model=NliProfilesResponse)
 def select_nli_profile(payload: SelectProfileRequest, request: Request) -> NliProfilesResponse:
-    """Selecting a non-baseline profile loads its pinned checkpoint and verifies its contract first, so a mismatched
-    checkpoint is refused here rather than mid-synthesis."""
+    """An explicit choice (it then wins over automatic selection), or ``automatic`` to clear it. Selecting a
+    non-baseline profile loads its pinned checkpoint offline and verifies its contract first, so a missing or
+    mismatched checkpoint is refused here rather than mid-synthesis; nothing is ever downloaded by this request."""
+    app = request.app
+    if payload.key == AUTOMATIC:
+        run_write(app.state.engine, lambda conn: set_nli_user_preference(conn, None))
+        return _nli_state(request)
     try:
         profile = get_nli_profile(payload.key)
     except UnknownNliProfileError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from None
-    app = request.app
+    if profile.enforce_contract:
+        inputs = verifier_inputs(app)
+        if inputs["checkpoint_required"] and inputs["model_state"]() != "verified":
+            raise HTTPException(status_code=409, detail=f"{profile.label} has not been downloaded and verified yet.")
     if profile.enforce_contract and getattr(app.state, "support_scorer", None) is None:
         try:
             runtime = app.state.model_runtime_registry.get_nli_runtime(
-                model_name=profile.model_name, revision=profile.revision
+                model_name=profile.model_name, revision=profile.revision, local_files_only=True
             )
             runtime.run(lambda model: verify_nli_checkpoint(model, profile))
         except Exception as exc:
             raise HTTPException(status_code=409, detail=f"{profile.label} could not be verified: {exc}") from None
-    run_write(app.state.engine, lambda conn: set_active_nli_profile(conn, profile.key))
+    run_write(app.state.engine, lambda conn: set_nli_user_preference(conn, profile.key))
     return _nli_state(request)

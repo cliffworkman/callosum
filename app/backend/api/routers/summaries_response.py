@@ -15,7 +15,12 @@ from pydantic import BaseModel
 from sqlalchemy import Connection, select
 
 from app.backend.api.routers.paper_files import _is_pdf_attachment
-from app.backend.api.routers.summaries_provenance import ModelProvenanceResponse, model_provenance_from_ref
+from app.backend.api.routers.summaries_provenance import (
+    DEBERTA_CONTRADICTION_NOTE,
+    ModelProvenanceResponse,
+    cautious_contradictions,
+    model_provenance_from_ref,
+)
 from app.backend.persistence.repository import get_summary
 from app.backend.persistence.schema import (
     attachments,
@@ -44,6 +49,7 @@ class SummaryCitationResponse(BaseModel):
     quote_confidence: float
     support_confidence: float
     status: str
+    status_note: str | None = None  # inc 619: cautious wording for a non-baseline verifier's `contradicted`
     coordinate_precision: str | None = None
     bbox_json: Any | None = None
     attachment_id: int | None = None  # #5: only set when the underlying attachment is a PDF (never docx/html/etc.)
@@ -125,6 +131,7 @@ def _persisted_summary_response(conn: Connection, *, summary_id: int, job_id: st
         ).mappings()
     )
     responsiveness = _responsiveness_from_ref(summary["scope_ref_json"])
+    cautious = cautious_contradictions(summary["scope_ref_json"])
     overview_raw = summary["overview_json"] if "overview_json" in summary else None
     overview = (
         [
@@ -144,7 +151,8 @@ def _persisted_summary_response(conn: Connection, *, summary_id: int, job_id: st
         generation_truncated=_generation_truncated_from_ref(summary["scope_ref_json"]),
         section_filter=_section_filter_from_ref(summary["scope_ref_json"]),
         sentences=[
-            _summary_sentence_response(conn, sentence, responsiveness=responsiveness) for sentence in sentence_rows
+            _summary_sentence_response(conn, sentence, responsiveness=responsiveness, cautious=cautious)
+            for sentence in sentence_rows
         ],
         overview=overview,
         overview_status=overview_status_for_row(summary),
@@ -211,9 +219,11 @@ def _imported_summary_response(blob: Any, *, summary_id: int, job_id: str) -> Su
 
 
 def _summary_sentence_response(
-    conn: Connection, sentence: Any, *, responsiveness: list[str] | None = None
+    conn: Connection, sentence: Any, *, responsiveness: list[str] | None = None, cautious: bool = False
 ) -> SummarySentenceResponse:
-    citations = [_summary_citation_response(row) for row in _summary_citation_rows(conn, int(sentence["id"]))]
+    citations = [
+        _summary_citation_response(row, cautious=cautious) for row in _summary_citation_rows(conn, int(sentence["id"]))
+    ]
     ordinal = int(sentence["ordinal"])
     # inc 582: the responsiveness list is ordinal-aligned; a broad synthesis has one label per sentence,
     # a narrow one has None. Out-of-range/absent -> None (unchanged response).
@@ -264,7 +274,7 @@ def _summary_citation_rows(conn: Connection, sentence_id: int) -> list[Any]:
     )
 
 
-def _summary_citation_response(row: Any) -> SummaryCitationResponse:
+def _summary_citation_response(row: Any, *, cautious: bool = False) -> SummaryCitationResponse:
     bbox_json = row["bbox_json"]
     chunk_id = row["evidence_chunk_id"] or row["mapping_chunk_id"]
     # #5: only surface attachment_id when it's a real PDF — a citation whose text came from a non-PDF
@@ -288,6 +298,7 @@ def _summary_citation_response(row: Any) -> SummaryCitationResponse:
         quote_confidence=row["quote_confidence"],
         support_confidence=row["support_confidence"],
         status=row["status"],
+        status_note=DEBERTA_CONTRADICTION_NOTE if cautious and row["status"] == "contradicted" else None,
         coordinate_precision=_coordinate_precision_from_bbox(bbox_json),
         bbox_json=bbox_json,
         attachment_id=row["attachment_id"] if is_pdf else None,

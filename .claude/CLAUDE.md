@@ -33,7 +33,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 618** on the unpushed `integrate/inc607-608-ask` branch (main is at 608; inc 607, the 2026-10-29 reference-exclusion repair `e4d4f4e4`, is cherry-picked there as `d85556b6`); see Increment workflow. The accepted Browser Capture head
+It is currently at **Increment 619** on the unpushed `integrate/inc607-608-ask` branch (main is at 608; inc 607, the 2026-10-29 reference-exclusion repair `e4d4f4e4`, is cherry-picked there as `d85556b6`); see Increment workflow. The accepted Browser Capture head
 `80025d1a` passed **3490 tests, 9 skipped**, plus 23 browser smoke tests in CI before merging.
 Fresh release-candidate checks are required for 0.5.16; do not substitute that earlier receipt.
 It is a working MVP backed by a thorough planning suite in `.claude/docs/`.
@@ -157,6 +157,14 @@ the full per-increment narrative for all other increments now lives in the reloc
   Provenance adds `preference`, `intended_profile`, `fallback_reason`, `index_verified_complete` to
   `scope_ref_json.retrieval_embedding`. When automatic provisioning manages a model, the supervisor never launches a
   build before its checkpoint is verified (`model_provisioning.checkpoint_pending`): only inc 615 fetches weights.
+  **Effective synthesis verifier (inc 619):** each synthesis resolves its NLI verifier once, in
+  `summaries._verifier` via `summarization/verifier_resolution.py::decide`: an explicit choice wins (an unavailable or
+  memory-unsafe explicit DeBERTa is refused, never swapped); else DeBERTa only when `DEBERTA_RELEASE_GATES` are all
+  true, the provisioner reports `verified`, and `memory_check` passes (min(physical, commit) ≥ need + reserve, plus a
+  running Arctic worker's peak; unmeasurable fails); else MiniLM2 with `fallback_reason`. The chosen verifier is fixed
+  for the operation; a failure after it starts saves nothing (inc 609). DeBERTa always loads `local_files_only=True`.
+  **Production stays unarmed** while `packaged_runtime_acceptance` is false. A recorded non-baseline verifier's
+  `contradicted` citations carry a cautious `status_note`; the verification-stage timing key is suffixed per verifier.
 - **Clustering:** scikit-learn agglomerative clustering + local axis scoring.
 - **Explicit feedback (inc 439):** the top-menu Feedback dialog builds either a bug or feature report and shows the
   exact strict version-1 JSON before explicit egress. The local API can reach only `CALLOSUM_FEEDBACK_RELAY_URL`; the
@@ -1782,7 +1790,7 @@ latency regressions.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (608 on main; 607 and 609–618 on `integrate/inc607-608-ask`). Each increment of real work
+callosum is built in **numbered increments** (608 on main; 607 and 609–619 on `integrate/inc607-608-ask`). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

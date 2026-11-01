@@ -17,12 +17,11 @@ from app.backend.summarization.nli_profiles import (
     DEBERTA_NLI_PROFILE_KEY,
     NLI_PROFILES,
     NliProfileConfigurationError,
-    active_nli_profile,
-    set_active_nli_profile,
     verification_nli_provenance,
     verify_nli_checkpoint,
 )
 from app.backend.summarization.verification import VerificationConfig
+from app.backend.summarization.verifier_resolution import NliPreference, read_nli_preference, set_nli_user_preference
 from tests.api_helpers import _summarization_app
 
 DEBERTA = NLI_PROFILES[DEBERTA_NLI_PROFILE_KEY]
@@ -79,15 +78,15 @@ def test_baseline_is_never_contract_checked() -> None:
 def test_active_profile_defaults_to_baseline_and_ignores_unknown(temp_db_url: str) -> None:
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:
-        assert active_nli_profile(conn).key == BASELINE_NLI_PROFILE_KEY
-        set_active_nli_profile(conn, DEBERTA_NLI_PROFILE_KEY)
-        assert active_nli_profile(conn).key == DEBERTA_NLI_PROFILE_KEY
+        assert read_nli_preference(conn) == NliPreference(None)  # nothing stored: automatic selection
+        set_nli_user_preference(conn, DEBERTA_NLI_PROFILE_KEY)
+        assert read_nli_preference(conn) == NliPreference(DEBERTA_NLI_PROFILE_KEY)
         from app.backend.persistence.schema import library_settings
 
         conn.execute(
             library_settings.update().where(library_settings.c.key == "verification_nli_profile").values(value="x")
         )
-        assert active_nli_profile(conn).key == BASELINE_NLI_PROFILE_KEY
+        assert read_nli_preference(conn) == NliPreference(None)  # a key from a newer build is not honored
     engine.dispose()
     # Inc 609: the baseline is recorded too, so an absent record reads as "unknown", never as an assumed MiniLM2.
     baseline = verification_nli_provenance(NLI_PROFILES[BASELINE_NLI_PROFILE_KEY])["verification_nli"]
@@ -245,7 +244,7 @@ def test_stance_features_and_reverify_keep_the_baseline_nli(temp_db_url: str) ->
 
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:
-        set_active_nli_profile(conn, DEBERTA_NLI_PROFILE_KEY)
+        set_nli_user_preference(conn, DEBERTA_NLI_PROFILE_KEY)
     engine.dispose()
     app = _app_with_factory(lambda identity: _fake_cross_encoder())
     app.state.engine = make_engine(temp_db_url)
@@ -262,4 +261,4 @@ def test_stance_features_and_reverify_keep_the_baseline_nli(temp_db_url: str) ->
             }:
                 if any(k.arg == "nli_profile" for k in node.keywords):
                     profile_calls.append((path.name, node.func.id))
-    assert profile_calls == [("summaries.py", "resolve_support_scorer")]
+    assert set(profile_calls) == {("summaries.py", "resolve_support_scorer")}  # the inc-619 load + its fallback

@@ -79,10 +79,11 @@ function CitationCard({ citation, onOpenCitation, onSaveHighlight }) {
       <summary>
         <span>{srcLabel} · {pageLabel(citation)}</span>
         <span className={"cite-status " + citeStatusClass(citation.status)}>
-          {citation.status === "contradicted" ? "⚠ source disagrees" : citation.status}
+          {citation.status === "contradicted" ? (citation.status_note ? "⚠ possible disagreement" : "⚠ source disagrees") : citation.status}
         </span>
       </summary>
       <div className="citation-card">
+        {citation.status_note && <p className="cite-note" role="note">{citation.status_note}</p>}
         <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
           <div>
             <div style={{ fontWeight: 600, fontSize: 12.5 }}>{srcLabel}</div>

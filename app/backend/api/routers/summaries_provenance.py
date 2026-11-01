@@ -55,6 +55,43 @@ class VerificationProvenanceResponse(BaseModel):
     experimental: bool = False
     thresholds_calibrated_on: str | None = None
     embedding_fallback: bool | None = None  # False = recorded under the no-fallback contract; None = not recorded
+    # inc 619: how this verifier was chosen. All None on syntheses saved before inc 619 (not guessed).
+    preference: str | None = None  # automatic | user
+    preferred_profile: str | None = None
+    fallback_reason: str | None = None
+    support_threshold: float | None = None
+    contradiction_threshold: float | None = None
+    note: str | None = None
+    # A non-baseline verifier's `contradicted` is shown as a possible disagreement to review (G1 acceptance). Derived
+    # from the recorded verifier itself, so MiniLM2 results keep their wording whatever the current default is.
+    cautious_contradictions: bool = False
+
+
+DEBERTA_CONTRADICTION_NOTE = "The model flags a possible disagreement with the source. Review the cited passage."
+
+_VERIFIER_NOTES = {
+    "not_qualified": "MiniLM2 verified this synthesis: automatic DeBERTa verification was not enabled.",
+    "not_provisioned": "MiniLM2 verified this synthesis because the DeBERTa model was not yet downloaded and verified.",
+    "not_verified": "MiniLM2 verified this synthesis because the DeBERTa model files could not be verified or loaded.",
+    "insufficient_memory": "MiniLM2 verified this synthesis because there was not enough free memory for DeBERTa.",
+    "memory_unmeasured": "MiniLM2 verified this synthesis because free memory could not be measured.",
+}
+
+
+def _verifier_note(raw: dict) -> str | None:
+    if raw.get("preference") == "user":
+        return "Selected explicitly in Settings."
+    return _VERIFIER_NOTES.get(raw.get("fallback_reason"))  # type: ignore[arg-type]
+
+
+def cautious_contradictions(scope_ref: Any) -> bool:
+    raw = scope_ref.get("verification_nli") if isinstance(scope_ref, dict) else None
+    profile = raw.get("profile") if isinstance(raw, dict) else None
+    return isinstance(profile, str) and profile in NLI_PROFILES and profile != BASELINE_NLI_PROFILE_KEY
+
+
+def _number(value: Any) -> float | None:
+    return float(value) if isinstance(value, int | float) and not isinstance(value, bool) else None
 
 
 class ModelProvenanceResponse(BaseModel):
@@ -97,6 +134,13 @@ def model_provenance_from_ref(scope_ref: Any) -> ModelProvenanceResponse:
             experimental=bool(nli and nli.key != BASELINE_NLI_PROFILE_KEY),
             thresholds_calibrated_on=_text(verification_raw.get("thresholds_calibrated_on")),
             embedding_fallback=fallback if isinstance(fallback, bool) else None,
+            preference=_text(verification_raw.get("preference")),
+            preferred_profile=_text(verification_raw.get("preferred_profile")),
+            fallback_reason=_text(verification_raw.get("fallback_reason")),
+            support_threshold=_number(verification_raw.get("support_threshold")),
+            contradiction_threshold=_number(verification_raw.get("contradiction_threshold")),
+            note=_verifier_note(verification_raw),
+            cautious_contradictions=cautious_contradictions(ref),
         )
     return ModelProvenanceResponse(
         recorded=retrieval is not None or verification is not None, retrieval=retrieval, verification=verification

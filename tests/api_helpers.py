@@ -310,7 +310,7 @@ def _seed_library(db_url: str) -> dict[str, int]:
 def _summarization_app(temp_db_url: str, *, generator: FakeSummaryGenerator | None = None, overview_generator=None):
     if generator is None:
         generator = FakeSummaryGenerator(sentences=[])
-    return create_app(
+    app = create_app(
         db_url=temp_db_url,
         summary_generator=generator,
         overview_generator=overview_generator,
@@ -318,6 +318,11 @@ def _summarization_app(temp_db_url: str, *, generator: FakeSummaryGenerator | No
         vector_store=InMemoryVectorStore(),
         support_scorer=ConstantSupportScorer(),
     )
+    # inc 619: the verifier's memory precheck sees a fixed, ample machine, never the load of the one running the suite.
+    from app.backend.embeddings.resources import ResourceSnapshot
+
+    app.state.memory_probe = lambda: ResourceSnapshot(16000, 8000, 26000, 9000, "test")
+    return app
 
 
 def _seed_summarization_library(db_url: str) -> dict[str, int]:
