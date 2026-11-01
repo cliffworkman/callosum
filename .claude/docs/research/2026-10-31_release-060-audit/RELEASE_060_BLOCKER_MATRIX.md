@@ -572,7 +572,17 @@ Tracked validation items, none resolved by inc 622:
 
 Demo and website gates remain unresolved and untouched: not refreshed, declined, skipped or weakened.
 
+## Status after inc 623 (2026-11-01)
+**Demo coverage: reviewed and renewed; see `DEMO_REVIEW_INC623.md` and the inc-623 notes.** Four defects were corrected. The three
+historical demo-related test failures have a recorded outcome in the notes. This is a self-review.
+
+Still open, unchanged by inc 623: final-code full suite (CI or plain terminal, and it covers this increment too); website review and
+Help consistency (inc 624, the website gate still fails by design until then); packaged-runtime Arctic and DeBERTa acceptance; real
+low-disk and worker-recovery validation; cross-platform packaging; independent security review of the integrated work (none exists
+for incs 616-623); the final DeBERTa gate; integration into `main`.
+
 ## Pending dedicated reviews (recorded after inc 616; unchanged by inc 617)
+**Inc 623 update:** the demo item below is resolved; the entry is kept as the history of the finding. The website and Help items remain.
 Neither is resolved by refreshing a receipt, and neither was declined.
 - **Demo coverage.** `tools/qa/check_demo_experience_coverage.py` fails on drift accumulated since the inc-576 review
   (about 29 routers). It needs a dedicated demo review; inc 617 adds `/modernization`, which the demo does not serve.

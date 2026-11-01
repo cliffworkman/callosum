@@ -598,6 +598,22 @@ def test_demo_runtime_resolves_system_reads_and_explains_every_unavailable_surfa
         assert boundary in runtime
 
 
+def test_demo_states_its_model_boundary_and_answers_only_snapshot_facts():
+    """Inc 623: no fake modernization backend, and saved results are never presented as current-model output."""
+    runtime = Path("demo/demo-runtime.js").read_text(encoding="utf-8")
+    for fake in ("/modernization", "/embedding-profiles", "/verification-nli-profiles"):
+        assert fake not in runtime
+    assert 'path === "/library/import-queue") return jsonResponse({ items: [] })' in runtime
+    assert "merge-origin" in runtime
+    assert 'path === "/references/resolve"' in runtime
+    assert "Moving a paper to Trash" in runtime
+    panel = Path("app/frontend/js/35j_modernization.jsx").read_text(encoding="utf-8")
+    assert "isDemoMode() ? <DemoLibraryModelsNotice /> : <LiveLibraryModelsSection />" in panel
+    assert "not from the current models" in panel
+    assert "not output from the current models" in Path("app/frontend/js/20_synthesis.jsx").read_text(encoding="utf-8")
+    assert "not outputs of the" in Path("tools/demo/build_demo.py").read_text(encoding="utf-8")
+
+
 def test_coverage_catalogue_agrees_with_central_capabilities():
     snapshot = DemoSnapshot.model_validate_json(Path("demo/snapshot-v1.json").read_bytes())
     coverage = DemoCoverageCatalogue.model_validate_json(Path("demo/coverage-v1.json").read_bytes())

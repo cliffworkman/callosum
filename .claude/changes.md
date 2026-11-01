@@ -9,6 +9,16 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-11-01 — Dedicated demo review; reader text layer and honest modernization notice (inc 623)
+- **Files:** `app/frontend/js/{00_bootstrap,18_help,20_synthesis,35j_modernization}.jsx`, `callosum-app.html`,
+  `demo/{demo-runtime.js,README.md,experience-coverage-v1.json}`, `tools/demo/build_demo.py`, `tests/test_demo_snapshot.py`,
+  `tests/e2e/test_demo_static.py`, `tests/test_website_how_it_works.py`, QA route 01, the demo review, blocker matrix, notes.
+- **What:** reviewed the demo drift since inc 576 and corrected four defects: Find falsely reported "No matches" because the demo's
+  pdf.js 4 never built a text layer; Settings showed a raw 404 for modernization; every first load raised an alert; Delete gave the
+  wrong explanation. Saved results now say they are not output from the current models. The review gate was then renewed.
+- **Why:** the demo gate had failed on staleness alone since inc 615 and could not see any of these.
+- **Revert:** revert this commit and the receipt commit after it. No live-app or scientific behaviour changed.
+
 ## 2026-11-01 — Manual "Try again" for a failed model checkpoint (inc 622)
 <!-- HELP-DOCS-SYNCED inc 622: Library modernization, model download failures -->
 - **Files:** `app/backend/api/routers/modernization.py`, `app/backend/model_provisioning/{provisioner,runner}.py`,

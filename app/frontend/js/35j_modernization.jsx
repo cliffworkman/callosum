@@ -5,6 +5,25 @@
 // mounted panel notices an import or another window. Nothing here loads a model or starts work: Pause and
 // Resume call the existing durable endpoints and never change a retrieval or verifier choice.
 function LibraryModelsSection() {
+  return isDemoMode() ? <DemoLibraryModelsNotice /> : <LiveLibraryModelsSection />;
+}
+
+// The static demo has no modernization backend, so it reads nothing and offers no control.
+function DemoLibraryModelsNotice() {
+  return (
+    <div className="settings-section" id="modernization">
+      <p className="eyebrow">Library modernization and model choices</p>
+      <p className="settings-sub">
+        Not part of this saved demo. The desktop app can upgrade local search in the background, let you choose the
+        retrieval and verification models, and show progress with Pause, Resume and Try again. This page has no backend:
+        it downloads no models, indexes nothing and runs no model. Its saved results came from an earlier version of
+        Callosum, not from the current models.
+      </p>
+    </div>
+  );
+}
+
+function LiveLibraryModelsSection() {
   const [modernization, setModernization] = useState(null);
   const [profiles, setProfiles] = useState(null);
   const [error, setError] = useState("");

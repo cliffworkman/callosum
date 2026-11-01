@@ -1,6 +1,6 @@
 <!-- qa-coverage
 api:
-fe: 00_bootstrap.jsx, 00_lib.jsx, 15_axes.jsx, 16_queue.jsx, 20_synthesis.jsx, 25b_tags.jsx, 31_mypubs_dashboard.jsx, 33_mypubs_pubs.jsx, 40_app.jsx
+fe: 00_bootstrap.jsx, 00_lib.jsx, 15_axes.jsx, 16_queue.jsx, 18_help.jsx, 20_synthesis.jsx, 25b_tags.jsx, 30i_pdf_find.jsx, 31_mypubs_dashboard.jsx, 33_mypubs_pubs.jsx, 35j_modernization.jsx, 40_app.jsx
 -->
 
 # ROUTE 01 - Static online demo
@@ -16,15 +16,21 @@ page-error, response, and request listeners before navigating directly to `/call
 
 ## Steps
 
-1. Confirm the demo banner is visible and clearly calls the snapshot read-only.
-2. Confirm the Library contains exactly three papers. Inspect the automatic axis (all three assigned), automatic
-   tags and saved tag suggestions (all three covered), the reading queue (high/normal/unprioritized), and My
-   Publications (the two Workman-authored records).
-3. Open **Synthesize** and confirm the saved anomalous-is-bad synthesis opens without a generation action and renders all eight claims,
-   verification states, coverage, citations, quotes, and source locations.
+1. Confirm the demo banner is visible, calls the snapshot read-only, and on first load is the orientation card rather
+   than an unavailable alert.
+2. Confirm the Library contains exactly five works. Inspect the automatic axis (all five assigned), automatic
+   tags and saved tag suggestions, the reading queue (high/normal/unprioritized), and My
+   Publications (the four Workman-authored records).
+3. Open **Synthesize** and confirm the saved anomalous-is-bad synthesis opens without a generation action and renders all five claims
+   (one verified, four flagged), citations, quotes, and source locations. It must say it is not output from the current
+   models, and it must name no model.
 4. Expand a verified citation, use **Open source and highlight**, and confirm the bundled PDF opens at the honest
    exact/region location.
-5. Search the three-paper Library and open every metadata/methods record.
+5. Search the five-work Library and open every metadata/methods record.
+   In the reader, confirm that text can be selected and that Ctrl+F finds a word visible on the page and still reports
+   a real absence.
+   In Settings, confirm a short notice replaces modernization and model choices, with no control and no raw HTTP error.
+   In Help, confirm the note that the bundled text is from an earlier version.
 6. Attempt a visible live-only action. Confirm the in-page explanation says it is unavailable and no request is
    emitted.
 7. Hard-reload the direct synthesis route at desktop and `375x812`.
@@ -37,6 +43,8 @@ page-error, response, and request listeners before navigating directly to `/call
 - Direct route and hard refresh work under the non-root path.
 - Saved library organization, My Publications, synthesis, evidence, verification, coverage, and PDF navigation use ordinary Callosum rendering paths.
 - No backend, external request, mutation, secret, local path, analytics, or AI service is present.
+- No modernization, embedding-profile or verification-profile read is attempted, and no result is attributed to Arctic S,
+  DeBERTa or Qwen.
 
 ## Deposit
 

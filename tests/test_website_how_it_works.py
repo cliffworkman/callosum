@@ -83,7 +83,7 @@ def test_website_navigation_reaches_the_page_and_reuses_the_favicon() -> None:
 )
 def test_primary_local_destinations_exist(href: str, target: Path) -> None:
     assert href in _parse(WWW / "how-it-works.html").links
-    assert target.exists()
+    assert target.exists(), f"{target} is missing. dist-demo is a build artifact: run python tools/demo/build_demo.py"
 
 
 def test_showcase_hotspots_paint_no_marker_at_narrow_widths() -> None:

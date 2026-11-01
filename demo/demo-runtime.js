@@ -78,7 +78,8 @@
     return {};
   }
 
-  function mutationBlockedMessage(path) {
+  function mutationBlockedMessage(path, method) {
+    if (method === "DELETE" && /^\/papers\/\d+$/.test(path)) return "Moving a paper to Trash changes persistent local library state. The saved demo library stays as it is.";
     if (/^\/settings(?:\/|$)/.test(path)) return "Settings changes are unavailable because this public snapshot has no writable configuration or secret store. The controls remain visible so you can inspect Callosum's local-first boundaries.";
     if (/^\/sync(?:\/|$)/.test(path)) return "Sync is unavailable because the static demo has no account, encrypted vault, or sync server. In the installed app it is optional, end-to-end encrypted, and off by default.";
     if (/^\/integrations\/libreoffice/.test(path)) return "LibreOffice installation runs on the user's computer and cannot start from a static website. The integration's real controls and setup boundary remain described in Settings and Help.";
@@ -107,6 +108,7 @@
     if (/^\/funding-discovery/.test(path)) return "New funding discovery, AI triage, saving, and refresh require the local backend or external providers. This saved, evidence-bearing run remains inspectable.";
     if (/^\/(gaps|overlooked|wanted)/.test(path)) return "Refreshing or changing this discovery queue requires the local backend and, where applicable, external providers. The demo can only show saved results.";
     if (/^\/citations\/beyond-library/.test(path)) return "Changing the saved-for-later queue requires persistent local library state and is unavailable in this immutable demo.";
+    if (path === "/references/resolve") return "Finding a referenced paper looks it up online, so it is unavailable in this static demo, which makes no network requests. Install Callosum to use it.";
     if (path === "/discovery/save") return "Saving metadata would change the library, so it is unavailable in this immutable demo.";
     if (/^\/wip\//.test(path)) return "Manuscript edits, reruns, and local file actions require Callosum on your computer. This synthetic manuscript's saved structure, evidence, checks, and provenance remain inspectable.";
     if (/^\/workbench\//.test(path)) return "Changing or recomputing this extraction project requires the local backend. The saved values, source anchors, converted effects, and production exports remain inspectable.";
@@ -296,7 +298,7 @@
         return jsonResponse({ detail: exportMessage }, 405);
       }
       if (parts.method !== "GET") {
-        var mutationMessage = mutationBlockedMessage(path);
+        var mutationMessage = mutationBlockedMessage(path, parts.method);
         blocked(mutationMessage, path);
         return jsonResponse({ detail: mutationMessage }, 405);
       }
@@ -566,6 +568,9 @@
       }
       if (path === "/methods/retraction/summary") return jsonResponse({ retracted: 0 });
       if (EMPTY_ARRAY_PATHS.indexOf(path) >= 0) return jsonResponse([]);
+      // The curated corpus has no pending captures and no merged papers. Both are facts about the snapshot.
+      if (path === "/library/import-queue") return jsonResponse({ items: [] });
+      if (/^\/papers\/\d+\/merge-origin$/.test(path)) return jsonResponse(null);
       var missingReadMessage = /^\/integrations\/libreoffice/.test(path)
         ? "The LibreOffice extension is installed on the user's computer and is not bundled as a web-demo download. Its real workflow and setup instructions remain inspectable here."
         : /^\/integrations\/word/.test(path)

@@ -93,6 +93,7 @@ function HelpView() {
   return (
     <div className="workspace-view scroll help-view">
         <p className="eyebrow">Help &amp; tips</p>
+        {isDemoMode() && <p className="settings-note">This Help was bundled from an earlier version of Callosum, so it does not cover later features such as Library modernization or Browser Capture.</p>}
 
         {state.status === "loading" && <p className="help-empty">Loading help…</p>}
         {state.status === "error" && <p className="help-empty">Couldn't load help: {state.error}</p>}

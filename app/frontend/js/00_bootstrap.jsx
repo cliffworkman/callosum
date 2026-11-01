@@ -64,7 +64,13 @@ function loadPdfJs() {
   if (isDemoMode()) {
     pdfLibPromise = import(new URL("assets/pdf.min.mjs", document.baseURI).toString()).then(lib => {
       lib.GlobalWorkerOptions.workerSrc = new URL("assets/pdf.worker.min.mjs", document.baseURI).toString();
-      return lib;
+      // The demo's pdf.js 4 replaced renderTextLayer with the TextLayer class. The viewer calls the 3.x name on the
+      // global, as in the live app's UMD build, so the adapter belongs there.
+      window.pdfjsLib = { ...lib, renderTextLayer: ({ textContentSource, container, viewport }) => {
+        const layer = new lib.TextLayer({ textContentSource, container, viewport });
+        return { promise: layer.render(), cancel: () => layer.cancel() };
+      } };
+      return window.pdfjsLib;
     });
     return pdfLibPromise;
   }

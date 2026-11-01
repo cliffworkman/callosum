@@ -401,3 +401,57 @@ def test_static_demo_starts_in_library_exposes_saved_methods_and_never_leaves_or
     finally:
         server.shutdown()
         thread.join(timeout=5)
+
+
+def test_static_demo_reader_has_text_settings_are_honest_and_first_load_is_quiet(tmp_path):
+    """Inc 623: pdf.js 4 dropped the viewer's renderTextLayer, so Find said "No matches" for visible words. Settings
+    showed a raw 404 for the modernization surfaces, and background reads raised an alert before any action."""
+    build_demo(PROJECT_ROOT / "demo" / "snapshot-v1.json", tmp_path / "callosum-demo", "/callosum-demo/")
+    server = ThreadingHTTPServer(("127.0.0.1", 0), partial(_QuietHandler, directory=str(tmp_path)))
+    Thread(target=server.serve_forever, daemon=True).start()
+    errors: list[str] = []
+    try:
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(headless=True)
+            page = browser.new_context(viewport={"width": 1440, "height": 1000}).new_page()
+            page.on("pageerror", lambda error: errors.append(str(error)))
+            page.goto(f"http://127.0.0.1:{server.server_port}/callosum-demo/", wait_until="networkidle")
+            page.wait_for_selector(".paper")
+            page.wait_for_timeout(500)
+            expect(page.locator(".demo-mode-banner.blocked")).to_have_count(0)
+            page.locator(".paper:visible").nth(1).click()
+            page.wait_for_timeout(500)
+            expect(page.locator(".demo-mode-banner.blocked")).to_have_count(0)
+
+            page.get_by_role("tab", name="Settings", exact=True).click()
+            notice = page.locator("#modernization")
+            expect(notice).to_contain_text("Not part of this saved demo")
+            expect(notice).to_contain_text("not from the current models")
+            expect(notice.locator("input,button")).to_have_count(0)
+            expect(page.locator("#retrieval-model")).to_have_count(0)
+            assert "HTTP 404" not in page.locator(".workspace-slot:visible").first.inner_text()
+
+            page.get_by_role("tab", name="Help", exact=True).click()
+            expect(page.locator(".help-view")).to_contain_text("earlier version of Callosum")
+
+            page.get_by_role("tab", name="Library", exact=True).click()
+            page.locator(".paper:visible").first.dblclick()
+            spans = 0
+            for _ in range(60):  # polled: the demo's CSP refuses Playwright's eval-based wait_for_function
+                spans = page.evaluate("() => document.querySelectorAll('.textLayer span').length")
+                if spans > 50:
+                    break
+                page.wait_for_timeout(500)
+            assert spans > 50
+            page.keyboard.press("Control+f")
+            find = page.locator("input[placeholder*='Find']").first
+            find.fill("Department")
+            page.keyboard.press("Enter")
+            expect(page.locator(".pdf-find-layer *").first).to_be_attached(timeout=10_000)
+            find.fill("zzqxnotaword")
+            page.keyboard.press("Enter")
+            expect(page.locator("[class*=pdf-find]").first).to_contain_text("No matches", timeout=10_000)
+            browser.close()
+    finally:
+        server.shutdown()
+    assert errors == []

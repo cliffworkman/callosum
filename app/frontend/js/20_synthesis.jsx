@@ -332,7 +332,7 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, requ
     <div className="synth">
       {isDemoMode() &&
         <div className="synth-nudge demo-synth-note">
-          <span><b>Saved synthesis.</b> Generation is unavailable in the online demo; the claims, verification states, evidence quotations, and source locations below remain fully inspectable.</span>
+          <span><b>Saved synthesis.</b> Saved by an earlier version of Callosum, so it is not output from the current models and names no model. Generation is unavailable in the online demo; the claims, verification states, evidence quotations, and source locations below remain fully inspectable.</span>
         </div>}
       {showGuide && <AskGuideModal onClose={() => setShowGuide(false)} />}
       {/* B5 SP2: on a read-only companion, hide the run controls — reading saved syntheses (below) still works. */}
