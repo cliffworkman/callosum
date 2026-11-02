@@ -33,7 +33,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 624** on the unpushed `integrate/inc607-608-ask` branch (main is at 608; inc 607, the 2026-10-29 reference-exclusion repair `e4d4f4e4`, is cherry-picked there as `d85556b6`); see Increment workflow. The accepted Browser Capture head
+It is currently at **Increment 625** on the unpushed `integrate/inc607-608-ask` branch (main is at 608; inc 607, the 2026-10-29 reference-exclusion repair `e4d4f4e4`, is cherry-picked there as `d85556b6`); see Increment workflow. The accepted Browser Capture head
 `80025d1a` passed **3490 tests, 9 skipped**, plus 23 browser smoke tests in CI before merging.
 Fresh release-candidate checks are required for 0.5.16; do not substitute that earlier receipt.
 It is a working MVP backed by a thorough planning suite in `.claude/docs/`.
@@ -1798,7 +1798,7 @@ latency regressions.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (608 on main; 607 and 609–624 on `integrate/inc607-608-ask`). Each increment of real work
+callosum is built in **numbered increments** (608 on main; 607 and 609–625 on `integrate/inc607-608-ask`). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

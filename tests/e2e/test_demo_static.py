@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import io
 import os
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
 
 import pytest
+from PIL import Image
 
 if not os.environ.get("CALLOSUM_RUN_E2E"):
     pytest.skip("set CALLOSUM_RUN_E2E=1 to run the browser e2e smoke", allow_module_level=True)
@@ -448,6 +450,13 @@ def test_static_demo_reader_has_text_settings_are_honest_and_first_load_is_quiet
             find.fill("Department")
             page.keyboard.press("Enter")
             expect(page.locator(".pdf-find-layer *").first).to_be_attached(timeout=10_000)
+            # Inc 625: the highlight must leave the matched text readable, not paint a block over it.
+            current = page.locator(".pdf-find-hit.current").first
+            expect(current).to_be_attached(timeout=10_000)
+            current.scroll_into_view_if_needed()
+            page.wait_for_timeout(1000)
+            shot = Image.open(io.BytesIO(current.screenshot())).convert("L")
+            assert min(shot.get_flattened_data() if hasattr(shot, "get_flattened_data") else shot.getdata()) < 100
             find.fill("zzqxnotaword")
             page.keyboard.press("Enter")
             expect(page.locator("[class*=pdf-find]").first).to_contain_text("No matches", timeout=10_000)

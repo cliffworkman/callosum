@@ -1716,6 +1716,18 @@ def test_zotero_imported_folders_offer_explicit_curated_or_local_scored_axes():
     assert "score the rest of the library locally" in raw
 
 
+def test_pdf_find_highlight_blends_as_a_layer_over_the_page():
+    # The layer's z-index makes it a stacking context, so a blend on a hit could only reach the layer and the hit would
+    # paint over the page's text (inc 625). The tints stay literal: the PDF page is white in both themes.
+    css = (FRONTEND_DIR / "styles.css").read_text(encoding="utf-8")
+    layer = re.search(r"\.pdf-find-layer \{([^}]*)\}", css).group(1)
+    hit = re.search(r"\.pdf-find-hit \{([^}]*)\}", css).group(1)
+    current = re.search(r"\.pdf-find-hit\.current \{([^}]*)\}", css).group(1)
+    assert "mix-blend-mode: multiply" in layer and "z-index: 2" in layer and "pointer-events: none" in layer
+    assert "mix-blend-mode" not in hit
+    assert "var(" not in hit + current
+
+
 def test_built_artifact_is_in_sync():
     """callosum-app.html must equal the live assembly — i.e. it was rebuilt after the last source
     edit (CLAUDE.md: re-run tools/build_frontend.py after editing app/frontend/)."""

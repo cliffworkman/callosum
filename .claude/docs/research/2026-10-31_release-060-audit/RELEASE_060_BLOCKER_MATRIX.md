@@ -581,6 +581,14 @@ Help consistency (inc 624, the website gate still fails by design until then); p
 low-disk and worker-recovery validation; cross-platform packaging; independent security review of the integrated work (none exists
 for incs 616-623); the final DeBERTa gate; integration into `main`.
 
+## Status after inc 625 (2026-11-01)
+**Reader Find highlight: fixed; demo and website coverage renewed after a narrow review, see `INCREMENT-625-NOTES.md`.** Self-review. The renewal does not repeat the inc 623 or 624 reviews.
+
+New finding, not fixed: the demo's pdf.js 4 text layer overshoots a short drag selection. It predates this increment and does not depend on the highlight.
+
+Still open, unchanged: final-code full suite (CI or plain terminal); packaged-runtime Arctic and DeBERTa acceptance; packaged first-run upgrade; real low-disk and worker-recovery validation; cross-platform packaging;
+large-library resource testing; independent security review (none exists for incs 616-625); the final DeBERTa gate; integration into `main`.
+
 ## Status after inc 624 (2026-11-01)
 **Website coverage: reviewed and renewed; see `WEBSITE_REVIEW_INC624.md`.** Self-review. Corrections were website-only. Help was reviewed and did not
 need a change; its marker did not move.

@@ -2736,9 +2736,12 @@
   .pdf-find-btn:not(:disabled):hover { border-color: var(--line-2); color: var(--ink); }
   .pdf-find-btn:disabled { opacity: .4; cursor: default; }
   .pdf-find-close:hover { color: var(--danger); border-color: var(--danger-line); }
-  .pdf-find-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 2; }
-  .pdf-find-hit { position: absolute; background: var(--flag-soft); mix-blend-mode: multiply; border-radius: 1px; }
-  .pdf-find-hit.current { background: var(--flag); box-shadow: 0 0 0 1px var(--flag); }
+  .pdf-find-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 2; mix-blend-mode: multiply; }
+  /* The layer's z-index makes it a stacking context, so the blend belongs on the layer: on a hit it could only reach
+     the layer and the hit would paint over the page's text. Fixed amber tints because the PDF page stays white in both
+     themes (DESIGN §1b), and multiply keeps the page's text dark beneath them. */
+  .pdf-find-hit { position: absolute; background: #f3dcc0; border-radius: 1px; }
+  .pdf-find-hit.current { background: #f0c48e; box-shadow: 0 0 0 1px #9a5b2e; }
   /* User-authored highlight overlays — translucent fill in the chosen color, no
      border/glow, so they read as a marker pass and stay visually distinct from the
      bordered indigo citation/provenance highlight above. */

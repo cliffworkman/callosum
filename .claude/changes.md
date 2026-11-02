@@ -9,6 +9,13 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-11-01 — Reader Find highlight readable (inc 625)
+- **Files:** `app/frontend/styles.css`, `callosum-app.html`, `.claude/DESIGN.md`, `tests/test_frontend_assembly.py`, `tests/e2e/test_demo_static.py`,
+  blocker matrix, notes, both coverage receipts.
+- **What:** Find highlights no longer cover the text they match.
+- **Why:** the blend sat inside the find layer's stacking context, so hits painted as solid blocks.
+- **Revert:** revert the Reader commit and the receipt commit after it. That restores the defect. No extraction, annotation or scientific behaviour changed.
+
 ## 2026-11-01 — Website claims and screenshot review (inc 624)
 - **Files:** `www/{index,showcase,how-it-works}.html`, `www/showcase-coverage.json`, six images under `www/shots/`,
   `tests/test_website_how_it_works.py`, website review, blocker matrix, increment notes.

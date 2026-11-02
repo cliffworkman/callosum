@@ -71,7 +71,7 @@ same attribute + storage.
 - **Every chrome color is a token.** Never inline a raw hex for chrome; if dark needs a different value,
   it must be a token overridden in the dark block.
 - **The rendered PDF page stays light in BOTH themes.** `.pdf-page*` `#fff`, the on-page highlight rgba
-  (`.pdf-highlight`, `.textLayer ::selection`), and `--accent-overlay` are intentionally *not* themed —
+  (`.pdf-highlight`, `.pdf-find-hit`, `.textLayer ::selection`), and `--accent-overlay` are intentionally *not* themed —
   they sit on the white document. Only app *chrome* (toolbar, scroll backdrop, annotation panel) themes.
 - **Text on filled semantic colors uses `--on-fill`,** not `#fff` — because the fills (`--accent`,
   `--verified`, `--flag`, `--danger`) become *light* pastels in dark, so the text must flip to dark.
