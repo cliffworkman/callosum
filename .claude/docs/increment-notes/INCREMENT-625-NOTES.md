@@ -24,7 +24,7 @@ and licensed snapshot PDF, and the live frontend with a synthetic four-page PDF 
 | Text contrast inside a highlight, desktop, 115% zoom | 1.0:1, text gone | current 12.2 to 13.0:1, other 15.8:1 (page without highlight 21:1) |
 | Dark theme, other matches against the page | Near-black block | Same light tint as light theme |
 | Text contrast, 390px wide at fit-width zoom (about 57%) | 1.0:1 | current 3.63 to 4.39:1, other 4.28 to 4.41:1 (page without highlight 4.61 to 4.74:1) |
-| Checks | 117 passed, 27 failed | See the receipt below |
+| Checks | 117 passed, 27 failed | 144 passed, 0 failed, final run without the preview bypass |
 
 **The readability threshold changed during the work.** The check began as 4.5:1 everywhere. At the narrow fit-width zoom, ordinary unhighlighted text only reaches about 4.7:1 because antialiased
 glyphs never reach full black. So the check became 4.5:1, or 70% of the unhighlighted control at that zoom where that is lower, never below 3:1. The current match at narrow width is therefore below 4.5:1 and passes on the relaxed rule.
@@ -45,18 +45,31 @@ zoom keeps the match and position; crossing pages; close and reopen; no-match st
 3. Switch to dark theme and confirm the same tints on the white page. Press next and previous, zoom, and select a highlighted word.
 
 ## Pytest and checks
-Recorded in the receipt commit after both reviews are renewed. Before this commit: the six focused test files gave 146 passed, 1 skipped.
+On the final code, with `CALLOSUM_DB_URL` pointed at a new disposable file under `.local\validation-625\`, checked by `preflight_db.py`. No `-n auto`.
+
+| Check | Result |
+|---|---|
+| `test_frontend_assembly`, `test_website_how_it_works`, `test_check_website_coverage`, `test_help`, `test_demo_experience_coverage`, `test_demo_snapshot` | 146 passed, 1 skipped (curated source DB absent) |
+| `CALLOSUM_RUN_E2E=1 tests/e2e/test_demo_static.py`, including the new readability assertion | 2 passed |
+| Reader Find acceptance, `find_acceptance.py final` | 144 passed, 0 failed, 0 blocked requests |
+| Demo acceptance from inc 623, `browser_acceptance.py --label inc625`, no bypass | 58 passed, 0 failed. Its local provider-call counts match the inc 623 receipt exactly (1226, 8 non-2xx) |
+| Website acceptance from inc 624, `site_acceptance.py inc625` | 147 passed, 0 failed, 0 blocked requests |
+| Website gate | Failed on the CSS change, as it should. Pass after `--refresh`, on the working tree and a fresh clone |
+| Demo gate | Did not fail on the CSS change: its grace window allowed it. Refreshed anyway after the review. Pass on the working tree and a fresh clone |
+| QA surface map, tach, line budget, what's-new, bandit, scoped ruff | Pass |
+
+No new failures. Known not fixed: the demo drag-selection finding.
 
 **Final-code full suite: not run, still owed.** Plain terminal or CI. Focused results here do not stand in for it.
 
 ## Narrow coverage review
-Both gates went stale on the CSS change, as designed. This review covered only that change and does not repeat the 623 or 624 reviews.
+The website gate failed on the CSS change, as designed. The demo gate's grace window let it pass, but it was reviewed and refreshed too. This review covered only that change and does not repeat the 623 or 624 reviews.
 - **Website:** `www/site.css` and page text unchanged. No published screenshot shows Find open; `reader_current.png` was opened and has Find closed. No capability claim mentions the highlight's appearance. Rendered site acceptance re-run after the refresh.
 - **Demo:** the reader's Find is the affected surface, covered by the acceptance above and the extended e2e test. The inc-623 pdf.js 4 adapter is untouched. Capability counts and classes unchanged.
 - Version distinctions and public claims unchanged. The gate has no way to mark a narrow review, so both notes say it was narrow and name the baselines.
 
 ## Security
-No endpoint, fetch, ingestion path, auth or dependency changed in the app, so the audit gate does not trigger. Independent review of incs 616-625 is still owed; this does not discharge it. The deploy script is local, gitignored, and has not connected to anything.
+No endpoint, fetch, ingestion path, auth or dependency changed in the app, so the audit gate does not trigger. Independent review of incs 616-625 is still owed; this does not discharge it.
 
 ## Protected state
-Recorded in the receipt commit.
+Research master unchanged (665096192 bytes, 2026-09-22 18:10). Desktop database unchanged by stat only (613908480 bytes, 2026-10-29 17:16:50). Main checkout's dirty state unchanged. `origin/main` still `2f01feef`. JUNO not touched.

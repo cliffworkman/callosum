@@ -191,10 +191,10 @@
   },
   "review": {
     "reviewed_at": "2026-11-01",
-    "reviewed_rev": "1c8b203a",
-    "reviewed_increment": 623,
+    "reviewed_rev": "eb85cdbc",
+    "reviewed_increment": 625,
     "source_fingerprint": "818bc14342fc807eeb6ba4dc6b041706a99a303a1264185461c026090c29c42c",
-    "note": "Dedicated inc 623 review from historical base 562bfce (inc 576) through 1c8b203a: 158 commits, 30 routers, 49 frontend files, each dispositioned in .claude/docs/research/2026-10-31_release-060-audit/DEMO_REVIEW_INC623.md. Corrected four defects (reader text layer and false Find result; raw 404 for modernization in Settings; alert on every first load; wrong Delete explanation). Rendered Chromium acceptance under the static base path; results in the inc-623 notes. Deliberately unavailable, with an explanation: modernization, retrieval and verification model choice, Browser Capture, Ask generation. Saved results are stated not to be output from the current models. Limitations: bundled Help is dated; six pre-576 Settings reads stay unanswered; self-review.",
+    "note": "Narrow review for inc 625 only: reader Find highlight CSS, checked in rendered demo and live browsers at desktop, dark and narrow. pdf.js 4 adapter, capabilities and classes unchanged. The inc 623 full review remains the baseline and was not repeated.",
     "declined_at": null,
     "declined_rev": null,
     "declined_increment": null,
