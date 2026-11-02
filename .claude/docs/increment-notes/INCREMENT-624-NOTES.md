@@ -43,12 +43,13 @@ All on the corrections, with `CALLOSUM_DB_URL` overridden to a new disposable fi
 
 | Check | Result |
 |---|---|
-| `test_website_how_it_works`, `test_check_website_coverage`, `test_help`, `test_demo_experience_coverage`, `test_demo_snapshot`, `test_frontend_assembly` | 145 passed, 1 skipped (curated source DB absent), before the mobile recapture; re-run in the receipt commit below |
+| `test_website_how_it_works`, `test_check_website_coverage`, `test_help`, `test_demo_experience_coverage`, `test_demo_snapshot`, `test_frontend_assembly` | 145 passed, 1 skipped (curated source DB absent) |
 | `CALLOSUM_RUN_E2E=1 tests/e2e/test_demo_static.py` | 2 passed |
 | Three inc-623 historical tests | Included above, passed |
 | Demo gate | Pass, unchanged at 120 capabilities. Receipt not touched |
 | QA surface map, tach, line budget, what's-new, scoped ruff | Pass |
 | Rendered acceptance, `site_acceptance.py final` | **147 passed, 0 failed**, 0 console errors, 0 page errors, 0 blocked requests. 1440x900 and 375x812 |
+| **Website gate, `check_website_coverage.py`** | Fails on corrections alone, as it should. **Pass after `--refresh`**, on the working tree and on a fresh clone. No `--decline`, no bypass, gate code unchanged |
 | External links, shell only | All reachable (see review). Not visited by the browser test |
 
 Coverage of the rendered run: all pages and direct reload, primary navigation, tabs, unreleased note, capability search, 53 hotspots, 12 fresh direct
@@ -64,4 +65,4 @@ No endpoint, fetch, ingestion path, auth or dependency changed, so the audit gat
 not less. Independent security review of incs 616-623 is still owed; this increment does not discharge it.
 
 ## Protected state
-See the final report. No access to the research master or desktop database other than file-size and timestamp stats. JUNO and deployed sites untouched.
+Research master unchanged (665096192 bytes, 2026-09-22 18:10). Desktop database unchanged by stat only (613908480 bytes, 2026-10-29 17:16:50). Main checkout's dirty state unchanged. JUNO and deployed sites not touched.
