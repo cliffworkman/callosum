@@ -348,7 +348,7 @@
 
           <section class="stage-detail" id="stage-panel-index" role="tabpanel" aria-labelledby="stage-index" tabindex="0">
             <div class="stage-copy"><span class="eyebrow">03 · Chunk and embed</span><h3 class="no-js-title">Chunk and embed</h3><h3>Build a semantic index beside the library.</h3><p>Document chunks receive local vector embeddings and are stored in an in-process vector index. Similar language can then be found even when it does not repeat the query’s exact words.</p><div class="io-row"><div class="io"><b>Input</b><span>Versioned document chunks</span></div><div class="io"><b>Output</b><span>Chunk embeddings linked to the exact source version</span></div></div></div>
-            <aside class="stage-meta"><span class="boundary ml">local probabilistic model</span><dl><div><dt>Default model</dt><dd>all-MiniLM-L6-v2 sentence embeddings</dd></div><div><dt>Storage</dt><dd>sqlite-vec, in the local application database</dd></div><div><dt>LLM involved?</dt><dd>No generative model</dd></div></dl></aside>
+            <aside class="stage-meta"><span class="boundary ml">local probabilistic model</span><dl><div><dt>Default model (0.5.16)</dt><dd>all-MiniLM-L6-v2 sentence embeddings</dd></div><div><dt>Storage</dt><dd>sqlite-vec, in the local application database</dd></div><div><dt>LLM involved?</dt><dd>No generative model</dd></div></dl></aside>
           </section>
 
           <section class="stage-detail" id="stage-panel-retrieve" role="tabpanel" aria-labelledby="stage-retrieve" tabindex="0">
@@ -367,7 +367,7 @@
           </section>
 
           <section class="stage-detail" id="stage-panel-trace" role="tabpanel" aria-labelledby="stage-trace" tabindex="0">
-            <div class="stage-copy"><span class="eyebrow">07 · Preserve provenance</span><h3 class="no-js-title">Preserve provenance</h3><h3>Keep the result attached to how it was made.</h3><p>The saved synthesis records sentence order, citation mappings, verbatim evidence, component confidences, document versions, model versions, page coordinates, and location precision.</p><div class="io-row"><div class="io"><b>Input</b><span>Verified citation results and source identities</span></div><div class="io"><b>Output</b><span>A durable evidence trail that can be reopened and audited</span></div></div></div>
+            <div class="stage-copy"><span class="eyebrow">07 · Preserve provenance</span><h3 class="no-js-title">Preserve provenance</h3><h3>Keep the result attached to how it was made.</h3><p>The saved synthesis records sentence order, citation mappings, verbatim evidence, component confidences, document versions, embedding and verification versions, page coordinates, and location precision.</p><div class="io-row"><div class="io"><b>Input</b><span>Verified citation results and source identities</span></div><div class="io"><b>Output</b><span>A durable evidence trail that can be reopened and audited</span></div></div></div>
             <aside class="stage-meta"><span class="boundary">local persistence</span><dl><div><dt>Primary system</dt><dd>SQLite relational provenance records</dd></div><div><dt>Coordinate states</dt><dd>Exact, region, or page-only/null</dd></div><div><dt>Silent fallback?</dt><dd>No—degraded precision remains visible</dd></div></dl></aside>
           </section>
 
@@ -444,11 +444,11 @@
               <div class="scores"><div class="score"><b>retrieval</b><span>0.91</span></div><div class="score"><b>quotation</b><span>1.00</span></div><div class="score"><b>NLI support</b><span>0.86</span></div></div>
             </article>
             <details class="tech">
-              <summary>Technical details: current models, thresholds, and statuses</summary>
+              <summary>Technical details: released models (0.5.16), thresholds, and statuses</summary>
               <div class="tech-body">
                 <table class="thresholds">
                   <tbody>
-                    <tr><th>Embedding model</th><td><span class="mono">all-MiniLM-L6-v2</span> by default; <span class="mono">bge-base-en-v1.5</span> is supported.</td><td>Runs locally.</td></tr>
+                    <tr><th>Embedding model</th><td><span class="mono">all-MiniLM-L6-v2</span> by default.</td><td>Runs locally.</td></tr>
                     <tr><th>NLI model</th><td><span class="mono">cross-encoder/nli-MiniLM2-L6-H768</span></td><td>Passage = premise; claim = hypothesis.</td></tr>
                     <tr><th>Verified</th><td>Retrieval ≥ 0.70; quote = 1.00; support ≥ 0.55.</td><td>All conditions must pass.</td></tr>
                     <tr><th>Source disagrees</th><td>Contradiction ≥ 0.55 and greater than support.</td><td>Shown as a stronger, red evidence alarm.</td></tr>
@@ -456,6 +456,7 @@
                   </tbody>
                 </table>
                 <p class="caveat">These are calibrated software thresholds, not epistemic proof. NLI is probabilistic; detector silence is not evidence of absence.</p>
+                <p class="caveat"><b>Planned for 0.6.0, not yet released.</b> Automatic retrieval is planned to use Arctic S only after its pinned model is verified and its index covers all of a library’s full-text passages. Until then MiniLM keeps serving retrieval, and it remains as the compatibility model. DeBERTa-v3 is planned as a selectable verifier; automatic use stays off unless every release gate passes, and MiniLM2 remains the compatibility verifier. No performance advantage is claimed here: its evaluation was conditional, on these same thresholds. Existing libraries would modernize in the background using stored passages, without re-extraction or rechunking, and an incomplete Arctic S index is never searched as the whole library. Qwen2.5 generation does not change. Older syntheses keep the provenance they were created with.</p>
               </div>
             </details>
           </div>
@@ -500,7 +501,7 @@
 
     <section class="section" id="provenance" aria-labelledby="provenance-title">
       <div class="wrap">
-        <header class="section-head reveal"><span class="eyebrow">Provenance from source to screen</span><h2 id="provenance-title">A score without a trail is not enough.</h2><p>Callosum stores the relationships needed to reopen a result: the paper and attachment, source version, chunk, quotation, coordinates, model versions, verification components, claim, and review state.</p></header>
+        <header class="section-head reveal"><span class="eyebrow">Provenance from source to screen</span><h2 id="provenance-title">A score without a trail is not enough.</h2><p>Callosum stores the relationships needed to reopen a result: the paper and attachment, source version, chunk, quotation, coordinates, embedding and verification versions, verification components, claim, and review state.</p></header>
         <div class="provenance-chain reveal" aria-label="Provenance chain">
           <div class="provenance-step"><b>01</b><span>Paper</span><p>Bibliographic identity</p></div>
           <div class="provenance-step"><b>02</b><span>Attachment</span><p>Role + file version</p></div>
@@ -520,7 +521,7 @@
 
     <section class="section" id="demo-architecture" aria-labelledby="demo-architecture-title">
       <div class="wrap">
-        <header class="section-head reveal"><span class="eyebrow">The public demo’s separate trust boundary</span><h2 id="demo-architecture-title">The same frontend, two data providers.</h2><p>The online demo is not a public Callosum backend. A versioned, whitelist-exported snapshot lets the real interface render a saved workflow without Python, a database server, credentials, AI calls, or live endpoints.</p></header>
+        <header class="section-head reveal"><span class="eyebrow">The public demo’s separate trust boundary</span><h2 id="demo-architecture-title">The same frontend, two data providers.</h2><p>The online demo is not a public Callosum backend. A versioned, whitelist-exported snapshot lets the real interface render a saved workflow without Python, a database server, credentials, AI calls, or live endpoints. The saved results come from an earlier version of Callosum, so they illustrate the workflow rather than show what the current models produce.</p></header>
         <div class="demo-architecture reveal">
           <div class="arch-branch"><b>Live Callosum</b><p>Shared React interface → backend client → local FastAPI, SQLite, documents, and computation.</p></div>
           <div class="arch-shared">same UI<br>↔</div>

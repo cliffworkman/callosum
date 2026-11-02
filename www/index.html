@@ -372,7 +372,7 @@
         <div>
           <span class="eyebrow">Interactive online demo</span>
           <h2 id="online-demo-title">Explore a complete saved research workflow—no installation required.</h2>
-          <p>Use the real Callosum frontend to move through a five-paper library, licensed PDFs, annotations, axes, tags, reading priorities, statistical checks, and two synthetic manuscript drafts. Inspect saved literature search, followed-author, journal, and funding results; then open evidence-aware citation suggestions, Meta-Reference audits, CRediT and disclosure drafts, a provenance-anchored extraction project, and the completed synthesis answering “What is the anomalous-is-bad bias?” The versioned, immutable demo needs no Python backend, API key, account, network request, or AI call.</p>
+          <p>Use the real Callosum frontend to move through a five-paper library, licensed PDFs, annotations, axes, tags, reading priorities, statistical checks, and two synthetic manuscript drafts. Inspect saved literature search, followed-author, journal, and funding results; then open evidence-aware citation suggestions, Meta-Reference audits, CRediT and disclosure drafts, a provenance-anchored extraction project, and the completed synthesis answering “What is the anomalous-is-bad bias?” The versioned, immutable demo needs no Python backend, API key, account, network request, or AI call. Its saved results were captured from an earlier version of Callosum: they illustrate the workflow and are not output from the current models.</p>
           <div class="demo-facts" aria-label="Demo characteristics"><span>real shared frontend</span><span>Discover → Write snapshots</span><span>read-only</span><span>zero AI calls</span></div>
         </div>
         <a class="btn btn-primary" href="demo/">Open the demo &rarr;</a>
@@ -385,10 +385,10 @@
       <div class="sec-head reveal">
         <span class="eyebrow">One enclosed ecosystem</span>
         <h2>Discover → Read → Evaluate → Synthesize → Write → Audit.</h2>
-        <p class="loop-intro">Reference managers organize sources. Callosum manages the relationship between sources, evidence, claims, methods, and manuscripts—one local-first workflow with every network action explicit and inspectable.</p>
+        <p class="loop-intro">Reference managers organize sources. Callosum manages the relationship between sources, evidence, claims, methods, and manuscripts—one local-first workflow in which library text and PDFs leave only through explicit doors you can inspect.</p>
       </div>
       <div class="flow reveal" data-d="1">
-        <div class="stage"><div class="node">01</div><h3>Find</h3><p>Search Crossref &amp; PubMed; follow journals and preprint servers</p></div>
+        <div class="stage"><div class="node">01</div><h3>Find</h3><p>Search Crossref, PubMed, arXiv, Europe PMC, and PsyArXiv; follow journals and preprint servers</p></div>
         <div class="stage"><div class="node">02</div><h3>Acquire</h3><p>Auto-fetch open-access copies, OA only</p></div>
         <div class="stage"><div class="node">03</div><h3>Read</h3><p>Annotate and take notes in-browser</p></div>
         <div class="stage eval"><div class="node">04</div><h3>Evaluate</h3><p>statcheck, z-curve, GRIM, DEBIT, reporting checks</p></div>
@@ -441,13 +441,13 @@
       <div class="sec-head reveal">
         <span class="eyebrow">What it does today</span>
         <h2>Twelve tools that usually live in twelve apps — in one.</h2>
-        <p>A working pre-1.0 app, used daily by its author and backed by 2,098 tests. Here it is, following the workflow end to end.</p>
+        <p>A working pre-1.0 app, used daily by its author and backed by more than 3,400 automated tests. Here it is, following the workflow end to end.</p>
       </div>
       <div class="feat-grid">
         <div class="feat reveal" data-d="1">
           <span class="k">Find &amp; follow</span>
           <h3><a href="showcase.html#cap-search">Search, or let it come to you</a></h3>
-          <p>Search Crossref and PubMed, explore beyond your library with Semantic Scholar, follow authors, or subscribe to journals, preprint categories, and keyword feeds. AI may rank likely relevance against your axes; it never hides the rest.</p>
+          <p>Search Crossref, PubMed, arXiv, Europe PMC, and PsyArXiv, explore beyond your library with Semantic Scholar, follow authors, or subscribe to journals, preprint categories, and keyword feeds. AI may rank likely relevance against your axes; it never hides the rest.</p>
           <div class="chiprow"><span class="chip">Search</span><span class="chip">Feed</span><span class="chip">followed authors</span><span class="chip">Semantic Scholar</span><span class="chip">saved discovery queue</span></div>
         </div>
         <div class="feat reveal" data-d="2">
@@ -471,7 +471,7 @@
         <div class="feat core reveal" data-d="1">
           <span class="k">Verified synthesis · the core</span>
           <h3><a href="showcase.html#cap-synthesis">Citation-grounded summaries</a></h3>
-          <p>Every generated sentence is re-checked against the source and labeled verified, contrasted, flagged, or contradicted — with its quote, page, and confidence. Coordinates are marked <span class="mono">exact</span>, <span class="mono">region</span>, or <span class="mono">null</span>, and never shown as more precise than they are.</p>
+          <p>Every generated sentence is re-checked against the source and labeled verified, contrasted, flagged, or contradicted — with its quote, page, and confidence. Coordinates are marked <span class="mono">exact</span>, <span class="mono">region</span>, or <span class="mono">null</span>, and never shown as more precise than they are. These labels are model-derived signals to inspect, not proof that a claim is true.</p>
         </div>
         <div class="feat reveal" data-d="2">
           <span class="k">Draft &amp; cite</span>
@@ -539,7 +539,7 @@
           <div class="machine-row"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span> Citation rendering (citeproc-js, local)</div>
           <div class="door">
             <div class="cap">the explicit doors</div>
-            <p>Public metadata lookups send identifiers such as a DOI, ORCID, author, or query. Configured AI calls send the displayed task context to your chosen provider. Encrypted sync is opt-in, and feedback is sent only after an exact preview. Each door is separately controlled.</p>
+            <p>Public metadata lookups send identifiers such as a DOI, ORCID, author, or query. Configured AI calls send the displayed task context to your chosen provider. Encrypted sync is opt-in, and feedback is sent only after an exact preview. Each door is separately controlled. Separately, the app downloads software updates, its Python runtime, and local models, and retraction checks on newly imported papers run automatically using identifiers. None of these send library text.</p>
           </div>
         </div>
         <div class="priv-points">
@@ -549,7 +549,7 @@
           </div>
           <div class="pp">
             <h3>Verification never leaves</h3>
-            <p>Similarity, NLI stance, and the verbatim quote search run on-device on every result. A weaker model affects draft quality — never which citations get accepted.</p>
+            <p>Similarity, NLI stance, and the verbatim quote search run on-device on every result. The generating model drafts sentences and proposes citations; it does not set their verification status.</p>
           </div>
           <div class="pp">
             <h3>Accounts and sync are optional</h3>
@@ -569,7 +569,7 @@
       <span class="eyebrow reveal" style="display:block;margin-bottom:26px;">The commitments</span>
       <p class="creed reveal" data-d="1">Every claim carries its evidence. The tool shows you <span class="hl-v">signal</span>, never a <span class="hl-a">verdict</span> — and always distinguishes a fact from a candidate.</p>
       <div class="creed-list reveal" data-d="2">
-        <div class="cl"><span class="idx">i</span><p><b>The local substrate is the source of truth.</b> The model only narrates it; the deterministic layer decides what holds.</p></div>
+        <div class="cl"><span class="idx">i</span><p><b>The local substrate is the source of truth.</b> The model only narrates it; local checks set each citation’s status, and you decide what holds.</p></div>
         <div class="cl"><span class="idx">ii</span><p><b>The human is the filter, the AI is the funnel.</b> AI makes verification cheap; it never substitutes for it.</p></div>
         <div class="cl"><span class="idx">iii</span><p><b>Inspectability over authority.</b> No opaque composite scores; coordinates are labeled exact, region, or null — never dressed up.</p></div>
         <div class="cl"><span class="idx">iv</span><p><b>Local-first and provider-swappable.</b> It runs on your machine and answers to no single vendor; silence is never a certificate.</p></div>
@@ -590,14 +590,16 @@
       <div class="qs-meta reveal" style="margin-bottom:22px">
         <p class="intro">Grab the installer for your platform from the
           <a href="https://github.com/cliffworkman/callosum/releases/latest" target="_blank" rel="noopener">latest release</a>.
-          These builds are <b>unsigned</b> (no paid Apple/Microsoft developer certificate yet), so your OS
-          will show a one-time trust warning on first launch — that's expected, not a red flag; see the
+          The Windows installer is <b>unsigned</b>, and macOS builds are ad-hoc signed and <b>not notarized</b>, so your OS
+          may block installation or first launch. Download only from the official release; see the
           <a href="https://github.com/cliffworkman/callosum/blob/main/app/desktop-shell/FIRST-LAUNCH-NOTE.md" target="_blank" rel="noopener">first-launch guide</a>
           for exactly what you'll see and what to click.</p>
+        <p class="intro">You do not need to install Python yourself, but the app does need the network at the start: first launch downloads and verifies its Python runtime (a download of several hundred MB), and some local analysis features download their models on first use. On Windows and macOS the app checks for updates, downloads them in the background, and asks before restarting. On Linux it points you to the release page. None of these downloads send library content.</p>
       </div>
       <div class="hero-cta reveal" style="margin-top:0">
         <a class="btn btn-primary" href="https://github.com/cliffworkman/callosum/releases/latest/download/Callosum-windows-x64-setup.exe">Windows (.exe)</a>
         <a class="btn btn-primary" href="https://github.com/cliffworkman/callosum/releases/latest/download/Callosum-macos-arm64.dmg">macOS · Apple Silicon (.dmg)</a>
+        <a class="btn btn-primary" href="https://github.com/cliffworkman/callosum/releases/latest/download/Callosum-macos-x64.dmg">macOS · Intel (.dmg)</a>
         <a class="btn btn-primary" href="https://github.com/cliffworkman/callosum/releases/latest/download/Callosum-linux-amd64.deb">Linux (.deb)</a>
       </div>
     </div>
@@ -611,7 +613,7 @@
       </div>
       <div class="qs-grid">
         <div class="qs-meta reveal">
-          <p class="intro">You'll need a couple of standard tools. Some local analysis features download models on first use, then run offline. The SQLite database auto-migrates on startup. The source tree also includes a read-only MCP server and a terminal client for working with the same local API.</p>
+          <p class="intro">You'll need a couple of standard tools. Some local analysis features download models on first use, then run offline. The SQLite database auto-migrates on startup. The source tree also includes an MCP server (read tools, plus optional write tools that are off by default and audited) and a terminal client for working with the same local API.</p>
           <div class="req">
             <div><span class="mono a">→</span> <span><span class="mono">Python 3.11+</span> — backend &amp; verification</span></div>
             <div><span class="mono a">→</span> <span><span class="mono">Node.js</span> — frontend build &amp; citation engine</span></div>
@@ -644,7 +646,7 @@
         <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg></span>
         <div>
           <h3>Where it honestly stands</h3>
-          <p>Pre-1.0 and single-user-focused. It's used daily by its author and backed by 2,098 tests, but the interface is still moving, installers are unsigned, and the local-first architecture is not a hardened multi-tenant hosted service. Expect rough edges. Stating that plainly is itself the point: the site and the code should not claim more certainty than the evidence shows.</p>
+          <p>Pre-1.0 and single-user-focused. It's used daily by its author and backed by more than 3,400 automated tests, but the interface is still moving, the Windows installer is unsigned, macOS builds are not notarized, and the local-first architecture is not a hardened multi-tenant hosted service. Expect rough edges. Stating that plainly is itself the point: the site and the code should not claim more certainty than the evidence shows.</p>
         </div>
       </div>
     </div>

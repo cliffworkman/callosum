@@ -9,6 +9,14 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-11-01 — Website claims and screenshot review (inc 624)
+- **Files:** `www/{index,showcase,how-it-works}.html`, `www/showcase-coverage.json`, six images under `www/shots/`,
+  `tests/test_website_how_it_works.py`, website review, blocker matrix, increment notes.
+- **What:** corrected stale and overclaiming website copy, kept 0.6.0 under an explicit not-yet-released label, recaptured six screenshots from real
+  rendered views, relabelled three, and fixed deep links that stopped thousands of pixels short. The coverage receipt was then renewed.
+- **Why:** the gate had failed on staleness, and its hash checks could not see wrong sentences or stale images.
+- **Revert:** revert this commit and the receipt commit after it. No app, model or Help behaviour changed.
+
 ## 2026-11-01 — Dedicated demo review; reader text layer and honest modernization notice (inc 623)
 - **Files:** `app/frontend/js/{00_bootstrap,18_help,20_synthesis,35j_modernization}.jsx`, `callosum-app.html`,
   `demo/{demo-runtime.js,README.md,experience-coverage-v1.json}`, `tools/demo/build_demo.py`, `tests/test_demo_snapshot.py`,

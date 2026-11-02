@@ -581,8 +581,19 @@ Help consistency (inc 624, the website gate still fails by design until then); p
 low-disk and worker-recovery validation; cross-platform packaging; independent security review of the integrated work (none exists
 for incs 616-623); the final DeBERTa gate; integration into `main`.
 
+## Status after inc 624 (2026-11-01)
+**Website coverage: reviewed and renewed; see `WEBSITE_REVIEW_INC624.md`.** Self-review. Corrections were website-only. Help was reviewed and did not
+need a change; its marker did not move.
+
+New findings, not fixed: reader Find paints an opaque block over its matches (shared frontend, also in 0.5.16, one CSS line; it stales both coverage
+gates when fixed); Find has no Help entry; no genuine 0.6.0 synthesis screenshot exists until a real run is authorized.
+
+Still open, unchanged: final-code full suite (CI or plain terminal); packaged-runtime Arctic and DeBERTa acceptance; packaged first-run upgrade; real
+low-disk and worker-recovery validation; cross-platform packaging; large-library resource testing; independent security review (none exists for incs
+616-624); the final DeBERTa gate; integration into `main`.
+
 ## Pending dedicated reviews (recorded after inc 616; unchanged by inc 617)
-**Inc 623 update:** the demo item below is resolved; the entry is kept as the history of the finding. The website and Help items remain.
+**Inc 623 update:** the demo item below is resolved; the entry is kept as the history of the finding. **Inc 624 update:** the website and Help items are resolved too, also kept as history.
 Neither is resolved by refreshing a receipt, and neither was declined.
 - **Demo coverage.** `tools/qa/check_demo_experience_coverage.py` fails on drift accumulated since the inc-576 review
   (about 29 routers). It needs a dedicated demo review; inc 617 adds `/modernization`, which the demo does not serve.

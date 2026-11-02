@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -61,6 +62,42 @@ def test_how_it_works_uses_current_verification_contract() -> None:
     assert f"Contradiction ≥ {config.contradiction_threshold:.2f}" in html
     assert "cross-encoder/nli-MiniLM2-L6-H768" in html
     assert "__CALLOSUM_FAVICON__" not in html
+
+
+def test_public_claims_stay_true_to_the_released_app() -> None:
+    index = (WWW / "index.html").read_text(encoding="utf-8")
+    showcase = (WWW / "showcase.html").read_text(encoding="utf-8")
+    how = (WWW / "how-it-works.html").read_text(encoding="utf-8")
+    pages = index + showcase + how
+
+    assert "2,098" not in pages
+    assert "These builds are" not in index and "not notarized" in index
+    assert "Callosum-macos-x64.dmg" in index
+    assert "read-only MCP" not in index
+    assert "every network action" not in index
+    assert "earlier version" in index and "earlier version" in showcase and "earlier version" in how
+
+
+def test_unreleased_models_appear_only_under_the_unreleased_label() -> None:
+    how = (WWW / "how-it-works.html").read_text(encoding="utf-8")
+    note_start = how.index("<b>Planned for 0.6.0, not yet released.</b>")
+    note = how[note_start : how.index("</p>", note_start)]
+    outside = how.replace(note, "")
+
+    assert "automatic use stays off unless every release gate passes" in note
+    assert "MiniLM2 remains the compatibility verifier" in note
+    for term in ("DeBERTa", "Arctic"):
+        assert term not in outside
+        assert term not in (WWW / "index.html").read_text(encoding="utf-8")
+        assert term not in (WWW / "showcase.html").read_text(encoding="utf-8")
+
+
+def test_compact_showcase_images_reserve_their_height_for_deep_links() -> None:
+    # `.shot.compact img` is width:auto, so an unloaded lazy image collapses to 0x0 and every later anchor moves when it loads.
+    showcase = (WWW / "showcase.html").read_text(encoding="utf-8")
+    compact = re.findall(r'<figure class="shot compact".*?</figure>', showcase, flags=re.S)
+    assert compact
+    assert not [figure for figure in compact if 'loading="lazy"' in figure]
 
 
 def test_website_navigation_reaches_the_page_and_reuses_the_favicon() -> None:
