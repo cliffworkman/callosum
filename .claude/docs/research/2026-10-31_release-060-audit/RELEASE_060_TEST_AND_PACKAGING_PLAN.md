@@ -112,6 +112,17 @@ on disposable copies of three libraries: byte-identical (`INCREMENT-613-NOTES.md
 - **Planned:** `RELEASE_060_PACKAGED_MODEL_QUALIFICATION_PLAN.md` stages §4's model rows on Windows first (P1 runtime
   load, P1b DeBERTa packaged acceptance, P2 app behaviour, P3 worker lifecycle, P4 installer).
 
+## 3c. Inc 632A revision (2026-11-03)
+- **Historical packaged smoke (exists, not a qualification):** the 2026-10-31 probe loaded both pinned checkpoints in the
+  installed 0.5.16 packaged interpreter with direct library calls (Scope §3; outputs re-verified in inc 632A). §4's first two
+  rows are therefore partly evidenced on Windows only, and only outside the app's resolvers and manifests.
+- **§4 parity row:** the 1e-3 probability tolerance is an audit engineering tolerance, not a calibration. P1b adds a
+  categorical check: app statuses on the frozen G1 sets must not flip (qualification plan §8.2).
+- **§3.8 (DeBERTa receipt):** its packaged recheck is now predeclared in qualification plan §8.3 (fixture by item id,
+  cold/warm rules, repetitions, memory method, acceptance ranges, review triggers).
+- **Every packaged stage needs its own fresh isolation window** (qualification plan §7) and the full per-stage model set
+  (§6: MiniLM and MiniLM2 too, about 0.9 GB with Arctic S and DeBERTa).
+
 ## 4. Packaging (three OSes; extend existing workflows)
 Extend `app/desktop-shell/packaging/smoke_test_backend.py` and `.github/workflows/desktop-shell-{windows,macos,linux}.yml`.
 

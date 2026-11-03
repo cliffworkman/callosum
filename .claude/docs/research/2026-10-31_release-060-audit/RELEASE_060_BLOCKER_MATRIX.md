@@ -631,6 +631,44 @@ on first use, so a fresh install whose Hub access fails while the import proceed
 The smallest decision-grade investigation: (1) reproduce on a clean profile with Hub access refused and a citation
 import; (2) a read-only count, on a copy of a real library, of DOI-bearing papers with no stored retraction check.
 
+## Status after inc 632A (2026-11-03)
+Planning and documentation only; nothing executed. The inc 631 section above is kept as written; these are its corrections.
+
+**Correction to the inc 631 gate table.** Its "Packaged Arctic S: no real-model or packaged-runtime evidence" was wrong.
+Both pinned checkpoints loaded in the installed 0.5.16 packaged interpreter in the 2026-10-31 compatibility smoke probe
+(Scope §3), confirmed in inc 632A from the probe's saved outputs (Arctic cosine ≥ 0.999999866; DeBERTa max |Δp| 2.65e-5).
+That probe used direct library calls, not the app's resolvers or manifests. What is still missing is app-path,
+manifest-verified, isolated qualification and any installer run. Four separate claims are tracked in the qualification
+plan §0.
+
+| Gate | Status | Blocker | Can proceed independently | App change justified now |
+|---|---|---|---|---|
+| Full regression suite | **PASS** at `c7c645fe` | none | n/a | No |
+| Packaged models P1 (interpreter compatibility) | Planned; historical smoke only | authorization for the download phase and the offline firewall rule (plan §7.3) | Yes | No |
+| Packaged DeBERTa P1b (runtime acceptance) | Planned, criteria predeclared (plan §8.2, §8.3) | P1 | After P1 | No |
+| Packaged backend P2, worker P3 | Planned | P1; full four-model snapshot set (plan §6) | After P1 | No |
+| Installer P4, macOS, Linux | Not run | installer build path (CI needs the branch on GitHub, or a local Tauri build) | No | No |
+| Browser E2E | Pending | own authorization | Yes | No |
+| **Issue #110** | **Release blocker** (provisional P1, confirmed mechanism) | remediation not implemented | Yes | **Yes**, after authorization |
+| **Independent security review** | **Required, not started**; a review packet is prepared privately | needs a reviewer other than the implementing sessions | Yes | depends on findings |
+| Integration into `main` (G3) | Blocked | authorization | last | — |
+
+**Issue #110, disposition.** Verified against the code: in the citation import (`library.py` `_embed_and_check`), the
+scan's per-paper step (`library.py` `process_one`) and Zotero import (`library_zotero.py` `_post_process`), embedding runs
+first and `auto_check_retractions` runs after it inside the same `commit_each(..., on_item_error="skip")` unit. An embedding
+exception therefore skips the check, rolls back that unit (in the scan, including the Crossref enrichment that supplies the
+DOI), and is only logged. The job still reports success. `auto_check_retractions` also swallows per-paper exceptions, and
+`apply_retraction` stores nothing for an `unavailable` outcome. Browser capture (`capture.py`, `capture/provisional.py`)
+indexes the paper but never runs the automatic check at all. The paper card and detail render only `retracted`, so
+"never checked", "could not check" and "checked, none found" look identical. MiniLM is not bundled and loads from the Hub on
+first use, so a fresh installation without Hub access reaches the silent path. **Recommendation: fix before 0.6.0 ships**,
+because the user-visible failure is established (the issue's harness) and it contradicts "silence is not a certificate".
+Frequency data could change urgency, not the conclusion. The remediation plan is prepared privately; no fix is implemented.
+
+**Independent security review.** Self-reviews exist for incs 616-625; they are not independent. The review is a release
+requirement. A scoped packet (threat areas, source inventory, existing safeguards and tests, open questions) is prepared
+privately for a separate reviewer. Inc 632A does not perform or claim it.
+
 ## Pending dedicated reviews (recorded after inc 616; unchanged by inc 617)
 **Inc 623 update:** the demo item below is resolved; the entry is kept as the history of the finding. **Inc 624 update:** the website and Help items are resolved too, also kept as history.
 Neither is resolved by refreshing a receipt, and neither was declined.
