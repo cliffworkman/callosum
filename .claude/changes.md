@@ -9,6 +9,22 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-11-03 — Close regression validation; packaged-model qualification plan (inc 631)
+- **Files:** `.claude/docs/increment-notes/INCREMENT-630-NOTES.md`, `INCREMENT-631-NOTES.md`, the release audit's blocker
+  matrix and test plan, new `RELEASE_060_PACKAGED_MODEL_QUALIFICATION_PLAN.md`, `.claude/CLAUDE.md`.
+- **What:** records the inc 630 result and history, and plans packaged Arctic S and DeBERTa qualification.
+- **Why:** the regression gate was still listed as owed; the next gates needed a bounded, code-grounded plan.
+- **Revert:** revert this documentation commit. No code, test or dependency changed.
+
+## 2026-11-03 — Isolated full regression: attempt-1 FAIL, five test corrections, attempt-2 PASS (inc 630)
+- **Files:** `tests/test_design_drift.py`, `tests/e2e/test_demo_static.py`, `tests/test_retraction.py`,
+  `tests/test_registration_references.py`, `tests/test_funding_discovery.py` (commit `c7c645fe`).
+- **What:** the full suite ran in a dedicated standard Windows account on the locked stack. Attempt-1 at `5571723b` failed
+  (6 failed, 1 error) on environment leakage, offline-only test assumptions, an allowlist gap and a harness skip-classifier
+  bug. Attempt-2 at `c7c645fe` passed: 3,831 passed, 14 expected skips, 0 protected-data changes.
+- **Why:** the last full run was on a non-locked stack, and the host cannot run the suite reliably.
+- **Revert:** revert `c7c645fe` (tests only). Both attempts' evidence is private and immutable.
+
 ## 2026-11-01 — Reader Find highlight readable (inc 625)
 - **Files:** `app/frontend/styles.css`, `callosum-app.html`, `.claude/DESIGN.md`, `tests/test_frontend_assembly.py`, `tests/e2e/test_demo_static.py`,
   blocker matrix, notes, both coverage receipts.

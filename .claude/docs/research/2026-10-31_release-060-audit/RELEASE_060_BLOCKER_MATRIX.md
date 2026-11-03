@@ -600,6 +600,37 @@ Still open, unchanged: final-code full suite (CI or plain terminal); packaged-ru
 low-disk and worker-recovery validation; cross-platform packaging; large-library resource testing; independent security review (none exists for incs
 616-624); the final DeBERTa gate; integration into `main`.
 
+## Status after inc 630 and 631 (2026-11-03)
+**Full regression: PASS on `c7c645fe17a861f2a5b876596a21629b311c2c8c`** (inc 630 attempt-2): 3,845 tests, 3,831 passed,
+14 expected skips, 0 failures, 0 errors, 0 inventory differences, 0 protected-data changes. It ran in an isolated
+standard Windows account on Python 3.11.14 with the locked stack; network was proxy-suppressed only. Attempt-1 on
+`5571723b` FAILED (6 failed, 1 error) and was corrected by test-only changes. Details and evidence hashes:
+`INCREMENT-630-NOTES.md`. This resolves the "final-code full suite" item carried since inc 622, for `c7c645fe` only.
+
+It does **not** cover real models: the Arctic S and DeBERTa real-snapshot tests skipped and model-backed tests use fakes.
+Packaged-model qualification is planned, not run: `RELEASE_060_PACKAGED_MODEL_QUALIFICATION_PLAN.md`.
+
+| Gate | Status | Blocker | Can proceed independently |
+|---|---|---|---|
+| Full regression suite | **PASS** at `c7c645fe` | none; repeat only if code changes | n/a |
+| Browser E2E | Pending | needs a run with `CALLOSUM_RUN_E2E=1` (six modules skipped in inc 630) | Yes |
+| Packaged Arctic S | Pending | no real-model or packaged-runtime evidence | Yes (Windows P1 needs a download authorization) |
+| Packaged DeBERTa | Pending; production gate unarmed | `packaged_runtime_acceptance` false until the packaged 21-pair recheck | Yes, alongside Arctic |
+| Other packaged and platform behaviour (B10) | Not run | `smoke_test_backend.py` loads neither model; worker spawn/exit and 0084 upgrade untested in packaged layouts; macOS and Linux only in CI, which needs the branch on GitHub; Intel macOS runs torch 2.2.2 / transformers 4.57.6 | Partly: Windows locally, others need CI |
+| Issue #110 | Provisional P1, open | consequence confirmed in a harness (below); real-world frequency unmeasured | Yes (read-only investigation) |
+| Independent security review | Not run | none exists for incs 616-625 | Yes |
+| Integration into `main` (G3) | Blocked | needs authorization | after the gates above |
+
+**Issue #110 assessment (from existing evidence, nothing run).** The code shape is unchanged on this branch:
+`library.py` (`_run_import_job`, the scan's `_embed_and_check`) and `library_zotero.py` embed and then call
+`auto_check_retractions` inside one `commit_each(..., on_item_error="skip")` unit. The issue's harness observed a citation
+import with a failing embedder report `done, imported: 1, failed: 0` while the paper stayed unchecked, and the UI renders
+only `retracted`, so "not checked" looks the same as "checked, none found". So yes: an embedding failure can prevent the
+check and leave a completed, clean-looking status. A plausible 0.6.0 trigger: MiniLM is not bundled and loads from the Hub
+on first use, so a fresh install whose Hub access fails while the import proceeds reaches this path (read, not run).
+The smallest decision-grade investigation: (1) reproduce on a clean profile with Hub access refused and a citation
+import; (2) a read-only count, on a copy of a real library, of DOI-bearing papers with no stored retraction check.
+
 ## Pending dedicated reviews (recorded after inc 616; unchanged by inc 617)
 **Inc 623 update:** the demo item below is resolved; the entry is kept as the history of the finding. **Inc 624 update:** the website and Help items are resolved too, also kept as history.
 Neither is resolved by refreshing a receipt, and neither was declined.

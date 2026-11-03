@@ -104,6 +104,14 @@ on disposable copies of three libraries: byte-identical (`INCREMENT-613-NOTES.md
 - **Still owed:** every row of §4; a real low-disk volume with status writes refused; two real app processes; real Arctic
   indexing (authorized receipt only); the panel at mobile width; the 0.6.0 notice under a real version bump.
 
+## 3b. Inc 630 and 631 (2026-11-03)
+- **Done:** release candidate step 1's equivalent for the integration branch, the full suite on the locked stack, in an
+  isolated account: PASS on `c7c645fe` (3,831 passed, 14 expected skips; `INCREMENT-630-NOTES.md`). It ran `pytest -n 2`
+  on Windows from a source clone, not on a merged commit; step 1 below still applies to the merged commit.
+- **Not done by it:** any row of §4. The real Arctic S and DeBERTa snapshot tests skipped.
+- **Planned:** `RELEASE_060_PACKAGED_MODEL_QUALIFICATION_PLAN.md` stages §4's model rows on Windows first (P1 runtime
+  load, P1b DeBERTa packaged acceptance, P2 app behaviour, P3 worker lifecycle, P4 installer).
+
 ## 4. Packaging (three OSes; extend existing workflows)
 Extend `app/desktop-shell/packaging/smoke_test_backend.py` and `.github/workflows/desktop-shell-{windows,macos,linux}.yml`.
 
