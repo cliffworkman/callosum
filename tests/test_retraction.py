@@ -29,6 +29,7 @@ from app.backend.persistence.tags_repo import get_tags_for_paper
 from integrations.crossref.adapter import CrossrefClient
 from integrations.openalex.adapter import OpenAlexClient
 from integrations.retraction_watch.adapter import RetractionWatchClient
+from tests.api_helpers import ApiFakeEmbeddingModel
 
 
 def _paper(conn, *, doi=None, title="P") -> int:
@@ -580,6 +581,7 @@ def test_citation_import_auto_checks_retraction(temp_db_url):
     import json as _json
 
     client = TestClient(create_app(db_url=temp_db_url))
+    client.app.state.embedding_model = ApiFakeEmbeddingModel()
     client.app.state.retraction_checkers = [
         RetractionChecker(
             "crossref",

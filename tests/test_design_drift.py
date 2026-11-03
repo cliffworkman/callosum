@@ -42,6 +42,8 @@ def test_chrome_css_does_not_introduce_raw_hex_colors_outside_documented_excepti
         ".page-caret",
         ".copy-toast",
     )
+    # On-page find tints sit on the always-white rendered page (DESIGN §1b). Exact values, not a selector pass.
+    find_hit_colors = {"#f3dcc0", "#f0c48e", "#9a5b2e"}
     violations: list[str] = []
     in_block_comment = False
     current_selector = ""
@@ -66,6 +68,7 @@ def test_chrome_css_does_not_introduce_raw_hex_colors_outside_documented_excepti
             or line.startswith("*")
             or any(selector in line for selector in allowed_selectors)
             or any(selector in current_selector for selector in allowed_selectors)
+            or (line.startswith(".pdf-find-hit") and set(HEX_RE.findall(line)) <= find_hit_colors)
         ):
             continue
         violations.append(f"{line_no}: {raw_line.strip()}")

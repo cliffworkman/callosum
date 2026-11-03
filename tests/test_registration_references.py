@@ -16,7 +16,7 @@ from app.backend.pdf_processing.ingest import attach_pdf_to_paper
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import create_attachment, create_paper, get_chunks_for_attachment
 from app.backend.persistence.schema import attachments
-from tests.api_helpers import indexing_collaborators
+from tests.api_helpers import ApiFakeEmbeddingModel, indexing_collaborators
 
 
 @dataclass
@@ -173,6 +173,7 @@ def test_attach_local_registration_pdf_chunks_only_that_attachment(temp_db_url: 
     with engine.begin() as conn:
         paper_id = create_paper(conn, title="Local registration", csl_json={"title": "Local registration"})
     client = TestClient(create_app(db_url=temp_db_url))
+    client.app.state.embedding_model = ApiFakeEmbeddingModel()
 
     response = client.post(
         f"/papers/{paper_id}/registration-attachments?filename=local-plan.pdf",

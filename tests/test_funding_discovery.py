@@ -850,8 +850,22 @@ def test_endpoint_persistence_save_and_segmented_report(temp_db_url):
             }
         }
 
+    awards = [
+        HistoricalAward(
+            "Persistence Foundation",
+            "irs_990_pf",
+            "pf-persistence",
+            purpose_text="pilot community partnership implementation in adolescent mental health",
+            provenance=_prov("pf-persistence"),
+        )
+    ]
     client = TestClient(create_app(db_url=temp_db_url))
+    client.app.state.funding_award_provider = FixtureAwardHistoryProvider(awards=awards)
     client.app.state.funding_grants_gov_client = GrantsGovClient(fetcher=fetcher)
+    client.app.state.funding_openalex_provider = OpenAlexFundingProvider(fetcher=lambda *a, **k: (200, {"results": []}))
+    client.app.state.funding_crossref_provider = CrossrefFundingProvider(
+        fetcher=lambda *a, **k: (200, {"message": {"items": []}})
+    )
     r = client.post(
         "/funding-discovery/run",
         json={
@@ -877,6 +891,9 @@ def test_endpoint_persistence_save_and_segmented_report(temp_db_url):
     assert reloaded_run.json()["report"]["run_id"] == report["run_id"]
     assert report["open_opportunities"] and report["open_opportunities"][0]["status"] == "forecasted"
     assert "funding_prospects" in report and "recurring_schemes" in report
+    assert [p["id"] for p in reloaded_run.json()["report"]["funding_prospects"]] == [
+        p["id"] for p in report["funding_prospects"]
+    ]
     opportunity_id = report["open_opportunities"][0]["id"]
     save_opp = client.post(
         "/funding-discovery/save", json={"item_kind": "opportunity", "canonical_item_id": opportunity_id}

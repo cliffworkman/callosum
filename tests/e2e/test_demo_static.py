@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import io
+import base64
 import os
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
 
 import pytest
-from PIL import Image
 
 if not os.environ.get("CALLOSUM_RUN_E2E"):
     pytest.skip("set CALLOSUM_RUN_E2E=1 to run the browser e2e smoke", allow_module_level=True)
@@ -25,6 +24,25 @@ from tools.demo.build_demo import build_demo  # noqa: E402
 class _QuietHandler(SimpleHTTPRequestHandler):
     def log_message(self, _format, *_args):
         return
+
+
+# Decodes in the page's own browser so the suite needs no imaging dependency; ITU-R 601 luma, 8-bit.
+_MIN_LUMA_JS = """async (encoded) => {
+  const bytes = Uint8Array.from(atob(encoded), (c) => c.charCodeAt(0));
+  const bitmap = await createImageBitmap(new Blob([bytes], { type: "image/png" }));
+  const context = new OffscreenCanvas(bitmap.width, bitmap.height).getContext("2d");
+  context.drawImage(bitmap, 0, 0);
+  const { data } = context.getImageData(0, 0, bitmap.width, bitmap.height);
+  let darkest = Infinity;
+  for (let i = 0; i < data.length; i += 4) {
+    darkest = Math.min(darkest, Math.floor((299 * data[i] + 587 * data[i + 1] + 114 * data[i + 2]) / 1000));
+  }
+  return darkest;
+}"""
+
+
+def _min_luma(page, png: bytes) -> float:
+    return page.evaluate(_MIN_LUMA_JS, base64.b64encode(png).decode("ascii"))
 
 
 def test_static_demo_starts_in_library_exposes_saved_methods_and_never_leaves_origin(tmp_path):
@@ -455,8 +473,7 @@ def test_static_demo_reader_has_text_settings_are_honest_and_first_load_is_quiet
             expect(current).to_be_attached(timeout=10_000)
             current.scroll_into_view_if_needed()
             page.wait_for_timeout(1000)
-            shot = Image.open(io.BytesIO(current.screenshot())).convert("L")
-            assert min(shot.get_flattened_data() if hasattr(shot, "get_flattened_data") else shot.getdata()) < 100
+            assert _min_luma(page, current.screenshot()) < 100
             find.fill("zzqxnotaword")
             page.keyboard.press("Enter")
             expect(page.locator("[class*=pdf-find]").first).to_contain_text("No matches", timeout=10_000)
