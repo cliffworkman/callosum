@@ -107,6 +107,8 @@ def test_whitespace_normalization_keeps_case() -> None:
 
 
 class _Pooling:
+    """sentence-transformers before 5.6: ``get_pooling_mode_str()`` only."""
+
     def __init__(self, mode: str) -> None:
         self.mode = mode
 
@@ -114,9 +116,22 @@ class _Pooling:
         return self.mode
 
 
+class _ModernPooling:
+    """sentence-transformers 5.6: a ``pooling_mode`` attribute (string or sequence), no legacy method."""
+
+    def __init__(self, mode: object) -> None:
+        self.pooling_mode = mode
+
+
+class _BothPooling(_Pooling):
+    def __init__(self, legacy: str, modern: object) -> None:
+        super().__init__(legacy)
+        self.pooling_mode = modern
+
+
 class _FakeST:
-    def __init__(self, pooling: str = "cls", max_seq_length: int = 512) -> None:
-        self._modules = {"0": object(), "1": _Pooling(pooling)}
+    def __init__(self, pooling: str = "cls", max_seq_length: int = 512, module: object | None = None) -> None:
+        self._modules = {"0": object(), "1": module if module is not None else _Pooling(pooling)}
         self.max_seq_length = max_seq_length
         self.inputs: list[list[str]] = []
 
@@ -155,6 +170,94 @@ def test_query_and_document_sides_are_encoded_separately() -> None:
 def test_checkpoint_contract_mismatch_refuses_to_encode(fake: _FakeST) -> None:
     with pytest.raises(EmbeddingModelConfigurationError):
         _wrapper(fake).encode_queries(["q"])
+    assert fake.inputs == []
+
+
+@pytest.mark.parametrize(
+    "module",
+    [
+        _Pooling("cls"),
+        _ModernPooling("cls"),
+        _ModernPooling(("cls",)),
+        _ModernPooling(["cls"]),
+        _BothPooling("cls", "cls"),
+    ],
+    ids=["legacy-method", "attr-str", "attr-tuple", "attr-list", "both-agree"],
+)
+def test_cls_only_pooling_is_accepted_through_either_interface(module: object) -> None:
+    fake = _FakeST(module=module)
+    _wrapper(fake).encode_documents(["d"])
+    assert fake.inputs == [["d"]]
+
+
+@pytest.mark.parametrize(
+    "module",
+    [
+        _ModernPooling("mean"),
+        _ModernPooling("max"),
+        _ModernPooling(("cls", "mean")),
+        _Pooling("cls+mean"),
+        _ModernPooling(()),
+        _ModernPooling(""),
+        _ModernPooling(None),
+        _ModernPooling(7),
+        _ModernPooling(("cls", 1)),
+        _BothPooling("cls", "mean"),
+        _BothPooling("mean", "cls"),
+        object(),  # no pooling module at all
+    ],
+    ids=[
+        "mean",
+        "max",
+        "cls+mean",
+        "legacy-cls+mean",
+        "empty-tuple",
+        "empty-str",
+        "none",
+        "int",
+        "mixed-types",
+        "conflict-cls-mean",
+        "conflict-mean-cls",
+        "missing",
+    ],
+)
+def test_non_cls_or_unreadable_pooling_refuses_to_encode(module: object) -> None:
+    fake = _FakeST(module=module)
+    with pytest.raises(EmbeddingModelConfigurationError):
+        _wrapper(fake).encode_documents(["d"])
+    assert fake.inputs == []
+
+
+def test_two_pooling_modules_refuse_to_encode() -> None:
+    fake = _FakeST(module=_ModernPooling("cls"))
+    fake._modules["2"] = _ModernPooling("cls")
+    with pytest.raises(EmbeddingModelConfigurationError):
+        _wrapper(fake).encode_documents(["d"])
+    assert fake.inputs == []
+
+
+def _real_pooling_class():  # type: ignore[no-untyped-def]
+    pytest.importorskip("sentence_transformers")
+    try:
+        from sentence_transformers.sentence_transformer.modules import Pooling  # 5.6+
+    except ImportError:
+        from sentence_transformers.models import Pooling  # earlier releases
+    return Pooling
+
+
+@pytest.mark.parametrize("mode", ["cls", ["cls"], ("cls",)])
+def test_real_sentence_transformers_cls_pooling_module_is_accepted(mode: object) -> None:
+    """The installed library's own Pooling class (5.6.1 in the lock and the packaged runtime), not a fake."""
+    fake = _FakeST(module=_real_pooling_class()(384, pooling_mode=mode))
+    _wrapper(fake).encode_documents(["d"])
+    assert fake.inputs == [["d"]]
+
+
+@pytest.mark.parametrize("mode", ["mean", "max", ("cls", "mean")])
+def test_real_sentence_transformers_non_cls_pooling_module_is_refused(mode: object) -> None:
+    fake = _FakeST(module=_real_pooling_class()(384, pooling_mode=mode))
+    with pytest.raises(EmbeddingModelConfigurationError):
+        _wrapper(fake).encode_documents(["d"])
     assert fake.inputs == []
 
 

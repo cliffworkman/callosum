@@ -140,9 +140,9 @@ class SentenceTransformerEmbeddingModel:
             return
         if self.expected_pooling is not None:
             modes = [
-                module.get_pooling_mode_str()
+                _pooling_mode(module)
                 for module in getattr(model, "_modules", {}).values()
-                if hasattr(module, "get_pooling_mode_str")
+                if hasattr(module, "get_pooling_mode_str") or hasattr(module, "pooling_mode")
             ]
             if modes != [self.expected_pooling]:
                 raise EmbeddingModelConfigurationError(
@@ -169,6 +169,31 @@ class SentenceTransformerEmbeddingModel:
                 model_kwargs={"use_safetensors": True},
             )
         return self._model
+
+
+def _pooling_mode(module: object) -> str:
+    """One pooling module's strategy as a ``+``-joined string (``"cls"``, ``"cls+mean"``), read from the module itself.
+
+    sentence-transformers before 5.6 exposes ``get_pooling_mode_str()``; 5.6 exposes ``pooling_mode`` (a string or a
+    sequence of strings) instead. Both are accepted; anything unreadable, or the two disagreeing, refuses to encode."""
+    reported: list[tuple[str, ...]] = []
+    legacy = getattr(module, "get_pooling_mode_str", None)
+    if legacy is not None:
+        value = legacy() if callable(legacy) else None
+        if not isinstance(value, str):
+            raise EmbeddingModelConfigurationError(f"unreadable pooling mode {value!r}")
+        reported.append(tuple(value.split("+")) if value else ())
+    if hasattr(module, "pooling_mode"):
+        value = module.pooling_mode  # type: ignore[attr-defined]
+        if isinstance(value, str):
+            reported.append((value,))
+        elif isinstance(value, (list, tuple)) and all(isinstance(mode, str) for mode in value):
+            reported.append(tuple(value))
+        else:
+            raise EmbeddingModelConfigurationError(f"unreadable pooling mode {value!r}")
+    if len(set(reported)) != 1:
+        raise EmbeddingModelConfigurationError(f"conflicting pooling modes {reported}")
+    return "+".join(reported[0])
 
 
 def l2_normalize(vector: list[float]) -> list[float]:

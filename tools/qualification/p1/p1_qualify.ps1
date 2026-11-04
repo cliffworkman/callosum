@@ -27,7 +27,8 @@ $EntryCount = 41338
 $UnpackedBytes = 1315019532
 $PythonVersion = '3.11.15'
 $ReleaseBase = "https://github.com/cliffworkman/callosum/releases/download/python-runtime-$RuntimeId"
-$AllowedChanges = @('^tools/qualification/p1/', '^\.github/workflows/p1-qualification\.yml$')
+# Inc 634 adds the two files of the Arctic pooling compatibility fix found by run 41861114677, named exactly.
+$AllowedChanges = @('^tools/qualification/p1/', '^\.github/workflows/p1-qualification\.yml$', '^app/backend/embeddings/models\.py$', '^tests/test_embedding_profiles\.py$')
 $FirewallGroup = 'callosum-p1-qualification'
 # Start gate, from the workload rather than the laptop: the predeclared P1b ceiling is 2.87 GB peak commit for the
 # heavier (DeBERTa) process and the models run one at a time, so 8 GiB free commit and 6 GiB available physical memory

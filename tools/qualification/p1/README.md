@@ -31,7 +31,7 @@ Each stage runs once; a failed stage stops the run (except that Arctic and DeBER
 | Stage | What it proves |
 |---|---|
 | resources | runner memory/disk recorded; start gate 6 GiB available physical, 8 GiB free commit, 6 GiB disk |
-| commit | HEAD is the triggering commit; `d6649dfb` (and the regression PASS `c7c645fe`) are ancestors; only this directory and the workflow differ from `d6649dfb`; checkout clean |
+| commit | HEAD is the triggering commit; `d6649dfb` (and the regression PASS `c7c645fe`) are ancestors; only this directory, the workflow and the two files of the inc-634 Arctic pooling fix (`app/backend/embeddings/models.py`, `tests/test_embedding_profiles.py`) differ from `d6649dfb`; checkout clean |
 | download | the archive, manifest and signature from the project's immutable `python-runtime-…` release (HTTPS, no token) |
 | archive | 382,931,495 bytes, SHA-256 `ce0d2052…4c` (pinned here; the primary trust anchor) |
 | manifest | runtime ID, archive hash/size, tree hash, entry count, unpacked bytes, interpreter path and version equal the pinned values |
