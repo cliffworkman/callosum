@@ -1,4 +1,4 @@
-# Callosum 0.6.0: packaged Arctic S and DeBERTa qualification plan (inc 631, revised inc 632A)
+# Callosum 0.6.0: packaged Arctic S and DeBERTa qualification plan (inc 631, revised incs 632A and 632C)
 
 **Status:** plan only. Nothing in this plan has run. No model was downloaded or loaded, no installer was built, no
 account or ACL was changed. Every execution stage needs Cliff's separate per-experiment authorization.
@@ -23,6 +23,36 @@ Facts below were read from the code at `c7c645fe` (no code changed since), not i
    G1 sets and predeclared P1b resource rules (§8.2, §8.3).
 
 The rows in §1 to §5 that these corrections change are marked **[R1]**.
+
+**Revision 2, 2026-11-03 (incs 632B, 632B-R, 632C).** The installed-runtime source assumed in §4 and §7.1 was
+disproved. The original text is kept below, marked **[R2: superseded]**. Each point was verified from receipts:
+1. *History.* The 2026-10-31 compatibility smoke probe (§0, claim 1) ran the installed 0.5.16 interpreter **in place**
+   as `python.exe -I probe.py`. `-I` implies `-E`, so Python ignored `PYTHONDONTWRITEBYTECODE` as well. Extraction
+   gives source files new modification times, so the shipped `.pyc` headers no longer matched. On import, Python
+   recompiled and **replaced 3,195 shipped `__pycache__/*.pyc` files** (2026-10-31 13:30 to 13:34, net +121,450 B,
+   same paths, same entry count).
+2. *Failed digest.* In inc 632B the installed tree gave 41,338 entries, 1,315,140,982 B and SHA-256
+   `63d7609ec5a5434bdd776e0ca3227343ab35f2b35a331f4454d28b967bc8c990`, not the signed
+   `a51f65b35c9d5abbdf3317569f5ee798bcb20fd6437459913b3fcf030167f2fc`. The installed runtime is therefore not a
+   verifiable source. It **has not been repaired**: the desktop app keeps running it (it checks only its receipt), and
+   repairing it would modify the maintainer's install, which is a separate decision.
+3. *Recovery.* In inc 632B-R the signed release archive `win-x86_64-py3.11-s1-2094b5a287a1dd54.tar.gz` was downloaded
+   once. Its 382,931,495 B and SHA-256 `ce0d2052a0a9dc1cc542aa9ebcbe32b938984f6ed948e5b8659de2c011334d4c` match the
+   manifest and the original install receipt. It was extracted under the installer's rules, with no execution, to
+   `C:\callosum-632\recovery-632br\runtime`. Two independent computations reproduced `a51f65b3…` exactly (41,338
+   entries, 1,315,019,532 B). Against these pristine bytes, the installed tree differs in exactly the 3,195 `.pyc` files
+   and nowhere else.
+4. *Signature limitation.* The manifest's minisign signature was **not** re-verified: the project's verifier crate was
+   not available offline, and fetching it would have been a second download. The binding is the hash chain to the
+   2026-10-01 install receipt, written after the installer did verify the signature. It is not a signer
+   authentication made in 2026.
+5. *Smoke check versus P1.* The 2026-10-31 probe remains a historical packaged-interpreter **compatibility smoke check**
+   (direct library calls, the maintainer's cache, no manifest, no contract, no isolation, run in place). It is not P1.
+   P1 (§9) remains unstarted.
+6. *Revised P1 source.* P1 runs a **fresh per-experiment copy of the recovered pristine runtime**, never the reference
+   copy and never the installed runtime. The copy is digest-verified (file digest **and** directory inventory) before
+   and after. `callosum-val` is denied write access to it. The interpreter runs as `python.exe -I -B`, because `-B`
+   (not the environment variable) is what stops bytecode writes under `-I`.
 
 ## 0. Evidence boundaries: four distinct claims
 
@@ -100,11 +130,13 @@ checkouts. JUNO is therefore not needed for packaged qualification and should no
 `a51f65b35c9d5abbdf3317569f5ee798bcb20fd6437459913b3fcf030167f2fc`. So the packaged interpreter can be qualified
 **without building an installer and without a runtime download**, as `smoke_test_backend.py` already does (portable
 interpreter + staged source). Re-hashing the installed tree before copying is the first preflight step (§7).
+**[R2: superseded]** The installed tree failed that re-hash (Revision 2). P1 instead uses the signed archive,
+downloaded once in inc 632B-R. Its extracted tree reproduced `a51f65b3…`. No installer is built.
 
 | Item | Plan |
 |---|---|
 | Workspace | a new disposable root (§7.1), outside Dropbox and every protected path; a staged `callosum-src` from a bundle of `c7c645fe` (or a later documentation-only HEAD) |
-| Runtime | a **copy** of the installed runtime directory, verified against the activation tree digest. The installed copy is never executed in place again and never written |
+| Runtime | a **copy** of the installed runtime directory, verified against the activation tree digest. The installed copy is never executed in place again and never written. **[R2: superseded]** Now a fresh per-experiment copy of the recovered pristine runtime `C:\callosum-632\recovery-632br\runtime` (Revision 2, point 6). The installed runtime is not used |
 | Account | the existing `callosum-val` (standard). No new account, no ACL change outside the disposable root |
 | Model storage **[R1]** | a dedicated `HF_HOME` inside the disposable root; full per-stage snapshot set and headroom in §6 (about 0.9 GB for all four models, 2 GB budget) |
 | Network **[R1]** | a bounded, observed download phase, then an offline phase enforced per §7.3; never described as isolation |
@@ -168,7 +200,8 @@ The inc 630 mechanisms are reused; none of their receipts are. Every window has 
 | Evidence | `%USERPROFILE%\callosum-worktrees\validation-632\<window>\`, written only by the administrator stages; `<window>` is `p1`, `p1b`, … |
 | Token namespace | `632-<window>-<uuid>`; RUN refuses tokens from `validation-630` and any reused token |
 | Ownership and ACL | root owned by Administrators; `callosum-val` gets Modify on `tmp\`, `db\`, `hf\` (download phase only), `evidence\`; Read and Execute on `runtime\` and `src\`. After the download phase `hf\` drops to Read and Execute |
-| Runtime copy | SETUP re-hashes the installed runtime tree with the same canonical algorithm as `python_runtime.rs` (validated by reproducing `a51f65b3…` on the installed tree before copying), copies it, re-hashes the copy, refuses on any mismatch. AFTER re-hashes the copy |
+| Runtime copy | SETUP re-hashes the installed runtime tree with the same canonical algorithm as `python_runtime.rs` (validated by reproducing `a51f65b3…` on the installed tree before copying), copies it, re-hashes the copy, refuses on any mismatch. AFTER re-hashes the copy. **[R2: superseded]** SETUP re-hashes the recovered pristine reference instead (`a51f65b3…`; it is never executed). It copies the reference into the attempt root and verifies the copy's file digest and directory inventory. It then sets the copy's ACL: owner Administrators, `callosum-val` read and execute plus an explicit write/append/attribute/delete deny. AFTER repeats both checks; any added, removed or rewritten file, `.pyc` included, or any new directory, even an empty one, is a FAIL |
+| Bytecode **[R2]** | every interpreter launch is `python.exe -I -B`. `-I` ignores `PYTHONDONTWRITEBYTECODE`, so the variable alone is not a control |
 | Module resolution | the copied interpreter runs with `-I` (isolated: no user site, no `PYTHON*` variables, no script-directory insertion) from `src\` with an explicit `sys.path` entry for the staged source only; the child proof prints `sys.path` and `app.__file__`, which must lie under `C:\callosum-632\src` |
 | Identity guard | as inc 630: token account name, not in Administrators or CodexSandboxUsers, registered and effective profile `C:\Users\callosum-val`, checked before any Python starts |
 | Environment guard | as inc 630, plus: `HF_HOME`, `HF_HUB_CACHE`, `TMP`, `TEMP` point inside the root; `CALLOSUM_DB_URL`, `SSL_CERT_FILE`, `REQUESTS_CA_BUNDLE`, `CURL_CA_BUNDLE`, `HF_TOKEN`, `HUGGING_FACE_HUB_TOKEN`, `PYTHONPATH`, `CALLOSUM_APP_DATA_DIR` (except where P2 sets it inside the root) must be absent. The receipt is written **after** the token check (fixes the inc 630 receipt-overwrite defect) |

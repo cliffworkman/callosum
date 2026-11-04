@@ -30,6 +30,26 @@ changed. Nothing was run against models, browsers, installers or the research da
 - **Issue #110:** the existing harness evidence already shows the misleading state (completed job, unchecked paper,
   UI identical to "checked, none found"). What is missing is frequency, not mechanism.
 
+## Correction, 2026-11-03 (incs 632A, 632B, 632B-R, 632C)
+The two bullets above were written in inc 631 and are kept as written. Two of their statements are wrong:
+- **"Real model behaviour is still unproven anywhere in a packaged runtime."** Wrong. On 2026-10-31, a compatibility
+  smoke probe loaded both pinned checkpoints (Arctic S `e596f507…`, DeBERTa `6f5cf0a2…`) in the installed 0.5.16
+  packaged interpreter. It used direct `SentenceTransformer`/`CrossEncoder` calls, offline, from the maintainer's cache.
+  Against the development environment it gave Arctic cosine ≥ 0.999999866 and DeBERTa max |Δp| 2.65e-5. That was a
+  **smoke check**, not formal qualification: no app loader, no manifest verification (manifests came in inc 615), no
+  `verify_nli_checkpoint`, no isolation, and only 3 texts and 2 pairs. Formal P1 qualification has not started.
+- **"…needs no installer build and no runtime download."** Disproved. The smoke probe ran the installed interpreter in
+  place as `python.exe -I`. `-I` ignores `PYTHONDONTWRITEBYTECODE`, and Python replaced 3,195 shipped `.pyc` files. In
+  inc 632B the installed tree's digest (`63d7609e…`) no longer matched the signed `a51f65b3…`. The installed runtime
+  has **not** been repaired.
+- **Inc 632B-R** downloaded the signed runtime archive once (SHA-256 `ce0d2052…`, matching the manifest and the
+  install receipt), extracted it without executing it and reproduced `a51f65b3…` exactly, twice. The manifest
+  signature was **not** re-verified, because the verifier crate was not available offline. The binding is the hash
+  chain to the original install receipt.
+- **Revised P1 source:** a fresh per-experiment copy of that recovered pristine runtime, launched as `python.exe -I -B`.
+  `callosum-val` is denied write access, and the file digest and directory inventory are checked before and after.
+  No installer build is needed. Details: `RELEASE_060_PACKAGED_MODEL_QUALIFICATION_PLAN.md`, Revision 2.
+
 ## Manual verification script
 1. `git show --stat HEAD` lists only Markdown files under `.claude/`.
 2. `git diff c7c645fe HEAD -- app tests pyproject.toml uv.lock alembic integrations tools adapters` is empty.
