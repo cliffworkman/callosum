@@ -1,0 +1,57 @@
+name: P1b packaged DeBERTa performance qualification (Windows)
+
+# Qualifies P1b only: on the signed Windows packaged runtime, the app's own verifier path with DeBERTa meets the
+# predeclared warm-latency and memory limits alone and alongside the real Arctic S index worker
+# (tools/qualification/p1b/P1B_PREDECLARATION.md). It never arms DEBERTA_RELEASE_GATES and does not close P2, P3, P4,
+# macOS/Linux, issue #110, the security review or the 0.6.0 release gate. P1 and its workflow are untouched.
+#
+# Trigger: a push to the dedicated P1b qualification branch only. Nothing on main, no tags, no pull requests, no
+# schedule, no workflow_dispatch.
+on:
+  push:
+    branches: ["qualify/p1b-0.6.0"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: p1b-qualification
+  cancel-in-progress: false
+
+jobs:
+  p1b:
+    if: github.repository == 'cliffworkman/callosum' && github.ref == 'refs/heads/qualify/p1b-0.6.0'
+    runs-on: windows-2025
+    timeout-minutes: 180
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # the driver proves the tree equals the qualified P1 commit plus this harness
+          persist-credentials: false
+
+      - name: Run P1b qualification (single attempt, no reruns)
+        id: p1b
+        run: >-
+          pwsh -NoProfile -File tools/qualification/p1b/p1b_qualify.ps1
+          -Repo "$env:GITHUB_WORKSPACE" -Work "$env:RUNNER_TEMP\p1b"
+
+      - name: Remove qualification firewall rules and stray runtime processes
+        if: always()
+        run: |
+          Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -like "$env:RUNNER_TEMP\p1b\runtime\*" } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+          Get-NetFirewallRule -Group 'callosum-p1b-qualification' -ErrorAction SilentlyContinue | Remove-NetFirewallRule
+          $left = @(Get-NetFirewallRule -Group 'callosum-p1b-qualification' -ErrorAction SilentlyContinue).Count
+          "firewall rules left in the qualification group: $left"
+          if ($left) { exit 1 }
+
+      - name: Preserve receipt and phase outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p1b-qualification-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/p1b/out
+          if-no-files-found: error
+          retention-days: 90
