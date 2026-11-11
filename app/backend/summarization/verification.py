@@ -13,7 +13,7 @@ from sqlalchemy import Connection, and_, select
 from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.pipeline import embed_chunks
 from app.backend.embeddings.vector_store import VectorStore
-from app.backend.model_runtime import PINNED_MODEL_REVISIONS, ManagedModelRuntime
+from app.backend.model_runtime import PINNED_MODEL_REVISIONS, ManagedModelRuntime, load_cross_encoder
 from app.backend.pdf_processing.extraction import canonical_text_contains
 from app.backend.pdf_processing.location import locate_quote_for_attachment
 from app.backend.persistence.schema import chunks, embeddings
@@ -187,15 +187,12 @@ class NLISupportScorer:
             if self._loader is not None:
                 self._model = self._loader()
             else:
-                from sentence_transformers import CrossEncoder
-
-                self._model = CrossEncoder(
+                self._model = load_cross_encoder(
                     self.model_name,
                     revision=self.revision,
                     device=self.device,
                     local_files_only=self.local_files_only,
                     backend=self.backend,
-                    model_kwargs={"use_safetensors": True},
                 )
         return self._model
 

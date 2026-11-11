@@ -7,14 +7,25 @@ with DeBERTa meet the predeclared warm-latency and memory limits, alone and alon
 The method, the limits and every aggregation rule are fixed in `P1B_PREDECLARATION.md` before any measurement. The
 driver refuses to run if that file or the fixture differs from the SHA-256 pinned in `p1b_qualify.ps1`.
 
+**Revision 2 (inc 637).** The first attempt (run 41948518913) is INCONCLUSIVE and ran DeBERTa in float16.
+`P1B_PREDECLARATION_V2.md`, also pinned, revises v1 for the corrected application:
+- DeBERTa is loaded with `dtype=torch.float32` and verified on its loaded parameters;
+- a `precision` stage checks float32 on the loaded model and P1 float32 parity, and stops the run before anything is
+  timed;
+- every DeBERTa measurement process repeats the check on its own model.
+
+Limits, fixture and measurement rules are unchanged. The app and tests trees are pinned to the corrected source.
+
 | File | Role |
 |---|---|
-| `P1B_PREDECLARATION.md` | method, conditions, measurement definitions, acceptance, verdict rules, scope |
+| `P1B_PREDECLARATION.md` | v1: method, conditions, measurement definitions, acceptance, verdict rules, scope |
+| `P1B_PREDECLARATION_V2.md` | v2 (inc 637): code under test, precision stage, per-process dtype checks; everything else unchanged |
 | `fixtures/p1b-pairs-v1.json` | 21 public synthetic quote/claim pairs, 9 distractor chunks, the indexing-corpus recipe |
 | `p1b_qualify.ps1` | the driver: runtime verification (P1 scripts, unchanged), firewall boundary, serial stages, receipt |
 | `p1b_probe.py` | one phase per process inside the packaged `python.exe -I -B` |
 | `p1b_worker.py` | starts the production `index_worker.main` under `-I -B` |
 | `p1b_selftest.py` | local, model-free self-test of the harness (fake checkpoints; never a measurement) |
+| `p1b_driver_selftest.ps1` | model-free test of the driver's process bookkeeping (run by `p1b_selftest.py`) |
 
 Run the self-test before publishing a change to this directory, with an interpreter that has the locked
 dependencies:

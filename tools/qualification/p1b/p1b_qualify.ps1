@@ -1,10 +1,11 @@
-# P1b hosted Windows qualification driver (inc 636): DeBERTa performance and resources on the packaged runtime.
+# P1b hosted Windows qualification driver (inc 636; revision 2, inc 637): DeBERTa performance and resources on the
+# packaged runtime, with the inc 637 float32 loading correction.
 #
-# Method: P1B_PREDECLARATION.md (pinned below by SHA-256). Every stage runs once, in order; nothing is retried except
-# the predeclared once-per-slot noise repeat. Stages:
+# Method: P1B_PREDECLARATION.md (v1, unchanged) as revised by P1B_PREDECLARATION_V2.md, both pinned below by SHA-256.
+# Every stage runs once, in order; nothing is retried except the predeclared once-per-slot noise repeat. Stages:
 #   resources -> commit -> download -> archive -> manifest -> extract -> tree -> signature -> runtime_id -> identity
 #   -> provision (network allowed) -> boundary (outbound block on the exact python.exe + controls) -> verify -> tokenize
-#   -> seed -> failclosed -> warmup -> deberta_solo -> minilm2_solo -> worker_start -> deberta_concurrent
+#   -> precision (float32 on the loaded model + P1 float32 parity; stops before any timing) -> seed -> failclosed -> warmup -> deberta_solo -> minilm2_solo -> worker_start -> deberta_concurrent
 #   -> minilm2_concurrent -> worker_stop -> evaluate -> after -> cleanup
 # Verdict: a failed integrity/contract/scientific/isolation/performance check is FAIL; otherwise a failed
 # infrastructure check or an incomplete stage is INCONCLUSIVE; PASS needs every stage complete and every check passed.
@@ -19,14 +20,17 @@ Set-StrictMode -Version 3
 
 # --- pinned identities (committed; any drift is a FAIL, never a re-pin) ---------------------------------------------
 $QualifiedP1Commit = 'f1d6c4302af3350146676fd79b7c62bacf3495c7'
-$IntegrationHead = 'da47c81bcbd928da2d7a2ab7f596d0cecc7d54f9'   # app/integrations/alembic/tests/pyproject/uv.lock trees equal this commit's; the two P1 pins equal the qualified P1 commit's
+$IntegrationHead = 'da47c81bcbd928da2d7a2ab7f596d0cecc7d54f9'   # integrations/alembic/pyproject/uv.lock trees equal this commit's; the two P1 pins equal the qualified P1 commit's
+# app and tests are the inc 637 corrected source: the integration head's trees (app 39edfb6a, tests 2ab60bee) plus
+# exactly the files in $AllowedChanges below (float32 DeBERTa loading and its tests). Nothing else differs.
 $TreePins = [ordered]@{
-    'app' = '39edfb6a1e29eb37155589ce3634287980d77d1e'; 'integrations' = 'f02b9dbad694cceee0f109d454465922380e8fa9'
-    'alembic' = '88d476b99486fe22716b6156437006d4cc31f525'; 'tests' = '2ab60beeb6d912f7ca30261d984db327ac3ca9b4'
+    'app' = 'aabc1618d81a62054eaa8e9245dbf36a8c263e59'; 'integrations' = 'f02b9dbad694cceee0f109d454465922380e8fa9'
+    'alembic' = '88d476b99486fe22716b6156437006d4cc31f525'; 'tests' = '6372b3ae068618cd171901c2a5063b8054ae3efd'
     'pyproject.toml' = '53edf2b51b86385154bac5ed1840512ca026caca'; 'uv.lock' = 'e5966c320bb5e4f113fd18c58de2ec8ef8e1f74b'
     'tools/qualification/p1' = 'bed59ea6e768bc6bd19349290b63b97e7204bcef'; '.github/workflows/p1-qualification.yml' = '5b328e8de4c9c268cf85278a0120e156760fc12b'
 }
-$PredeclarationSha = '6a5a2d85adce3c91d05a81ce506373d190c5e7474ecb9eb6873f75bc8d93e063'
+$PredeclarationSha = '6a5a2d85adce3c91d05a81ce506373d190c5e7474ecb9eb6873f75bc8d93e063'   # v1, the first attempt's; unchanged
+$PredeclarationV2Sha = 'cd04c73ad591d8ef1af48dd4cca720103f64bd3e0e2eee40f7da6af13633d030'
 $FixtureSha = 'acd2723c5b389f9f446ee00069475a6c256de3c19865108b3bd9f66aafb49920'
 $CorpusSha = 'cb488cdea1277d3f4f9738f21f146cc3d0bda5bd00f6b70af9b1147203d416bc'
 $RuntimeId = 'win-x86_64-py3.11-s1-2094b5a287a1dd54'
@@ -37,20 +41,23 @@ $EntryCount = 41338
 $UnpackedBytes = 1315019532
 $PythonVersion = '3.11.15'
 $ReleaseBase = "https://github.com/cliffworkman/callosum/releases/download/python-runtime-$RuntimeId"
-$AllowedChanges = @('^tools/qualification/p1b/', '^\.github/workflows/p1b-qualification\.yml$')
+$AllowedChanges = @('^tools/qualification/p1b/', '^\.github/workflows/p1b-qualification\.yml$',
+    '^app/backend/model_runtime\.py$', '^app/backend/summarization/verification\.py$', '^app/backend/summarization/stance\.py$',
+    '^tests/test_nli_precision\.py$', '^tests/test_desktop_packaging\.py$')   # v2 §2: the inc 637 correction, exactly
 $FirewallGroup = 'callosum-p1b-qualification'
 $GatePhysGiB = 6; $GateCommitGiB = 8; $GateDiskGiB = 10; $FloorPhysGiB = 1.5   # plan §7.4; stop floor as P1
 $NoiseForeignCpuRatio = 0.25   # predeclaration §7
 $WorkerReadyChunks = 16        # two committed batches of 8 before condition B starts
 $OsProcesses = @('Idle', 'System', 'Registry', 'Memory Compression', 'Secure System', 'WmiPrvSE')
 $Stages = 'resources', 'commit', 'download', 'archive', 'manifest', 'extract', 'tree', 'signature', 'runtime_id', 'identity',
-'provision', 'boundary', 'verify', 'tokenize', 'seed', 'failclosed', 'warmup', 'deberta_solo', 'minilm2_solo', 'worker_start',
+'provision', 'boundary', 'verify', 'tokenize', 'precision', 'seed', 'failclosed', 'warmup', 'deberta_solo', 'minilm2_solo', 'worker_start',
 'deberta_concurrent', 'minilm2_concurrent', 'worker_stop', 'evaluate', 'after', 'cleanup'
 
 $Here = $PSScriptRoot
 $P1 = Join-Path (Split-Path $Here -Parent) 'p1'
 $Fixture = Join-Path $Here 'fixtures\p1b-pairs-v1.json'
 $Predeclaration = Join-Path $Here 'P1B_PREDECLARATION.md'
+$PredeclarationV2 = Join-Path $Here 'P1B_PREDECLARATION_V2.md'
 $Probe = Join-Path $Here 'p1b_probe.py'
 $WorkerShim = Join-Path $Here 'p1b_worker.py'
 New-Item -ItemType Directory -Path $Work -ErrorAction SilentlyContinue | Out-Null
@@ -158,12 +165,14 @@ function Invoke-Phase([string]$Stage, [string]$Phase, [bool]$Offline, [int]$Time
     $wall = $sw.Elapsed.TotalSeconds
     $cpu1 = Cpu-Snapshot
     $exclude = @($p.Id, $PID) + @($children.Keys | ForEach-Object { [int]$_ }) + @($(if ($script:Worker) { $script:Worker.Id }))
+    # $procName, never $name: PowerShell names are case-insensitive, so $name would overwrite the $Name parameter
+    # (run 41948518913 filed deberta_solo_1 under "MsMpEng"; p1b_driver_selftest.ps1 guards this).
     $foreign = @(foreach ($id in $cpu1.Keys) {
-            $name = $cpu1[$id][0]
-            if ($exclude -contains $id -or $OsProcesses -contains $name -or $name -eq 'conhost') { continue }
-            $before = if ($cpu0.ContainsKey($id) -and $cpu0[$id][0] -eq $name) { $cpu0[$id][1] } else { 0 }
+            $procName = $cpu1[$id][0]
+            if ($exclude -contains $id -or $OsProcesses -contains $procName -or $procName -eq 'conhost') { continue }
+            $before = if ($cpu0.ContainsKey($id) -and $cpu0[$id][0] -eq $procName) { $cpu0[$id][1] } else { 0 }
             $d = $cpu1[$id][1] - $before
-            if ($d -gt 0.05) { [pscustomobject]@{ pid = $id; name = $name; cpu_s = [math]::Round($d, 2) } }
+            if ($d -gt 0.05) { [pscustomobject]@{ pid = $id; name = $procName; cpu_s = [math]::Round($d, 2) } }
         }) | Sort-Object { $_.cpu_s } -Descending
     $foreignTotal = 0.0; foreach ($f in $foreign) { $foreignTotal += $f.cpu_s }
     $peakWs = 0.0; foreach ($x in $samples) { if ($x.Contains('ws_mb')) { $peakWs = [math]::Max($peakWs, $x.ws_mb) } }
@@ -206,6 +215,7 @@ function Measure-Condition([string]$Stage, [string]$Model, [string]$Condition, [
             $name = if ($attempt -eq 1) { "${key}_$slot" } else { "${key}_${slot}_repeat" }
             $r = Invoke-Phase $Stage 'measure' $true 900 ($extra + @('--label', $name)) $true $name
             if ($null -eq $r -or -not $r['data'].ContainsKey('resource_policy')) { return }   # the failed checks are already recorded
+            if (-not $Processes.Contains($name)) { [void](Add-Check $Stage "${name}_process_record_present" 'infrastructure' $false 'harness defect: Invoke-Phase recorded no process metadata under this name'); return }
             $pr = $Processes[$name]
             $reserve = $r['data']['resource_policy']['reserve_mb']
             $lowMemory = ($pr.min_available_phys_gib * 1024) -lt $reserve
@@ -258,7 +268,8 @@ function Run-Stages {
     [void](Add-Check 'resources' 'administrator_for_firewall' 'infrastructure' $admin '')
     if (-not (Complete 'resources')) { return }
 
-    # commit: the qualification tree is the qualified P1 commit plus this harness; the app equals the integration head
+    # commit: the qualification tree is the qualified P1 commit plus this harness and the inc 637 correction, and the
+    # app/tests trees equal the pinned corrected source (the integration head plus exactly the allowed files)
     $head = (git -C $Repo rev-parse HEAD).Trim()
     $Info.commit = [ordered]@{ head = $head; qualified_p1 = $QualifiedP1Commit; integration_head = $IntegrationHead; github_sha = $env:GITHUB_SHA; ref = $env:GITHUB_REF }
     [void](Add-Check 'commit' 'head_is_triggering_commit' 'integrity' ((-not $env:GITHUB_SHA) -or $head -eq $env:GITHUB_SHA) $head)
@@ -272,8 +283,9 @@ function Run-Stages {
     foreach ($k in $TreePins.Keys) { $trees[$k] = (git -C $Repo rev-parse "HEAD:$k" 2>$null) }
     $Info.commit.trees = $trees
     $drift = @($TreePins.Keys | Where-Object { $trees[$_] -ne $TreePins[$_] })
-    [void](Add-Check 'commit' 'application_trees_equal_integration_head' 'integrity' ($drift.Count -eq 0) $drift)
+    [void](Add-Check 'commit' 'application_trees_equal_pins' 'integrity' ($drift.Count -eq 0) $drift)
     [void](Add-Check 'commit' 'predeclaration_sha256' 'integrity' ((Sha256 $Predeclaration) -ceq $PredeclarationSha) (Sha256 $Predeclaration))
+    [void](Add-Check 'commit' 'predeclaration_v2_sha256' 'integrity' ((Sha256 $PredeclarationV2) -ceq $PredeclarationV2Sha) (Sha256 $PredeclarationV2))
     [void](Add-Check 'commit' 'fixture_sha256' 'integrity' ((Sha256 $Fixture) -ceq $FixtureSha) (Sha256 $Fixture))
     $dirty = @(git -C $Repo status --porcelain)
     [void](Add-Check 'commit' 'clean_checkout' 'integrity' ($dirty.Count -eq 0) $dirty)
@@ -343,6 +355,9 @@ function Run-Stages {
 
     if (-not (Phase-Stage 'verify' 'verify' $true 900)) { return }
     if (-not (Phase-Stage 'tokenize' 'tokenize' $true 600)) { return }   # before any timed call
+    # precision (v2 §3): float32 requested, verified on the loaded parameters, CPU/torch, pinned checkpoint, P1 parity.
+    # A failure here stops the run before seed, warm-up or any measured process.
+    if (-not (Phase-Stage 'precision' 'precision' $true 900 $true)) { return }
     if (-not (Phase-Stage 'seed' 'seed' $true 1800)) { return }
     if (-not (Phase-Stage 'failclosed' 'failclosed' $true 900 $true)) { return }
 
@@ -426,13 +441,15 @@ $hard = @($failed | Where-Object { $_.kind -ne 'infrastructure' })
 $missing = @($Stages | Where-Object { $Completed -notcontains $_ })
 $verdict = if ($hard.Count) { 'FAIL' } elseif ($failed.Count -or $missing.Count) { 'INCONCLUSIVE' } else { 'PASS' }
 $receipt = [ordered]@{
-    schema = 'callosum-p1b-qualification-receipt-v1'; stage = 'P1b packaged DeBERTa performance and resource qualification (Windows x64)'
+    schema = 'callosum-p1b-qualification-receipt-v2'; stage = 'P1b packaged DeBERTa performance and resource qualification (Windows x64), revision 2: float32 DeBERTa loading (inc 637)'
     verdict = $verdict; started = $started.ToString('o'); finished = (Get-Date).ToString('o')
     run = [ordered]@{ repository = $env:GITHUB_REPOSITORY; ref = $env:GITHUB_REF; sha = $env:GITHUB_SHA; run_id = $env:GITHUB_RUN_ID; attempt = $env:GITHUB_RUN_ATTEMPT; workflow = $env:GITHUB_WORKFLOW; runner = $env:RUNNER_NAME
         url = "$($env:GITHUB_SERVER_URL)/$($env:GITHUB_REPOSITORY)/actions/runs/$($env:GITHUB_RUN_ID)" }
-    predeclaration = [ordered]@{ path = 'tools/qualification/p1b/P1B_PREDECLARATION.md'; sha256 = (Sha256 $Predeclaration) }
+    predeclaration = [ordered]@{ path = 'tools/qualification/p1b/P1B_PREDECLARATION.md'; sha256 = (Sha256 $Predeclaration)
+        revision = [ordered]@{ path = 'tools/qualification/p1b/P1B_PREDECLARATION_V2.md'; sha256 = (Sha256 $PredeclarationV2) }
+        first_attempt = 'run 41948518913 at 7998ea63: INCONCLUSIVE (driver defect); float16 DeBERTa; not this experiment' }
     fixture = [ordered]@{ path = 'tools/qualification/p1b/fixtures/p1b-pairs-v1.json'; sha256 = (Sha256 $Fixture); indexing_corpus_sha256 = $CorpusSha }
-    models = [ordered]@{ deberta = 'MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli@6f5cf0a2b59cabb106aca4c287eed12e357e90eb (committed manifest)'
+    models = [ordered]@{ deberta = 'MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli@6f5cf0a2b59cabb106aca4c287eed12e357e90eb (committed manifest; loaded with dtype=torch.float32, verified on the loaded parameters)'
         arctic_s = 'Snowflake/snowflake-arctic-embed-s@e596f507467533e48a2e17c007f0e1dacc837b33 (committed manifest)'
         minilm = 'sentence-transformers/all-MiniLM-L6-v2@1110a243fdf4706b3f48f1d95db1a4f5529b4d41 (run inventory, no committed manifest)'
         minilm2 = 'cross-encoder/nli-MiniLM2-L6-H768@b95119ce93d3e065de6214e38cd4a97b0f2f2c6d (run inventory, no committed manifest)' }
@@ -441,7 +458,8 @@ $receipt = [ordered]@{
     failed_checks = $failed; checks = $Checks
     limitations = @(
         'The 21 pairs are a new public synthetic fixture. They do not reproduce G2''s pairs; the comparison with G2 is envelope-level.',
-        'G1 categorical parity (99 + 209 private pairs, plan §8.2) is not covered: the private material is not published to GitHub Actions. G1 stays CONDITIONAL.',
+        'G1 categorical parity (99 + 209 private pairs, plan §8.2) is not covered: the private material is not published to GitHub Actions. G1 stays CONDITIONAL, and the float32 loader needs its own G1 re-check.',
+        'The precision stage''s P1 parity uses two synthetic pairs and the P1 limit (0.001); it shows the corrected loader reproduces the float32 reference, not G1 parity. Float16 outputs also fall within 0.001: the precision evidence is the loaded-parameter check, not the parity tolerance.',
         'Passing operational limits says nothing about threshold calibration.',
         'MiniLM and MiniLM2 are checked against an inventory taken in this run at the pinned revision, not against a committed manifest.',
         'The Arctic worker is the production worker entry under a -I -B shim, without the supervisor; supervisor retry and restart are P3.',

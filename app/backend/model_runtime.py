@@ -32,6 +32,16 @@ PINNED_MODEL_REVISIONS: dict[str, str] = {
     "MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli": "6f5cf0a2b59cabb106aca4c287eed12e357e90eb",
 }
 
+# Inference precision a CrossEncoder must load and run in, requested explicitly and then verified on the loaded
+# parameters (inc 637). The pinned DeBERTa checkpoint stores float16 weights, and transformers 5 loads a checkpoint's
+# own precision by default, so the packaged runtime ran DeBERTa in float16 while G1/G2 measured float32. A name absent
+# here keeps the library's default load unchanged (the MiniLM2 baseline).
+REQUIRED_INFERENCE_DTYPES: dict[str, str] = {"MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli": "float32"}
+
+
+class ModelPrecisionError(RuntimeError):
+    """A model did not load in its required inference precision, or its precision could not be established."""
+
 
 @dataclass(frozen=True)
 class ModelRuntimeIdentity:
@@ -353,13 +363,93 @@ def _load_sentence_transformer(identity: ModelRuntimeIdentity) -> object:
 
 
 def _load_cross_encoder(identity: ModelRuntimeIdentity) -> object:
-    from sentence_transformers import CrossEncoder
-
-    return CrossEncoder(
+    return load_cross_encoder(
         identity.model_name,
         revision=identity.revision,
         device=identity.device,
         local_files_only=identity.local_files_only,
         backend=identity.backend,
-        model_kwargs={"use_safetensors": True},
     )
+
+
+def load_cross_encoder(
+    model_name: str,
+    *,
+    revision: str | None,
+    device: str | None,
+    local_files_only: bool,
+    backend: str,
+) -> object:
+    """The one CrossEncoder construction, shared by the runtime registry and the scorers' direct loaders.
+
+    A model in ``REQUIRED_INFERENCE_DTYPES`` is loaded with ``dtype=torch.<required>`` (the ``from_pretrained``
+    argument in both pinned transformers lines, 5.14.1 and Intel macOS 4.57.6; ``torch_dtype`` is only their deprecated
+    alias) and is then refused unless every floating-point parameter and buffer of the loaded module has that dtype.
+    The check reads the constructed model, so an ignored argument cannot pass it.
+    """
+    from sentence_transformers import CrossEncoder
+
+    model_kwargs: dict[str, object] = {"use_safetensors": True}
+    required = REQUIRED_INFERENCE_DTYPES.get(model_name)
+    if required is not None:
+        if backend != "torch":
+            raise ModelPrecisionError(f"{model_name}: {required} inference is enforced on the torch backend only")
+        import torch
+
+        model_kwargs["dtype"] = getattr(torch, required)
+    model = CrossEncoder(
+        model_name,
+        revision=revision,
+        device=device,
+        local_files_only=local_files_only,
+        backend=backend,
+        model_kwargs=model_kwargs,
+    )
+    if required is not None:
+        require_floating_point_dtype(model, required, model_name=model_name)
+    return model
+
+
+def floating_point_dtypes(model: object) -> dict[str, dict[str, int]]:
+    """Tensor counts by dtype for a loaded torch module: ``parameters``, ``floating_buffers`` and ``other_buffers``.
+    Integer/bool buffers (position and token-type ids) carry no weights and are reported separately, not checked.
+    Raises ``ModelPrecisionError`` when the module's tensors cannot be enumerated or a tensor has no dtype."""
+    report: dict[str, dict[str, int]] = {"parameters": {}, "floating_buffers": {}, "other_buffers": {}}
+    try:
+        tensors = [("parameters", t) for _, t in model.named_parameters()]  # type: ignore[attr-defined]
+        tensors += [("buffers", t) for _, t in model.named_buffers()]  # type: ignore[attr-defined]
+    except Exception as exc:  # noqa: BLE001 -- anything that is not an inspectable torch module fails closed
+        raise ModelPrecisionError(f"cannot enumerate the loaded model's tensors: {type(exc).__name__}: {exc}") from exc
+    for kind, tensor in tensors:
+        dtype = getattr(tensor, "dtype", None)
+        floating = getattr(dtype, "is_floating_point", None)
+        if not isinstance(floating, bool):
+            raise ModelPrecisionError(f"a loaded tensor has no readable dtype ({dtype!r})")
+        if kind == "parameters":
+            group = "parameters"
+        else:
+            group = "floating_buffers" if floating or dtype.is_complex else "other_buffers"  # type: ignore[union-attr]
+        name = str(dtype).removeprefix("torch.")
+        report[group][name] = report[group].get(name, 0) + 1
+    return report
+
+
+def require_floating_point_dtype(model: object, required: str, *, model_name: str) -> dict[str, dict[str, int]]:
+    """Refuse a loaded model unless it has floating-point parameters and every parameter and every floating-point
+    buffer is ``required``. Output dtype is never consulted: predict() casts float16 scores to float32 arrays."""
+    report = floating_point_dtypes(model)
+    parameters = report["parameters"]
+    if not parameters:
+        raise ModelPrecisionError(f"{model_name}: the loaded model exposes no parameters; its precision is unknown")
+    wrong = {
+        group: bad
+        for group in ("parameters", "floating_buffers")
+        if (bad := {dtype: n for dtype, n in report[group].items() if dtype != required})
+    }
+    if wrong:
+        raise ModelPrecisionError(
+            f"{model_name} loaded with {wrong} tensors where {required} inference is required ({report}); refusing to "
+            f"score with it. The installed model library did not honour the requested dtype: repair or reinstall the "
+            f"Callosum runtime rather than verifying in reduced precision."
+        )
+    return report

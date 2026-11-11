@@ -374,4 +374,8 @@ def test_owned_transformer_loads_require_safetensors() -> None:
         ROOT / "app/backend/summarization/stance.py",
     ]
     combined = "\n".join(path.read_text(encoding="utf-8") for path in sources)
-    assert combined.count('model_kwargs={"use_safetensors": True}') == 5
+    # Two SentenceTransformer loads, plus the one shared CrossEncoder construction (inc 637) that the runtime
+    # registry and both scorers' direct loaders call; no other module constructs a CrossEncoder.
+    assert combined.count('model_kwargs={"use_safetensors": True}') == 2
+    assert combined.count('model_kwargs: dict[str, object] = {"use_safetensors": True}') == 1
+    assert combined.count("CrossEncoder(") == 1

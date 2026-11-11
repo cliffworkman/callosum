@@ -45,15 +45,49 @@ class DebertaV2TokenizerFake:  # name prefix satisfies the DeBERTa tokenizer con
     pass
 
 
+P1_FIXTURE = json.loads((REPO / "tools/qualification/p1/fixtures/p1-probe-v1.json").read_text(encoding="utf-8"))
+P1_REFERENCE = {
+    tuple(pair): row
+    for pair, row in zip(
+        P1_FIXTURE["deberta"]["pairs_premise_hypothesis"], P1_FIXTURE["deberta"]["reference_probabilities"], strict=True
+    )
+}
+
+
 class FakeCrossEncoder:
-    def __init__(self, labels: dict[int, str], model_type: str, tokenizer: object) -> None:
+    """Carries real torch parameters in ``dtype`` and rounds its scores through that dtype, as a float16 model's
+    predict() would before casting to float32; the frozen P1 pairs return the P1 float32 reference."""
+
+    def __init__(self, labels: dict[int, str], model_type: str, tokenizer: object, dtype: str = "float32") -> None:
+        import torch
+
         self.model = SimpleNamespace(config=_Config(id2label=labels, model_type=model_type))
         self.config = self.model.config
         self.tokenizer = tokenizer
+        self.dtype = getattr(torch, dtype)
+        self.weights = torch.nn.Linear(2, 3).to(self.dtype)
+        if model_type == "deberta-v2":  # the snapshot revision transformers records on a cache load
+            self.model.config._commit_hash = "6f5cf0a2b59cabb106aca4c287eed12e357e90eb"
+
+    def named_parameters(self):  # type: ignore[no-untyped-def]
+        return self.weights.named_parameters()
+
+    def named_buffers(self):  # type: ignore[no-untyped-def]
+        return self.weights.named_buffers()
 
     def predict(self, pairs, apply_softmax=True):  # type: ignore[no-untyped-def]
+        import numpy
+        import torch
+
+        rows = self._scores(pairs)
+        return torch.tensor(rows, dtype=torch.float64).to(self.dtype).float().numpy().astype(numpy.float32)
+
+    def _scores(self, pairs):  # type: ignore[no-untyped-def]
         out = []
         for premise, hypothesis in pairs:
+            if (premise, hypothesis) in P1_REFERENCE and self.model.config.id2label[0] == "entailment":
+                out.append(P1_REFERENCE[(premise, hypothesis)])
+                continue
             overlap = len(set(premise.lower().split()) & set(hypothesis.lower().split())) / max(
                 1, len(set(hypothesis.lower().split()))
             )
@@ -63,9 +97,7 @@ class FakeCrossEncoder:
                 if self.model.config.id2label[0] == "entailment"
                 else [max(0.0, 0.95 - ent), ent, 0.05]
             )
-        import numpy
-
-        return numpy.array(out)
+        return out
 
 
 class FakeSentenceTransformer:
@@ -89,10 +121,16 @@ class FakeSentenceTransformer:
         return numpy.array(vectors, dtype=numpy.float32)
 
 
+DEBERTA_FAKE_DTYPE = {"dtype": "float32"}  # a test switch: "float16" emulates the defect run 41948518913 measured
+
+
 def fake_cross_encoder(identity):  # type: ignore[no-untyped-def]
     if "DeBERTa" in identity.model_name:
         return FakeCrossEncoder(
-            {0: "entailment", 1: "neutral", 2: "contradiction"}, "deberta-v2", DebertaV2TokenizerFake()
+            {0: "entailment", 1: "neutral", 2: "contradiction"},
+            "deberta-v2",
+            DebertaV2TokenizerFake(),
+            DEBERTA_FAKE_DTYPE["dtype"],
         )
     return FakeCrossEncoder({0: "contradiction", 1: "entailment", 2: "neutral"}, "bert", object())
 
@@ -151,6 +189,53 @@ def fixture_checks() -> dict:
         and "≤ 2,520 MB" in text
         and "≤ 2,870 MB" in text,
     )
+    import hashlib
+
+    v2 = (HERE / "P1B_PREDECLARATION_V2.md").read_bytes()
+    v2_text = v2.decode("utf-8")
+    record(
+        "predeclaration_v1_unchanged_and_pinned",
+        "$PredeclarationSha = '6a5a2d85adce3c91d05a81ce506373d190c5e7474ecb9eb6873f75bc8d93e063'" in driver
+        and hashlib.sha256((HERE / "P1B_PREDECLARATION.md").read_bytes()).hexdigest()
+        == "6a5a2d85adce3c91d05a81ce506373d190c5e7474ecb9eb6873f75bc8d93e063",
+    )
+    record(
+        "predeclaration_v2_pinned_in_driver",
+        f"$PredeclarationV2Sha = '{hashlib.sha256(v2).hexdigest()}'" in driver,
+        hashlib.sha256(v2).hexdigest(),
+    )
+    record(
+        "v2_limits_unchanged",
+        all(x in v2_text for x in ("≤ 7.2 s", "≤ 8.8 s", "≤ 2,520 MB", "≤ 2,870 MB"))
+        and "acd2723c" in v2_text
+        and "fixtures/p1b-pairs-v1.json" in v2_text,
+    )
+    stages = driver.split("$Stages = ", 1)[1].split("\n\n", 1)[0]
+    order = [s.strip(" '\n") for s in stages.replace("\n", ",").split(",") if s.strip(" '\n")]
+    record(
+        "precision_stage_before_any_timing",
+        order.index("tokenize") + 1 == order.index("precision") == order.index("seed") - 1
+        and order.index("precision") < order.index("warmup")
+        and "Phase-Stage 'precision' 'precision' $true 900 $true)) { return }" in driver,
+        order,
+    )
+    allowed = driver.split("$AllowedChanges = @(", 1)[1].split(")", 1)[0]
+    record(
+        "allowlist_is_exactly_the_correction",
+        sorted(x.strip().strip("'") for x in allowed.replace("\n", ",").split(",") if x.strip())
+        == sorted(
+            [
+                "^tools/qualification/p1b/",
+                r"^\.github/workflows/p1b-qualification\.yml$",
+                r"^app/backend/model_runtime\.py$",
+                r"^app/backend/summarization/verification\.py$",
+                r"^app/backend/summarization/stance\.py$",
+                r"^tests/test_nli_precision\.py$",
+                r"^tests/test_desktop_packaging\.py$",
+            ]
+        ),
+        allowed,
+    )
     return fx
 
 
@@ -201,6 +286,7 @@ def pipeline_checks(fx: dict) -> None:
         )
         res = run_phase(probe, "seed", args)
         record("seed_phase", all(c["ok"] for c in res["checks"]), res["checks"])
+        precision_checks(probe, args)
         out = {}
         for model in ("deberta", "minilm2"):
             args.model = model
@@ -274,6 +360,73 @@ def pipeline_checks(fx: dict) -> None:
             "worker_token" not in (res["data"]["row"] or {}) and res["data"]["row"]["intent"] == "pause",
         )
         engine.dispose()
+
+
+def precision_checks(probe, args: argparse.Namespace) -> None:  # type: ignore[no-untyped-def]
+    """v2 §3: the pre-timing precision gate passes a float32 model and refuses a float16 one, whichever layer sees it."""
+    res = run_phase(probe, "precision", args)
+    failed = [c for c in res["checks"] if not c["ok"]]
+    required = {
+        "float32_requested_by_app",
+        "app_load_in_float32",
+        "loaded_parameters_float32",
+        "effective_device_cpu",
+        "effective_backend_torch",
+        "loaded_checkpoint_identity",
+        "p1_reference_parity",
+        "p1_app_extraction_parity",
+        "p1_outputs_not_float16",
+        "p1_statuses_unchanged",
+    }
+    seen = {c["id"] for c in res["checks"]}
+    record("precision_phase_float32", not failed and required <= seen, failed or sorted(required - seen))
+    DEBERTA_FAKE_DTYPE["dtype"] = "float16"  # a model the app's loader never saw (injected factory): probe-side checks
+    try:
+        res = run_phase(probe, "precision", args)
+        args.model = "deberta"
+        measured = run_phase(probe, "measure", args)
+    finally:
+        DEBERTA_FAKE_DTYPE["dtype"] = "float32"
+        args.model = None
+    failed = {c["id"] for c in res["checks"] if not c["ok"]}
+    record(
+        "precision_phase_refuses_float16_parameters",
+        failed == {"loaded_parameters_float32", "p1_outputs_not_float16"},
+        sorted(failed),
+    )
+    failed = {c["id"] for c in measured["checks"] if not c["ok"]}
+    record(
+        "measure_refuses_float16_deberta",
+        failed == {"deberta_parameters_float32", "deberta_outputs_not_float16"},
+        sorted(failed),
+    )
+    # Through the app's real loader: a library that ignores dtype=float32 is refused before any score exists.
+    import sentence_transformers
+
+    def ignoring(model_name, **kwargs):  # type: ignore[no-untyped-def]
+        return fake_cross_encoder(SimpleNamespace(model_name=model_name))
+
+    from app.backend.model_runtime import ModelRuntimeRegistry
+
+    saved, saved_app = getattr(sentence_transformers, "CrossEncoder", None), probe.fake_app
+    sentence_transformers.CrossEncoder = ignoring
+    probe.fake_app = lambda engine: SimpleNamespace(
+        state=SimpleNamespace(engine=engine, model_runtime_registry=ModelRuntimeRegistry())
+    )
+    DEBERTA_FAKE_DTYPE["dtype"] = "float16"
+    try:
+        res = run_phase(probe, "precision", args)
+    finally:
+        DEBERTA_FAKE_DTYPE["dtype"] = "float32"
+        sentence_transformers.CrossEncoder, probe.fake_app = saved, saved_app
+    failed = [c for c in res["checks"] if not c["ok"]]
+    record(
+        "precision_phase_app_loader_refuses_ignored_dtype",
+        [c["id"] for c in failed] == ["app_load_in_float32"]
+        and "ModelPrecisionError" in str(failed[0]["detail"])
+        and not any(c["id"] == "p1_reference_parity" for c in res["checks"]),
+        [(c["id"], str(c["detail"])[:120]) for c in failed],
+    )
 
 
 def synthetic(
@@ -363,6 +516,15 @@ def static_checks() -> None:
         cmd = f"$e=$null; [void][System.Management.Automation.Language.Parser]::ParseFile('{HERE / script}',[ref]$null,[ref]$e); @($e).Count"
         out = subprocess.run(["pwsh", "-NoProfile", "-Command", cmd], capture_output=True, text=True, check=False)  # noqa: S603,S607
         record(f"pwsh_syntax_{script}", out.stdout.strip() == "0", out.stdout.strip() + out.stderr.strip())
+    driver = subprocess.run(  # noqa: S603,S607
+        ["pwsh", "-NoProfile", "-File", str(HERE / "p1b_driver_selftest.ps1")],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    record(
+        "driver_process_bookkeeping", driver.returncode == 0, driver.stdout.strip().splitlines()[-1:] + [driver.stderr]
+    )
     wf = (REPO / ".github" / "workflows" / "p1b-qualification.yml").read_text(encoding="utf-8")
     trigger = wf.split("\non:\n", 1)[1].split("\npermissions:", 1)[0]
     record(

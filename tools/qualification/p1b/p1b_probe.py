@@ -7,6 +7,8 @@
 * ``verify``     -- offline: manifests re-hashed, baseline inventories re-hashed against the receipt, cache contents.
 * ``netcheck``   -- offline boundary negative controls.
 * ``tokenize``   -- offline: token lengths of the frozen pairs under both pinned NLI tokenizers (before any timing).
+* ``precision``  -- offline, before any timing (v2): DeBERTa loaded through the app in float32, verified on the loaded
+  parameters, CPU/torch, pinned checkpoint, and parity with the frozen float32 P1 reference.
 * ``seed``       -- disposable SQLite library: app Alembic chain, the fixture chunks, the synthetic indexing corpus.
 * ``measure``    -- one fresh measurement process: app verifier resolution, one cold and N warm ``verify_many`` calls.
 * ``failclosed`` -- the app's fail-closed paths under simulated memory refusal and injected inference failure.
@@ -407,6 +409,155 @@ def phase_tokenize(args: argparse.Namespace) -> None:
         check(f"no_truncation_{key}", "integrity", max(lengths) <= limit, {"max": max(lengths), "limit": limit})
 
 
+def tensor_dtypes(model) -> dict:  # type: ignore[no-untyped-def]
+    """The probe's own walk of a loaded torch module (independent of the app's check): tensor counts by dtype."""
+    out: dict = {"parameters": {}, "floating_buffers": {}, "other_buffers": {}}
+    for _, t in model.named_parameters():
+        out["parameters"][str(t.dtype)] = out["parameters"].get(str(t.dtype), 0) + 1
+    for _, t in model.named_buffers():
+        group = "floating_buffers" if t.dtype.is_floating_point else "other_buffers"
+        out[group][str(t.dtype)] = out[group].get(str(t.dtype), 0) + 1
+    return out
+
+
+def all_float16_representable(values) -> bool:  # type: ignore[no-untyped-def]
+    """True when every value is exactly a float16 number: the signature of float16 inference whose outputs predict()
+    casts to float32. Float32 inference makes this practically impossible over more than a handful of values."""
+    import numpy
+
+    array = numpy.asarray(values, dtype=numpy.float32)
+    return bool(numpy.all(array.astype(numpy.float16).astype(numpy.float32) == array))
+
+
+def phase_precision(args: argparse.Namespace) -> None:
+    """Before any timing (P1B_PREDECLARATION_V2.md §3): DeBERTa loads through the app in float32, verified on the loaded
+    model itself, on CPU/torch at the pinned checkpoint, and reproduces the frozen float32 P1 reference."""
+    if not require_offline():
+        return
+    import sentence_transformers
+    import torch
+    import transformers
+
+    from app.backend.api.dependencies import resolve_support_scorer
+    from app.backend.model_runtime import REQUIRED_INFERENCE_DTYPES
+    from app.backend.summarization.nli_profiles import DEBERTA_NLI_PROFILE_KEY, NLI_PROFILES
+    from app.backend.summarization.verification import LocalCitationVerifier, VerificationConfig
+
+    fixture = load_fixture(args.fixture)
+    expected = fixture["models"]["deberta"]
+    p1_path = Path(args.repo) / "tools" / "qualification" / "p1" / "fixtures" / "p1-probe-v1.json"
+    p1 = json.loads(p1_path.read_text(encoding="utf-8"))
+    nli = p1["deberta"]
+    profile = NLI_PROFILES[DEBERTA_NLI_PROFILE_KEY]
+    DATA.update(
+        p1_fixture_sha256=sha256_file(p1_path),
+        versions={
+            "torch": torch.__version__,
+            "transformers": transformers.__version__,
+            "sentence_transformers": sentence_transformers.__version__,
+            "python": sys.version.split()[0],
+        },
+        torch_default_dtype=str(torch.get_default_dtype()),
+        threads=torch.get_num_threads(),
+    )
+    labels = [profile.id2label[i] for i in sorted(profile.id2label)]
+    check(
+        "profile_identity",
+        "contract",
+        (profile.model_name, profile.revision) == (expected["model"], expected["revision"])
+        and (nli["model"], nli["revision"]) == (expected["model"], expected["revision"]),
+        [profile.model_name, profile.revision],
+    )
+    check("label_order", "contract", labels == expected["label_order"] == nli["label_order"], labels)
+    config = VerificationConfig()
+    current = {k: getattr(config, k) for k in fixture["verification_thresholds"]}
+    check("thresholds_unchanged", "scientific", current == fixture["verification_thresholds"], current)
+    requested = REQUIRED_INFERENCE_DTYPES.get(profile.model_name)
+    DATA["requested_dtype"] = requested
+    check("float32_requested_by_app", "contract", requested == "float32", requested)
+    api = fake_app(None)  # runs before seed: no library is needed or created
+    try:  # the app's own load: dtype=torch.float32, then its own parameter check and the label/tokenizer contract
+        scorer = resolve_support_scorer(api, nli_profile=profile)
+    except Exception as exc:  # noqa: BLE001 -- a refused load is the result; timing never starts after it
+        check("app_load_in_float32", "contract", False, f"{type(exc).__name__}: {exc}"[:600])
+        return
+    check("app_load_in_float32", "contract", True, "resolve_support_scorer: app precision and checkpoint checks passed")
+    runtime = scorer._runtime  # noqa: SLF001
+    model = runtime.loaded_model
+    dtypes = tensor_dtypes(model)
+    DATA["loaded_tensor_dtypes"] = dtypes
+    check(
+        "loaded_parameters_float32",
+        "contract",
+        bool(dtypes["parameters"])
+        and set(dtypes["parameters"]) == {"torch.float32"}
+        and set(dtypes["floating_buffers"]) <= {"torch.float32"},
+        dtypes,
+    )
+    devices = sorted({str(t.device) for _, t in model.named_parameters()})
+    hf_config = model.model.config
+    DATA.update(
+        devices=devices,
+        backend=runtime.identity.backend,
+        model_class=type(model.model).__name__,
+        config_dtype=str(getattr(hf_config, "dtype", None)),
+        commit_hash=getattr(hf_config, "_commit_hash", None),
+    )
+    check("effective_device_cpu", "contract", devices == ["cpu"], devices)
+    check("effective_backend_torch", "contract", runtime.identity.backend == "torch", runtime.identity.backend)
+    check(
+        "loaded_checkpoint_identity",
+        "integrity",
+        (runtime.identity.model_name, runtime.identity.revision) == (expected["model"], expected["revision"])
+        and DATA["commit_hash"] == expected["revision"]
+        and runtime.identity.local_files_only is True,
+        [runtime.identity.model_name, runtime.identity.revision, DATA["commit_hash"]],
+    )
+    pairs = [tuple(p) for p in nli["pairs_premise_hypothesis"]]
+    raw = runtime.run(lambda m: [[float(x) for x in row] for row in m.predict(pairs, apply_softmax=True)])
+    app_values = scorer.support_and_contradiction_many(pairs)
+    reference = nli["reference_probabilities"]
+    diff = max(abs(a - b) for row, ref in zip(raw, reference, strict=True) for a, b in zip(row, ref, strict=True))
+    app_diff = max(
+        max(abs(e - ref[0]), abs((c if c is not None else math.inf) - ref[2]))
+        for (e, c), ref in zip(app_values, reference, strict=True)
+    )
+    historical = max(
+        abs(a - b)
+        for row, ref in zip(raw, nli["historical_packaged_probabilities"], strict=True)
+        for a, b in zip(row, ref, strict=True)
+    )
+    limit = nli["max_abs_probability_difference"]
+    DATA.update(
+        p1_probabilities=raw,
+        p1_app_values=app_values,
+        max_abs_vs_float32_reference=diff,
+        max_abs_vs_historical_float16_packaged=historical,
+    )
+    check("p1_reference_parity", "scientific", diff <= limit, {"max_abs": diff, "limit": limit})
+    check("p1_app_extraction_parity", "scientific", app_diff <= limit, {"max_abs": app_diff, "limit": limit})
+    check(
+        "p1_outputs_not_float16",
+        "contract",
+        not all_float16_representable([x for row in raw for x in row]),
+        "the six P1 probabilities are not all exactly float16 values",
+    )
+    status_of = LocalCitationVerifier._status  # noqa: SLF001 -- the app's own status rule, unchanged
+    flips = []
+    for item in p1["expected_statuses"]:
+        ent, con = app_values[item["pair"]]
+        got = status_of(
+            SimpleNamespace(config=config),
+            retrieval_confidence=item["retrieval_confidence"],
+            quote_confidence=item["quote_confidence"],
+            support_confidence=ent,
+            contradiction_confidence=con,
+        )
+        if got != item["status"]:
+            flips.append({**item, "observed": got})
+    check("p1_statuses_unchanged", "scientific", not flips, flips or f"{len(p1['expected_statuses'])} statuses")
+
+
 def phase_seed(args: argparse.Namespace) -> None:
     from sqlalchemy import func, insert, select
 
@@ -600,6 +751,18 @@ def phase_measure(args: argparse.Namespace) -> None:
         )
         labels = [profile.id2label[i] for i in sorted(profile.id2label)]
         check("deberta_label_order", "contract", labels == expected["label_order"], labels)
+    if runtime is not None and runtime.loaded_model is not None:  # this process's own loaded model (v2 §3)
+        DATA["loaded_tensor_dtypes"] = tensor_dtypes(runtime.loaded_model)
+        if args.model == "deberta":
+            dtypes = DATA["loaded_tensor_dtypes"]
+            check(
+                "deberta_parameters_float32",
+                "contract",
+                bool(dtypes["parameters"])
+                and set(dtypes["parameters"]) == {"torch.float32"}
+                and set(dtypes["floating_buffers"]) <= {"torch.float32"},
+                dtypes,
+            )
     model = resolve_embedding_model(api)  # MiniLM, the verification-similarity model
     verifier = LocalCitationVerifier(
         model=model, vector_store=SQLiteVecVectorStore(), config=config, support_scorer=scorer
@@ -684,6 +847,14 @@ def phase_measure(args: argparse.Namespace) -> None:
         f"{len(calls)} calls x {len(items)} items",
     )
     check("statuses_stable_across_calls", "scientific", all(s == statuses[0] for s in statuses), statuses[0])
+    if args.model == "deberta":
+        scores = [x for c in calls for x in c["support"] + c["contradiction"]]
+        check(
+            "deberta_outputs_not_float16",
+            "contract",
+            not all_float16_representable(scores),
+            f"{len(scores)} support/contradiction probabilities are not all exactly float16 values",
+        )
     DATA["max_abs_support_difference_across_calls"] = max(
         abs(a - b) for c in calls for a, b in zip(c["support"], calls[0]["support"], strict=True)
     )
@@ -1065,6 +1236,7 @@ PHASES = {
     "verify": phase_verify,
     "netcheck": phase_netcheck,
     "tokenize": phase_tokenize,
+    "precision": phase_precision,
     "seed": phase_seed,
     "measure": phase_measure,
     "failclosed": phase_failclosed,

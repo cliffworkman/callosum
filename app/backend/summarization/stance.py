@@ -11,7 +11,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Protocol, TypeVar
 
-from app.backend.model_runtime import PINNED_MODEL_REVISIONS, ManagedModelRuntime
+from app.backend.model_runtime import PINNED_MODEL_REVISIONS, ManagedModelRuntime, load_cross_encoder
 
 T = TypeVar("T")
 
@@ -157,15 +157,12 @@ class NLIStanceScorer:
             if self._loader is not None:
                 self._model = self._loader()
             else:
-                from sentence_transformers import CrossEncoder
-
-                self._model = CrossEncoder(
+                self._model = load_cross_encoder(
                     self.model_name,
                     revision=self.revision,
                     device=self.device,
                     local_files_only=self.local_files_only,
                     backend=self.backend,
-                    model_kwargs={"use_safetensors": True},
                 )
         return self._model
 
