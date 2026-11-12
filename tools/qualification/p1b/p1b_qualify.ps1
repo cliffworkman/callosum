@@ -1,7 +1,9 @@
-# P1b hosted Windows qualification driver (inc 636; revision 2, inc 637): DeBERTa performance and resources on the
-# packaged runtime, with the inc 637 float32 loading correction.
+# P1b hosted Windows qualification driver (inc 636; revision 2, inc 637; revision 3, inc 639): DeBERTa performance and
+# resources on the packaged runtime, with the inc 637 float32 loading correction.
 #
-# Method: P1B_PREDECLARATION.md (v1, unchanged) as revised by P1B_PREDECLARATION_V2.md, both pinned below by SHA-256.
+# Method: P1B_PREDECLARATION.md (v1, unchanged) as revised by P1B_PREDECLARATION_V2.md and P1B_PREDECLARATION_V3.md,
+# all pinned below by SHA-256. V3 adds untimed idle settling before every solo measured process and reconciles the
+# foreign-CPU noise rule with v1 §7 (per individual process); both live in p1b_noise.ps1.
 # Every stage runs once, in order; nothing is retried except the predeclared once-per-slot noise repeat. Stages:
 #   resources -> commit -> download -> archive -> manifest -> extract -> tree -> signature -> runtime_id -> identity
 #   -> provision (network allowed) -> boundary (outbound block on the exact python.exe + controls) -> verify -> tokenize
@@ -30,7 +32,8 @@ $TreePins = [ordered]@{
     'tools/qualification/p1' = 'bed59ea6e768bc6bd19349290b63b97e7204bcef'; '.github/workflows/p1-qualification.yml' = '5b328e8de4c9c268cf85278a0120e156760fc12b'
 }
 $PredeclarationSha = '6a5a2d85adce3c91d05a81ce506373d190c5e7474ecb9eb6873f75bc8d93e063'   # v1, the first attempt's; unchanged
-$PredeclarationV2Sha = 'cd04c73ad591d8ef1af48dd4cca720103f64bd3e0e2eee40f7da6af13633d030'
+$PredeclarationV2Sha = 'cd04c73ad591d8ef1af48dd4cca720103f64bd3e0e2eee40f7da6af13633d030'   # v2, the second attempt's; unchanged
+$PredeclarationV3Sha = '0f8720813aac4434520e7a78b562bf084f84c0f74ab5be8e3eb6d774dc56d6c3'   # v3 (inc 639): idle settling, per-process noise rule
 $FixtureSha = 'acd2723c5b389f9f446ee00069475a6c256de3c19865108b3bd9f66aafb49920'
 $CorpusSha = 'cb488cdea1277d3f4f9738f21f146cc3d0bda5bd00f6b70af9b1147203d416bc'
 $RuntimeId = 'win-x86_64-py3.11-s1-2094b5a287a1dd54'
@@ -46,9 +49,7 @@ $AllowedChanges = @('^tools/qualification/p1b/', '^\.github/workflows/p1b-qualif
     '^tests/test_nli_precision\.py$', '^tests/test_desktop_packaging\.py$')   # v2 §2: the inc 637 correction, exactly
 $FirewallGroup = 'callosum-p1b-qualification'
 $GatePhysGiB = 6; $GateCommitGiB = 8; $GateDiskGiB = 10; $FloorPhysGiB = 1.5   # plan §7.4; stop floor as P1
-$NoiseForeignCpuRatio = 0.25   # predeclaration §7
 $WorkerReadyChunks = 16        # two committed batches of 8 before condition B starts
-$OsProcesses = @('Idle', 'System', 'Registry', 'Memory Compression', 'Secure System', 'WmiPrvSE')
 $Stages = 'resources', 'commit', 'download', 'archive', 'manifest', 'extract', 'tree', 'signature', 'runtime_id', 'identity',
 'provision', 'boundary', 'verify', 'tokenize', 'precision', 'seed', 'failclosed', 'warmup', 'deberta_solo', 'minilm2_solo', 'worker_start',
 'deberta_concurrent', 'minilm2_concurrent', 'worker_stop', 'evaluate', 'after', 'cleanup'
@@ -58,6 +59,9 @@ $P1 = Join-Path (Split-Path $Here -Parent) 'p1'
 $Fixture = Join-Path $Here 'fixtures\p1b-pairs-v1.json'
 $Predeclaration = Join-Path $Here 'P1B_PREDECLARATION.md'
 $PredeclarationV2 = Join-Path $Here 'P1B_PREDECLARATION_V2.md'
+$PredeclarationV3 = Join-Path $Here 'P1B_PREDECLARATION_V3.md'
+$NoiseModule = Join-Path $Here 'p1b_noise.ps1'
+. $NoiseModule   # $NoiseExcludedNames, $NoiseForeignCpuRatio (0.25), the settling constants, Merge-CpuSnapshot, Measure-ForeignCpu, Wait-IdleSettled
 $Probe = Join-Path $Here 'p1b_probe.py'
 $WorkerShim = Join-Path $Here 'p1b_worker.py'
 New-Item -ItemType Directory -Path $Work -ErrorAction SilentlyContinue | Out-Null
@@ -86,6 +90,12 @@ $Info = [ordered]@{}
 $Processes = [ordered]@{}
 $Counted = [ordered]@{}
 $Discarded = [ordered]@{}
+$Settling = [ordered]@{}
+$script:SettleBudget = @{ total_s = $SettleTotalSec; used_s = 0.0 }   # v3 §3: shared by every settling attempt in the run
+$script:Mono = [System.Diagnostics.Stopwatch]::StartNew()                # monotonic clock for settling
+$script:Clock = { $script:Mono.Elapsed.TotalSeconds }
+$script:SleepFor = { param([double]$Seconds) $end = $script:Mono.Elapsed.TotalSeconds + $Seconds
+    while (($left = $end - $script:Mono.Elapsed.TotalSeconds) -gt 0) { Start-Sleep -Milliseconds ([int][math]::Ceiling($left * 1000)) } }
 $script:FirewallTouched = $false
 $script:ProfilesBefore = @()
 $script:Worker = $null
@@ -107,10 +117,20 @@ function Tree-Digest {
     if ($o -match 'entries (\d+) bytes (\d+) digest ([0-9a-f]{64})') { return [ordered]@{ entries = [int64]$Matches[1]; bytes = [int64]$Matches[2]; digest = $Matches[3] } }
     return [ordered]@{ error = $o.Trim() }
 }
+# Every process's name, total CPU time and start time (v3 §2). A counter .NET cannot read is filled from
+# Win32_Process; one neither can read stays $null, and Measure-ForeignCpu treats it as an invalid measurement.
 function Cpu-Snapshot {
     $s = @{}
-    foreach ($p in [System.Diagnostics.Process]::GetProcesses()) { try { $s[$p.Id] = @($p.ProcessName, $p.TotalProcessorTime.TotalSeconds) } catch { } }
-    return $s
+    foreach ($p in [System.Diagnostics.Process]::GetProcesses()) {
+        $n = $null; $c = $null; $t = $null
+        try { $n = $p.ProcessName } catch { }
+        try { $c = $p.TotalProcessorTime.TotalSeconds } catch { }
+        try { $t = $p.StartTime.ToUniversalTime().Ticks } catch { }
+        $s[$p.Id] = @{ name = $n; cpu_s = $c; start = $t; source = 'dotnet' }
+    }
+    if (-not ($s.Values | Where-Object { $null -eq $_.name -or $null -eq $_.cpu_s })) { return $s }
+    $rows = @(Get-CimInstance Win32_Process -Property ProcessId, Name, KernelModeTime, UserModeTime, CreationDate -ErrorAction SilentlyContinue)
+    return (Merge-CpuSnapshot $s $rows)
 }
 function New-Psi([string[]]$ArgList, [bool]$Offline, [bool]$Measure) {
     $psi = [System.Diagnostics.ProcessStartInfo]::new($Python)
@@ -165,16 +185,9 @@ function Invoke-Phase([string]$Stage, [string]$Phase, [bool]$Offline, [int]$Time
     $wall = $sw.Elapsed.TotalSeconds
     $cpu1 = Cpu-Snapshot
     $exclude = @($p.Id, $PID) + @($children.Keys | ForEach-Object { [int]$_ }) + @($(if ($script:Worker) { $script:Worker.Id }))
-    # $procName, never $name: PowerShell names are case-insensitive, so $name would overwrite the $Name parameter
+    # Never assign $name here: PowerShell names are case-insensitive, so it would overwrite the $Name parameter
     # (run 41948518913 filed deberta_solo_1 under "MsMpEng"; p1b_driver_selftest.ps1 guards this).
-    $foreign = @(foreach ($id in $cpu1.Keys) {
-            $procName = $cpu1[$id][0]
-            if ($exclude -contains $id -or $OsProcesses -contains $procName -or $procName -eq 'conhost') { continue }
-            $before = if ($cpu0.ContainsKey($id) -and $cpu0[$id][0] -eq $procName) { $cpu0[$id][1] } else { 0 }
-            $d = $cpu1[$id][1] - $before
-            if ($d -gt 0.05) { [pscustomobject]@{ pid = $id; name = $procName; cpu_s = [math]::Round($d, 2) } }
-        }) | Sort-Object { $_.cpu_s } -Descending
-    $foreignTotal = 0.0; foreach ($f in $foreign) { $foreignTotal += $f.cpu_s }
+    $foreign = Measure-ForeignCpu $cpu0 $cpu1 $wall $exclude $NoiseExcludedNames
     $peakWs = 0.0; foreach ($x in $samples) { if ($x.Contains('ws_mb')) { $peakWs = [math]::Max($peakWs, $x.ws_mb) } }
     Set-Content -LiteralPath (Join-Path $Out "$Name.stdout.txt") -Value $stdout.Result
     Set-Content -LiteralPath (Join-Path $Out "$Name.stderr.txt") -Value $stderr.Result
@@ -183,8 +196,13 @@ function Invoke-Phase([string]$Stage, [string]$Phase, [bool]$Offline, [int]$Time
     $Processes[$Name] = [ordered]@{ exit_code = $p.ExitCode; seconds = [math]::Round($wall, 1); start = $p.StartTime.ToUniversalTime().ToString('o')
         sampled_peak_working_set_mib = $peakWs
         min_available_phys_gib = $minPhys; min_free_commit_gib = $minCommit; child_processes = @($children.Values); stopped = $stopped
-        foreign_cpu_seconds = [math]::Round([double]$foreignTotal, 2); foreign_cpu_ratio = [math]::Round([double]$foreignTotal / [math]::Max($wall, 1e-6), 3)
-        top_foreign = @($foreign | Select-Object -First 5)
+        # v3 §2: the rule is judged on the busiest individual foreign process; the aggregate (the field v2 compared,
+        # foreign_cpu_ratio) is kept as a diagnostic only.
+        foreign_cpu_seconds = $foreign.aggregate_cpu_s; foreign_cpu_ratio = $foreign.aggregate_ratio
+        foreign_cpu_max_process = $foreign.max_process; foreign_cpu_max_process_ratio = $foreign.max_process_ratio
+        foreign_measurement_valid = $foreign.valid; foreign_invalid_reason = $foreign.invalid_reason
+        foreign_unreadable = $foreign.unreadable; foreign_replaced_pids = $foreign.replaced_pids; foreign_exited = @($foreign.exited | ForEach-Object { $_.name })
+        top_foreign = $foreign.top
     }
     [void](Add-Check $Stage "${Name}_no_unexpected_child_process" 'isolation' ($unexpected.Count -eq 0) @($children.Values))
     if ($stopped) {
@@ -205,6 +223,9 @@ function Phase-Stage([string]$Stage, [string]$Phase, [bool]$Offline, [int]$Timeo
 }
 
 # One measured process under the noise rule: a discarded process is repeated once; two in a row stop the condition.
+# v3 §3: before every solo measured process (the repeat included), an untimed idle-settling check; if it cannot be
+# established within its budgets the condition stops INCONCLUSIVE. Settling never counts a process and grants no
+# extra attempt: the v1 §7 post-measurement rule still decides every measured process.
 function Measure-Condition([string]$Stage, [string]$Model, [string]$Condition, [int]$Count) {
     $key = "${Model}_$Condition"; $Discarded[$key] = [System.Collections.Generic.List[string]]::new()
     $extra = @('--model', $Model, '--condition', $Condition)
@@ -213,14 +234,24 @@ function Measure-Condition([string]$Stage, [string]$Model, [string]$Condition, [
         $accepted = $false
         foreach ($attempt in 1, 2) {
             $name = if ($attempt -eq 1) { "${key}_$slot" } else { "${key}_${slot}_repeat" }
+            if ($Condition -eq 'solo') {
+                $st = Wait-IdleSettled -Budget $script:SettleBudget -Snapshot ${function:Cpu-Snapshot} -Clock $script:Clock -Sleep $script:SleepFor -ExcludePids @($PID)
+                $Settling[$name] = $st
+                $st | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $Out "$name.settling.json")
+                Log "idle settling before $name : settled=$($st.settled) after $($st.attempt_s) s, $($st.windows.Count) windows; run total $($st.run_used_after_s) s"
+                if (-not (Add-Check $Stage "${name}_idle_settled" 'infrastructure' $st.settled $(if ($st.settled) { "$($st.windows.Count) windows, $($st.attempt_s) s" } else { $st.reason }))) { return }
+            }
             $r = Invoke-Phase $Stage 'measure' $true 900 ($extra + @('--label', $name)) $true $name
             if ($null -eq $r -or -not $r['data'].ContainsKey('resource_policy')) { return }   # the failed checks are already recorded
             if (-not $Processes.Contains($name)) { [void](Add-Check $Stage "${name}_process_record_present" 'infrastructure' $false 'harness defect: Invoke-Phase recorded no process metadata under this name'); return }
             $pr = $Processes[$name]
             $reserve = $r['data']['resource_policy']['reserve_mb']
             $lowMemory = ($pr.min_available_phys_gib * 1024) -lt $reserve
-            $busy = $pr.foreign_cpu_ratio -ge $NoiseForeignCpuRatio
-            $pr.noise = [ordered]@{ reserve_mb = $reserve; min_available_phys_mb = [math]::Round($pr.min_available_phys_gib * 1024); low_memory = $lowMemory; foreign_cpu_ratio = $pr.foreign_cpu_ratio; foreign_busy = $busy }
+            $busy = Test-ForeignBusy @{ valid = $pr.foreign_measurement_valid; max_process_ratio = $pr.foreign_cpu_max_process_ratio } $NoiseForeignCpuRatio
+            $pr.noise = [ordered]@{ reserve_mb = $reserve; min_available_phys_mb = [math]::Round($pr.min_available_phys_gib * 1024); low_memory = $lowMemory
+                foreign_rule = "a single foreign process >= $NoiseForeignCpuRatio CPU-s per wall-s (v1 §7; v3 §2)"; foreign_max_process = $pr.foreign_cpu_max_process
+                foreign_max_process_ratio = [math]::Round([double]$pr.foreign_cpu_max_process_ratio, 4); foreign_aggregate_ratio_diagnostic = $pr.foreign_cpu_ratio
+                foreign_measurement_valid = $pr.foreign_measurement_valid; foreign_busy = $busy; idle_settled_before = $(if ($Settling.Contains($name)) { $Settling[$name].settled } else { $null }) }
             if ($lowMemory -or $busy) { Log "noise rule: $name discarded"; $Discarded[$key].Add($name); continue }
             $Counted[$name] = Join-Path $Out "$name.json"; $accepted = $true; break
         }
@@ -286,6 +317,7 @@ function Run-Stages {
     [void](Add-Check 'commit' 'application_trees_equal_pins' 'integrity' ($drift.Count -eq 0) $drift)
     [void](Add-Check 'commit' 'predeclaration_sha256' 'integrity' ((Sha256 $Predeclaration) -ceq $PredeclarationSha) (Sha256 $Predeclaration))
     [void](Add-Check 'commit' 'predeclaration_v2_sha256' 'integrity' ((Sha256 $PredeclarationV2) -ceq $PredeclarationV2Sha) (Sha256 $PredeclarationV2))
+    [void](Add-Check 'commit' 'predeclaration_v3_sha256' 'integrity' ((Sha256 $PredeclarationV3) -ceq $PredeclarationV3Sha) (Sha256 $PredeclarationV3))
     [void](Add-Check 'commit' 'fixture_sha256' 'integrity' ((Sha256 $Fixture) -ceq $FixtureSha) (Sha256 $Fixture))
     $dirty = @(git -C $Repo status --porcelain)
     [void](Add-Check 'commit' 'clean_checkout' 'integrity' ($dirty.Count -eq 0) $dirty)
@@ -441,26 +473,32 @@ $hard = @($failed | Where-Object { $_.kind -ne 'infrastructure' })
 $missing = @($Stages | Where-Object { $Completed -notcontains $_ })
 $verdict = if ($hard.Count) { 'FAIL' } elseif ($failed.Count -or $missing.Count) { 'INCONCLUSIVE' } else { 'PASS' }
 $receipt = [ordered]@{
-    schema = 'callosum-p1b-qualification-receipt-v2'; stage = 'P1b packaged DeBERTa performance and resource qualification (Windows x64), revision 2: float32 DeBERTa loading (inc 637)'
+    schema = 'callosum-p1b-qualification-receipt-v3'; stage = 'P1b packaged DeBERTa performance and resource qualification (Windows x64), revision 3: float32 DeBERTa loading (inc 637), idle settling and per-process noise rule (inc 639)'
     verdict = $verdict; started = $started.ToString('o'); finished = (Get-Date).ToString('o')
     run = [ordered]@{ repository = $env:GITHUB_REPOSITORY; ref = $env:GITHUB_REF; sha = $env:GITHUB_SHA; run_id = $env:GITHUB_RUN_ID; attempt = $env:GITHUB_RUN_ATTEMPT; workflow = $env:GITHUB_WORKFLOW; runner = $env:RUNNER_NAME
         url = "$($env:GITHUB_SERVER_URL)/$($env:GITHUB_REPOSITORY)/actions/runs/$($env:GITHUB_RUN_ID)" }
     predeclaration = [ordered]@{ path = 'tools/qualification/p1b/P1B_PREDECLARATION.md'; sha256 = (Sha256 $Predeclaration)
         revision = [ordered]@{ path = 'tools/qualification/p1b/P1B_PREDECLARATION_V2.md'; sha256 = (Sha256 $PredeclarationV2) }
-        first_attempt = 'run 41948518913 at 7998ea63: INCONCLUSIVE (driver defect); float16 DeBERTa; not this experiment' }
+        revision_3 = [ordered]@{ path = 'tools/qualification/p1b/P1B_PREDECLARATION_V3.md'; sha256 = (Sha256 $PredeclarationV3) }
+        first_attempt = 'run 41948518913 at 7998ea63: INCONCLUSIVE (driver defect); float16 DeBERTa; not this experiment'
+        second_attempt = 'run 43102297504 at 29a4a446: INCONCLUSIVE (deberta_solo slot 1 discarded twice by foreign CPU); not this experiment' }
     fixture = [ordered]@{ path = 'tools/qualification/p1b/fixtures/p1b-pairs-v1.json'; sha256 = (Sha256 $Fixture); indexing_corpus_sha256 = $CorpusSha }
     models = [ordered]@{ deberta = 'MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli@6f5cf0a2b59cabb106aca4c287eed12e357e90eb (committed manifest; loaded with dtype=torch.float32, verified on the loaded parameters)'
         arctic_s = 'Snowflake/snowflake-arctic-embed-s@e596f507467533e48a2e17c007f0e1dacc837b33 (committed manifest)'
         minilm = 'sentence-transformers/all-MiniLM-L6-v2@1110a243fdf4706b3f48f1d95db1a4f5529b4d41 (run inventory, no committed manifest)'
         minilm2 = 'cross-encoder/nli-MiniLM2-L6-H768@b95119ce93d3e065de6214e38cd4a97b0f2f2c6d (run inventory, no committed manifest)' }
-    harness_sha256 = [ordered]@{ driver = (Sha256 $PSCommandPath); probe = (Sha256 $Probe); worker_shim = (Sha256 $WorkerShim); p1_extract = (Sha256 (Join-Path $P1 'p1_extract_runtime.ps1')); p1_tree = (Sha256 (Join-Path $P1 'p1_tree_digest.ps1')); p1_minisign = (Sha256 (Join-Path $P1 'p1_minisign.py')); p1_probe = (Sha256 (Join-Path $P1 'p1_probe.py')) }
-    info = $Info; processes = $Processes; counted = $Counted; discarded = $Discarded; stages_completed = $Completed; stages_missing = $missing
+    harness_sha256 = [ordered]@{ driver = (Sha256 $PSCommandPath); probe = (Sha256 $Probe); worker_shim = (Sha256 $WorkerShim); noise_module = (Sha256 $NoiseModule); p1_extract = (Sha256 (Join-Path $P1 'p1_extract_runtime.ps1')); p1_tree = (Sha256 (Join-Path $P1 'p1_tree_digest.ps1')); p1_minisign = (Sha256 (Join-Path $P1 'p1_minisign.py')); p1_probe = (Sha256 (Join-Path $P1 'p1_probe.py')) }
+    info = $Info; processes = $Processes; counted = $Counted; discarded = $Discarded
+    settling = $Settling; settling_budget = [ordered]@{ run_total_s = $script:SettleBudget.total_s; run_used_s = [math]::Round($script:SettleBudget.used_s, 3); attempt_s = $SettleAttemptSec
+        window_s = $SettleWindowSec; windows = $SettleWindows; quiet_ratio = $SettleQuietRatio; post_measurement_ratio = $NoiseForeignCpuRatio }
+    stages_completed = $Completed; stages_missing = $missing
     failed_checks = $failed; checks = $Checks
     limitations = @(
         'The 21 pairs are a new public synthetic fixture. They do not reproduce G2''s pairs; the comparison with G2 is envelope-level.',
         'G1 categorical parity (99 + 209 private pairs, plan §8.2) is not covered: the private material is not published to GitHub Actions. G1 stays CONDITIONAL, and the float32 loader needs its own G1 re-check.',
         'The precision stage''s P1 parity uses two synthetic pairs and the P1 limit (0.001); it shows the corrected loader reproduces the float32 reference, not G1 parity. Float16 outputs also fall within 0.001: the precision evidence is the loaded-parameter check, not the parity tolerance.',
         'Passing operational limits says nothing about threshold calibration.',
+        'Idle settling (v3) screens the hosted VM before each solo process; it cannot see CPU used by a process that starts and exits between two snapshots, and it never alters other processes.',
         'MiniLM and MiniLM2 are checked against an inventory taken in this run at the pinned revision, not against a committed manifest.',
         'The Arctic worker is the production worker entry under a -I -B shim, without the supervisor; supervisor retry and restart are P3.',
         'Fail-closed behaviour under resource pressure is shown with simulated memory snapshots and an injected inference failure, not real exhaustion.',

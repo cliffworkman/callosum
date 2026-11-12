@@ -16,16 +16,27 @@ driver refuses to run if that file or the fixture differs from the SHA-256 pinne
 
 Limits, fixture and measurement rules are unchanged. The app and tests trees are pinned to the corrected source.
 
+**Revision 3 (inc 639).** The second attempt (run 43102297504) is INCONCLUSIVE: hosted-VM background CPU discarded
+`deberta_solo_1` and its repeat. `P1B_PREDECLARATION_V3.md`, also pinned, adds:
+- an untimed idle-settling check before every solo measured process (3 consecutive 10 s windows with no single
+  foreign process at 0.20 CPU-s per wall-second or more, 180 s per attempt, 600 s per run);
+- the noise rule as v1 §7 states it, per individual foreign process. Attempts 1 and 2 compared the aggregate; it is
+  now kept as a diagnostic.
+
+Limits, fixture, repetitions and aggregation are unchanged.
+
 | File | Role |
 |---|---|
 | `P1B_PREDECLARATION.md` | v1: method, conditions, measurement definitions, acceptance, verdict rules, scope |
 | `P1B_PREDECLARATION_V2.md` | v2 (inc 637): code under test, precision stage, per-process dtype checks; everything else unchanged |
 | `fixtures/p1b-pairs-v1.json` | 21 public synthetic quote/claim pairs, 9 distractor chunks, the indexing-corpus recipe |
+| `P1B_PREDECLARATION_V3.md` | v3 (inc 639): per-process noise rule reconciled with v1 §7, idle settling; everything else unchanged |
+| `p1b_noise.ps1` | foreign-CPU accounting and idle settling (pure functions, dot-sourced by the driver) |
 | `p1b_qualify.ps1` | the driver: runtime verification (P1 scripts, unchanged), firewall boundary, serial stages, receipt |
 | `p1b_probe.py` | one phase per process inside the packaged `python.exe -I -B` |
 | `p1b_worker.py` | starts the production `index_worker.main` under `-I -B` |
 | `p1b_selftest.py` | local, model-free self-test of the harness (fake checkpoints; never a measurement) |
-| `p1b_driver_selftest.ps1` | model-free test of the driver's process bookkeeping (run by `p1b_selftest.py`) |
+| `p1b_driver_selftest.ps1` | model-free test of the driver's process bookkeeping, noise rule and idle settling (run by `p1b_selftest.py`) |
 
 Run the self-test before publishing a change to this directory, with an interpreter that has the locked
 dependencies:

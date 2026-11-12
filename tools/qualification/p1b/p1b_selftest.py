@@ -10,7 +10,9 @@ No checkpoint is downloaded or loaded. Checks:
   through ``ModelRuntimeRegistry`` factories (the app's own resolution, verifier and status code runs unchanged);
 * that an armed run row is claimable by the worker protocol with the issued token;
 * ``evaluate`` and ``concurrency_established`` on synthetic receipts (pass, performance fail, missing overlap);
-* PowerShell syntax of the driver and the workflow's trigger, permission and credential settings.
+* PowerShell syntax of the driver and the workflow's trigger, permission and credential settings;
+* the v1/v2/v3 predeclaration pins and the v3 settling constants (inc 639); ``p1b_driver_selftest.ps1`` covers the
+  per-process noise rule and idle settling on synthetic snapshots with a simulated clock.
 """
 
 from __future__ import annotations
@@ -209,6 +211,53 @@ def fixture_checks() -> dict:
         all(x in v2_text for x in ("≤ 7.2 s", "≤ 8.8 s", "≤ 2,520 MB", "≤ 2,870 MB"))
         and "acd2723c" in v2_text
         and "fixtures/p1b-pairs-v1.json" in v2_text,
+    )
+    v3 = (HERE / "P1B_PREDECLARATION_V3.md").read_bytes()
+    v3_text = v3.decode("utf-8")
+    record(
+        "predeclaration_v2_unchanged",
+        hashlib.sha256(v2).hexdigest() == "cd04c73ad591d8ef1af48dd4cca720103f64bd3e0e2eee40f7da6af13633d030",
+        hashlib.sha256(v2).hexdigest(),
+    )
+    record(
+        "predeclaration_v3_pinned_in_driver",
+        f"$PredeclarationV3Sha = '{hashlib.sha256(v3).hexdigest()}'" in driver
+        and "'predeclaration_v3_sha256' 'integrity'" in driver,
+        hashlib.sha256(v3).hexdigest(),
+    )
+    record(
+        "v3_limits_unchanged",
+        all(
+            x in v3_text
+            for x in ("≤ 7.2 s", "≤ 8.8 s", "≤ 2,520 MB", "≤ 2,870 MB", "acd2723c", "0.25 CPU-s per wall-second")
+        ),
+    )
+    noise = (HERE / "p1b_noise.ps1").read_text(encoding="utf-8")
+    constants = {
+        "$NoiseForeignCpuRatio = 0.25 ": "0.25 CPU-s per wall-second",
+        "$SettleQuietRatio = 0.20 ": "0.20 CPU-s per wall-second",
+        "$SettleWindowSec = 10.0 ": "| Window | 10 s",
+        "$SettleWindows = 3 ": "3 consecutive quiet windows (30 s)",
+        "$SettleAttemptSec = 180.0 ": "180 s per settling attempt",
+        "$SettleTotalSec = 600.0 ": "600 s of settling in total",
+    }
+    record(
+        "v3_settling_constants_match_predeclaration",
+        all(k in noise and v in v3_text for k, v in constants.items())
+        and "$NoiseForeignCpuRatio = " not in driver
+        and ". $NoiseModule" in driver,
+        [k for k, v in constants.items() if k not in noise or v not in v3_text],
+    )
+    record(
+        "v3_settling_solo_only_and_before_measurement",
+        "if ($Condition -eq 'solo') {\n                $st = Wait-IdleSettled" in driver
+        and driver.index("$st = Wait-IdleSettled") < driver.index("$r = Invoke-Phase $Stage 'measure'"),
+    )
+    record(
+        "v3_settling_never_alters_processes",
+        not any(
+            x in noise for x in ("Stop-Process", "Kill(", "PriorityClass", "Suspend", "Stop-Service", "Set-Service")
+        ),
     )
     stages = driver.split("$Stages = ", 1)[1].split("\n\n", 1)[0]
     order = [s.strip(" '\n") for s in stages.replace("\n", ",").split(",") if s.strip(" '\n")]
@@ -512,7 +561,7 @@ def evaluate_checks() -> None:
 
 
 def static_checks() -> None:
-    for script in ("p1b_qualify.ps1",):
+    for script in ("p1b_qualify.ps1", "p1b_noise.ps1", "p1b_driver_selftest.ps1"):
         cmd = f"$e=$null; [void][System.Management.Automation.Language.Parser]::ParseFile('{HERE / script}',[ref]$null,[ref]$e); @($e).Count"
         out = subprocess.run(["pwsh", "-NoProfile", "-Command", cmd], capture_output=True, text=True, check=False)  # noqa: S603,S607
         record(f"pwsh_syntax_{script}", out.stdout.strip() == "0", out.stdout.strip() + out.stderr.strip())
